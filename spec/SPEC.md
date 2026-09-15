@@ -91,7 +91,7 @@ The 20 surfaces and what each owns.
 
 Completeness directions, and the honest limit of each.
 
-- Tools both ways. Every `name: "pstack_*"` literal in `extensions/**/*.ts` has a `kind=tool` row, and every `kind=tool` row's name exists. Limit: this proves tool registration, not behavior.
+- Tools both ways. Every `name: "pstack_*"` literal in `extensions/**/*.ts` has a `kind=tool` row, and every `kind=tool` row's name exists. Limit: this proves tool registration, not behavior. It matches literal `name:` fields, so a tool registered through a variable or a computed name would not be found.
 - Mechanisms via `spec/mechanisms.tsv`. Every mechanism the host-mechanism sweep names has exactly one row. Limit: the sweep is a grep over the pinned upstream. A mechanism absent from the sweep is not covered.
 - Commands via the alias gate. `port/alias.mjs` proves reserved and skill names register once and the arg-forwarding helpers are present. Limit: the gate proves registration shape, not argument semantics.
 
