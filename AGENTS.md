@@ -2,7 +2,7 @@
 
 ## Scope
 
-These rules govern project-owned code: `extensions/`, `tests/`, `port/`, and root scripts. Enforce them with `npm run conformance` (zero-dependency checker, wired into `npm test` as layer 0).
+These rules govern project-owned code: `extensions/`, `tests/`, `port/`, `spec/`, and root scripts. Enforce them with `npm run conformance` (zero-dependency checker, wired into `npm test` as layer 0). The ledger files `spec/contracts/*.tsv`, `spec/surfaces.tsv`, and `spec/mechanisms.tsv` are data; `spec/spec-check.mjs` is the code the gate scans.
 
 The ported tree (`skills/`, `agents/`, `automations/`, `docs/`) is upstream pstack content held byte-exact by `port/port.mjs` against the commit pinned in `port/upstream.json`. Its style is upstream's and editing it is drift, so the checker reports it in warn-only mode (`npm run conformance -- --all`) rather than failing the gate.
 
