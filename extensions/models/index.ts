@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   defaultModelsConfig,
+  detectPreferredModel,
   loadModelsConfig,
   modelsConfigPath,
   type PstackModelsConfig,
@@ -12,13 +13,22 @@ export { loadModelsConfig, resolveRoleModel, modelsConfigPath } from "./config.t
 
 export function registerModels(pi: ExtensionAPI): void {
   pi.registerCommand("setup-pstack", {
-    description: "Write ~/.pi/agent/pstack-models.json role→model map",
+    description: "Write ~/.pi/agent/pstack-models.json role→model map (concrete skill defaults when detectable)",
     handler: async (_args, ctx) => {
-      const existing = loadModelsConfig(ctx.cwd) ?? defaultModelsConfig();
+      const detected = detectPreferredModel();
+      const existing = loadModelsConfig(ctx.cwd) ?? defaultModelsConfig(detected);
+      // If an old inherit-parent-only file exists and we have a preferred slug, upgrade blanks.
+      if (detected) {
+        for (const [k, v] of Object.entries(existing.roles)) {
+          if (v === "inherit-parent" || v === "auto") existing.roles[k] = detected;
+          if (Array.isArray(v) && v.every((x) => x === "inherit-parent" || x === "auto")) {
+            existing.roles[k] = v.map(() => detected!);
+          }
+        }
+      }
       const path = modelsConfigPath();
       mkdirSync(dirname(path), { recursive: true });
 
-      // Interactive path when UI available
       if (ctx.hasUI) {
         const budget = await ctx.ui.select("pstack budget", [
           "unlimited — keep max",
@@ -29,7 +39,7 @@ export function registerModels(pi: ExtensionAPI): void {
         if (budget) existing.budget = budget;
         const accept = await ctx.ui.confirm(
           "Write defaults?",
-          `Write inherit-parent defaults (budget: ${existing.budget ?? "unlimited"}) to ${path}? Edit the JSON afterward for real slugs.`,
+          `Write concrete role defaults${detected ? ` (detected ${detected} for code roles)` : " (skill default slugs)"} (budget: ${existing.budget ?? "unlimited"}) to ${path}? Edit the JSON afterward for real provider/id slugs your account has.`,
         );
         if (!accept) {
           ctx.ui.notify("setup-pstack cancelled", "info");

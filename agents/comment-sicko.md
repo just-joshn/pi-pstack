@@ -2,7 +2,7 @@
 name: Comment Sicko
 description: A deranged comment-hater that savors deletion and condemns workaround code.
 ---
-> **Pi port.** Spawn via `pstack_spawn` with `role: "comment-sicko"` (not Cursor Task). Report-only; parent applies fixes via `/skill:no-comments`.
+> **Pi port.** Spawn via `pstack_spawn` with `role: "comment-sicko"` (not Cursor Task). Auto-readonly (`read,grep,find,ls` only). Report-only; parent applies fixes via `/skill:no-comments`.
 
 
 # Comment Sicko

@@ -29,6 +29,28 @@ Status legend:
 | .gitignore | present | present |
 | .cursor-plugin | present | deferred → package.json `pi` |
 
+
+## Behavioral scorecard (12 capabilities)
+
+Honest runtime parity vs Cursor pstack host behavior (not artifact presence). Legend: **EQUIVALENT** | **PARTIAL** | **NOT**.
+
+| # | Capability | Behavioral | Notes (Stage 2 close-partials) |
+|---|---|---|---|
+| 1 | poteto-mode sticky + playbook routing | PARTIAL | Sticky session flag + soft prompt; playbooks use Pi recipes (`pstack_spawn`/`worktree`) |
+| 2 | Task / subagent → spawn / swarm / arena | PARTIAL | Real local children; **background detach + `pstack_jobs`**; no cloud VMs; cap 4 |
+| 3 | /loop → pstack_loop | PARTIAL | **`dynamic` = settle+watcher composite** (+ interval/settle/watcher) |
+| 4 | worktrees isolation | PARTIAL | Real `pstack_worktree` + swarm/arena auto-isolation; not cloud/IDE UX |
+| 5 | shipping / babysit (gh) | PARTIAL | Real `pstack_babysit`/`pstack_ship`; playbooks mandate local verify fleets |
+| 6 | deslop / control companions | PARTIAL | Deslop: severity + samples; control_ui HTTP-only unless browser MCP |
+| 7 | model role routing | PARTIAL | `/setup-pstack` writes **concrete skill defaults** (detect slug when possible) |
+| 8 | recall | PARTIAL | `pstack_sessions` over Pi session corpus (not Cursor transcripts) |
+| 9 | make-bot-ui | NOT | Wake file/webhook twin only; no Grok Bot `update_state`/secret cards |
+| 10 | Benny | NOT | Manual skills + `pstack_benny_wake`; no Automations Slack bus |
+| 11 | Ask-mode / readonly semantics | PARTIAL | Tool allowlist twin; **comment-sicko + investigator auto-readonly**; no Ask/MCP-strip |
+| 12 | Automations / cloud agents / marketplace | NOT | Local spawn+worktree twin only; marketplace/Automations/cloud VMs absent |
+
+Artifact matrix below counts files on disk. Do not read “ported” as EQUIVALENT.
+
 ## Inventory status (all 124 rows)
 
 | Inventory path | Status | On disk | Upstream class | Notes |
@@ -163,14 +185,14 @@ Status legend:
 | Module | Tools / commands | Status |
 |---|---|---|
 | extensions/index.ts | /poteto-mode, /poteto-mode-off, /pstack | rewritten |
-| extensions/subagents | pstack_spawn | rewritten |
+| extensions/subagents | pstack_spawn, pstack_jobs (background detach) | rewritten |
 | extensions/orchestration | pstack_swarm, pstack_arena | rewritten |
 | extensions/models | /setup-pstack, role injection | rewritten |
 | extensions/decision-log | pstack_decision_log | rewritten |
 | extensions/worktree | pstack_worktree | rewritten |
 | extensions/gates | /pstack-gates | rewritten |
-| extensions/heartbeat | pstack_loop, /pstack-loop | rewritten |
-| extensions/companions | pstack_deslop, pstack_control_cli, pstack_control_ui, /deslop | rewritten |
+| extensions/heartbeat | pstack_loop (interval|settle|watcher|dynamic), /pstack-loop | rewritten |
+| extensions/companions | pstack_deslop (severity+samples), pstack_control_cli, pstack_control_ui, /deslop | rewritten |
 | extensions/sessions | pstack_sessions | rewritten |
 | extensions/shipping | pstack_babysit, pstack_ship | rewritten |
 | extensions/benny | pstack_benny_wake, /setup-benny, /benny-triage, /benny-repro | rewritten |
@@ -178,7 +200,7 @@ Status legend:
 ## Remaining physical impossibilities (twins shipped)
 
 1. **Cursor plugin marketplace / `.cursor-plugin`** — impossible on Pi. Twin: `package.json` `pi` manifest + `pi install`.
-2. **Cursor cloud agent VMs** — no public Pi equivalent API. Twin: local `pstack_spawn` + `pstack_worktree`.
+2. **Cursor cloud agent VMs** — no public Pi equivalent API. Twin: local `pstack_spawn` (`background` + `pstack_jobs`) + `pstack_worktree` fleets.
 3. **Cursor Automations Slack bus** — no in-core Slack automation host. Twin: `pstack_benny_wake` + `pstack_loop` watcher + Benny skills under `automations/benny/`.
 4. **Full Electron/IDE UI driving (control-ui)** — Pi is TUI-first. Twin: `pstack_control_ui` HTTP probe + optional browser MCP.
 5. **Grok Bot `update_state` / secret-request cards** — Cursor-only. Twin: make-bot-ui wake file/webhook + env/file secrets.

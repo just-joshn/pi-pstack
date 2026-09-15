@@ -3,20 +3,27 @@
  * Arms a settle-retry / heartbeat that re-prompts the agent after idle+delay,
  * or after a watcher argv exits. Uses official ExtensionAPI (sendUserMessage,
  * agent_settled, session_shutdown). No Cursor /loop dependency.
+ *
+ * mode=dynamic is a settle+watcher composite: fires on agent_settled (after
+ * intervalSeconds) and/or when watchArgv exits; watcher re-arms after each fire
+ * while the loop remains armed (Cursor /loop dynamic twin).
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 interface LoopState {
   id: string;
-  mode: "interval" | "watcher" | "settle";
+  mode: "interval" | "watcher" | "settle" | "dynamic";
   prompt: string;
+  basePrompt: string;
   intervalMs: number;
   maxFires: number;
   fires: number;
   timer?: ReturnType<typeof setTimeout>;
   child?: { kill: (sig?: string) => void };
   armed: boolean;
+  watchArgv?: string[];
+  watcherRunning?: boolean;
 }
 
 export function registerHeartbeat(pi: ExtensionAPI): void {
@@ -41,6 +48,35 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
     loops.delete(state.id);
   };
 
+  const startWatcher = (state: LoopState, signal?: AbortSignal) => {
+    if (!state.armed || !state.watchArgv?.length || state.watcherRunning) return;
+    const argv = state.watchArgv;
+    const [command, ...args] = argv;
+    if (!command || command.startsWith("-")) return;
+    state.watcherRunning = true;
+    void (async () => {
+      try {
+        const result = await pi.exec(command, args, {
+          signal,
+          timeout: 24 * 60 * 60 * 1000,
+        });
+        if (!state.armed) return;
+        const out = (result.stdout || result.stderr || "").slice(0, 8000);
+        state.prompt = `${state.basePrompt}\n\n--- watcher output ---\n${out}`;
+        fire(state, "watcher");
+      } catch {
+        if (!state.armed) return;
+        fire(state, "watcher-error");
+      } finally {
+        state.watcherRunning = false;
+        // dynamic: re-arm watcher after fire while still armed and under max
+        if (state.armed && state.mode === "dynamic" && state.fires < state.maxFires) {
+          startWatcher(state, signal);
+        }
+      }
+    })();
+  };
+
   const fire = (state: LoopState, reason: string) => {
     if (!state.armed) return;
     state.fires++;
@@ -57,6 +93,8 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       `[pstack_loop ${state.id} fire ${state.fires}/${state.maxFires} reason=${reason}]\n${state.prompt}`,
       { deliverAs: "followUp" },
     );
+    // Reset prompt to base after injecting watcher output once
+    state.prompt = state.basePrompt;
     if (state.mode === "interval" && state.armed) {
       clearTimer(state);
       state.timer = setTimeout(() => fire(state, "interval"), state.intervalMs);
@@ -71,7 +109,7 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
 
   pi.on("agent_settled", () => {
     for (const state of loops.values()) {
-      if (state.mode === "settle" && state.armed) {
+      if ((state.mode === "settle" || state.mode === "dynamic") && state.armed) {
         // Clear before re-arm so settle events do not stack uncleared timers.
         clearTimer(state);
         state.timer = setTimeout(() => fire(state, "settle"), state.intervalMs);
@@ -101,6 +139,7 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
         id,
         mode: "interval",
         prompt,
+        basePrompt: prompt,
         intervalMs: Math.max(5, seconds) * 1000,
         maxFires: 100,
         fires: 0,
@@ -119,23 +158,29 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
     name: "pstack_loop",
     label: "Pstack Loop",
     description:
-      "Arm, status, or stop a heartbeat / settle-retry loop (closest Pi twin to Cursor /loop). Modes: interval | settle | watcher. There is no dynamic mode.",
-    promptSnippet: "Arm a repeating wake prompt after interval or agent settle",
+      "Arm, status, or stop a heartbeat / settle-retry / watcher / dynamic loop (closest Pi twin to Cursor /loop). Modes: interval | settle | watcher | dynamic (settle+watcher composite).",
+    promptSnippet: "Arm a repeating wake prompt after interval, settle, watcher, or dynamic",
     promptGuidelines: [
       "Use pstack_loop instead of Cursor /loop for autonomous-run and babysit wake chains.",
-      "Prefer mode=watcher with watchArgv (argv array, never a raw shell string) when an event (CI, merge) should wake the agent.",
-      "mode=settle clears any prior timer before re-arming on agent_settled.",
+      "Prefer mode=dynamic (settle+watcher) for babysit/shipping frontiers; pass watchArgv when an event (CI, merge) should wake the agent.",
+      "mode=settle / dynamic clears any prior timer before re-arming on agent_settled.",
+      "mode=watcher fires once when watchArgv exits; mode=dynamic re-arms the watcher after each fire.",
     ],
     parameters: Type.Object({
       action: Type.String({ description: "arm | stop | status" }),
-      mode: Type.Optional(Type.String({ description: "interval | settle | watcher (default interval). No dynamic." })),
+      mode: Type.Optional(
+        Type.String({
+          description:
+            "interval | settle | watcher | dynamic (default interval). dynamic = settle + optional watcher re-arm.",
+        }),
+      ),
       prompt: Type.Optional(Type.String({ description: "Prompt to inject on each fire" })),
       intervalSeconds: Type.Optional(Type.Integer({ minimum: 5, maximum: 86400 })),
       maxFires: Type.Optional(Type.Integer({ minimum: 1, maximum: 500 })),
       watchArgv: Type.Optional(
         Type.Array(Type.String(), {
           description:
-            "For mode=watcher: argv array [command, ...args] (no shell). On exit the loop fires once with stdout.",
+            "For mode=watcher|dynamic: argv array [command, ...args] (no shell). On exit the loop fires (dynamic re-arms).",
         }),
       ),
       watchCommand: Type.Optional(
@@ -167,9 +212,6 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       }
       if (params.action !== "arm") throw new Error("action must be arm|stop|status");
       if (!params.prompt) throw new Error("prompt required to arm");
-      if (params.mode === "dynamic") {
-        throw new Error("pstack_loop has no dynamic mode; use interval, settle, or watcher");
-      }
       if (params.watchCommand) {
         throw new Error("watchCommand is rejected (no bash -lc of model strings); pass watchArgv as an argv array");
       }
@@ -177,38 +219,39 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       const existing = loops.get(id);
       if (existing) clearLoop(existing);
       const mode = (params.mode as LoopState["mode"]) || "interval";
-      if (mode !== "interval" && mode !== "settle" && mode !== "watcher") {
-        throw new Error("mode must be interval|settle|watcher");
+      if (mode !== "interval" && mode !== "settle" && mode !== "watcher" && mode !== "dynamic") {
+        throw new Error("mode must be interval|settle|watcher|dynamic");
       }
       const state: LoopState = {
         id,
         mode,
         prompt: params.prompt,
+        basePrompt: params.prompt,
         intervalMs: (params.intervalSeconds ?? 1800) * 1000,
         maxFires: params.maxFires ?? 50,
         fires: 0,
         armed: true,
+        watchArgv: params.watchArgv,
       };
       loops.set(id, state);
       ctx.ui.setStatus("pstack-loop", id);
 
       if (mode === "watcher") {
-        const argv = params.watchArgv;
-        if (!argv?.length) throw new Error("watchArgv required for mode=watcher");
-        const [command, ...args] = argv;
+        if (!params.watchArgv?.length) throw new Error("watchArgv required for mode=watcher");
+        const [command] = params.watchArgv;
         if (!command || command.startsWith("-")) {
           throw new Error("watchArgv[0] must be a command path/name (not an option)");
         }
-        void (async () => {
-          const result = await pi.exec(command, args, {
-            signal,
-            timeout: 24 * 60 * 60 * 1000,
-          });
-          if (!state.armed) return;
-          const out = (result.stdout || result.stderr || "").slice(0, 8000);
-          state.prompt = `${params.prompt}\n\n--- watcher output ---\n${out}`;
-          fire(state, "watcher");
-        })();
+        startWatcher(state, signal);
+      } else if (mode === "dynamic") {
+        // settle arm happens on agent_settled; optional watcher runs in parallel and re-arms
+        if (params.watchArgv?.length) {
+          const [command] = params.watchArgv;
+          if (!command || command.startsWith("-")) {
+            throw new Error("watchArgv[0] must be a command path/name (not an option)");
+          }
+          startWatcher(state, signal);
+        }
       } else if (mode === "interval") {
         clearTimer(state);
         state.timer = setTimeout(() => fire(state, "interval"), state.intervalMs);
@@ -220,7 +263,7 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
         content: [
           {
             type: "text",
-            text: `Armed ${id} mode=${mode} intervalSeconds=${params.intervalSeconds ?? 1800} maxFires=${state.maxFires}`,
+            text: `Armed ${id} mode=${mode} intervalSeconds=${params.intervalSeconds ?? 1800} maxFires=${state.maxFires}${params.watchArgv?.length ? " watcher=on" : ""}`,
           },
         ],
         details: { id, mode },

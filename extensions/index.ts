@@ -80,7 +80,7 @@ export default function piPstack(pi: ExtensionAPI) {
       const task = args.trim();
       if (!task) {
         ctx.ui.notify(
-          `pi-pstack tools: pstack_spawn, pstack_swarm, pstack_arena, pstack_loop, pstack_deslop, pstack_ship, pstack_babysit, pstack_benny_wake. Package: ${PACKAGE_ROOT}`,
+          `pi-pstack tools: pstack_spawn, pstack_jobs, pstack_swarm, pstack_arena, pstack_loop, pstack_deslop, pstack_ship, pstack_babysit, pstack_benny_wake. Package: ${PACKAGE_ROOT}`,
           "info",
         );
         return;

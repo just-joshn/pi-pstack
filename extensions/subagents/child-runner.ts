@@ -140,6 +140,13 @@ async function runChildTaskUnlocked(
     prompt = [
       "You are Comment Sicko. Follow agents/comment-sicko.md rules.",
       "First output exactly: Yes... Ha ha ha... Yes!",
+      "You are readonly: report only; do not write, edit, or run bash.",
+      input.task,
+    ].join("\n\n");
+  } else if (input.role === "investigator") {
+    prompt = [
+      "You are a read-only investigator. Do not write, edit, or mutate the tree.",
+      "Cite files and evidence. Return findings only.",
       input.task,
     ].join("\n\n");
   }
@@ -235,4 +242,113 @@ async function runChildTaskUnlocked(
     stderr: truncate(stderr),
     stopReason: timedOut ? "timeout" : aborted ? "aborted" : stopReason,
   };
+}
+
+/** In-process background job registry (session-scoped). */
+export type BackgroundJobStatus = "queued" | "running" | "done" | "failed" | "aborted";
+
+export interface BackgroundJob {
+  id: string;
+  status: BackgroundJobStatus;
+  role?: string;
+  model: string;
+  taskPreview: string;
+  startedAt: number;
+  finishedAt?: number;
+  result?: ChildTaskResult;
+  error?: string;
+}
+
+const backgroundJobs = new Map<string, BackgroundJob>();
+const backgroundControllers = new Map<string, AbortController>();
+let backgroundSeq = 0;
+
+export function listBackgroundJobs(): BackgroundJob[] {
+  return [...backgroundJobs.values()].sort((a, b) => a.startedAt - b.startedAt);
+}
+
+export function getBackgroundJob(id: string): BackgroundJob | undefined {
+  return backgroundJobs.get(id);
+}
+
+export function abortBackgroundJob(id: string): BackgroundJob | undefined {
+  const controller = backgroundControllers.get(id);
+  const job = backgroundJobs.get(id);
+  if (controller) {
+    controller.abort();
+    backgroundControllers.delete(id);
+  }
+  if (job && (job.status === "queued" || job.status === "running")) {
+    job.status = "aborted";
+    job.finishedAt = Date.now();
+  }
+  return job;
+}
+
+export function abortAllBackgroundJobs(): void {
+  for (const id of [...backgroundControllers.keys()]) {
+    abortBackgroundJob(id);
+  }
+}
+
+/**
+ * Detach a child: returns immediately with a job id; completion is async.
+ * Uses an independent AbortController (not the parent tool signal) so the
+ * child survives the spawn tool returning. Still respects MAX_CONCURRENCY.
+ */
+export function enqueueBackgroundChild(
+  input: ChildTaskInput,
+  defaultCwd: string,
+  parentModel: string,
+  onComplete?: (job: BackgroundJob) => void,
+): BackgroundJob {
+  const id = `bg-${++backgroundSeq}-${Date.now().toString(36)}`;
+  const controller = new AbortController();
+  const job: BackgroundJob = {
+    id,
+    status: "queued",
+    role: input.role,
+    model:
+      !input.model || input.model === "auto" || input.model === "inherit-parent"
+        ? parentModel
+        : input.model,
+    taskPreview: input.task.slice(0, 200),
+    startedAt: Date.now(),
+  };
+  backgroundJobs.set(id, job);
+  backgroundControllers.set(id, controller);
+
+  void (async () => {
+    job.status = "running";
+    try {
+      const result = await runChildTask(input, defaultCwd, parentModel, controller.signal);
+      job.result = result;
+      if (controller.signal.aborted) job.status = "aborted";
+      else if (result.exitCode === 0) job.status = "done";
+      else job.status = "failed";
+    } catch (err) {
+      job.status = controller.signal.aborted ? "aborted" : "failed";
+      job.error = err instanceof Error ? err.message : String(err);
+    } finally {
+      job.finishedAt = Date.now();
+      backgroundControllers.delete(id);
+      onComplete?.(job);
+    }
+  })();
+
+  return job;
+}
+
+export async function awaitBackgroundJob(
+  id: string,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<BackgroundJob> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const job = backgroundJobs.get(id);
+    if (!job) throw new Error(`unknown background job: ${id}`);
+    if (job.status === "done" || job.status === "failed" || job.status === "aborted") return job;
+    if (Date.now() >= deadline) throw new Error(`await timed out for job ${id}`);
+    await new Promise((r) => setTimeout(r, 250));
+  }
 }

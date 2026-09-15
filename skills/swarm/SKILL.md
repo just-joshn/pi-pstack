@@ -27,7 +27,7 @@ Open a todolist with one entry per phase before launching anything.
 
 ## Phase B: Fan out
 
-Call `pstack_swarm` with N worker briefs (or N× `pstack_spawn` with `role: "general"` and a unique `cwd` / worktree per writer) and the configured model. Pi v1 is local-only. Pass only registered `pstack_spawn` / `pstack_swarm` fields (`task`, `role`, `model`, `cwd`, …). `background` is parity-only and still sync-awaits — prefer `pstack_swarm` for parallel fan-out (global concurrency cap: 4).
+Call `pstack_swarm` with N worker briefs (or N× `pstack_spawn` with `role: "general"` and a unique `cwd` / worktree per writer) and the configured model. Pi v1 is local-only. Pass only registered `pstack_spawn` / `pstack_swarm` fields (`task`, `role`, `model`, `cwd`, …). `background: true` on spawn detaches (use `pstack_jobs` to drain); prefer `pstack_swarm` for parallel fan-out (global concurrency cap: 4).
 
 Every brief stands alone. Include the goal, scope, exact slice or race arm, how to verify, and what to report. Reports use `PASS`, `ISSUES`, or `BLOCKED` with evidence.
 

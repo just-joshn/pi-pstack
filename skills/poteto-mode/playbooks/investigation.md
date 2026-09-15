@@ -1,10 +1,10 @@
 ### Investigation
 
-**You own the answer. Plan, route, write.**
+**You own the answer. Plan, route, report (read-only).**
 
 Investigation requests are read-only. They produce a cited explanation or a recommendation, not a code change.
 
-1. Route through the **how** skill. For motivation questions, also route through the **why** skill.
+1. Route through the **how** skill. For motivation questions, also route through the **why** skill. Any child you spawn for this playbook uses `role: "investigator"` (auto-readonly) or `readonly: true` — investigation produces citations, not writes.
 2. Throughput checkpoint stays one line: `throughput checkpoint: n/a, read-only investigation`.
 3. Produce the `how`-shaped output (Overview / Key Concepts / How It Works / Where Things Live / Gotchas), or a recommendation with a tradeoffs table if the request is a decision between alternatives.
 4. Apply the **unslop** skill to the reply.

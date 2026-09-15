@@ -17,7 +17,7 @@ Enumerate model selectors as `provider/id` from this Pi session (`/model`, `ctx.
 
 ### 2. Load current state
 
-If `~/.pi/agent/pstack-models.json` or project `.pi/pstack-models.json` exists, treat it as current. Otherwise start from inherit-parent defaults.
+If `~/.pi/agent/pstack-models.json` or project `.pi/pstack-models.json` exists, treat it as current. Otherwise start from concrete skill defaults (`grok-4.6-fast-xhigh` for code roles, `claude-fable-5-1-thinking-max` for judgment/prose), upgrading any detected `provider/id` from the session/env when available. Prefer real slugs over `inherit-parent`.
 
 ### 3. Budget, map, and confirm
 
@@ -45,28 +45,28 @@ Write `~/.pi/agent/pstack-models.json` (user-level; do not commit). Shape:
   "version": 1,
   "budget": "unlimited (max)",
   "roles": {
-    "feature, refactoring": "inherit-parent",
-    "bug-fix": "inherit-parent",
-    "perf-issue": "inherit-parent",
-    "hillclimb": "inherit-parent",
-    "judgment and prose": "inherit-parent",
-    "hardest tasks": "inherit-parent",
-    "how explorer": "inherit-parent",
-    "how explainer": "inherit-parent",
-    "why investigators": "inherit-parent",
-    "why synthesizer": "inherit-parent",
-    "reflect tooling": "inherit-parent",
-    "reflect judgment, divergent, synthesizer": "inherit-parent",
-    "arena runners": ["inherit-parent", "inherit-parent", "inherit-parent", "inherit-parent"],
-    "arena cross-judge pool": ["inherit-parent"],
-    "swarm workers": "inherit-parent",
-    "architect runners": ["inherit-parent", "inherit-parent", "inherit-parent", "inherit-parent"],
-    "interrogate reviewers": ["inherit-parent", "inherit-parent", "inherit-parent", "inherit-parent"]
+    "feature, refactoring": "grok-4.6-fast-xhigh",
+    "bug-fix": "grok-4.6-fast-xhigh",
+    "perf-issue": "grok-4.6-fast-xhigh",
+    "hillclimb": "grok-4.6-fast-xhigh",
+    "judgment and prose": "claude-fable-5-1-thinking-max",
+    "hardest tasks": "claude-fable-5-1-thinking-max",
+    "how explorer": "grok-4.6-fast-xhigh",
+    "how explainer": "claude-fable-5-1-thinking-max",
+    "why investigators": "grok-4.6-fast-xhigh",
+    "why synthesizer": "claude-fable-5-1-thinking-max",
+    "reflect tooling": "grok-4.6-fast-xhigh",
+    "reflect judgment, divergent, synthesizer": "claude-fable-5-1-thinking-max",
+    "arena runners": ["claude-fable-5-1-thinking-max", "gpt-5.6-sol-max", "grok-4.6-fast-xhigh", "claude-opus-5-thinking-xhigh"],
+    "arena cross-judge pool": ["claude-fable-5-1-thinking-max"],
+    "swarm workers": "grok-4.6-fast-xhigh",
+    "architect runners": ["claude-fable-5-1-thinking-max", "gpt-5.6-sol-max", "grok-4.6-fast-xhigh", "claude-opus-5-thinking-xhigh"],
+    "interrogate reviewers": ["claude-fable-5-1-thinking-max", "gpt-5.6-sol-max", "grok-4.6-fast-xhigh", "claude-opus-5-thinking-xhigh"]
   }
 }
 ```
 
-Replace `inherit-parent` with real `provider/id` selectors the user chose.
+Replace any slug your account lacks with a confirmed `provider/id`, or `inherit-parent` / `auto` to follow the parent chat model.
 
 ### 6. Confirm
 

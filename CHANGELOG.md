@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.2-pi.0 (close-partials Stage 2)
+
+- Background children: `pstack_spawn` `background: true` detaches via job queue + completion follow-up; `pstack_jobs` list/status/await/abort
+- `pstack_loop` `mode: dynamic` = settle+watcher composite (re-arms watcher); babysit/shipping recipes use it
+- Playbooks (shipping/autopilot/orchestrate/…): Cursor cloud agent → working `pstack_spawn`+`pstack_worktree` fleets
+- Auto-readonly for `comment-sicko` and `investigator` roles; investigation playbook mandates it
+- `pstack_deslop` thickened: severity ranks + per-file samples on added lines
+- `/setup-pstack` writes concrete skill-default slugs (detect preferred model when available)
+- why-skill Ask-mode clauses → Pi readonly truth; README/PARITY honesty + 12-capability behavioral scorecard
+
+
 ## 0.15.2-pi.0 (harden-p0)
 
 - Skill↔tool contract: drop Cursor-only spawn args from skills; document sync-await background; remove fake loop `dynamic` mode; unify models path to `pstack-models.json`

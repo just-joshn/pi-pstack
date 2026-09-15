@@ -1,7 +1,7 @@
 {
   "name": "pi-pstack",
   "version": "0.15.2-pi.0",
-  "description": "Max-parity native Pi port of Cursor pstack v0.15.2 (poteto-mode, principles, swarm/arena/interrogate, loop/deslop/control twins, gh shipping).",
+  "description": "Local Pi twin of Cursor pstack v0.15.2 (max practical parity; see PARITY.md behavioral scorecard).",
   "type": "module",
   "license": "MIT",
   "author": "Lauren Tan (original pstack); Pi port contributors (@just-joshn)",
