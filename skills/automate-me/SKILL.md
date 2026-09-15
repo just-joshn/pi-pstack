@@ -1,6 +1,6 @@
 ---
 name: automate-me
-description: "Use for \"automate me\", \"create/update/refresh my -mode skill\", \"turn/capture my preferences or working style into a skill\", or wanting agents to follow how the user works. Drafts or revises a personal -mode skill via Pi skill authoring (SKILL.md) + unslop, optionally pulling fresh evidence from recent transcripts."
+description: "Use for \"automate me\", \"create/update/refresh my -mode skill\", \"turn/capture my preferences or working style into a skill\", or wanting agents to follow how the user works. Drafts or revises a personal -mode skill via Pi skill authoring (Agent Skills SKILL.md) + unslop, optionally pulling fresh evidence from recent transcripts."
 disable-model-invocation: true
 ---
 
@@ -8,13 +8,13 @@ disable-model-invocation: true
 
 A guided flow for turning the user's working conventions into a skill agents will follow. The output is one `-mode` skill tailored to them (e.g. `jay-mode`, `priya-mode`).
 
-This skill orchestrates three others: an inline mining pass (see step 1), Pi skill authoring (write `SKILL.md` per the Agent Skills standard — no Cursor `create-skill`), and the **unslop** skill (prose discipline). It sequences them. It doesn't replace them.
+This skill orchestrates three others: an inline mining pass (see step 1), Pi skill authoring (Agent Skills SKILL.md standard), and the **unslop** skill (prose discipline). It sequences them. It doesn't replace them.
 
 ## Flow
 
 ### 0. Check for an existing skill
 
-Look recursively for `.pi/skills/**/*-mode/SKILL.md` and `~/.pi/agent/skills/*-mode/SKILL.md` matching the user's handle. Mode skills can live in a personal category directory (`.pi/skills/<handle>/`), not only at the top level. If one exists, confirm intent with `ctx.ui.select` / confirm (or ask the user in chat) (unless they already said "update my skill" or similar):
+Look recursively for `.pi/skills/**/*-mode/SKILL.md` and `~/.pi/agent/skills/*-mode/SKILL.md` matching the user's handle. Mode skills can live in a personal category directory (`.pi/skills/<handle>/`), not only at the top level. If one exists, confirm intent in chat (unless they already said "update my skill" or similar):
 
 - Update the existing skill (default for repeat runs)
 - Start fresh (rare, ask why before doing it)
@@ -26,7 +26,7 @@ Update mode changes the rest of the flow:
 
 ### 1. Mine their history
 
-Locate the active workspace's transcripts before fanning out. The system prompt names the workspace's Pi session transcripts directory. Use only that path. Don't glob across `Pi session store (do not glob unrelated sessions)`. That crosses workspace boundaries and reads private chats from unrelated projects.
+Locate the active workspace's transcripts before fanning out. The system prompt names the workspace's Pi session transcripts directory. Use only that path. Don't glob across `~/.pi/agent/sessions/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.
 
 Survey recent agent conversations within that scope for recurring patterns. Run multiple parallel subagents across slices of history (e.g. last 2-4 weeks, split into 3 slices so each has enough material). Each slice mining subagent reads transcripts from the workspace-scoped path the parent provides, looks for the signals below, and returns a short structured list of patterns it saw with evidence pointers. Default signals worth hunting:
 
@@ -41,7 +41,7 @@ Cross-check across slices before elevating a signal. Patterns seen in 2+ slices 
 
 ### 2. Ask the user directly
 
-Mining misses intent that hasn't come up yet. Use the `ctx.ui.select` / confirm (or ask the user in chat) tool (structured multi-choice) rather than asking the user to type from scratch.
+Mining misses intent that hasn't come up yet. Ask in chat with structured multiple-choice options rather than asking the user to type from scratch.
 
 Shape: one or two questions with 4-6 options each, `allow_multiple: true` for category questions. Start broad ("Which areas matter most?"), then follow up on selected areas with specific options. After the structured rounds, one free-form chat question catches anything the options missed.
 
@@ -64,17 +64,17 @@ The **poteto-mode** skill shows the shape. Read it for granularity. Don't copy i
 
 ### 4. Draft the skill
 
-Use Pi skill authoring (write SKILL.md per Agent Skills standard; no Cursor create-skill) to author the skill. Placement:
+Author the skill per the Agent Skills SKILL.md standard. Placement:
 
 - Path: preserve an existing mode skill's category. For a new mode, use `.pi/skills/<handle>/<handle>-mode/SKILL.md` when the repo has an established personal category for that handle. Otherwise default to `.pi/skills/<handle>-mode/SKILL.md` in the project (or `~/.pi/agent/skills/<handle>-mode/` if the user prefers a personal skill).
 - Handle: the user's first name or chosen identifier.
 - Frontmatter `description`: trigger on their name + `/<handle>-mode` + "work in their style", not on generic keywords like "write code" or "review PR".
-- Frontmatter formatting: follow Pi skill authoring's YAML rules. Keep `description` as one YAML scalar. Quote it or use `description: >-` with indented continuation lines when punctuation or wrapping requires it.
+- Frontmatter formatting: follow the Agent Skills YAML rules. Keep `description` as one YAML scalar. Quote it or use `description: >-` with indented continuation lines when punctuation or wrapping requires it.
 - Frontmatter `disable-model-invocation: true` by default. Opt out only if the user explicitly wants their mode to apply on every turn.
 
 ### 5. Iterate on prose
 
-Apply the **unslop** skill and Pi skill authoring's writing guidelines to every line.
+Apply the **unslop** skill and the Agent Skills writing guidelines to every line.
 
 Show the draft to the user and take feedback. Expect multiple iterations. Cut ruthlessly. A mode skill is not a manual.
 
@@ -93,7 +93,7 @@ Work in a worktree off main. Commit and open a PR. Don't push to main directly.
 
 ## Evaluation
 
-A `-mode` skill is subjective output. A Pi skill authoring-style test/iterate benchmark loop isn't useful here. Vibe-check with the user: does it read like them? Did it miss anything? Then ship.
+A `-mode` skill is subjective output. A test/iterate benchmark loop isn't useful here. Vibe-check with the user: does it read like them? Did it miss anything? Then ship.
 
 Run a description-optimization loop only if the skill's trigger accuracy turns out to be a problem in practice.
 

@@ -37,8 +37,6 @@ Write each entry the way you'd tell a teammate what you did. Plain words, concre
 
 Use the helper `scripts/log.sh <logfile> <phase> <decision> <why> <evidence> <result>`. It stamps `ts`, writes the header on first use, strips stray tabs/newlines, and prefixes any cell starting with `=`, `+`, `-`, or `@` with a single quote. A bare `printf` appending a row works too, but mind those same bytes if cells come from generated or user-supplied text.
 
-Or call `pstack_decision_log` with the same six columns (`phase`, `decision`, `why`, `evidence`, `result`; `ts` is stamped). That tool writes only under `cwd/.pi/` (default `.pi/decisions.tsv`).
-
 Log decision points and checkpoints, not every action: a fork chosen, a unit completed with its verification result, a pivot or revert with its trigger, a blocker surfaced, a gate fixed. For loop runs, one row per iteration. Skip the trivial and self-evident.
 
 ## Where it lives
@@ -55,7 +53,7 @@ Commit it only when the work is ambitious enough that a reviewer needs the trail
 
 ## Audit the log against the transcript
 
-At the end of the run, before handing back, check the log told the truth. Read this run's transcript under the active workspace's Pi session transcripts directory (the system prompt names the path). Don't glob across `Pi session store (do not glob unrelated sessions)`. That reads unrelated private chats. Walk the log against what actually happened:
+At the end of the run, before handing back, check the log told the truth. Read this run's transcript under the active workspace's Pi session transcripts directory (the system prompt names the path). Don't glob across `~/.pi/agent/sessions/*/`. That reads unrelated private chats. Walk the log against what actually happened:
 
 - Every row maps to a real action. Cut invented or aspirational entries.
 - Each row's evidence resolves and shows what the row claims.

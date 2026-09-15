@@ -23,7 +23,7 @@ Decompose the question into 2 to 4 exploration angles, each a distinct slice of 
 
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured how-explorer model (default `grok-4.6-fast-xhigh`)
-- `readonly`: `true` (pstack_spawn; Pi tools limited to read,grep,find,ls; no bash)
+- `readonly`: `true`
 
 Each explorer gets the prompt in `references/explorer-prompt.md` with its angle filled in. Then go to Step 3.
 
@@ -33,7 +33,7 @@ Spawn one agent via `pstack_spawn` that explores and explains in one pass:
 
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured how-explainer model (default `claude-fable-5-1-thinking-max`)
-- `readonly`: `true` (pstack_spawn; Pi tools limited to read,grep,find,ls; no bash)
+- `readonly`: `true`
 
 Build its prompt from `references/explainer-prompt.md` without the explorer-findings section. Go to Step 4.
 
@@ -43,7 +43,7 @@ Once all explorers have returned, spawn one agent via `pstack_spawn` to synthesi
 
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured how-explainer model (default `claude-fable-5-1-thinking-max`)
-- `readonly`: `true` (pstack_spawn; Pi tools limited to read,grep,find,ls; no bash)
+- `readonly`: `true`
 
 Build its prompt from `references/explainer-prompt.md` with every explorer's findings filled in.
 

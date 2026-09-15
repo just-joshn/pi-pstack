@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Arena
 
-Fan out N parallel attempts at the same task. `pstack_arena` waits (intentional sync gather) so you can read every candidate end to end. Pick the strongest as the base. Graft the best ideas from the others into it. Verify the synthesized result. For detached drain, use N× `pstack_spawn` + `pstack_jobs`.
+Fan out N parallel attempts at the same task with `pstack_arena` (sync gather). Read every candidate end to end. Pick the strongest as the base. Graft the best ideas from the others into it. Verify the synthesized result.
 
 ## Start
 
@@ -25,14 +25,12 @@ The N candidates will receive the same prompt, so the prompt is the contract.
 
 1. State the artifact each candidate is producing.
 2. Derive the rubric. State what success looks like for *this* task, then turn it into 3-6 concrete gradeable criteria. The rubric is the picker's tool in Phase D. Candidates only see the task.
-3. Pick the runners. Use `arena runners` from `~/.pi/agent/pstack-models.json` (or project `.pi/pstack-models.json`) when present. Otherwise default to one each on `claude-fable-5-1-thinking-max`, `gpt-5.6-sol-max`, `grok-4.6-fast-xhigh`, `claude-opus-5-thinking-xhigh`. Spawn more when the arena covers multiple design directions. Same model N times when the work is generation-bound rather than judgment-sensitive.
-4. Assign output paths. Each candidate writes to its own location. Prefer omitting `cwd` so `pstack_arena` auto-allocates a unique worktree per candidate (or pass unique `cwd`s). Otherwise use `/tmp/arena-<slug>/candidate-<n>/`. Never share the parent dirty cwd across writers, per the **separate-before-serializing-shared-state** principle skill.
+3. Pick the runners. Use `arena runners` from `~/.pi/agent/pstack-models.json` when present. Otherwise default to one each on `claude-fable-5-1-thinking-max`, `gpt-5.6-sol-max`, `grok-4.6-fast-xhigh`, `claude-opus-5-thinking-xhigh`. Spawn more when the arena covers multiple design directions. Same model N times when the work is generation-bound rather than judgment-sensitive.
+4. Assign output paths. Each candidate writes to its own location (a `pstack_arena` worktree when `cwd` is omitted, otherwise `/tmp/arena-<slug>/candidate-<n>/`), per the **separate-before-serializing-shared-state** principle skill.
 
 ## Phase B: Fan out
 
-`pstack_arena` is an **intentional sync gather/barrier** tool (EQUIVALENT local-gather): it fans out candidates and waits for the barrier before cross-judge / pick. Call `pstack_arena` (preferred) with unique `cwd`s / auto-worktrees. Global concurrency cap: 8 (env `PSTACK_MAX_CONCURRENCY`, default 8).
-
-For **background fan-out + drain**, use N× `pstack_spawn` (unique `cwd`s; background default / omit) then `pstack_jobs` — not a PARTIAL for arena being sync. Each candidate gets the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale.
+Call `pstack_arena` (intentional sync gather) with one candidate per model, each getting the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale. For detached drain use N× `pstack_spawn` + `pstack_jobs`.
 
 Each rationale names the alternatives the candidate considered and what it rejected.
 
@@ -40,7 +38,7 @@ If a candidate fails to produce output, proceed with N-1 and note the dropout in
 
 ## Phase C: Cross-judge
 
-After all Phase B candidates complete, choose one model from the `arena cross-judge pool` in `~/.pi/agent/pstack-models.json` (or project `.pi/pstack-models.json`) when present. Otherwise use `claude-fable-5-1-thinking-max`, `gpt-5.6-sol-max`, `grok-4.6-fast-xhigh`, `claude-opus-5-thinking-xhigh`. Prefer a different model family from the parent's. Spawn one readonly judge subagent on that model (`readonly: true` → Pi builtins `read,grep,find,ls` only; no bash). It sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale. It runs in parallel with the parent's reading in Phase D, not with the candidates themselves. Don't spawn the judge while candidates are still writing.
+After all Phase B candidates complete, choose one model from the `arena cross-judge pool` in `~/.pi/agent/pstack-models.json` when present. Otherwise use `claude-fable-5-1-thinking-max`, `gpt-5.6-sol-max`, `grok-4.6-fast-xhigh`, `claude-opus-5-thinking-xhigh`. Prefer a different model family from the parent's. Spawn one readonly judge subagent on that model (`readonly: true` limits Pi tools to `read,grep,find,ls`). It sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale. It runs in parallel with the parent's reading in Phase D, not with the candidates themselves. Don't spawn the judge while candidates are still writing.
 
 ## Phase D: Pick a base
 

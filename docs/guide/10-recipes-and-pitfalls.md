@@ -78,20 +78,11 @@ You rarely need more words. You need the right name, and [the principles page](.
 
 That's the whole prompt. [`/bro`](../../skills/bro/SKILL.md) restates the last message like one human talking to another, no jargon, shorter. Use it when a reply is technically thorough and you still don't know what it said.
 
-## Resume a detached child
-
-```text
-/poteto-mode resume the worker on unit U12 with the same worktree cwd. use resumeSessionDir from the last pstack_jobs reply.
-```
-
-Pi `continueRecent` needs `--session-dir` + `--continue`/`-c`, and is **cwd-affined** — mismatching cwd can soft-empty the continue. Prefer same cwd, or an explicit session file when known.
-
 ## The pitfalls
 
 - **Enumerating skills in the prompt.** "use /how then /architect then /arena" reorders steps the playbook already sequences. State the goal and constraints. Name a skill only to override a default.
-- **A vague finish condition.** "make it better" gives `pstack_loop` (Pi twin of Cursor `/loop`) nothing to check. Give a command or artifact that can pass or fail.
-- **Parallel agents in one worktree.** They overwrite each other and the diff becomes archaeology. Say "own worktree per attempt" and the isolation is free. Fan-out with local `pstack_spawn` (background omit→true + `pstack_jobs`) or sync `pstack_swarm`/`pstack_arena` — not Cursor cloud agents.
-- **Resuming with only a copied sessionDir from a different cwd.** Pi `continueRecent` is cwd-affined; prefer the same cwd on resume or a known `--session` file.
+- **A vague finish condition.** "make it better" gives `pstack_loop` nothing to check. Give a command or artifact that can pass or fail.
+- **Parallel agents in one worktree.** They overwrite each other and the diff becomes archaeology. Say "own worktree per attempt" and the isolation is free.
 - **Using `/arena` for coverage.** `/arena` repeats one design or code brief, then picks a base and grafts the best parts. `/swarm` partitions slices or declared race arms and aggregates one report.
 - **Accepting every review comment.** Bots and humans both file real catches and noise in one list. `/interrogate` sorts findings into act-on and dismissed buckets with reasons, and you can override either way.
 - **Treating `auto` as a model slug.** `auto` and `inherit-parent` mean "omit the model field so the subagent inherits the parent chat model." [Setup](./01-setup.md) covers the roles.

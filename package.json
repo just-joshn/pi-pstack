@@ -41,6 +41,10 @@
       "./prompts"
     ]
   },
+  "scripts": {
+    "parity:check": "node port/port.mjs check && node port/contract.mjs",
+    "parity:sync": "node port/port.mjs sync"
+  },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-agent-core": "*",

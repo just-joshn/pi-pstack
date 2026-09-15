@@ -65,7 +65,7 @@ A long chat accumulates context from the last task. When you change subjects, sa
 
 ## Give parallel work its own worktree
 
-If you run several agents against one repository, they will fight over the working tree. Ask for isolation up front. On Pi, fan-out is local: `pstack_spawn` (background omit/default + `pstack_jobs` drain) or `pstack_swarm` / `pstack_arena` (intentional sync gather), each writer in its own `pstack_worktree` — not Cursor cloud VMs.
+If you run several agents against one repository, they will fight over the working tree. Ask for isolation up front:
 
 ```text
 /poteto-mode new task. branch off <base> in a fresh worktree, then port the parser change there.

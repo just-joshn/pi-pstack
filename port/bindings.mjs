@@ -1,0 +1,782 @@
+/**
+ * Cursor -> Pi bindings.
+ *
+ * Rule: the ported tree is upstream byte-for-byte except where a Cursor-only
+ * mechanism needs a Pi substitute. Each rule below is that substitute, and its
+ * `why` says which mechanism forces it. Upstream prose is never rewritten for
+ * style, and Pi-only commentary is not added.
+ *
+ * port.mjs applies these in array order. Overrides are files whose Pi twin is a
+ * rewrite of the file's whole mechanism; they are guarded, not generated.
+ */
+
+const L = (...lines) => lines.join("\n");
+
+export const bindings = [
+  // ---- Platform frontmatter -------------------------------------------------
+  {
+    id: "name-kebab",
+    why: "Pi skill names are lowercase kebab; upstream uses display-case names",
+    find: "name: Poteto Mode",
+    replace: "name: poteto-mode",
+  },
+
+  {
+    id: "reflect-read-tool",
+    why: "Pi read tool name and Pi skill/package locations",
+    find: "- `Read` tool calls against any `SKILL.md` file (workspace `.cursor/skills/`, user-level `~/.cursor/skills/`, or plugin-installed paths under `~/.cursor/plugins/`)",
+    replace: "- `read` tool calls against any `SKILL.md` file (workspace `.pi/skills/`, user-level `~/.pi/agent/skills/`, or package paths under `~/.pi/agent/npm/` and `~/.pi/agent/git/`)",
+  },
+
+  // ---- Filesystem locations -------------------------------------------------
+  {
+    id: "recall-transcript-paragraph",
+    why: "Cursor transcript paths -> Pi session store; pstack_sessions is the Pi locator",
+    find: "Transcripts live at `~/.cursor/projects/<slug>/agent-transcripts/<uuid>/<uuid>.jsonl`, where `<slug>` is the workspace path with the leading slash dropped and each \"/\" turned into \"-\" (so `/Users/you/proj` becomes `Users-you-proj`). Every line is one chat message.",
+    replace: "Sessions live under `~/.pi/agent/sessions/`, one directory per workspace and one `.jsonl` file per session. Use the `pstack_sessions` tool to list, grep, or rebuild context instead of hand-globbing the store.",
+  },
+  {
+    id: "models-rule-to-json",
+    why: "Cursor rules dir (.mdc) has no Pi counterpart; Pi reads pstack-models.json",
+    find: "~/.cursor/rules/pstack-models.mdc",
+    replace: "~/.pi/agent/pstack-models.json",
+  },
+  {
+    id: "user-skills-dir",
+    why: "Pi user skill dirs are ~/.pi/agent/skills and ~/.agents/skills",
+    find: "~/.cursor/skills",
+    replace: "~/.pi/agent/skills",
+  },
+  {
+    id: "workspace-projects-glob",
+    why: "Pi sessions live in the Pi session store, not ~/.cursor/projects",
+    find: "~/.cursor/projects/*/",
+    replace: "~/.pi/agent/sessions/*/",
+  },
+  {
+    id: "automations-dir",
+    why: "Pi project dir is .pi/; Cursor Automations host is absent and the pack is a manual twin",
+    find: ".cursor/automations/benny",
+    replace: ".pi/automations/benny",
+  },
+  {
+    id: "project-settings",
+    why: "Pi project settings are .pi/settings.json",
+    find: ".cursor/settings.json",
+    replace: ".pi/settings.json",
+  },
+  {
+    id: "project-skills-dir",
+    why: "Pi project skill dir is .pi/skills",
+    find: ".cursor/skills",
+    replace: ".pi/skills",
+  },
+  {
+    id: "project-benny-dir",
+    why: "Pi project dir is .pi/",
+    find: ".cursor/benny",
+    replace: ".pi/benny",
+  },
+  {
+    id: "project-worktrees-dir",
+    why: "Pi project dir is .pi/",
+    find: ".cursor/worktrees",
+    replace: ".pi/worktrees",
+  },
+  {
+    id: "project-config-dir",
+    why: "Pi project dir is .pi/",
+    find: "`.cursor` directory",
+    replace: "`.pi` directory",
+  },
+  {
+    id: "cursor-install",
+    why: "Cursor /add-plugin has no Pi counterpart; Pi installs packages with `pi install`",
+    find: "In a Cursor chat, run:",
+    replace: "In a Pi session (or your shell), run:",
+  },
+  {
+    id: "cursor-install-cmd",
+    why: "Cursor /add-plugin has no Pi counterpart; Pi installs packages with `pi install`",
+    find: "/add-plugin pstack",
+    replace: "pi install <path-or-git:pi-pstack>",
+  },
+  {
+    id: "cursor-install-confirm",
+    why: "Cursor plugin confirmation has no Pi counterpart; Pi lists loaded packages",
+    find: "Cursor confirms the plugin is installed.",
+    replace: "Pi confirms the package is installed.",
+  },
+
+  // ---- Spawn tool -----------------------------------------------------------
+  {
+    id: "subagent-type-general",
+    why: "Cursor Task subagent_type -> Pi pstack_spawn role (Pi has no Task tool)",
+    find: "- `subagent_type`: `generalPurpose`",
+    replace: "- `role`: `general` via `pstack_spawn`",
+  },
+  {
+    id: "spawn-one-task-subagent",
+    why: "Cursor Task tool -> Pi pstack_spawn",
+    find: "Spawn one Task subagent",
+    replace: "Spawn one agent via `pstack_spawn`",
+  },
+  {
+    id: "spawn-synthesize-task",
+    why: "Cursor Task tool -> Pi pstack_spawn",
+    find: "Once all explorers have returned, spawn one Task subagent",
+    replace: "Once all explorers have returned, spawn one agent via `pstack_spawn`",
+  },
+  {
+    id: "multiple-task-calls",
+    why: "Cursor Task tool -> Pi pstack_spawn",
+    find: "Multiple `Task` calls",
+    replace: "Multiple `pstack_spawn` calls",
+  },
+  {
+    id: "poteto-agent-role",
+    why: "Cursor subagent_type -> Pi pstack_spawn role",
+    find: "Explore in subagents with `subagent_type: \"poteto-agent\"`",
+    replace: "Explore in subagents with `pstack_spawn` and `role: \"poteto-agent\"`",
+  },
+  {
+    id: "comment-sicko-spawn",
+    why: "Cursor Task spawn of the Comment Sicko agent -> Pi pstack_spawn comment-sicko role (auto-readonly)",
+    find: "1. Spawn `Task` with `subagent_type: \"Comment Sicko\"`. Pass the scope. Do not restate its rules.",
+    replace: "1. Call `pstack_spawn` with `role: \"comment-sicko\"`. Pass the scope. Do not restate its rules.",
+  },
+  {
+    id: "interrogate-spawn",
+    why: "Cursor Task tool -> Pi pstack_spawn; reviewers run as spawn children",
+    find: "Launch all reviewers in a single message using the Task tool.",
+    replace: "Launch all reviewers in a single message using `pstack_spawn`.",
+  },
+  {
+    id: "interrogate-slug-error",
+    why: "Cursor Task error surface -> Pi pstack_spawn error surface",
+    find: "check the valid slugs in the Task tool's error message",
+    replace: "check the valid slugs in the `pstack_spawn` tool's error message",
+  },
+  {
+    id: "orchestrate-task-tool",
+    why: "Cursor Task tool -> Pi pstack_spawn; children are spawned only through it",
+    find: "Agents are spawned, resumed, and drained only through the Task tool.",
+    replace: "Agents are spawned, resumed, and drained only through the `pstack_spawn` tool (`resumeSessionDir` / `resumeJobId`; the child continues with `--continue`).",
+  },
+  {
+    id: "orchestrate-task-schema",
+    why: "Cursor cloud Task schema (environment/placement) has no Pi counterpart; Pi schema is local-only",
+    find: "(nesting works to depth 3, and a nested spawn has the full Task schema including `environment`)",
+    replace: "(nesting works to depth 3; nested spawn uses the Pi `pstack_spawn` schema, which is local-only)",
+  },
+  {
+    id: "orchestrate-worker-placement",
+    why: "Cursor cloud placement arg -> Pi local spawn + worktree isolation",
+    find: "Always `environment: \"cloud\"` unless the task needs this machine: `control-ui` or `control-cli` runtime verification (from `cursor-team-kit`). Reading local transcripts under `agent-transcripts/`.",
+    replace: "Local by default via `pstack_spawn` (or `pstack_swarm` / `pstack_arena`), one writer per worktree or branch. `pstack_control_cli` / `pstack_control_ui` prove runtime behavior. Reading local session transcripts.",
+  },
+  {
+    id: "orchestrate-cloud-brief",
+    why: "Pi children run locally and can read the store; briefs still stand alone",
+    find: "Cloud agents cannot read the local store, so their briefs inline what they need or point at repo paths.",
+    replace: "A self-contained brief still inlines what it needs or points at repo paths.",
+  },
+  {
+    id: "orchestrate-cloud-restack",
+    why: "Cursor cloud VM -> Pi isolated worktree (local restack in the parent cwd is unsafe)",
+    find: "Restacks run in cloud. A local restack at this scale takes the laptop down.",
+    replace: "Restacks run in an isolated `pstack_worktree`, never in the parent cwd.",
+  },
+  {
+    id: "orchestrate-vm-death",
+    why: "Cursor cloud VM -> Pi child process",
+    find: "Work that exists only on one VM when that VM dies was never done.",
+    replace: "Work that exists only in one child process when that process dies was never done.",
+  },
+  {
+    id: "orchestrate-dashboard",
+    why: "Cursor dashboard liveness -> Pi pstack_jobs and worktree branch tips",
+    find: "Probe read-only: the ledger, `units.tsv`, `gh`, pushed branches, the cloud agent's status in the Cursor dashboard.",
+    replace: "Probe read-only: the ledger, `units.tsv`, `gh`, pushed branches, `pstack_jobs` status, and child worktree branch tips.",
+  },
+  {
+    id: "orchestrate-restart",
+    why: "Cursor restart -> Pi session restart; cloud work reattach -> git/PR reattach",
+    find: "After a Cursor restart: local agents are dead, cloud work is not. Re-read the standing orders and `units.tsv`, recompute the frontier, reattach cloud work by PR and branch rather than agent id,",
+    replace: "After a Pi session restart: in-process background jobs are dead; git branches and PRs are not. Re-read the standing orders and `units.tsv`, recompute the frontier, reattach by PR and branch rather than job id,",
+  },
+  {
+    id: "swarm-spawn",
+    why: "Cursor cloud workers (subagent_type/environment/run_in_background) -> Pi pstack_swarm (intentional sync gather)",
+    find: "Spawn all N workers in one message with `subagent_type: generalPurpose`, `environment: \"cloud\"`, `run_in_background: true`, and the configured model. Use `environment: \"local\"` only when the worker needs access to something on the user's computer.",
+    replace: "Call `pstack_swarm` with every worker brief in one message (intentional sync gather; for detached drain use N× `pstack_spawn` + `pstack_jobs`).",
+  },
+  {
+    id: "swarm-cloud-base",
+    why: "Cursor cloud_base_branch placement -> Pi worktree/cwd isolation",
+    find: "When a worker must start from a non-default pushed branch, pass `cloud_base_branch`.",
+    replace: "When a worker must start from a non-default pushed branch, pass a `cwd` holding that branch (each worker gets its own worktree).",
+  },
+  {
+    id: "swarm-intro",
+    why: "Cursor cloud workers -> Pi pstack_swarm (local, sync gather)",
+    find: "Fan out N parallel cloud workers. They may cover separate slices, race the same brief, or mix both. The parent waits, aggregates, and returns one report.",
+    replace: "Fan out N parallel workers with `pstack_swarm` (local, sync gather). They may cover separate slices, race the same brief, or mix both. The parent waits, aggregates, and returns one report.",
+  },
+  {
+    id: "swarm-output-isolation",
+    why: "pstack_swarm auto-isolates writers; never share the parent dirty cwd",
+    find: "5. Give each worker its own writable output when it writes.",
+    replace: "5. Give each worker its own writable output when it writes. Multi-writer runs must not share the parent dirty cwd: omit `cwd` so `pstack_swarm` allocates one worktree per writer, or pass a unique `cwd` per worker.",
+  },
+  {
+    id: "arena-intro",
+    why: "pstack_arena is the Pi fan-out tool; it waits for the barrier",
+    find: "Fan out N parallel attempts at the same task. Read every candidate end to end. Pick the strongest as the base. Graft the best ideas from the others into it. Verify the synthesized result.",
+    replace: "Fan out N parallel attempts at the same task with `pstack_arena` (sync gather). Read every candidate end to end. Pick the strongest as the base. Graft the best ideas from the others into it. Verify the synthesized result.",
+  },
+  {
+    id: "arena-output-isolation",
+    why: "pstack_arena auto-isolates candidates; never share the parent dirty cwd",
+    find: "Each candidate writes to its own location (a git worktree where possible, otherwise `/tmp/arena-<slug>/candidate-<n>/`), per the **separate-before-serializing-shared-state** principle skill.",
+    replace: "Each candidate writes to its own location (a `pstack_arena` worktree when `cwd` is omitted, otherwise `/tmp/arena-<slug>/candidate-<n>/`), per the **separate-before-serializing-shared-state** principle skill.",
+  },
+  {
+    id: "arena-fanout",
+    why: "Cursor Task run_in_background -> Pi pstack_arena candidate fan-out",
+    find: "Spawn all N subagents in one message with `run_in_background: true`, each with the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale.",
+    replace: "Call `pstack_arena` (intentional sync gather) with one candidate per model, each getting the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale. For detached drain use N× `pstack_spawn` + `pstack_jobs`.",
+  },
+  {
+    id: "arena-cross-judge-readonly",
+    why: "Pi readonly allowlist is builtins-only; say what it restricts",
+    find: "Spawn one readonly judge subagent on that model. It sees the rubric and the candidates by path label,",
+    replace: "Spawn one readonly judge subagent on that model (`readonly: true` limits Pi tools to `read,grep,find,ls`). It sees the rubric and the candidates by path label,",
+  },
+  {
+    id: "poteto-subagents-paragraph",
+    why: "Cursor subagent_type -> Pi pstack_spawn role; routed skills set their own role",
+    find: "**Use `subagent_type: \"poteto-agent\"` for any subagent you spawn inside a playbook step** (code-writing delegates, ad-hoc helpers). `/poteto-mode` and `poteto-agent` route through the same wrapper. Routed workflow skills (`how`, `why`, `interrogate`, `reflect`, `swarm`) set their own `subagent_type` for diverse-model review. Respect what the skill prescribes, don't override to `poteto-agent`.",
+    replace: "**Use `pstack_spawn` with `role: \"poteto-agent\"` for any subagent you spawn inside a playbook step** (code-writing delegates, ad-hoc helpers). `/poteto-mode` and `poteto-agent` route through the same wrapper. Routed workflow skills (`how`, `why`, `interrogate`, `reflect`, `swarm`) set their own `role` for diverse-model review. Respect what the skill prescribes, don't override to `poteto-agent`.",
+  },
+  {
+    id: "poteto-task-defaults",
+    why: "Cursor Task run_in_background/readonly semantics -> Pi pstack_spawn background and builtins-only readonly",
+    find: "**Defaults for every `Task` call.** `run_in_background: true`, agent mode (readonly strips MCP), file pointers not inlined context,",
+    replace: "**Defaults for every `pstack_spawn` call.** Prefer `background: true` (omit or `true` detaches; drain detached children with `pstack_jobs`; pass `background: false` only to sync-await), agent mode (`readonly: true` limits the child to `read,grep,find,ls`; it does not strip MCP), file pointers not inlined context,",
+  },
+  {
+    id: "poteto-task-model-omit",
+    why: "Cursor Task model field -> Pi pstack_spawn model field",
+    find: "(omit Task `model`)",
+    replace: "(omit `pstack_spawn` `model`)",
+  },
+  {
+    id: "poteto-resume",
+    why: "Cursor interrupt-chained resume -> Pi resumeSessionDir/resumeJobId (true continue)",
+    find: "Interrupt-chained resumes silently drop directives, so fire a fresh subagent with consolidated scope rather than trusting a \"done\" summary.",
+    replace: "Prefer `resumeSessionDir` / `resumeJobId` to continue a prior child (pass them to `pstack_spawn`; `continueRecent` is cwd-affined). Otherwise fire a fresh subagent with consolidated scope rather than trusting a \"done\" summary.",
+  },
+  {
+    id: "askquestion",
+    why: "Cursor AskQuestion tool has no Pi tool; the Pi twin is a chat question",
+    find: "confirm intent with `AskQuestion` (unless they already said \"update my skill\" or similar)",
+    replace: "confirm intent in chat (unless they already said \"update my skill\" or similar)",
+  },
+  {
+    id: "askquestion-tool",
+    why: "Cursor AskQuestion tool has no Pi tool; the Pi twin is a structured chat question",
+    find: "Mining misses intent that hasn't come up yet. Use the `AskQuestion` tool (structured multi-choice) rather than asking the user to type from scratch.",
+    replace: "Mining misses intent that hasn't come up yet. Ask in chat with structured multiple-choice options rather than asking the user to type from scratch.",
+  },
+  {
+    id: "autonomous-run-askquestion",
+    why: "Cursor AskQuestion tool has no Pi tool; asking happens in chat",
+    find: "Do not park reversible work for the human or use `AskQuestion`.",
+    replace: "Do not park reversible work for the human or ask before proceeding.",
+  },
+  {
+    id: "poteto-askquestion-trigger",
+    why: "Cursor AskQuestion tool has no Pi tool; asking happens in chat",
+    find: "- About to `AskQuestion` on a \"which approach\", \"how should I\", or \"what should this do\" fork → classify it before you ask.",
+    replace: "- About to ask in chat on a \"which approach\", \"how should I\", or \"what should this do\" fork → classify it before you ask.",
+  },
+  // ---- /loop ----------------------------------------------------------------
+  {
+    id: "loop-autonomous",
+    why: "Cursor built-in /loop -> Pi pstack_loop extension tool",
+    find: "2. Pick the wake mechanism using Cursor's `/loop` command (a built-in, not a pstack skill).",
+    replace: "2. Pick the wake mechanism using `pstack_loop` (a Pi extension tool, not a pstack skill).",
+  },
+  {
+    id: "loop-bugfix",
+    why: "Cursor built-in /loop -> Pi pstack_loop extension tool",
+    find: "Drive a long or stubborn hunt with Cursor's `/loop` command.",
+    replace: "Drive a long or stubborn hunt with `pstack_loop`.",
+  },
+  {
+    id: "loop-babysit",
+    why: "Cursor built-in /loop -> Pi pstack_loop extension tool (dynamic mode = settle+watcher)",
+    find: "Run `drive` and `background` under `/loop` in dynamic mode.",
+    replace: "Run `drive` and `background` under `pstack_loop` in dynamic mode (`watchArgv` carries the forge watcher).",
+  },
+  {
+    id: "loop-shipping",
+    why: "Cursor built-in /loop -> Pi pstack_loop extension tool",
+    find: "Hold the watch under `/loop` in dynamic mode.",
+    replace: "Hold the watch under `pstack_loop` in dynamic mode (`watchArgv` carries the forge watcher).",
+  },
+  {
+    id: "loop-visual-parity",
+    why: "Cursor built-in /loop -> Pi pstack_loop extension tool",
+    find: "`/loop` per component until the diff is zero.",
+    replace: "`pstack_loop` per component until the diff is zero.",
+  },
+  {
+    id: "loop-autopilot-full-a",
+    why: "Cursor /loop or cloud-sleeper -> Pi pstack_loop (interval/dynamic)",
+    find: "A local root arms each tick as a real terminal `/loop`. The loop uses a monitored-shell 30-minute sleep and emits an output-notification sentinel. A cloud root uses the existing cloud-sleeper wake chain instead.",
+    replace: "The root arms each tick with `pstack_loop` (`interval` mode, or `dynamic` with a `watchArgv` forge watcher).",
+  },
+  {
+    id: "loop-multi-phase",
+    why: "Cursor /loop or cloud-sleeper -> Pi pstack_loop (interval/dynamic)",
+    find: "- [ ] Arm the 30-minute audit tick. In a local session, a real terminal `/loop`. In a cloud root, a cloud-sleeper wake chain. Never leave the cadence to memory.",
+    replace: "- [ ] Arm the 30-minute audit tick with `pstack_loop` (`interval` mode, or `dynamic` with a `watchArgv` forge watcher). Never leave the cadence to memory.",
+  },
+  {
+    id: "loop-docs-overnight",
+    why: "Cursor built-in /loop -> Pi pstack_loop extension tool",
+    find: "`/loop` is Cursor's built-in wake mechanism, not a pstack skill.",
+    replace: "`pstack_loop` is the Pi extension wake mechanism, not a pstack skill.",
+  },
+  {
+    id: "loop-docs-until-done",
+    why: "Cursor built-in /loop -> Pi pstack_loop extension tool",
+    find: "/loop until done.",
+    replace: "pstack_loop until done.",
+  },
+  {
+    id: "loop-pitfall",
+    why: "Cursor built-in /loop -> Pi pstack_loop extension tool",
+    find: "Give `/loop` a predicate that can pass or fail.",
+    replace: "Give `pstack_loop` a predicate that can pass or fail.",
+  },
+  {
+    id: "loop-pitfall-2",
+    why: "Cursor built-in /loop -> Pi pstack_loop extension tool",
+    find: "\"make it better\" gives `/loop` nothing to check.",
+    replace: "\"make it better\" gives `pstack_loop` nothing to check.",
+  },
+
+  {
+    id: "cloud-owner",
+    why: "Cursor cloud agent -> Pi pstack_spawn child with its own worktree",
+    find: "One Cursor cloud agent per PR owns",
+    replace: "One `pstack_spawn` owner per PR (with its own `pstack_worktree`) owns",
+  },
+  {
+    id: "cloud-shipping",
+    why: "Cursor cloud agent -> Pi local spawn child",
+    find: "each a Cursor cloud agent",
+    replace: "each a local `pstack_spawn` child",
+  },
+  {
+    id: "cloud-url",
+    why: "Cursor cloud-agent URL -> Pi resume handle",
+    find: "a cloud-agent URL, or a pushed branch",
+    replace: "a stored `sessionDir` or a prior `pstack_jobs` reply, or a pushed branch",
+  },
+  {
+    id: "cloud-session-pickup-bullet",
+    why: "Cursor cloud-agent URL -> Pi resume handle",
+    find: "from a transcript, cloud-agent URL, or pushed branch",
+    replace: "from a local Pi transcript / `sessionDir`, a prior `pstack_jobs` reply, or a pushed branch",
+  },
+  {
+    id: "cloud-lane",
+    why: "Cursor cloud VM -> Pi worktree",
+    find: "Each live lane runs on its own cloud VM at the PR head.",
+    replace: "Each live lane runs in its own worktree at the PR head.",
+  },
+  {
+    id: "cloud-n",
+    why: "Cursor cloud concurrency limit -> Pi concurrency cap",
+    find: "N is total workers, not the cloud concurrency limit.",
+    replace: "N is total workers, not the Pi concurrency cap.",
+  },
+  {
+    id: "cloud-verbatim",
+    why: "Cursor cloud spawn -> Pi detached spawn",
+    find: "Verbatim paste is for cloud spawns and every resume.",
+    replace: "Verbatim paste is for detached spawns and every resume.",
+  },
+  {
+    id: "cloud-budget",
+    why: "Cursor cloud default/exception -> Pi concurrency cap",
+    find: "its spawn budget with the cloud default and the local exception list,",
+    replace: "its spawn budget (the Pi concurrency cap),",
+  },
+  {
+    id: "worktree-cleanup-cursor-cache",
+    why: "Cursor editor app-support cache -> Pi session store growth",
+    find: "`~/Library/Application Support/Cursor` (`state.vscdb.backup`, and `snapshots/roots/<root>` where a `<root>` named for a folder you opened as a workspace balloons)",
+    replace: "the Pi stores under `~/.pi/agent` (`sessions/` accumulates one transcript per session)",
+  },
+  {
+    id: "pause-restart",
+    why: "Cursor restart -> Pi restart",
+    find: "on an explicit pause, going offline, a Cursor restart, or imminent context compaction",
+    replace: "on an explicit pause, going offline, a Pi restart, or imminent context compaction",
+  },
+
+  {
+    id: "cursor-builtin-babysit-poteto",
+    why: "Cursor built-in babysit skill -> generic built-in disambiguation",
+    find: "and not Cursor's built-in babysit skill, whose description matches the same words",
+    replace: "and not a built-in babysit skill with a matching description",
+  },
+  {
+    id: "cursor-builtin-babysit-playbook",
+    why: "Cursor built-in babysit skill -> generic built-in disambiguation",
+    find: "This playbook replaces Cursor's built-in babysit skill for these requests, so do not route there even though its description matches the same words.",
+    replace: "This playbook replaces any built-in babysit skill for these requests, so do not route there even though its description matches the same words.",
+  },
+
+  // ---- deslop ---------------------------------------------------------------
+  {
+    id: "loop-until-x",
+    why: "Cursor built-in /loop -> Pi pstack_loop extension tool",
+    find: "\"/loop until X\"",
+    replace: "\"pstack_loop until X\"",
+  },
+  {
+    id: "deslop-team-kit",
+    why: "cursor-team-kit /deslop -> Pi pstack_deslop (+ unslop for prose)",
+    find: "the `deslop` skill from the `cursor-team-kit` plugin (`/deslop`)",
+    replace: "`pstack_deslop`",
+  },
+  {
+    id: "deslop-team-kit-run",
+    why: "cursor-team-kit /deslop -> Pi pstack_deslop",
+    find: "Run `/deslop` from `cursor-team-kit` over the diff before commit.",
+    replace: "Run `pstack_deslop` over the diff before commit.",
+  },
+  {
+    id: "deslop-docs-a",
+    why: "cursor-team-kit /deslop -> Pi pstack_deslop",
+    find: "runs `/deslop` on the diff before each commit",
+    replace: "runs `pstack_deslop` on the diff before each commit",
+  },
+  {
+    id: "deslop-docs-b",
+    why: "cursor-team-kit /deslop -> Pi pstack_deslop (ships in this package on Pi)",
+    find: "`/deslop` ships in the `cursor-team-kit` plugin, not in pstack. If you don't have it, ask for the same outcome in plain words:",
+    replace: "`pstack_deslop` ships in this package. If it is unavailable, ask for the same outcome in plain words:",
+  },
+  {
+    id: "deslop-docs-c",
+    why: "cursor-team-kit /deslop -> Pi pstack_deslop",
+    find: "The division of labor is worth keeping straight. `/deslop` cleans slop out of the code, `/unslop` cleans it out of prose,",
+    replace: "The division of labor is worth keeping straight. `pstack_deslop` cleans slop out of the code, `/unslop` cleans it out of prose,",
+  },
+  {
+    id: "deslop-docs-d",
+    why: "cursor-team-kit /deslop -> Pi pstack_deslop",
+    find: "If the diff feels padded, say `deslop it` before you commit, not after review calls it out.",
+    replace: "If the diff feels padded, run `pstack_deslop` before you commit, not after review calls it out.",
+  },
+  {
+    id: "deslop-multi-phase",
+    why: "cursor-team-kit /deslop -> Pi pstack_deslop",
+    find: "- [ ] Run `/deslop` before each commit and `/no-comments` before review.",
+    replace: "- [ ] Run `pstack_deslop` before each commit and `/no-comments` before review.",
+  },
+  {
+    id: "deslop-subagent-pr",
+    why: "cursor-team-kit /deslop -> Pi pstack_deslop",
+    find: "A subagent that opens a PR runs `interrogate`, `/deslop`, and `/no-comments`.",
+    replace: "A subagent that opens a PR runs `interrogate`, `pstack_deslop`, and `/no-comments`.",
+  },
+
+  // ---- control skills -------------------------------------------------------
+  {
+    id: "control-multi-phase",
+    why: "cursor-team-kit control-ui/control-cli -> Pi pstack_control_ui / pstack_control_cli",
+    find: "Browser, Electron, and web UIs use `control-ui` from `cursor-team-kit`. CLIs and TUIs use `control-cli` from `cursor-team-kit`.",
+    replace: "Browser, Electron, and web UIs use `pstack_control_ui` (add a browser MCP when a full drive is needed). CLIs and TUIs use `pstack_control_cli`.",
+  },
+  {
+    id: "control-live-lane",
+    why: "cursor-team-kit control-ui/control-cli -> Pi pstack_control_ui / pstack_control_cli",
+    find: "Drive through `control-ui` or `control-cli` from `cursor-team-kit`.",
+    replace: "Drive through `pstack_control_ui` or `pstack_control_cli`.",
+  },
+  {
+    id: "control-shipping",
+    why: "cursor-team-kit control-ui/control-cli -> Pi pstack_control_ui / pstack_control_cli",
+    find: "each exercising the real surface (`control-ui` or `control-cli` from `cursor-team-kit` as the change demands)",
+    replace: "each exercising the real surface (`pstack_control_ui` or `pstack_control_cli` as the change demands)",
+  },
+  {
+    id: "control-poteto-trigger",
+    why: "cursor-team-kit control-cli/control-ui -> Pi pstack_control_cli / pstack_control_ui",
+    find: "- Shipping UI / IDE / CLI → the matching control skill. `cursor-team-kit` publishes `control-cli` (CLIs and TUIs) and `control-ui` (browser / Electron / web UIs).",
+    replace: "- Shipping UI / IDE / CLI → `pstack_control_cli` (CLIs and TUIs) / `pstack_control_ui` (browser / Electron / web UIs).",
+  },
+  {
+    id: "control-autopilot-full",
+    why: "cursor-team-kit control-ui/control-cli -> Pi pstack_control_ui / pstack_control_cli",
+    find: "(`control-cli` or `control-ui` from `cursor-team-kit` as the change demands)",
+    replace: "(`pstack_control_cli` or `pstack_control_ui` as the change demands)",
+  },
+
+  // ---- create-skill ---------------------------------------------------------
+  {
+    id: "create-skill-authoring",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "Use the **create-skill** skill (Cursor's built-in for authoring SKILL.md files).",
+    replace: "Use Pi skill authoring (Agent Skills SKILL.md standard).",
+  },
+  {
+    id: "create-skill-poteto-trigger",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "Agent-facing prose also follows the **create-skill** skill (Cursor's built-in for authoring SKILL.md files).",
+    replace: "Agent-facing prose also follows Pi skill authoring (Agent Skills SKILL.md standard).",
+  },
+  {
+    id: "create-skill-automate-me-a",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "Drafts or revises a personal -mode skill via create-skill + unslop,",
+    replace: "Drafts or revises a personal -mode skill via Pi skill authoring (Agent Skills SKILL.md) + unslop,",
+  },
+  {
+    id: "create-skill-automate-me-b",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "This skill orchestrates three others: an inline mining pass (see step 1), Cursor's built-in `create-skill` (authoring), and the **unslop** skill (prose discipline).",
+    replace: "This skill orchestrates three others: an inline mining pass (see step 1), Pi skill authoring (Agent Skills SKILL.md standard), and the **unslop** skill (prose discipline).",
+  },
+  {
+    id: "create-skill-automate-me-c",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "Use Cursor's built-in `create-skill` skill to author the skill. Placement:",
+    replace: "Author the skill per the Agent Skills SKILL.md standard. Placement:",
+  },
+  {
+    id: "create-skill-automate-me-d",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "- Frontmatter formatting: follow `create-skill`'s YAML rules.",
+    replace: "- Frontmatter formatting: follow the Agent Skills YAML rules.",
+  },
+  {
+    id: "create-skill-automate-me-e",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "Apply the **unslop** skill and `create-skill`'s writing guidelines to every line.",
+    replace: "Apply the **unslop** skill and the Agent Skills writing guidelines to every line.",
+  },
+  {
+    id: "create-skill-automate-me-f",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "A `create-skill`-style test/iterate benchmark loop isn't useful here.",
+    replace: "A test/iterate benchmark loop isn't useful here.",
+  },
+  {
+    id: "create-skill-automate-me-g",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "- User wants a task-specific skill (not working conventions): `create-skill` alone, no mining required.",
+    replace: "- User wants a task-specific skill (not working conventions): Pi skill authoring alone, no mining required.",
+  },
+  {
+    id: "create-skill-reflect-a",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to Cursor's built-in `create-skill` skill and run its draft / test / iterate loop.",
+    replace: "- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to Pi skill authoring and run its draft / test / iterate loop.",
+  },
+  {
+    id: "create-skill-reflect-b",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "- `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to `create-skill` and run its description-optimization loop.",
+    replace: "- `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to Pi skill authoring and run its description-optimization loop.",
+  },
+  {
+    id: "create-skill-reflect-c",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "hand creation to `create-skill`. Do not invent the shape ad hoc.",
+    replace: "hand creation to Pi skill authoring. Do not invent the shape ad hoc.",
+  },
+  {
+    id: "create-skill-synthesizer-a",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "propose `new skill via create-skill:` only when",
+    replace: "propose `new skill via Pi skill authoring:` only when",
+  },
+  {
+    id: "create-skill-synthesizer-b",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "| <draft a new skill via create-skill> |",
+    replace: "| <draft a new skill per the Agent Skills standard> |",
+  },
+  {
+    id: "create-skill-docs-a",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "through Cursor's built-in `create-skill` flow,",
+    replace: "per the Agent Skills standard,",
+  },
+  {
+    id: "create-skill-docs-b",
+    why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard",
+    find: "which routes through Cursor's built-in `create-skill`,",
+    replace: "which authors a Pi `SKILL.md` per the Agent Skills standard,",
+  },
+
+  // ---- reflect --------------------------------------------------------------
+  {
+    id: "reflect-new-skill-label",
+    why: "Cursor create-skill -> Pi skill authoring",
+    find: "- `new skill via create-skill: <kebab-name>`: hand creation to Pi skill authoring.",
+    replace: "- `new skill via Pi skill authoring: <kebab-name>`: hand creation to Pi skill authoring.",
+  },
+  {
+    id: "reflect-task-response",
+    why: "Cursor Task response -> Pi pstack_spawn response",
+    find: "Reviewers return findings in the `Task` response body.",
+    replace: "Reviewers return findings in the `pstack_spawn` response body.",
+  },
+  {
+    id: "reflect-task-prompts",
+    why: "Cursor Task prompts -> Pi pstack_spawn prompts",
+    find: "- `Task` prompts that name a skill path",
+    replace: "- `pstack_spawn` prompts that name a skill path",
+  },
+  {
+    id: "reflect-synthesizer-label",
+    why: "Cursor create-skill -> Pi skill authoring",
+    find: "<new skill via create-skill: <kebab-name>>",
+    replace: "<new skill via Pi skill authoring: <kebab-name>>",
+  },
+  {
+    id: "worktree-audit-transcripts",
+    why: "Cursor transcript dir -> Pi session store",
+    find: "# Transcripts dir: ~/.cursor/projects/<slugified-repo-path>/agent-transcripts.\nslug=$(printf '%s' \"$main_wt\" | sed 's#^/##; s#/#-#g')\ntranscripts=\"$HOME/.cursor/projects/$slug/agent-transcripts\"",
+    replace: "# Transcripts dir: ~/.pi/agent/sessions (Pi session store).\ntranscripts=\"$HOME/.pi/agent/sessions\"",
+  },
+
+  // ---- MCP discovery --------------------------------------------------------
+  {
+    id: "mcps-discovery",
+    why: "Cursor exposes an mcps/ directory; Pi exposes MCP servers as live tools",
+    find: "Before spawning investigators, list the available MCPs from the Cursor environment. Use the available-tools map when present. Otherwise inspect the `mcps/` directory Cursor exposes for enabled MCP servers.",
+    replace: "Before spawning investigators, list the MCP servers available in this Pi session from the live tool list. If none are present, document the gap and run the source-control investigator anyway.",
+  },
+  {
+    id: "why-readonly-investigator",
+    why: "Pi readonly allowlists builtins and does not strip MCP; investigator role is auto-readonly",
+    find: "- `readonly`: `false` (agent mode). **Do not use readonly/Ask mode.** It strips MCP access, which disables MCP-backed investigators entirely. Investigators still shouldn't write anything.",
+    replace: "- `readonly`: `false` (agent mode). Use `role: \"investigator\"` for code and git work (auto-readonly: `read,grep,find,ls`). A readonly child keeps MCP tools on Pi, unlike Cursor Ask mode, but investigators still shouldn't write anything.",
+  },
+  {
+    id: "why-readonly-synthesizer",
+    why: "Pi readonly allowlists builtins and does not strip MCP",
+    find: "- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. Readonly/Ask mode strips MCPs and defeats that.",
+    replace: "- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. A readonly child keeps MCP tools on Pi, unlike Cursor Ask mode.",
+  },
+  {
+    id: "reflect-readonly-a",
+    why: "Pi readonly allowlists builtins and does not strip MCP",
+    find: "One message, three `Task` calls, `subagent_type: generalPurpose`, explicit `model:` on each, agent mode (`readonly: false`). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Readonly strips MCPs.",
+    replace: "One message, three `pstack_spawn` calls, `role: general`, explicit `model:` on each, agent mode (`readonly: false`). Reviewers may need MCP tools for context lookups (tickets, chat threads, observability traces referenced in the transcript). Pi readonly keeps MCP tools but restricts builtins to `read,grep,find,ls`.",
+  },
+  {
+    id: "reflect-readonly-b",
+    why: "Pi readonly allowlists builtins and does not strip MCP",
+    find: "One `Task` call, `subagent_type: generalPurpose`, using your configured reflect-judgment model (default `claude-fable-5-1-thinking-max`), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP access. Readonly strips MCPs.",
+    replace: "One `pstack_spawn` call, `role: general`, using your configured reflect-judgment model (default `claude-fable-5-1-thinking-max`), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP tools. Pi readonly keeps MCP tools but restricts builtins to `read,grep,find,ls`.",
+  },
+  // ---- Transcripts ----------------------------------------------------------
+
+  {
+    id: "reflect-transcript-command",
+    why: "Cursor transcript globs -> Pi session store (pstack_sessions finds the active file)",
+    find: "ls -t <agent-transcripts>/*.jsonl <agent-transcripts>/*/*.jsonl <agent-transcripts>/*/subagents/*.jsonl 2>/dev/null | head -10",
+    replace: "ls -t ~/.pi/agent/sessions/*/*.jsonl 2>/dev/null | head -10\n# Prefer the pstack_sessions tool for the active workspace's store.",
+  },
+  {
+    id: "transcript-dir-phrase",
+    why: "Cursor agent-transcripts directory -> Pi session transcripts; pstack_sessions locates it",
+    find: "`agent-transcripts/` directory",
+    replace: "Pi session transcripts directory",
+  },
+
+];
+
+export const overrides = {
+  "skills/make-bot-ui/SKILL.md": {
+    why: "The file's whole mechanism is Cursor Grok Bot routines (update_state, SendToUser secret cards, Cursor IDE chrome). Step-level substitution would touch nearly every section, so the Pi twin is hand-written; the non-mechanism sections are pinned verbatim below.",
+    must: [
+      "# How to make a bot UI",
+      "## Host the page on this computer",
+      "Bind the server to `0.0.0.0:<port>`, not `127.0.0.1`. Tailscale peers cannot reach a localhost-only bind.",
+      "- method `POST`",
+      "- `Content-Type: application/json`",
+      "- `Authorization: Bearer <key>`",
+      "- `X-Automation-Key: <key>`",
+      "- timeout: 8 seconds",
+      "- one try, no retry",
+      "Before you tell the user that the UI is live, probe once with a harmless payload.",
+      "If a POST can fail, append the same JSON to a local log.",
+      "## Put the page on the tailnet",
+      "Agents on this computer share one Tailscale node. Do not create a second hostname on a node that is already online.",
+      "If `tailscale status` shows an online node, skip install. Read the hostname from `tailscale status`. Read the IPv4 address from `tailscale ip -4`. Give the user both URLs:",
+      "- `http://<hostname>.<tailnet>.ts.net:<port>`",
+      "- `http://<100.x.x.x>:<port>`",
+      "Use HTTP. Do not add HTTPS unless the user asks.",
+      "curl -fsSL https://tailscale.com/install.sh | sudo sh",
+      "sudo tailscale up --hostname=<short-name> --accept-dns=false --ssh=false",
+      "The command prints a login URL. Send that URL to the user. The user approves the machine in the browser. Do not ask for Tailscale credentials. Do not type them.",
+      "After the node is online, confirm with `tailscale status` and `tailscale ip -4`.",
+      "If the login URL expires, run `tailscale up` again and send the new URL.",
+    ],
+  },
+  "skills/setup-pstack/SKILL.md": {
+    why: "The file's whole artifact is the Cursor always-applied .mdc rule; the Pi twin writes pstack-models.json, so most lines change mechanism. Non-mechanism prose is pinned verbatim below.",
+    must: [
+      "# Setup pstack",
+      "Detect available models",
+      "Load current state",
+      "Budget, map, and confirm",
+      "- `unlimited — keep max`",
+      "- `large — xhigh reasoning`",
+      "- `medium — high reasoning`",
+      "- `small — medium reasoning`",
+      "### 4. Validate",
+      "`inherit-parent` and `auto` always pass.",
+      "### 6. Confirm",
+      "### 7. Offer a verification skill (optional)",
+    ],
+  },
+};
+
+export const leftoverTokens = [
+  { id: "run_in_background", re: /run_in_background/ },
+  { id: "subagent_type", re: /subagent_type/ },
+  { id: "askquestion", re: /AskQuestion/ },
+  { id: "cursor-user-path", re: /~\/\.cursor/ },
+  { id: "cursor-project-path", re: /\.cursor\// },
+  { id: "create-skill", re: /create-skill/ },
+  { id: "team-kit", re: /cursor-team-kit/ },
+  { id: "transcripts", re: /agent-transcripts/ },
+  { id: "task-tool", re: /`Task`|\bTask tool\b|\bTask subagent\b|\bTask calls\b|\bTask schema\b/ },
+  { id: "loop-command", re: /`\/loop`|\/loop /, allow: ["docs/guide/10-recipes-and-pitfalls.md"] },
+  { id: "update-state", re: /update_state/ },
+  { id: "send-to-user", re: /SendToUser/ },
+  { id: "grok-bot", re: /Grok Bot/ },
+  { id: "models-mdc", re: /pstack-models\.mdc/ },
+  { id: "cloud-base", re: /cloud_base_branch/ },
+  { id: "cloud-env", re: /environment: "cloud"/ },
+  { id: "cursor-cloud", re: /Cursor cloud agent|cloud VM|cloud-agent URL|cloud spawn|cloud root|cloud workers|cloud-sleeper|cloud default/ },
+  { id: "cursor-app-support", re: /Application Support\/Cursor/ },
+  { id: "cursor-builtin", re: /Cursor's built-in/ },
+  { id: "cursor-mcps", re: /`mcps\/`/ },
+  { id: "control-skill", re: /`control-ui`|`control-cli`/ },
+  { id: "deslop-skill", re: /`\/deslop`/ },
+];

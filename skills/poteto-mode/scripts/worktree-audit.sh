@@ -22,12 +22,8 @@ prs=$(mktemp)
 gh pr list --author "@me" --state all --limit 1000 \
 	--json number,state,headRefName 2>/dev/null > "$prs" || echo "[]" > "$prs"
 
-# Session/transcript dirs: prefer ~/.pi/agent/sessions; fall back to Cursor legacy.
-slug=$(printf '%s' "$main_wt" | sed 's#^/##; s#/#-#g')
-# Pi twin: session files under ~/.pi/agent/sessions (and optional legacy Cursor path)
-pi_sessions="$HOME/.pi/agent/sessions"
-cursor_legacy="$HOME/.cursor/projects/$slug/agent-transcripts"
-if [ -d "$pi_sessions" ]; then transcripts="$pi_sessions"; else transcripts="$cursor_legacy"; fi
+# Transcripts dir: ~/.pi/agent/sessions (Pi session store).
+transcripts="$HOME/.pi/agent/sessions"
 now=$(date +%s)
 
 printf "SIZE\tAGE\tMERGED\tDIRTY\tREMOTE\tPR\tLAST_CHAT\tBUCKET\tWORKTREE\n"

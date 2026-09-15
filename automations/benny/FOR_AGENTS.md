@@ -1,6 +1,3 @@
-
-> **Pi port note.** Cursor Automations host is unavailable on Pi. Benny skills under `automations/benny/skills/` remain usable as manual `/skill:`-style workflows when copied into a project skill path, or invoked by reading SKILL.md. Slack/webhook triggers must be wired externally (cron, Slack bot, CI). See package PARITY.md.
-
 # benny automation intent
 
 ## what i want to automate

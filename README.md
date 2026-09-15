@@ -4,6 +4,8 @@ Native [Pi](https://pi.dev) package porting [Cursor pstack](https://github.com/c
 
 This is **not** Cursor-equivalence theater: skill/playbook *files* match upstream, and extensions implement the closest executable Pi-native behavior.
 
+**Content parity is machine-checked.** Every file under `skills/`, `agents/`, `automations/`, and `docs/` is `apply(declared Cursor→Pi bindings, upstream pstack@v0.15.2)`. `npm run parity:check` fails on any drift, any unmigrated Cursor mechanism, any unknown `pstack_*` tool, or any dead `scripts/...` path. 104 of 153 upstream files are byte-identical; 47 differ only where a binding names a Cursor mechanism; 2 whole-mechanism files are declared overrides with their non-Cursor sections pinned verbatim. See [port/README.md](./port/README.md).
+
 **Local-scope scorecard** (after close-orch-p0/p1/p1b — see [PARITY.md](./PARITY.md)): **EQUIVALENT** sticky / Task-spawn (Cap2) / loop / worktrees / ship / models / recall / readonly; **PARTIAL** deslop only (honest residual, off the user's orch bar); **NOT** cloud agents, marketplace, Automations/Slack, Grok Bot cards. Cap2 resume = `--session-dir` + `--continue`/`-c` (Pi `continueRecent`); background omit→true; concurrency 8; swarm/arena = intentional sync gather.
 
 if you want to go fast, go deep first. pstack helps you write less, but higher quality code — rigorous agent workflows you can parallelize with confidence.
@@ -33,6 +35,15 @@ Try without installing:
 ```bash
 pi -e /absolute/path/to/pi-pstack
 ```
+
+## Parity check (contributors)
+
+```bash
+npm run parity:check   # ported tree == upstream + declared bindings; tools/scripts resolve
+npm run parity:sync    # regenerate the ported tree after an upstream bump
+```
+
+The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported file: a legitimate platform difference belongs in `port/bindings.mjs`, and everything else belongs upstream.
 
 ## Quick start
 

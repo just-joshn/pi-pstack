@@ -10,7 +10,7 @@ In a Pi session (or your shell), run:
 pi install <path-or-git:pi-pstack>
 ```
 
-Pi confirms the package is installed (`pi` lists it among loaded packages).
+Pi confirms the package is installed.
 
 ## Pick your models
 
@@ -33,10 +33,6 @@ At the end of setup, `/setup-pstack` looks for a way to prove app behavior in yo
 Say yes and it writes `.pi/skills/verify-<app>/`, a project-local skill that teaches agents to drive your app the way a user does. It proves the skill works once before handing it over. Say no and setup moves on. You can run `/create-verification-skill` yourself any time. [Verify and ship](./06-verify-and-ship.md#create-a-project-verification-skill) covers when it earns its place.
 
 After setup, start a new chat. The model rule applies to new sessions.
-
-## Spawn, jobs, and resume (Pi local)
-
-Cursor `Task` maps to `pstack_spawn` (+ `pstack_swarm` / `pstack_arena`). Background **omit→true** (pass `background: false` only when you need sync-await). Drain detached children with `pstack_jobs`. Resume a prior child with `resumeSessionDir` / `resumeJobId` → `--session-dir` + `--continue`/`-c` (Pi `continueRecent`). Prefer the **same cwd** on resume — `continueRecent` is cwd-affined. See [PARITY.md](../../PARITY.md) Cap2.
 
 ## Run your first task
 

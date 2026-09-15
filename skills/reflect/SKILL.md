@@ -16,11 +16,11 @@ Invoke when the user says "reflect" or "/reflect". Skip when the conversation is
 
 ### 1. Locate the active transcript
 
-The parent finds its own transcript file before fanning out. The system prompt names the active workspace's Pi session transcripts directory. Use that path. Do not glob across `Pi session store (do not glob unrelated sessions)`. That crosses workspace boundaries and reads private chats from unrelated projects.
+The parent finds its own transcript file before fanning out. The system prompt names the active workspace's Pi session transcripts directory. Use that path. Do not glob across `~/.pi/agent/sessions/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.
 
 ```bash
-ls -t ~/.pi/agent/sessions/*.jsonl ~/.pi/agent/sessions/*/*.jsonl 2>/dev/null | head -10
-# Prefer pstack_sessions tool when available; Cursor ~/.cursor/.../agent-transcripts is legacy-only.
+ls -t ~/.pi/agent/sessions/*/*.jsonl 2>/dev/null | head -10
+# Prefer the pstack_sessions tool for the active workspace's store.
 ```
 
 Three transcript layouts: legacy flat (`<id>.jsonl`), current nested (`<id>/<id>.jsonl`), and subagent (`<parent>/subagents/<child>.jsonl`).
@@ -29,7 +29,7 @@ For each candidate, read the first JSONL line and check that `message.content[0]
 
 ### 2. Spawn three reviewers in parallel
 
-One message, three `pstack_spawn` calls, `role: general via pstack_spawn`, explicit `model:` on each, agent mode (`readonly: false`). Reviewers may need MCP tools for context lookups. Pi `readonly` only clips builtins (`read,grep,find,ls`) — it does not strip MCP. Prefer readonly false with an explicit no-write brief when MCP is required.
+One message, three `pstack_spawn` calls, `role: general`, explicit `model:` on each, agent mode (`readonly: false`). Reviewers may need MCP tools for context lookups (tickets, chat threads, observability traces referenced in the transcript). Pi readonly keeps MCP tools but restricts builtins to `read,grep,find,ls`.
 
 | Lens | `model` | Prompt template |
 |---|---|---|
@@ -37,11 +37,11 @@ One message, three `pstack_spawn` calls, `role: general via pstack_spawn`, expli
 | Tooling | your configured reflect-tooling model (default `gpt-5.6-sol-max`) | `references/tooling-reviewer.md` |
 | Divergent | your configured reflect-judgment model (default `claude-fable-5-1-thinking-max`) | `references/divergent-reviewer.md` |
 
-Pass each template verbatim, substituting the transcript path or digest where marked. Reviewers return findings in the `Task` response body.
+Pass each template verbatim, substituting the transcript path or digest where marked. Reviewers return findings in the `pstack_spawn` response body.
 
 ### 3. Synthesize
 
-One `pstack_spawn` call, `role: general via pstack_spawn`, using your configured reflect-judgment model (default `claude-fable-5-1-thinking-max`), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP tools. Pi `readonly` only clips builtins. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+One `pstack_spawn` call, `role: general`, using your configured reflect-judgment model (default `claude-fable-5-1-thinking-max`), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP tools. Pi readonly keeps MCP tools but restricts builtins to `read,grep,find,ls`. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
 
 ### 4. Structural enforcement check
 
@@ -56,9 +56,9 @@ Backlog items file to whatever devex / backlog tracker your team uses automatica
 For each approved Accepted item, follow the Routing field exactly:
 
 - Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): parent does directly.
-- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to Pi skill authoring (write SKILL.md per Agent Skills standard; no Cursor create-skill) and run its draft / test / iterate loop.
+- Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to Pi skill authoring and run its draft / test / iterate loop.
 - `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to Pi skill authoring and run its description-optimization loop.
-- `new skill via create-skill: <kebab-name>`: hand creation to Pi skill authoring. Do not invent the shape ad hoc.
+- `new skill via Pi skill authoring: <kebab-name>`: hand creation to Pi skill authoring. Do not invent the shape ad hoc.
 
 If your environment ships a SKILL.md validator, run it on every touched skill before declaring done. Skip this step if it doesn't.
 

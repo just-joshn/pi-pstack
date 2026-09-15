@@ -1,12 +1,29 @@
 # PARITY.md — Cursor pstack v0.15.2 → pi-pstack
 
-Generated against local cache `/workspace/pstack-raw` (plugin.json 0.15.2) + inventory `/workspace/pstack-pi-parity-inventory.md` (124 rows).
+Checked against upstream `cursor/plugins@c1c0a32` (`pstack/plugin.json` 0.15.2). Content parity is machine-verified: run `npm run parity:check`, see [`port/README.md`](./port/README.md).
 
 Status legend:
 
 - **ported** — content present; bindings adapted to Pi (`read`/`write`/`edit`/`bash`, `pstack_*`)
 - **rewritten** — Pi-native twin replacing a Cursor-only mechanism
 - **deferred** — physically impossible on Pi; closest twin noted (must still ship twin)
+
+## Content parity (strict, machine-checked)
+
+The ported tree is a pure function of upstream plus the declared bindings:
+
+```
+local file == apply(port/bindings.mjs, upstream file)
+```
+
+`npm run parity:check` enforces it over all 153 upstream files under `skills/`, `agents/`, `automations/`, and `docs/`:
+
+- 104 files byte-identical to upstream.
+- 47 files differ only through declared bindings (each binding names the Cursor mechanism it replaces).
+- 2 files are declared whole-mechanism overrides (`skills/make-bot-ui/SKILL.md`, `skills/setup-pstack/SKILL.md`); the checker pins their upstream non-mechanism sections verbatim.
+- 0 unmigrated Cursor mechanism tokens, 0 unknown `pstack_*` tool references, 0 dead `scripts/...` paths.
+
+A file outside the binding table cannot drift: the checker fails on any byte it did not produce. Platform `name` frontmatter is a binding (`Poteto Mode` → `poteto-mode`, `Make Bot UI` → `make-bot-ui`); upstream display titles remain documentation.
 
 ## Summary counts
 
@@ -53,6 +70,8 @@ Bar: **Cursor CLI / local agent** semantics on Pi — not cloud VMs, marketplace
 **Verifier-aligned scorecard (close-orch-p1b / Cap2 true continue):** **EQUIVALENT** (local-scope): **1** sticky, **2** spawn/Task (local-Task), **3** loop, **4** worktrees, **5** shipping/babysit, **7** models, **8** recall, **11** readonly. **PARTIAL:** **6** deslop (≤3 residual bullets). Out-of-scope **NOT:** 9, 10, 12. Pi skill `name` frontmatter must be kebab-case (`poteto-mode`); Cursor display title `Poteto Mode` is host-only — invocation path `/poteto-mode` unchanged.
 
 Never claim Cursor sticky-host / Ask-MCP / native `/loop` chrome / first-party MCP bit-identical.
+
+**Content parity:** the ported tree is upstream + declared bindings, enforced by `npm run parity:check` (see “Content parity” above). Capability parity below is separate: it grades the Pi extension behavior, not the docs.
 
 Artifact matrix below counts files on disk. Do not read “ported” as EQUIVALENT.
 

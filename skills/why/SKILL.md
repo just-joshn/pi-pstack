@@ -59,7 +59,7 @@ Capture this as seed context (file paths, symbols, commits, PR numbers, linked t
 
 ### Discovery
 
-Before spawning investigators, list MCPs available in this **Pi** session (active tools / MCP servers the parent agent can call). There is no Cursor `mcps/` directory on Pi — discover from the live tool list and any MCP descriptors Pi exposes. If none are present, document the gap and still run the source-control investigator.
+Before spawning investigators, list the MCP servers available in this Pi session from the live tool list. If none are present, document the gap and run the source-control investigator anyway.
 
 Map each available MCP to one evidence category:
 
@@ -80,7 +80,7 @@ Launch all matching investigators in a single message so they run concurrently. 
 Subagent config (each):
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured why-investigators model (default `grok-4.6-fast-xhigh`)
-- Prefer `role: "investigator"` (auto-readonly: builtins clipped to `read,grep,find,ls`) for code/git investigation. For MCP-backed investigators that need non-builtin tools, spawn `role: "general"` with an explicit brief "do not write/edit/bash" — Pi `readonly` only allowlists builtins and does not strip MCP servers. Parent investigation turns: enable `/pstack-readonly` (session-level write/edit/bash block). Never require Cursor Ask mode.
+- `readonly`: `false` (agent mode). Use `role: "investigator"` for code and git work (auto-readonly: `read,grep,find,ls`). A readonly child keeps MCP tools on Pi, unlike Cursor Ask mode, but investigators still shouldn't write anything.
 
 Each investigator gets:
 1. The base prompt from `references/investigator-prompt.md`
@@ -124,7 +124,7 @@ Spawn one synthesizer subagent:
 
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured why-synthesizer model (default `claude-fable-5-1-thinking-max`)
-- Use `role: "general"` with brief "read-only synthesizer; do not write/edit". Prefer not setting `readonly: true` when citation spot-checks need MCP tools; Pi readonly only clips builtins.
+- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. A readonly child keeps MCP tools on Pi, unlike Cursor Ask mode.
 
 The synthesizer gets:
 1. The investigator findings, including any null results and any categories skipped with justification

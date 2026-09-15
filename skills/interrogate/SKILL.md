@@ -33,7 +33,7 @@ Write one clear paragraph. If you're unsure about the intent, ask the user befor
 
 ## Step 3, Spawn Reviewers
 
-Launch all reviewers in a single message using the `pstack_spawn` tool (or `pstack_swarm` / `pstack_arena` for fan-out). Use the `interrogate reviewers` list from `~/.pi/agent/pstack-models.json` (or project `.pi/pstack-models.json`) when present, one reviewer per entry, extending or shrinking the Reviewer A/B/C/D labels below to the configured entry count. Otherwise use the table defaults.
+Launch all reviewers in a single message using `pstack_spawn`. Use the `interrogate reviewers` list from `~/.pi/agent/pstack-models.json` when present, one reviewer per entry, extending or shrinking the Reviewer A/B/C/D labels below to the configured entry count. Otherwise use the table defaults.
 
 | Subagent | Default model |
 |----------|---------------|
@@ -45,9 +45,9 @@ Launch all reviewers in a single message using the `pstack_spawn` tool (or `psta
 For each reviewer:
 - `role`: `general` via `pstack_spawn`
 - `model`: the configured `interrogate reviewers` entry, or the table default with no configured line
-- `readonly`: `true` (pstack_spawn; Pi tools limited to read,grep,find,ls; no bash)
+- `readonly`: `true`
 
-If a model slug is rejected as unresolvable when you try to spawn the subagent, check the valid slugs in the `pstack_spawn` tool (or `pstack_swarm` / `pstack_arena` for fan-out)'s error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with the valid slug, and open a separate PR to update the configured value or default table. Do not block the review on the slug issue. If the configured value is `inherit-parent` or `auto`, omit `model` instead. Never treat those aliases as broken slugs or enter this fallback for them.
+If a model slug is rejected as unresolvable when you try to spawn the subagent, check the valid slugs in the `pstack_spawn` tool's error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with the valid slug, and open a separate PR to update the configured value or default table. Do not block the review on the slug issue. If the configured value is `inherit-parent` or `auto`, omit `model` instead. Never treat those aliases as broken slugs or enter this fallback for them.
 
 Read `references/reviewer-prompt.md` and fill in the template with:
 1. The stated intent
