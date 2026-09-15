@@ -6,7 +6,7 @@ This is **not** Cursor-equivalence theater: skill/playbook *files* match upstrea
 
 **Content parity is machine-checked.** Every file under `skills/`, `agents/`, `automations/`, and `docs/` is `apply(declared Cursor→Pi bindings, upstream pstack@v0.15.2)`. `npm run parity:check` fails on any drift, any unmigrated Cursor mechanism, any unknown `pstack_*` tool, or any dead `scripts/...` path. 103 of 153 upstream files are byte-identical; 48 differ only where a binding names a Cursor mechanism; 2 whole-mechanism files are declared overrides: each override's must list pins named upstream sections, the leftover scan rejects Cursor mechanisms, and the override is hand-maintained and reviewed. See [port/README.md](./port/README.md).
 
-**Local-scope scorecard** (after close-orch-p0/p1/p1b — see [PARITY.md](./PARITY.md)): **EQUIVALENT** sticky / Task-spawn (Cap2) / loop / worktrees / ship / models / recall / readonly; **PARTIAL** deslop only (honest residual, off the user's orch bar); **NOT** cloud agents, marketplace, Automations/Slack, Grok Bot cards. Cap2 resume = `--session-dir` + `--continue`/`-c` (Pi `continueRecent`); background omit→true; concurrency 8; swarm/arena = intentional sync gather.
+**Status is not kept in this file.** The live contract and per-obligation ledger are [`spec/SPEC.md`](./spec/SPEC.md) and [`spec/contracts/`](./spec/contracts/). The coverage command is `npm run spec:check`. [PARITY.md](./PARITY.md) is the historical snapshot.
 
 if you want to go fast, go deep first. pstack helps you write less, but higher quality code — rigorous agent workflows you can parallelize with confidence.
 
@@ -39,24 +39,27 @@ pi -e /absolute/path/to/pi-pstack
 ## Parity check (contributors)
 
 ```bash
+npm run spec:check     # structural ledger check over spec/
+npm run spec:gate      # the 100 percent completion gate
 npm run parity:check   # ported tree == upstream + declared bindings; tools/scripts resolve
 npm run parity:sync    # regenerate the ported tree after an upstream bump
 ```
 
-The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported file: a legitimate platform difference belongs in `port/bindings.mjs`, and everything else belongs upstream.
+The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported file: a legitimate platform difference belongs in `port/bindings/`, and everything else belongs upstream.
 
 ## Testing
 
 One entry point runs seven layers plus the pre-existing suites:
 
 ```bash
-npm test                          # layers 1-6 + legacy; layer 7 is opt-in
+npm test                          # layers 0-6 + legacy; layer 7 is opt-in
 node tests/runner.mjs --layer 2   # one layer
 node tests/runner.mjs --list      # layers, files, requirements
 ```
 
 | Layer | Proves |
 |-------|--------|
+| 0 conformance | AGENTS.md rules over project-owned code (`extensions/`, `tests/`, `port/`): file and function size, nesting depth, no `console.log`, no in-place mutation, no empty catch, no secret patterns. The byte-pinned ported tree reports warn-only via `npm run conformance -- --all` |
 | 1 unit | pure extension functions with no Pi dependency |
 | 2 integration | extension registration, lifecycle events, tool interception, and session behavior through the public SDK + faux provider |
 | 3 smoke | the real `pi --no-extensions -e ./extensions/index.ts` load, with a broken-extension negative control |
@@ -103,11 +106,11 @@ Cursor `Task` / `subagent_type` map to these tools. Built-in Pi tools remain `re
 - `/setup-pstack` — write model role config
 - `/pstack-gates` — pre-ship gate reminder
 
-Slash prompt aliases under `prompts/` expand common short names.
+Per-skill slash aliases are generated extension commands in `extensions/commands/skill-commands.ts`, registered for every skill whose name is not reserved.
 
 ## Honesty / known gaps
 
-See **[PARITY.md](./PARITY.md) → Behavioral scorecard (12 capabilities)** for the Verifier-aligned summary. Artifact counts (ported/rewritten) are not runtime equivalence. Highest-leverage twins: Cap2 local-Task spawn (omit→true bg, `--continue` resume, jobs, concurrency 8), `pstack_loop` dynamic mode, worktree fleets, auto-readonly comment-sicko/investigator, gh shipping tools. **deslop** stays PARTIAL; Benny under `automations/benny/` is a ported pack (path + host bindings; the Cursor Automations host is out of scope) (**NOT** on the local orch bar — no Automations Slack bus).
+Host ceilings and exclusions are recorded in [`spec/SPEC.md`](./spec/SPEC.md) section 4.
 
 **Not supported** (one-line): Cursor plugin marketplace · Automations Slack bus · cloud agent VMs · full Electron/IDE control-ui · Grok Bot `update_state` / secret-request cards.
 
@@ -115,12 +118,12 @@ See **[PARITY.md](./PARITY.md) → Behavioral scorecard (12 capabilities)** for 
 
 ```
 pi-pstack/
-  package.json          # keywords: ["pi-package"], pi: { extensions, skills, prompts }
+  package.json          # keywords: ["pi-package"], pi: { extensions, skills }
   LICENSE, NOTICE
   README.md, CHANGELOG.md, PARITY.md
+  spec/                 # contract, ledger, checker
   extensions/           # TypeScript (index + subagents, orchestration, models, …)
   skills/               # all upstream skills (adapted bindings)
-  prompts/              # slash aliases
   agents/               # poteto-agent + comment-sicko (reference prompts)
   docs/guide/           # upstream guide (lightly adapted)
 ```

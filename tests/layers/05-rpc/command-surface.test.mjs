@@ -39,3 +39,21 @@ test("close() resolves exit code 0", async () => {
     assert.equal(code, 0);
   });
 });
+
+test("next() resolves a later message and diagnostics read live traffic", async () => {
+  await withRpc(async (rpc) => {
+    const pending = rpc.next((msg) => msg.type === "response" && msg.command === "get_state");
+    const response = await rpc.request({ type: "get_state" });
+    const seen = await pending;
+    assert.equal(seen.id, response.id);
+
+    await assert.rejects(
+      () => rpc.next((msg) => msg.command === "never-emitted", 300),
+      (error) => {
+        assert.match(error.message, /Timeout waiting for message matching predicate/);
+        assert.match(error.message, /get_state/, "diagnostics must include the live message buffer");
+        return true;
+      },
+    );
+  });
+});

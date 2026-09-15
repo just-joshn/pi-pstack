@@ -18,7 +18,7 @@ const TEXT_RULES = [
 const EMPTY_CATCH = /catch\s*(?:\([^)]*\))?\s*\{\s*\}/g;
 
 const SECRET_RULES = [
-  { id: "secret", re: /\bsk-[A-Za-z0-9]{16,}\b/g, detail: "openai-style key" },
+  { id: "secret", re: /\bsk-[A-Za-z0-9][A-Za-z0-9_-]{15,}\b/g, detail: "openai-style key" },
   { id: "secret", re: /\bghp_[A-Za-z0-9]{20,}\b/g, detail: "github token" },
   { id: "secret", re: /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, detail: "github fine-grained token" },
   { id: "secret", re: /\bAKIA[0-9A-Z]{16}\b/g, detail: "aws access key id" },
@@ -32,11 +32,12 @@ function matchesWithLines(text, lineAt, re, id, detail) {
   }));
 }
 
-function textViolations(scan) {
+function textViolations(scan, source) {
   return [
     ...TEXT_RULES.flatMap((rule) => matchesWithLines(scan.clean, scan.lineAt, rule.re, rule.id, rule.detail)),
     ...matchesWithLines(scan.clean, scan.lineAt, EMPTY_CATCH, "empty-catch", "empty catch block"),
-    ...SECRET_RULES.flatMap((rule) => matchesWithLines(scan.clean, scan.lineAt, rule.re, rule.id, rule.detail)),
+    // Secrets live inside strings, and sanitize() masks string contents, so secret rules read the raw source.
+    ...SECRET_RULES.flatMap((rule) => matchesWithLines(source, scan.lineAt, rule.re, rule.id, rule.detail)),
   ];
 }
 
@@ -75,7 +76,7 @@ export function auditSource(source, options = {}) {
   const severity = options.owned === false ? "warn" : "error";
   const violations = [
     ...fileLengthViolations(source),
-    ...textViolations(scan),
+    ...textViolations(scan, source),
     ...functionViolations(scan.frames),
     ...nestingViolations(scan.frames),
   ];

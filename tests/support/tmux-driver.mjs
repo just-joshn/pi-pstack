@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { bestEffort } from "./best-effort.mjs";
 
 export function tmuxAvailable() {
   try {
@@ -54,9 +55,9 @@ function createFixture(name) {
 }
 
 function killSession(name) {
-  try {
-    execFileSync("tmux", ["kill-session", "-t", name], { stdio: "ignore" });
-  } catch {}
+  bestEffort(`tmux kill-session ${name}`, () =>
+    execFileSync("tmux", ["kill-session", "-t", name], { stdio: "ignore" }),
+  );
 }
 
 export async function withTmux(fn, options = {}) {

@@ -110,8 +110,8 @@ export function hitsFromGhPrs(prs: string, query: string): RecallHit[] {
 /** Merge + rank hits descending by score (stable by source priority on ties). */
 export function rankRecallHits(hits: RecallHit[], limit = 30): RecallHit[] {
   const sourcePri: Record<RecallSource, number> = { session: 3, gh: 2, git: 1 };
-  return [...hits]
-    .sort(
+  return hits
+    .toSorted(
       (a, b) =>
         b.score - a.score || sourcePri[b.source] - sourcePri[a.source] || a.title.localeCompare(b.title),
     )

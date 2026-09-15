@@ -16,38 +16,33 @@ export interface PrGateView {
 
 /** Pure gate evaluation (exported for tests). */
 export function evaluateMergeGates(data: PrGateView): string[] {
-  const problems: string[] = [];
-  if (data.mergedAt) problems.push("already merged");
-  if (data.state && data.state !== "OPEN") problems.push(`state=${data.state}`);
+  const mergeProblems = data.mergedAt ? ["already merged"] : [];
+  const stateProblems = data.state && data.state !== "OPEN" ? [`state=${data.state}`] : [];
   const status = data.mergeStateStatus ?? "";
-  if (["UNSTABLE", "DIRTY", "DRAFT"].includes(status)) {
-    problems.push(`mergeStateStatus=${status}`);
-  }
-  // BLOCKED / BEHIND are soft warnings that still fail-closed for land
-  if (status === "BLOCKED" || status === "BEHIND") {
-    problems.push(`mergeStateStatus=${status}`);
-  }
-  for (const c of data.statusCheckRollup ?? []) {
+  const statusProblems = ["UNSTABLE", "DIRTY", "DRAFT", "BLOCKED", "BEHIND"].includes(status)
+    ? [`mergeStateStatus=${status}`]
+    : [];
+  const checkProblems = (data.statusCheckRollup ?? []).flatMap((c) => {
     const conclusion = (c.conclusion ?? c.state ?? "").toUpperCase();
     if (["FAILURE", "CANCELLED", "TIMED_OUT", "ERROR", "ACTION_REQUIRED"].includes(conclusion)) {
-      problems.push(`check ${c.name ?? "?"}=${conclusion}`);
+      return [`check ${c.name ?? "?"}=${conclusion}`];
     }
-    // Pending/in-progress checks also block merge (fail closed)
     const statusUpper = (c.status ?? "").toUpperCase();
     if (
       !conclusion &&
       (statusUpper === "PENDING" || statusUpper === "IN_PROGRESS" || statusUpper === "QUEUED")
     ) {
-      problems.push(`check ${c.name ?? "?"}=${statusUpper}`);
+      return [`check ${c.name ?? "?"}=${statusUpper}`];
     }
-  }
-  if (data.reviewDecision === "CHANGES_REQUESTED") {
-    problems.push("reviewDecision=CHANGES_REQUESTED");
-  }
-  if (data.reviewDecision === "REVIEW_REQUIRED") {
-    problems.push("reviewDecision=REVIEW_REQUIRED");
-  }
-  return problems;
+    return [];
+  });
+  const reviewProblems =
+    data.reviewDecision === "CHANGES_REQUESTED"
+      ? ["reviewDecision=CHANGES_REQUESTED"]
+      : data.reviewDecision === "REVIEW_REQUIRED"
+        ? ["reviewDecision=REVIEW_REQUIRED"]
+        : [];
+  return [...mergeProblems, ...stateProblems, ...statusProblems, ...checkProblems, ...reviewProblems];
 }
 
 /** Fixture matrix for verify scripts (id → view → expectProblems substring[]). */

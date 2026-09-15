@@ -1,6 +1,6 @@
 # Port parity
 
-The ported tree is a pure function of upstream pstack plus the bindings declared here.
+The ported tree is a pure function of upstream pstack plus the bindings declared in `port/bindings/`.
 
 ```
 local file == apply(bindings, upstream file)
@@ -19,13 +19,13 @@ node port/port.mjs rules   # list bindings and whether each fired
 
 `check` fetches upstream into `.port-upstream/` on first run (or sees `PORT_UPSTREAM_DIR` / `--upstream <dir>`).
 
-`sync` rewrites every ported file. Uncommitted hand edits to ported files are lost by design: all legitimate divergence lives in `bindings.mjs`.
+`sync` rewrites every ported file. Uncommitted hand edits to ported files are lost by design: all legitimate divergence lives in `port/bindings/`.
 
-Bytes are compared first. A text file (`.md`, `.sh`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.json`, `.yaml`, `.yml`, `.tsv`, `.txt`) is compared byte-for-byte, then decoded and re-encoded, so a string-equal file with different bytes reports `BYTE DRIFT`. Anything outside that extension list is binary: differing bytes report `BINARY DRIFT`, and `sync` prints `REFUSING to sync binary <path>` and exits 1. Local-only files under a scoped directory must be declared in `bindings.mjs` `extras`; otherwise `check` prints an `undeclared local-only` line and fails.
+Bytes are compared first. A text file (`.md`, `.sh`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.json`, `.yaml`, `.yml`, `.tsv`, `.txt`) is compared byte-for-byte, then decoded and re-encoded, so a string-equal file with different bytes reports `BYTE DRIFT`. Anything outside that extension list is binary: differing bytes report `BINARY DRIFT`, and `sync` prints `REFUSING to sync binary <path>` and exits 1. Local-only files under a scoped directory must be declared in `port/bindings/` `extras`; otherwise `check` prints an `undeclared local-only` line and fails.
 
 ## Bindings
 
-`bindings.mjs` holds:
+`port/bindings/` holds:
 
 - **`bindings`**: ordered Cursor-to-Pi substitutions. Each rule has an `id`, a `why` naming the Cursor mechanism it replaces, an optional `files` glob, and a `find`/`replace` pair. Longest, most specific rules run first.
 - **`overrides`**: files whose whole mechanism is Cursor-only, so a Pi twin is hand-written. Each override's `must` list pins the named upstream sections that stay verbatim, and the leftover scan rejects Cursor mechanisms in the whole file. Overrides are hand-maintained and reviewed. Two files qualify today: `make-bot-ui` (Grok Bot routines) and `setup-pstack` (the always-applied `.mdc` rule).
@@ -40,3 +40,5 @@ A new binding must replace a Cursor mechanism, stay minimal, and not add Pi comm
 3. For each drift: add a binding if a Cursor mechanism changed, or `npm run parity:sync` to absorb upstream edits verbatim.
 4. Fix `leftoverTokens` hits with bindings, never by editing the ported file.
 5. Re-read the override files against upstream if they changed.
+
+The behavioral contract lives in `spec/SPEC.md`; this file owns content parity.

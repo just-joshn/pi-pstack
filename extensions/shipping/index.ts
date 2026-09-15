@@ -34,6 +34,204 @@ export {
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WATCH_PR = resolve(PACKAGE_ROOT, "skills/poteto-mode/scripts/watch-pr/watch-pr");
 
+type BabysitResponse = {
+  content: Array<{ type: string; text: string }>;
+  details: {
+    code: number;
+    via: string;
+    recipeId: string;
+    watchArgv: string[];
+    loopArm?: unknown;
+    fixturesAvailable?: number;
+  };
+};
+
+type ShipStackResponse = {
+  content: Array<{ type: string; text: string }>;
+  details: Record<string, unknown>;
+};
+
+async function executeBabysitWithWatchPr(
+  pi: ExtensionAPI,
+  prRaw: string,
+  params: { statusOnly?: boolean; pretty?: boolean },
+  recipeId: string,
+  hint: { watchArgv: string[]; loopArm: unknown },
+  includeHint: boolean,
+  signal: AbortSignal | undefined,
+): Promise<BabysitResponse> {
+  const baseArgs = [WATCH_PR, prRaw];
+  const statusArgs = params.statusOnly || recipeId === "watch-pr-status" ? ["--status-only"] : [];
+  const prettyArgs = params.pretty ? ["--pretty"] : [];
+  const args = [...baseArgs, ...statusArgs, ...prettyArgs];
+  const result = await pi.exec("bash", args, { signal, timeout: 60 * 60 * 1000 });
+  const hintBlock = includeHint
+    ? `\n\n--- pstack_loop dynamic arm (default babysit recipe ${recipeId}) ---\n${JSON.stringify(hint.loopArm, null, 2)}\nwatchArgv=${JSON.stringify(hint.watchArgv)}`
+    : "";
+  return {
+    content: [
+      {
+        type: "text",
+        text: `${result.stdout || result.stderr || `(exit ${result.code})`}${hintBlock}`,
+      },
+    ],
+    details: {
+      code: result.code,
+      via: "watch-pr",
+      recipeId,
+      watchArgv: hint.watchArgv,
+      loopArm: includeHint ? hint.loopArm : undefined,
+    },
+  };
+}
+
+async function executeBabysitWithGhRecipe(
+  pi: ExtensionAPI,
+  recipeId: string,
+  hint: { watchArgv: string[]; loopArm: unknown },
+  includeHint: boolean,
+  signal: AbortSignal | undefined,
+): Promise<BabysitResponse> {
+  const [cmd, ...argv] = hint.watchArgv;
+  const result = await pi.exec(cmd, argv, {
+    signal,
+    timeout: recipeId === "gh-checks-watch" ? 60 * 60 * 1000 : 60_000,
+  });
+  const hintBlock = includeHint
+    ? `\n\n--- pstack_loop dynamic arm ---\n${JSON.stringify(hint.loopArm, null, 2)}`
+    : "";
+  return {
+    content: [
+      {
+        type: "text",
+        text: `${result.stdout || result.stderr || `(exit ${result.code})`}${hintBlock}`,
+      },
+    ],
+    details: {
+      code: result.code,
+      via: "gh-recipe",
+      recipeId,
+      watchArgv: hint.watchArgv,
+      loopArm: includeHint ? hint.loopArm : undefined,
+    },
+  };
+}
+
+async function executeBabysitWithGhView(
+  pi: ExtensionAPI,
+  prRaw: string,
+  recipeId: string,
+  hint: { watchArgv: string[]; loopArm: unknown },
+  includeHint: boolean,
+  signal: AbortSignal | undefined,
+): Promise<BabysitResponse> {
+  const result = await pi.exec(
+    "gh",
+    [
+      "pr",
+      "view",
+      prRaw,
+      "--json",
+      "number,title,state,mergedAt,mergeStateStatus,statusCheckRollup,url,reviewDecision",
+    ],
+    { signal },
+  );
+  const hintBlock = includeHint
+    ? `\n\n--- pstack_loop dynamic arm (default babysit) ---\n${JSON.stringify(hint.loopArm, null, 2)}\nwatchArgv=${JSON.stringify(hint.watchArgv)}`
+    : "";
+  return {
+    content: [
+      {
+        type: "text",
+        text: `${result.stdout || result.stderr}${hintBlock}`,
+      },
+    ],
+    details: {
+      code: result.code,
+      via: "gh",
+      recipeId,
+      watchArgv: hint.watchArgv,
+      loopArm: includeHint ? hint.loopArm : undefined,
+      fixturesAvailable: MERGE_GATE_FIXTURES.length,
+    },
+  };
+}
+
+async function handleShipView(
+  pi: ExtensionAPI,
+  pr: string,
+  signal: AbortSignal | undefined,
+): Promise<ShipStackResponse> {
+  const r = await pi.exec(
+    "gh",
+    ["pr", "view", pr.replace(/^#/, ""), "--json", "number,title,state,mergedAt,mergeStateStatus,url,statusCheckRollup"],
+    { signal },
+  );
+  return { content: [{ type: "text", text: r.stdout || r.stderr }], details: { code: r.code } };
+}
+
+async function handleShipStackStatus(
+  pi: ExtensionAPI,
+  prs: string[],
+  signal: AbortSignal | undefined,
+): Promise<ShipStackResponse> {
+  if (!prs.length) throw new Error("stackPrs or pr required");
+  let chunks: string[] = [];
+  for (const pr of prs) {
+    const r = await pi.exec(
+      "gh",
+      ["pr", "view", pr.replace(/^#/, ""), "--json", "number,state,mergedAt,mergeStateStatus,title"],
+      { signal },
+    );
+    chunks = [...chunks, r.stdout || `PR ${pr}: ${r.stderr}`];
+  }
+  return { content: [{ type: "text", text: chunks.join("\n") }], details: {} };
+}
+
+async function handleShipGateCheck(
+  pi: ExtensionAPI,
+  pr: string,
+  signal: AbortSignal | undefined,
+): Promise<ShipStackResponse> {
+  const gate = await assertMergeGates(pi, pr.replace(/^#/, ""), signal);
+  return {
+    content: [
+      {
+        type: "text",
+        text: `gate-check PASS\n${JSON.stringify(gate, null, 2)}`,
+      },
+    ],
+    details: { gate },
+  };
+}
+
+async function handleShipMerge(
+  pi: ExtensionAPI,
+  pr: string,
+  mergeMethod: string | undefined,
+  signal: AbortSignal | undefined,
+): Promise<ShipStackResponse> {
+  const prClean = pr.replace(/^#/, "");
+  const gate = await assertMergeGates(pi, prClean, signal);
+  const method = mergeMethod ?? "squash";
+  const flag = method === "merge" ? "--merge" : method === "rebase" ? "--rebase" : "--squash";
+  const r = await pi.exec("gh", ["pr", "merge", prClean, flag], {
+    signal,
+  });
+  if (r.code !== 0) {
+    throw new Error(`gh pr merge failed (fail closed): ${r.stderr || r.stdout || `exit ${r.code}`}`);
+  }
+  return {
+    content: [
+      {
+        type: "text",
+        text: `Merged PR ${prClean} after gate check (mergeStateStatus=${gate.mergeStateStatus ?? "n/a"}).\n${r.stdout || ""}`,
+      },
+    ],
+    details: { code: r.code, gate },
+  };
+}
+
 async function assertMergeGates(
   pi: ExtensionAPI,
   pr: string,
@@ -66,7 +264,76 @@ async function assertMergeGates(
   return data;
 }
 
-export function registerShipping(pi: ExtensionAPI): void {
+type BabysitParams = {
+  pr: string;
+  statusOnly?: boolean;
+  pretty?: boolean;
+  recipeId?: string;
+  armLoopHint?: boolean;
+};
+
+type ShipParams = {
+  action: string;
+  pr?: string;
+  stackPrs?: string[];
+  mergeMethod?: string;
+};
+
+function resolveBabysitRecipeId(params: BabysitParams): string {
+  if (params.statusOnly === true) return "watch-pr-status";
+  if (params.recipeId && params.recipeId in BABYSIT_WATCH_RECIPES) return params.recipeId;
+  if (params.recipeId) {
+    throw new Error(
+      `unknown babysit recipeId '${params.recipeId}'. Known: ${Object.keys(BABYSIT_WATCH_RECIPES).join(", ")}`,
+    );
+  }
+  return DEFAULT_BABYSIT_RECIPE;
+}
+
+async function executeBabysit(
+  pi: ExtensionAPI,
+  params: BabysitParams,
+  signal: AbortSignal | undefined,
+): Promise<BabysitResponse> {
+  const prRaw = params.pr.replace(/^#/, "");
+  const recipeId = resolveBabysitRecipeId(params);
+  const hint = babysitDynamicLoopHint(prRaw, recipeId);
+  const includeHint = params.armLoopHint !== false;
+
+  if (existsSync(WATCH_PR) && (recipeId === "watch-pr-drive" || recipeId === "watch-pr-status")) {
+    return await executeBabysitWithWatchPr(pi, prRaw, params, recipeId, hint, includeHint, signal);
+  }
+
+  if (recipeId === "gh-checks-watch" || recipeId === "gh-view-json") {
+    return await executeBabysitWithGhRecipe(pi, recipeId, hint, includeHint, signal);
+  }
+
+  return await executeBabysitWithGhView(pi, prRaw, recipeId, hint, includeHint, signal);
+}
+
+async function executeShip(
+  pi: ExtensionAPI,
+  params: ShipParams,
+  signal: AbortSignal | undefined,
+): Promise<ShipStackResponse> {
+  if (params.action === "view") {
+    if (!params.pr) throw new Error("pr required");
+    return await handleShipView(pi, params.pr, signal);
+  }
+  if (params.action === "stack-status") {
+    const prs = params.stackPrs ?? (params.pr ? [params.pr] : []);
+    return await handleShipStackStatus(pi, prs, signal);
+  }
+  if (params.action === "gate-check") {
+    if (!params.pr) throw new Error("pr required for gate-check");
+    return await handleShipGateCheck(pi, params.pr, signal);
+  }
+  if (params.action !== "merge") throw new Error("action must be view|merge|stack-status|gate-check");
+  if (!params.pr) throw new Error("pr required for merge");
+  return await handleShipMerge(pi, params.pr, params.mergeMethod, signal);
+}
+
+function registerBabysitTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_babysit",
     label: "Pstack Babysit",
@@ -95,107 +362,12 @@ export function registerShipping(pi: ExtensionAPI): void {
       ),
     }),
     async execute(_id, params, signal) {
-      const prRaw = params.pr.replace(/^#/, "");
-      const recipeId =
-        params.statusOnly === true
-          ? "watch-pr-status"
-          : params.recipeId && params.recipeId in BABYSIT_WATCH_RECIPES
-            ? params.recipeId
-            : params.recipeId
-              ? (() => {
-                  throw new Error(
-                    `unknown babysit recipeId '${params.recipeId}'. Known: ${Object.keys(BABYSIT_WATCH_RECIPES).join(", ")}`,
-                  );
-                })()
-              : DEFAULT_BABYSIT_RECIPE;
-      const hint = babysitDynamicLoopHint(prRaw, recipeId);
-      const includeHint = params.armLoopHint !== false;
-
-      if (existsSync(WATCH_PR) && (recipeId === "watch-pr-drive" || recipeId === "watch-pr-status")) {
-        const args = [WATCH_PR, prRaw];
-        if (params.statusOnly || recipeId === "watch-pr-status") args.push("--status-only");
-        if (params.pretty) args.push("--pretty");
-        const result = await pi.exec("bash", args, { signal, timeout: 60 * 60 * 1000 });
-        const hintBlock = includeHint
-          ? `\n\n--- pstack_loop dynamic arm (default babysit recipe ${recipeId}) ---\n${JSON.stringify(hint.loopArm, null, 2)}\nwatchArgv=${JSON.stringify(hint.watchArgv)}`
-          : "";
-        return {
-          content: [
-            {
-              type: "text",
-              text: `${result.stdout || result.stderr || `(exit ${result.code})`}${hintBlock}`,
-            },
-          ],
-          details: {
-            code: result.code,
-            via: "watch-pr",
-            recipeId,
-            watchArgv: hint.watchArgv,
-            loopArm: includeHint ? hint.loopArm : undefined,
-          },
-        };
-      }
-
-      // Fallback: materialize recipe argv via gh / one-shot
-      if (recipeId === "gh-checks-watch" || recipeId === "gh-view-json") {
-        const [cmd, ...argv] = hint.watchArgv;
-        const result = await pi.exec(cmd, argv, {
-          signal,
-          timeout: recipeId === "gh-checks-watch" ? 60 * 60 * 1000 : 60_000,
-        });
-        const hintBlock = includeHint
-          ? `\n\n--- pstack_loop dynamic arm ---\n${JSON.stringify(hint.loopArm, null, 2)}`
-          : "";
-        return {
-          content: [
-            {
-              type: "text",
-              text: `${result.stdout || result.stderr || `(exit ${result.code})`}${hintBlock}`,
-            },
-          ],
-          details: {
-            code: result.code,
-            via: "gh-recipe",
-            recipeId,
-            watchArgv: hint.watchArgv,
-            loopArm: includeHint ? hint.loopArm : undefined,
-          },
-        };
-      }
-
-      const result = await pi.exec(
-        "gh",
-        [
-          "pr",
-          "view",
-          prRaw,
-          "--json",
-          "number,title,state,mergedAt,mergeStateStatus,statusCheckRollup,url,reviewDecision",
-        ],
-        { signal },
-      );
-      const hintBlock = includeHint
-        ? `\n\n--- pstack_loop dynamic arm (default babysit) ---\n${JSON.stringify(hint.loopArm, null, 2)}\nwatchArgv=${JSON.stringify(hint.watchArgv)}`
-        : "";
-      return {
-        content: [
-          {
-            type: "text",
-            text: `${result.stdout || result.stderr}${hintBlock}`,
-          },
-        ],
-        details: {
-          code: result.code,
-          via: "gh",
-          recipeId,
-          watchArgv: hint.watchArgv,
-          loopArm: includeHint ? hint.loopArm : undefined,
-          fixturesAvailable: MERGE_GATE_FIXTURES.length,
-        },
-      };
+      return await executeBabysit(pi, params, signal);
     },
   });
+}
 
+function registerShipTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_ship",
     label: "Pstack Ship",
@@ -209,63 +381,12 @@ export function registerShipping(pi: ExtensionAPI): void {
       mergeMethod: Type.Optional(Type.String({ description: "squash | merge | rebase" })),
     }),
     async execute(_id, params, signal) {
-      if (params.action === "view") {
-        if (!params.pr) throw new Error("pr required");
-        const r = await pi.exec(
-          "gh",
-          ["pr", "view", params.pr.replace(/^#/, ""), "--json", "number,title,state,mergedAt,mergeStateStatus,url,statusCheckRollup"],
-          { signal },
-        );
-        return { content: [{ type: "text", text: r.stdout || r.stderr }], details: { code: r.code } };
-      }
-      if (params.action === "stack-status") {
-        const prs = params.stackPrs ?? (params.pr ? [params.pr] : []);
-        if (!prs.length) throw new Error("stackPrs or pr required");
-        const chunks: string[] = [];
-        for (const pr of prs) {
-          const r = await pi.exec(
-            "gh",
-            ["pr", "view", pr.replace(/^#/, ""), "--json", "number,state,mergedAt,mergeStateStatus,title"],
-            { signal },
-          );
-          chunks.push(r.stdout || `PR ${pr}: ${r.stderr}`);
-        }
-        return { content: [{ type: "text", text: chunks.join("\n") }], details: {} };
-      }
-      if (params.action === "gate-check") {
-        if (!params.pr) throw new Error("pr required for gate-check");
-        const gate = await assertMergeGates(pi, params.pr.replace(/^#/, ""), signal);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `gate-check PASS\n${JSON.stringify(gate, null, 2)}`,
-            },
-          ],
-          details: { gate },
-        };
-      }
-      if (params.action !== "merge") throw new Error("action must be view|merge|stack-status|gate-check");
-      if (!params.pr) throw new Error("pr required for merge");
-      const pr = params.pr.replace(/^#/, "");
-      const gate = await assertMergeGates(pi, pr, signal);
-      const method = params.mergeMethod ?? "squash";
-      const flag = method === "merge" ? "--merge" : method === "rebase" ? "--rebase" : "--squash";
-      const r = await pi.exec("gh", ["pr", "merge", pr, flag], {
-        signal,
-      });
-      if (r.code !== 0) {
-        throw new Error(`gh pr merge failed (fail closed): ${r.stderr || r.stdout || `exit ${r.code}`}`);
-      }
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Merged PR ${pr} after gate check (mergeStateStatus=${gate.mergeStateStatus ?? "n/a"}).\n${r.stdout || ""}`,
-          },
-        ],
-        details: { code: r.code, gate },
-      };
+      return await executeShip(pi, params, signal);
     },
   });
+}
+
+export function registerShipping(pi: ExtensionAPI): void {
+  registerBabysitTool(pi);
+  registerShipTool(pi);
 }

@@ -12,21 +12,18 @@ import assert from "node:assert/strict";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-export async function runSpawnSessionDirUniqueTest() {
-  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/subagents/child-runner.ts")).href);
-
+async function assertMintUnique(mod) {
   const dir = mkdtempSync(join(tmpdir(), "pstack-sessiondir-unique-"));
   const realNow = Date.now;
   try {
     Date.now = () => 1_700_000_000_000;
 
-    const dirs = [];
-    for (let i = 0; i < 200; i++) {
+    const dirs = Array.from({ length: 200 }, (_, i) => {
       const resolved = mod.resolveChildSessionDir({ task: "x" }, dir);
       assert.equal(resolved.sessionMode, "isolated");
       assert.ok(resolved.sessionDir, `call ${i} must mint a sessionDir`);
-      dirs.push(resolved.sessionDir);
-    }
+      return resolved.sessionDir;
+    });
 
     const unique = new Set(dirs);
     assert.equal(
@@ -45,8 +42,9 @@ export async function runSpawnSessionDirUniqueTest() {
     Date.now = realNow;
     rmSync(dir, { recursive: true, force: true });
   }
+}
 
-  // --- resumeSessionDir path unaffected by the mint change ---
+async function assertResumePathUnaffected(mod) {
   const dir2 = mkdtempSync(join(tmpdir(), "pstack-sessiondir-resume-"));
   try {
     const good = join(dir2, "sess-a");
@@ -76,10 +74,16 @@ export async function runSpawnSessionDirUniqueTest() {
   }
 }
 
+export async function runSpawnSessionDirUniqueTest() {
+  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/subagents/child-runner.ts")).href);
+  await assertMintUnique(mod);
+  await assertResumePathUnaffected(mod);
+}
+
 if (import.meta.main) {
   runSpawnSessionDirUniqueTest()
     .then(() => {
-      console.log("PASS spawn-sessiondir-unique");
+      process.stdout.write("PASS spawn-sessiondir-unique\n");
     })
     .catch((err) => {
       console.error("FAIL spawn-sessiondir-unique:", err?.message ?? err);

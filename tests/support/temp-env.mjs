@@ -1,6 +1,7 @@
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { bestEffort } from "./best-effort.mjs";
 
 export function makeTempRoot(prefix = "pstack-test-") {
   const root = mkdtempSync(join(tmpdir(), prefix));
@@ -27,9 +28,7 @@ export function makeTempRoot(prefix = "pstack-test-") {
   }
 
   function cleanup() {
-    try {
-      rmSync(root, { recursive: true, force: true });
-    } catch {}
+    bestEffort("temp root cleanup", () => rmSync(root, { recursive: true, force: true }));
   }
 
   return { root, home, agentDir, cwd, sessions, env, cleanup };

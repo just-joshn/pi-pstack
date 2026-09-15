@@ -3,7 +3,7 @@
  * Run: node --experimental-strip-types extensions/test/verify-local-partials.mjs
  *   or: bun extensions/test/verify-local-partials.mjs
  */
-import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, utimesSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
@@ -16,9 +16,9 @@ let failed = 0;
 async function check(name, fn) {
   try {
     await fn();
-    console.log(`PASS ${name}`);
+    process.stdout.write(`PASS ${name}\n`);
   } catch (err) {
-    failed++;
+    failed = failed + 1;
     console.error(`FAIL ${name}:`, err?.message ?? err);
   }
 }
@@ -69,7 +69,7 @@ await check("sticky restore reinjects playbook steps (not routing note only)", a
 });
 
 await check("force-invoke routes via input transform, not a queued follow-up", async () => {
-  const src = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
+  const src = readFileSync(resolve(ROOT, "extensions/poteto-state/index.ts"), "utf8");
   assert.ok(src.includes('action: "transform"'), "force-invoke must return a transform result");
   assert.ok(src.includes("restoredPlaybookId"));
   assert.ok(!src.includes("forceInvokeFallbackId"), "fallback-on-catch machinery must be gone");
@@ -88,7 +88,7 @@ await check("sticky force skill message + persist helpers", async () => {
   assert.equal(payload.matchedPlaybookId, "feature");
   const parsed = mod.parseStickyEntry(payload);
   assert.equal(parsed.matchedPlaybookId, "feature");
-  const src = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
+  const src = readFileSync(resolve(ROOT, "extensions/poteto-state/index.ts"), "utf8");
   assert.ok(src.includes("forcePotetoSkillMessage"));
   assert.ok(src.includes("sendUserMessage"));
   assert.ok(src.includes("matchedPlaybookId"));
@@ -96,14 +96,15 @@ await check("sticky force skill message + persist helpers", async () => {
   assert.ok(src.includes("STICKY_ENTRY_TYPE") || src.includes("pstack-poteto-mode"));
 });
 
-await check("index.ts wires sticky + playbook match + session readonly", async () => {
-  const src = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
-  assert.ok(src.includes("buildPotetoStickyPrompt"));
-  assert.ok(src.includes("matchStickyPlaybook"));
-  assert.ok(src.includes("userText: lastUserText") || src.includes("userText:"));
-  assert.ok(src.includes("pstack-readonly"));
-  assert.ok(src.includes("pstack-session-readonly") || src.includes("READONLY_ENTRY_TYPE"));
-  assert.ok(src.includes("tool_call"));
+await check("extension modules wire sticky + playbook match + session readonly", async () => {
+  const poteto = readFileSync(resolve(ROOT, "extensions/poteto-state/index.ts"), "utf8");
+  const readonly = readFileSync(resolve(ROOT, "extensions/readonly-state/index.ts"), "utf8");
+  assert.ok(poteto.includes("buildPotetoStickyPrompt"));
+  assert.ok(poteto.includes("matchStickyPlaybook"));
+  assert.ok(poteto.includes("userText: lastUserText") || poteto.includes("userText:"));
+  assert.ok(readonly.includes("pstack-readonly"));
+  assert.ok(readonly.includes("pstack-session-readonly") || readonly.includes("READONLY_ENTRY_TYPE"));
+  assert.ok(readonly.includes("tool_call"));
 });
 
 await check("normalizeModelSelector refuses/maps bare slugs", async () => {
@@ -215,7 +216,7 @@ await check("zero double-fire under rapid settle+watcher script", async () => {
   ]) {
     const d = mod.decideFire(state, reason, t, mod.DYNAMIC_COALESCE_MS, "dynamic");
     if (d.action === "fire") {
-      fires++;
+      fires = fires + 1;
       mod.applyFire(state, t);
     }
   }
@@ -320,10 +321,11 @@ await check("AUTO_READONLY roles + investigation auto-arm wiring", async () => {
   assert.ok(spawnSrc.includes("investigator"));
   const sticky = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-session.ts")).href);
   assert.ok(sticky.shouldAutoArmReadonly("investigation"));
-  const idx = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
-  assert.ok(idx.includes("shouldAutoArmReadonly"));
-  assert.ok(idx.includes("SESSION_WRITE_TOOLS") || idx.includes('"write"'));
-  assert.ok(idx.includes("block: true"));
+  const poteto = readFileSync(resolve(ROOT, "extensions/poteto-state/index.ts"), "utf8");
+  const readonly = readFileSync(resolve(ROOT, "extensions/readonly-state/index.ts"), "utf8");
+  assert.ok(poteto.includes("shouldAutoArmReadonly"));
+  assert.ok(readonly.includes("SESSION_WRITE_TOOLS") || readonly.includes('"write"'));
+  assert.ok(readonly.includes("block: true"));
 });
 
 await check("playbook auto-arm ignores long briefs", async () => {
@@ -341,6 +343,37 @@ await check("readonly auto-arm requires the read-only investigation playbook tar
   assert.equal(mod.shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/babysit investigate CI"), false);
   assert.equal(mod.shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/investigation how does auth work"), true);
 });
+
+async function verifyWorktreeCleanup(mod, dir) {
+  const created = await mod.createIsolatedWorktree(dir, "cleanup-me");
+  assert.ok(existsSync(created.path));
+  const result = await mod.cleanupPstackWorktreesOnShutdown(dir);
+  assert.ok(result.removed.includes("cleanup-me") || result.skipped.length >= 0, JSON.stringify(result));
+
+  const busy = await mod.createIsolatedWorktree(dir, "child-busy");
+  const busySessions = join(busy.path, ".pi", "pstack-child-sessions", "c-test");
+  mkdirSync(busySessions, { recursive: true });
+  writeFileSync(join(busySessions, "session.jsonl"), "{}\n");
+  const busyResult = await mod.cleanupPstackWorktreesOnShutdown(dir);
+  assert.ok(existsSync(busy.path), "a live child session must block cleanup");
+  assert.ok(
+    busyResult.skipped.some(
+      (entry) => entry.name === "child-busy" && entry.reason.includes("child session active"),
+    ),
+    JSON.stringify(busyResult),
+  );
+
+  const stale = await mod.createIsolatedWorktree(dir, "child-stale");
+  const staleSessions = join(stale.path, ".pi", "pstack-child-sessions", "c-old");
+  mkdirSync(staleSessions, { recursive: true });
+  const staleFile = join(staleSessions, "session.jsonl");
+  writeFileSync(staleFile, "{}\n");
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  utimesSync(staleFile, twoHoursAgo, twoHoursAgo);
+  const staleResult = await mod.cleanupPstackWorktreesOnShutdown(dir);
+  assert.ok(staleResult.removed.includes("child-stale"), JSON.stringify(staleResult));
+  assert.ok(!existsSync(stale.path), "a stale child session must not block cleanup");
+}
 
 await check("worktree sanitize + always-isolate + cleanup helpers", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/worktree/helpers.ts")).href);
@@ -361,16 +394,11 @@ await check("worktree sanitize + always-isolate + cleanup helpers", async () => 
     execFileSync("git", ["init"], { cwd: dir, stdio: "ignore" });
     execFileSync("git", ["config", "user.email", "test@test"], { cwd: dir, stdio: "ignore" });
     execFileSync("git", ["config", "user.name", "test"], { cwd: dir, stdio: "ignore" });
+    writeFileSync(join(dir, ".gitignore"), ".pi/\n.pstack-worktrees/\n");
     writeFileSync(join(dir, "README"), "x\n");
     execFileSync("git", ["add", "."], { cwd: dir, stdio: "ignore" });
     execFileSync("git", ["commit", "-m", "init"], { cwd: dir, stdio: "ignore" });
-    const created = await mod.createIsolatedWorktree(dir, "cleanup-me");
-    assert.ok(existsSync(created.path));
-    const result = await mod.cleanupPstackWorktreesOnShutdown(dir);
-    assert.ok(
-      result.removed.includes("cleanup-me") || result.skipped.length >= 0,
-      JSON.stringify(result),
-    );
+    await verifyWorktreeCleanup(mod, dir);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -420,8 +448,8 @@ await check("why + guide + investigation Pi-local truth", async () => {
   assert.ok(!guide.includes("`cursor-team-kit [leave-behind on Pi]` plugin, not in pstack"));
   const inv = readFileSync(resolve(ROOT, "skills/poteto-mode/playbooks/investigation.md"), "utf8");
   assert.ok(inv.includes("read-only"), "investigation stays read-only");
-  const idx = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
-  assert.ok(idx.includes("pstack-readonly"), "parent readonly enforcement lives in the extension");
+  const readonly = readFileSync(resolve(ROOT, "extensions/readonly-state/index.ts"), "utf8");
+  assert.ok(readonly.includes("pstack-readonly"), "parent readonly enforcement lives in the extension");
 });
 
 
@@ -523,24 +551,25 @@ await check("close-orch-p1b: unit true-continue argv (resume -c; fresh no -c)", 
   await runSpawnOrchP1bUnits();
 });
 
-await check("close-orch-p1b: child-runner resume pushes --continue with --session-dir", async () => {
+await check("close-orch-p1b: child-runner resume carries --continue with --session-dir", async () => {
   const runner = readFileSync(resolve(ROOT, "extensions/subagents/child-runner.ts"), "utf8");
   assert.ok(runner.includes("buildChildPiArgs"), "must export/build argv via buildChildPiArgs");
-  assert.ok(runner.includes("continueSession"), "must track continueSession");
-  assert.ok(
-    /args\.push\("--continue"\)|args\.push\("-c"\)/.test(runner) ||
-      runner.includes('args.push("--continue")') ||
-      runner.includes("args.push('--continue')") ||
-      runner.includes('push("--continue")'),
-    "resume path must push --continue or -c",
+  const { buildChildPiArgs, argvHasContinueSemantics } = await import(
+    pathToFileURL(resolve(ROOT, "extensions/subagents/child-runner.ts")).href
   );
-  assert.ok(runner.includes("--session-dir"), "still passes --session-dir");
-  assert.ok(!/args\.push\("--resume"\)|args\.push\("-r"\)/.test(runner), "must not push interactive -r");
-  // Forbidden: resume path that only pushes session-dir (false twin)
-  assert.ok(
-    runner.includes("if (opts.continueSession)") || runner.includes("if (continueSession)"),
-    "continue flag gated on resume",
-  );
+  const spawnArgs = {
+    selectedModel: "test/model",
+    sessionMode: "isolated",
+    sessionDir: "/tmp/pstack-resume-check",
+    inheritNote: "note",
+    prompt: "task",
+  };
+  const resumed = buildChildPiArgs({ ...spawnArgs, continueSession: true });
+  assert.ok(argvHasContinueSemantics(resumed), "resume path must carry --continue or -c");
+  assert.ok(resumed.includes("--session-dir"), "still passes --session-dir");
+  assert.ok(!resumed.includes("--resume") && !resumed.includes("-r"), "must not pass interactive -r");
+  const fresh = buildChildPiArgs({ ...spawnArgs, continueSession: false });
+  assert.ok(!argvHasContinueSemantics(fresh), "fresh isolated argv must not carry continue");
 });
 
 await check("close-orch-p1b: spawn/jobs surface sessionDir in text+details", async () => {
@@ -569,18 +598,20 @@ await check("close-orch-p1b: orchestrate/poteto cite true continue", async () =>
   assert.ok(/--continue|-c|continueRecent|continue prior child transcript/i.test(skill), "poteto must say continue transcript");
 });
 
-await check("docs-sync: README scorecard lead + spawn omit→true / resume", async () => {
+await check("docs-sync: README points at the live spec; PARITY is the historical scorecard", async () => {
   const readme = readFileSync(resolve(ROOT, "README.md"), "utf8");
   assert.ok(!/several PARTIAL/i.test(readme), "README must not lead with several PARTIAL");
   assert.ok(readme.includes("omit→true"), "README must document background omit→true");
   assert.ok(/resumeSessionDir|resumeJobId|--continue/.test(readme), "README must mention resume / --continue");
   assert.ok(/PARITY\.md/.test(readme), "README must link PARITY");
-  assert.ok(/EQUIVALENT/.test(readme) && /PARTIAL/.test(readme), "README scorecard summary names EQUIVALENT and PARTIAL");
+  assert.ok(/spec\/SPEC\.md/.test(readme) && /spec:check/.test(readme), "README must point at the live spec and its check");
+  assert.ok(/historical/i.test(readme), "README must name PARITY as the historical snapshot");
   assert.ok(!/background: true detaches/.test(readme), "README must not sole-story background:true detaches");
 });
 
-await check("docs-sync: PARITY swarm inventory not PARTIAL-infra", async () => {
+await check("docs-sync: PARITY keeps the scorecard wording and the swarm inventory row", async () => {
   const parity = readFileSync(resolve(ROOT, "PARITY.md"), "utf8");
+  assert.ok(/EQUIVALENT/.test(parity) && /PARTIAL/.test(parity), "PARITY scorecard names EQUIVALENT and PARTIAL");
   const swarmRow = parity.split("\n").find((l) => l.includes("`skills/swarm/SKILL.md`"));
   assert.ok(swarmRow, "swarm inventory row missing");
   assert.ok(/EQUIVALENT.*local-gather|local-gather.*EQUIVALENT/i.test(swarmRow), "swarm row must say EQUIVALENT local-gather");
@@ -591,17 +622,17 @@ await check("docs-sync: PARITY swarm inventory not PARTIAL-infra", async () => {
 await check("skill frontmatter names are Pi kebab-case (a-z0-9-hyphen)", async () => {
   const skillsDir = resolve(ROOT, "skills");
   const dirs = readdirSync(skillsDir, { withFileTypes: true }).filter((d) => d.isDirectory());
-  const bad = [];
+  let bad = [];
   for (const d of dirs) {
     const f = resolve(skillsDir, d.name, "SKILL.md");
     if (!existsSync(f)) continue;
     const m = readFileSync(f, "utf8").match(/^name:\s*(.+)$/m);
     if (!m) {
-      bad.push(`${d.name}: missing name`);
+      bad = [...bad, `${d.name}: missing name`];
       continue;
     }
     const name = m[1].trim().replace(/^["']|["']$/g, "");
-    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) bad.push(`${d.name}: [${name}]`);
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) bad = [...bad, `${d.name}: [${name}]`];
   }
   assert.equal(bad.length, 0, `invalid Pi skill names:\n${bad.join("\n")}`);
 });
@@ -615,5 +646,5 @@ await check("PARITY scorecard documents local-scope EQUIVALENT criteria", async 
   assert.ok(equivCount >= 2, `expected >=2 EQUIVALENT markers, got ${equivCount}`);
 });
 
-console.log(failed ? `\n${failed} failed` : "\nAll checks passed");
+process.stdout.write((failed ? `\n${failed} failed` : "\nAll checks passed") + "\n");
 process.exit(failed ? 1 : 0);

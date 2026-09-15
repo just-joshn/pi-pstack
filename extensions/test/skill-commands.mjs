@@ -13,9 +13,9 @@ let failed = 0;
 async function check(name, fn) {
   try {
     await fn();
-    console.log(`PASS ${name}`);
+    process.stdout.write(`PASS ${name}\n`);
   } catch (err) {
-    failed++;
+    failed = failed + 1;
     console.error(`FAIL ${name}:`, err?.message ?? err);
   }
 }
@@ -30,7 +30,7 @@ function fakePi() {
       registered.set(name, options);
     },
     sendUserMessage(content, options) {
-      this.calls.push({ content, options });
+      this.calls = [...this.calls, { content, options }];
     },
   };
 }
@@ -43,7 +43,7 @@ await check("readSkillCommands covers every skill directory, deduped and sorted"
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/commands/skill-commands.ts")).href);
   const skills = mod.readSkillCommands();
   const names = skills.map((s) => s.name);
-  assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b)), "must be sorted");
+  assert.deepEqual(names, names.toSorted((a, b) => a.localeCompare(b)), "must be sorted");
   assert.equal(new Set(names).size, names.length, "must be deduped");
   for (const dirName of skillDirNames) {
     assert.ok(names.includes(dirName), `missing skill command for ${dirName}`);
@@ -83,12 +83,12 @@ await check("registerPiOnlyCommands registers babysit/ship/deslop and forwards a
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/commands/skill-commands.ts")).href);
   const pi = fakePi();
   mod.registerPiOnlyCommands(pi);
-  assert.deepEqual([...pi.registered.keys()].sort(), ["babysit", "deslop", "ship"]);
+  assert.deepEqual([...pi.registered.keys()].toSorted(), ["babysit", "deslop", "ship"]);
   const babysit = pi.registered.get("babysit");
   await babysit.handler("PR 42", {});
   assert.ok(pi.calls[0].content.startsWith("Follow poteto-mode playbooks/babysit.md"));
   assert.ok(pi.calls[0].content.endsWith("PR 42"));
 });
 
-console.log(failed ? `\n${failed} failed` : "\nAll checks passed");
+process.stdout.write((failed ? `\n${failed} failed` : "\nAll checks passed") + "\n");
 process.exit(failed ? 1 : 0);

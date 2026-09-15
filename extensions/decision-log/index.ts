@@ -4,7 +4,7 @@
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 const HEADER = "ts\tphase\tdecision\twhy\tevidence\tresult\n";
@@ -18,6 +18,52 @@ function assertAllowlistedLogPath(cwd: string, requested: string): string {
     );
   }
   return path;
+}
+
+type DecisionLogParams = {
+  path?: string;
+  phase: string;
+  decision: string;
+  why: string;
+  evidence?: string;
+  result?: string;
+};
+
+function ensureDecisionLogHeader(path: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  if (!existsSync(path)) writeFileSync(path, HEADER, "utf8");
+  else {
+    const head = readFileSync(path, "utf8").slice(0, 64);
+    if (!head.startsWith("ts\t") && !head.startsWith("timestamp")) {
+      writeFileSync(path, HEADER + readFileSync(path, "utf8"), "utf8");
+    }
+  }
+}
+
+function formatDecisionRow(params: DecisionLogParams): string {
+  return [
+    new Date().toISOString(),
+    escapeTsv(params.phase),
+    escapeTsv(params.decision),
+    escapeTsv(params.why),
+    escapeTsv(params.evidence ?? ""),
+    escapeTsv(params.result ?? ""),
+  ].join("\t");
+}
+
+async function executeDecisionLog(
+  pi: ExtensionAPI,
+  params: DecisionLogParams,
+  ctx: ExtensionContext,
+): Promise<AgentToolResult<Record<string, unknown>>> {
+  const path = assertAllowlistedLogPath(ctx.cwd, params.path ?? join(".pi", "decisions.tsv"));
+  ensureDecisionLogHeader(path);
+  appendFileSync(path, `${formatDecisionRow(params)}\n`, "utf8");
+  pi.appendEntry("pstack-decision", { path, decision: params.decision, phase: params.phase });
+  return {
+    content: [{ type: "text", text: `Logged decision to ${path}` }],
+    details: { path, decision: params.decision, phase: params.phase },
+  };
 }
 
 export function registerDecisionLog(pi: ExtensionAPI): void {
@@ -49,29 +95,7 @@ export function registerDecisionLog(pi: ExtensionAPI): void {
       ),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
-      const path = assertAllowlistedLogPath(ctx.cwd, params.path ?? join(".pi", "decisions.tsv"));
-      mkdirSync(dirname(path), { recursive: true });
-      if (!existsSync(path)) writeFileSync(path, HEADER, "utf8");
-      else {
-        const head = readFileSync(path, "utf8").slice(0, 64);
-        if (!head.startsWith("ts\t") && !head.startsWith("timestamp")) {
-          writeFileSync(path, HEADER + readFileSync(path, "utf8"), "utf8");
-        }
-      }
-      const row = [
-        new Date().toISOString(),
-        escapeTsv(params.phase),
-        escapeTsv(params.decision),
-        escapeTsv(params.why),
-        escapeTsv(params.evidence ?? ""),
-        escapeTsv(params.result ?? ""),
-      ].join("\t");
-      appendFileSync(path, `${row}\n`, "utf8");
-      pi.appendEntry("pstack-decision", { path, decision: params.decision, phase: params.phase });
-      return {
-        content: [{ type: "text", text: `Logged decision to ${path}` }],
-        details: { path, decision: params.decision, phase: params.phase },
-      };
+      return await executeDecisionLog(pi, params, ctx);
     },
   });
 }
