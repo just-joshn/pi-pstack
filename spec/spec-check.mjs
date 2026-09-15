@@ -1,19 +1,22 @@
 #!/usr/bin/env node
 /**
- * spec/spec-check.mjs — zero-dependency structural checker + coverage reporter
+ * Structural checker for the rebuild contract. It parses spec/contracts/*.tsv,
+ * validates row form and verification references, checks tool, surface, and
+ * mechanism completeness, and prints coverage. It never executes a proof.
  *
- * Implements the frozen design checks (design-synthesis §8) and the grammar rules (§3, §6):
- *  1) Ledger header + ids, 2) row form, 3) verification grammar, 4) referential integrity,
- *  5) tool completeness, 6) surface integrity, 7) mechanism integrity, 8) coverage + CLI.
+ * Usage:
+ *   node spec/spec-check.mjs                  integrity check plus coverage
+ *   node spec/spec-check.mjs --list           rows grouped by surface
+ *   node spec/spec-check.mjs --summary        coverage block only
+ *   node spec/spec-check.mjs --require-complete
+ *                                             also require U == 0, D == 0,
+ *                                             and a VERIFIED twin per ceiling
  *
- * Constraints: Node 24 ESM, only node:fs/node:path/node:url, resolve repo root from import.meta.url.
- * Style: no console.log, no in-place mutation, no ++, functions < 50 lines, file < 800 lines.
+ * Exit codes: 0 pass, 1 integrity or completion failure, 2 usage error.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-
-// ----------------------------- util: io and constants -----------------------------
 
 function out(line) {
   process.stdout.write(String(line) + "\n");
@@ -41,8 +44,6 @@ const MECHANISMS_HEADER = "mechanism\tupstream_evidence\tdisposition\tref\ttwin_
 
 const STATUS = new Set(["VERIFIED", "UNVERIFIED", "DEFECT", "EXCLUDED"]);
 const KINDS = new Set(["tool", "command", "behavior", "ceiling"]);
-
-// ----------------------------- util: fs walk and safe ops -----------------------------
 
 function listFilesRecursive(dir) {
   if (!existsSync(dir)) return [];
@@ -85,8 +86,6 @@ function unique(arr) {
   return [...new Set(arr)];
 }
 
-// ----------------------------- parse: registry layers discovery -----------------------------
-
 function parseNonOptInLayerDirs() {
   const regPath = join(ROOT, "tests/registry.mjs");
   const text = readUtf8(regPath);
@@ -114,8 +113,6 @@ function discoverTestFiles() {
   return { abs, rel, regErrors: errors };
 }
 
-// ----------------------------- parse: bindings table ids -----------------------------
-
 function collectBindingIds() {
   const a = join(ROOT, "port/bindings/rules-a.mjs");
   const b = join(ROOT, "port/bindings/rules-benny.mjs");
@@ -126,8 +123,6 @@ function collectBindingIds() {
   return unique(ids);
 }
 
-// ----------------------------- parse: extensions tool names -----------------------------
-
 function collectRegisteredToolNames() {
   const extDir = join(ROOT, "extensions");
   const files = listFilesRecursive(extDir).filter((p) => p.endsWith(".ts"));
@@ -135,8 +130,6 @@ function collectRegisteredToolNames() {
   const names = texts.flatMap((t) => [...t.matchAll(/name:\s*"(pstack_[a-z_]+)"/g)].map((m) => m[1]));
   return unique(names);
 }
-
-// ----------------------------- parse: TSV files -----------------------------
 
 function parseTsv(path) {
   const text = readUtf8(path);
@@ -147,8 +140,6 @@ function parseTsv(path) {
   const rows = lines.slice(1).map((line, i) => ({ line: i + 2, cols: line.split("\t") }));
   return { header, rows, missing: false };
 }
-
-// ----------------------------- ledger: load and validate -----------------------------
 
 function loadContracts() {
   const dir = CONTRACTS_DIR;
@@ -207,8 +198,6 @@ function validateRowForm(rows) {
   const msgs = issues.map((i) => `${toRel(i.row.file)}:${i.row.line} ${i.msg}`);
   return msgs.length ? msgs : errs;
 }
-
-// ----------------------------- verification grammar + referential integrity -----------------------------
 
 function loadDiscoveryContext() {
   const { abs, rel, regErrors } = discoverTestFiles();
@@ -298,8 +287,6 @@ function checkVerification(rows, discovery, pkgScripts, requireComplete) {
   return [...errs, ...tail];
 }
 
-// ----------------------------- completeness: tools -----------------------------
-
 function checkToolCompleteness(rows) {
   const parsed = rows.map(parseLedgerRow);
   const toolRows = parsed.filter((r) => r.kind === "tool");
@@ -312,8 +299,6 @@ function checkToolCompleteness(rows) {
   const errs2 = unknownRows.length ? [...errs1, `ledger names unknown to extensions: ${unknownRows.join(", ")}`] : errs1;
   return errs2;
 }
-
-// ----------------------------- surface integrity -----------------------------
 
 function loadSurfaces() {
   const p = join(SPEC_DIR, "surfaces.tsv");
@@ -340,8 +325,6 @@ function checkSurfaceIntegrity(rows) {
   const e2 = missingInTable.length ? [...e1, `row surfaces not in surfaces.tsv: ${missingInTable.join(", ")}`] : e1;
   return e2;
 }
-
-// ----------------------------- mechanism integrity -----------------------------
 
 function parseMechanisms() {
   const p = join(SPEC_DIR, "mechanisms.tsv");
@@ -395,8 +378,6 @@ function checkMechanisms(rows, requireComplete) {
   return errors;
 }
 
-// ----------------------------- coverage + reporting -----------------------------
-
 function computeCoverage(rows) {
   const parsed = rows.map(parseLedgerRow);
   const total = parsed.length;
@@ -435,8 +416,6 @@ function groupRowsBySurface(rows) {
     return { surface: s, lines };
   });
 }
-
-// ----------------------------- CLI + orchestration -----------------------------
 
 function parseArgs(argv) {
   const flags = argv.slice(2);
