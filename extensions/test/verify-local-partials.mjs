@@ -135,10 +135,12 @@ await check("normalizeModelSelector refuses/maps bare slugs", async () => {
 
 await check("spawn refuses explicit invalid model + inheritParentTools wiring", async () => {
   const src = readFileSync(resolve(ROOT, "extensions/subagents/index.ts"), "utf8");
+  const runner = readFileSync(resolve(ROOT, "extensions/subagents/child-runner.ts"), "utf8");
   assert.ok(src.includes("inheritParentTools"));
   assert.ok(src.includes("getActiveTools"));
   assert.ok(src.includes("allowFallbackToParent: false"));
-  assert.ok(src.includes("AUTO_READONLY_ROLES"));
+  assert.ok(runner.includes("AUTO_READONLY_ROLES") || src.includes("AUTO_READONLY_ROLES"));
+  assert.ok(runner.includes("inheritParentTools !== false"), "inherit default-on in resolveTools");
 });
 
 await check("child-runner concurrency default>=8 + persist + session isolated", async () => {
@@ -440,6 +442,69 @@ await check("close-orch-p0: PARITY row 2 EQUIVALENT (local-Task) + ceilings", as
   assert.ok(/host ceiling|N\/A/i.test(row2) && /MCP/i.test(row2), "must mark MCP inherit as host ceiling / N/A");
   assert.ok(/clean|start clean|parent transcript/i.test(row2), "must mark clean-context / no parent-history as Cursor-aligned");
   assert.ok(/session_shutdown|session-scoped|Cursor-local restart/i.test(row2), "must mark session-scoped jobs as Cursor-local parity");
+});
+
+
+await check("close-orch-p1: unit resume / background omit→true / inherit default-on", async () => {
+  const { runSpawnOrchP1Units } = await import(pathToFileURL(resolve(ROOT, "extensions/test/spawn-orch-p1-unit.mjs")).href);
+  await runSpawnOrchP1Units();
+});
+
+await check("close-orch-p1: pstack_spawn schema + guidelines (resume, bg default, inherit)", async () => {
+  const src = readFileSync(resolve(ROOT, "extensions/subagents/index.ts"), "utf8");
+  assert.ok(src.includes("resumeSessionDir"), "must declare resumeSessionDir");
+  assert.ok(src.includes("resumeJobId"), "must declare resumeJobId");
+  assert.ok(src.includes("wantsBackground"), "must use wantsBackground");
+  assert.ok(src.includes("wantsBackground(params.background)"), "omit→true call site");
+  assert.ok(/Prefer \/ default background|omit background or pass true/i.test(src), "guidelines prefer/default background");
+  assert.ok(src.includes("background:false") || src.includes("background: false"), "guidelines mention sync false");
+  const runner = readFileSync(resolve(ROOT, "extensions/subagents/child-runner.ts"), "utf8");
+  assert.ok(runner.includes("background !== false"), "wantsBackground omit→true");
+  assert.ok(runner.includes("inheritParentTools !== false"), "inherit default-on");
+  assert.ok(runner.includes("resolveChildSessionDir"), "child-runner must resolve resume session dir");
+  assert.ok(runner.includes("resumeSessionDir"), "child-runner accepts resumeSessionDir");
+  assert.ok(runner.includes("sessionDir"), "job records sessionDir");
+  assert.ok(!runner.includes(".pi/pstack-jobs/"), "must not productize disk job ledger");
+});
+
+await check("close-orch-p1: orchestrate cites resume; no deferred carve-out", async () => {
+  const orch = readFileSync(resolve(ROOT, "skills/poteto-mode/playbooks/orchestrate.md"), "utf8");
+  assert.ok(orch.includes("resumeSessionDir"), "orchestrate must cite resumeSessionDir");
+  assert.ok(orch.includes("resumeJobId"), "orchestrate must cite resumeJobId");
+  assert.ok(!/P1 follow-on/i.test(orch), "must not say resume is P1 follow-on");
+  assert.ok(!/not required for local-Task/i.test(orch), "must not carve out resume from Cap2");
+});
+
+await check("close-orch-p1: poteto cites resume + bg prefer", async () => {
+  const skill = readFileSync(resolve(ROOT, "skills/poteto-mode/SKILL.md"), "utf8");
+  assert.ok(skill.includes("Prefer **`background: true`**"), "poteto must prefer background:true");
+  assert.ok(skill.includes("resumeSessionDir"), "poteto must cite resumeSessionDir");
+  assert.ok(skill.includes("resumeJobId") || skill.includes("resumeJobId"), "poteto must cite resume");
+});
+
+await check("close-orch-p1: swarm/arena intentional sync gather + N× spawn bg drain", async () => {
+  const swarm = readFileSync(resolve(ROOT, "skills/swarm/SKILL.md"), "utf8");
+  const arena = readFileSync(resolve(ROOT, "skills/arena/SKILL.md"), "utf8");
+  assert.ok(/intentional sync gather/i.test(swarm), "swarm must state intentional sync gather");
+  assert.ok(/intentional sync gather/i.test(arena), "arena must state intentional sync gather");
+  assert.ok(/N× `pstack_spawn`|N× pstack_spawn/i.test(swarm) || swarm.includes("N× `pstack_spawn`"), "swarm cites N× spawn");
+  assert.ok(swarm.includes("pstack_jobs") || /N× `pstack_spawn`/.test(swarm), "swarm cites bg drain path");
+  assert.ok(/N× `pstack_spawn`/.test(arena) || arena.includes("N× `pstack_spawn`"), "arena cites N× spawn");
+  assert.ok(!/PARTIAL because sync/i.test(swarm + arena), "must not imply PARTIAL for sync gather");
+});
+
+await check("close-orch-p1: PARITY row 2 IN list (resume + bg default + inherit default-on)", async () => {
+  const parity = readFileSync(resolve(ROOT, "PARITY.md"), "utf8");
+  const row2 = parity.split("\n").find((l) => l.startsWith("| 2 | Task"));
+  assert.ok(row2, "row 2 line missing");
+  assert.ok(row2.includes("EQUIVALENT") && row2.includes("local-Task"), `row2 must be EQUIVALENT (local-Task)`);
+  assert.ok(/resumeSessionDir/i.test(row2), "row2 IN must include resumeSessionDir");
+  assert.ok(/omit→true|omit→true|background omit/i.test(row2) || /omit.*true/i.test(row2), "row2 IN must include background omit→true");
+  assert.ok(/inheritParentTools.*default-on|default-on/i.test(row2), "row2 IN must include inherit default-on");
+  assert.ok(/intentional sync gather|local-gather/i.test(row2), "row2 must frame swarm/arena gather");
+  assert.ok(!/P1 follow-on|not a row-2 gate|resume deferred/i.test(row2), "must not keep resume-deferred gate language");
+  assert.ok(/host ceiling|N\/A/i.test(row2) && /MCP/i.test(row2), "ceilings MCP N/A");
+  assert.ok(!parity.includes(".pi/pstack-jobs/") || !/required.*pstack-jobs/i.test(parity), "no required disk ledger product");
 });
 
 await check("PARITY scorecard documents local-scope EQUIVALENT criteria", async () => {

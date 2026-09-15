@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Arena
 
-Fan out N parallel attempts at the same task. Read every candidate end to end. Pick the strongest as the base. Graft the best ideas from the others into it. Verify the synthesized result.
+Fan out N parallel attempts at the same task. `pstack_arena` waits (intentional sync gather) so you can read every candidate end to end. Pick the strongest as the base. Graft the best ideas from the others into it. Verify the synthesized result. For detached drain, use N× `pstack_spawn` + `pstack_jobs`.
 
 ## Start
 
@@ -30,7 +30,9 @@ The N candidates will receive the same prompt, so the prompt is the contract.
 
 ## Phase B: Fan out
 
-Call `pstack_arena` (preferred) or N× `pstack_spawn` with unique `cwd`s. `background: true` on spawn detaches; prefer `pstack_arena` for parallel fan-out (global concurrency cap: 8 (env PSTACK_MAX_CONCURRENCY, default 8)). Each candidate gets the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale.
+`pstack_arena` is an **intentional sync gather/barrier** tool (EQUIVALENT local-gather): it fans out candidates and waits for the barrier before cross-judge / pick. Call `pstack_arena` (preferred) with unique `cwd`s / auto-worktrees. Global concurrency cap: 8 (env `PSTACK_MAX_CONCURRENCY`, default 8).
+
+For **background fan-out + drain**, use N× `pstack_spawn` (unique `cwd`s; background default / omit) then `pstack_jobs` — not a PARTIAL for arena being sync. Each candidate gets the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale.
 
 Each rationale names the alternatives the candidate considered and what it rejected.
 

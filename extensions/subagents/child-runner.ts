@@ -7,8 +7,8 @@
  * oversized output can be summarized to disk under .pi/pstack-child-output/.
  */
 import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { isAbsolute, join, resolve } from "node:path";
 import type { Message } from "@earendil-works/pi-ai";
 
 export const MAX_TASKS = 8;
@@ -57,6 +57,11 @@ export interface ChildTaskInput {
    * Env default override: PSTACK_CHILD_SESSION=ephemeral|isolated
    */
   sessionMode?: "ephemeral" | "isolated";
+  /**
+   * Reuse an existing Pi `--session-dir` (absolute or cwd-relative).
+   * Fail closed if missing/unreadable. Conflicts with sessionMode=ephemeral.
+   */
+  resumeSessionDir?: string;
 }
 
 export interface ChildTaskResult {
@@ -68,6 +73,8 @@ export interface ChildTaskResult {
   stderr: string;
   stopReason?: string;
   outputPath?: string;
+  /** Child `--session-dir` when isolated/resume (for in-session resumeJobId). */
+  sessionDir?: string;
 }
 
 let activeChildren = 0;
@@ -117,6 +124,44 @@ function resolveSessionMode(input: ChildTaskInput): "ephemeral" | "isolated" {
   // (no --no-extensions) + dedicated --session-dir. Pi CLI cannot inherit parent
   // MCP bindings or conversation history into children.
   return "isolated";
+}
+
+/**
+ * Resolve child session dir for isolated/resume paths.
+ * Resume fails closed if path missing; resume+ephemeral is rejected.
+ * Mint creates under cwd/.pi/pstack-child-sessions when not resuming.
+ */
+export function resolveChildSessionDir(
+  input: ChildTaskInput,
+  cwd: string,
+): { sessionMode: "ephemeral" | "isolated"; sessionDir?: string } {
+  const sessionMode = resolveSessionMode(input);
+  if (input.resumeSessionDir) {
+    if (sessionMode === "ephemeral") {
+      throw new Error(
+        "resumeSessionDir conflicts with sessionMode=ephemeral; omit ephemeral to resume, or spawn fresh without resume",
+      );
+    }
+    const sessionDir = isAbsolute(input.resumeSessionDir)
+      ? input.resumeSessionDir
+      : resolve(cwd, input.resumeSessionDir);
+    if (!existsSync(sessionDir)) {
+      throw new Error(`resumeSessionDir missing or unreadable: ${sessionDir}`);
+    }
+    try {
+      if (!statSync(sessionDir).isDirectory()) {
+        throw new Error(`resumeSessionDir is not a directory: ${sessionDir}`);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("resumeSessionDir")) throw err;
+      throw new Error(`resumeSessionDir missing or unreadable: ${sessionDir}`);
+    }
+    return { sessionMode: "isolated", sessionDir };
+  }
+  if (sessionMode === "ephemeral") return { sessionMode };
+  const sessionDir = join(cwd, ".pi", "pstack-child-sessions", `c-${Date.now().toString(36)}`);
+  mkdirSync(sessionDir, { recursive: true });
+  return { sessionMode, sessionDir };
 }
 
 /** Persist full text under outDir; return path. */
@@ -207,14 +252,17 @@ async function runChildTaskUnlocked(
       : input.model;
 
   const cwd = input.cwd ?? defaultCwd;
-  const sessionMode = resolveSessionMode(input);
+  const prepared = resolveChildSessionDir(input, cwd);
+  const sessionMode = prepared.sessionMode;
+  const sessionDir = prepared.sessionDir;
   const args = ["--mode", "json", "-p", "--model", selectedModel];
 
   if (sessionMode === "ephemeral") {
     args.push("--no-session");
   } else {
-    const sessionDir = join(cwd, ".pi", "pstack-child-sessions", `c-${Date.now().toString(36)}`);
-    mkdirSync(sessionDir, { recursive: true });
+    if (!sessionDir) {
+      throw new Error("internal: isolated child missing sessionDir");
+    }
     args.push("--session-dir", sessionDir);
   }
 
@@ -355,7 +403,67 @@ async function runChildTaskUnlocked(
     stderr: stderrTrunc.text,
     stopReason: timedOut ? "timeout" : aborted ? "aborted" : stopReason,
     outputPath: truncated.outputPath,
+    sessionDir,
   };
+}
+
+/** Roles that always get the readonly tool allowlist (no bash/write/edit). */
+export const AUTO_READONLY_ROLES = new Set(["comment-sicko", "investigator"]);
+
+/** Omit/undefined → background (detach); explicit false → sync-await. */
+export function wantsBackground(background?: boolean): boolean {
+  return background !== false;
+}
+
+/**
+ * Tool allowlist resolution (Cap2 inherit default-on):
+ * tools? → use tools
+ * else if readonly / auto-readonly role → READONLY_TOOLS
+ * else if inheritParentTools !== false and parentTools non-empty → inherit
+ * else → undefined (child full default discovery)
+ */
+export function resolveTools(
+  role: string,
+  params: { tools?: string[]; readonly?: boolean; inheritParentTools?: boolean },
+  parentTools?: string[],
+): string[] | undefined {
+  if (params.tools?.length) return params.tools;
+  if (params.readonly === true || AUTO_READONLY_ROLES.has(role)) {
+    return [...READONLY_TOOLS];
+  }
+  if (params.inheritParentTools !== false && parentTools?.length) {
+    return [...parentTools];
+  }
+  return undefined;
+}
+
+/** Resolve resumeSessionDir from explicit path and/or in-memory resumeJobId. Fail closed. */
+export function resolveResumeSessionDirParam(params: {
+  resumeSessionDir?: string;
+  resumeJobId?: string;
+  sessionMode?: string;
+}): string | undefined {
+  let resumeSessionDir = params.resumeSessionDir;
+  if (!resumeSessionDir && params.resumeJobId) {
+    const job = getBackgroundJob(params.resumeJobId);
+    if (!job) {
+      throw new Error(
+        `resumeJobId unknown: ${params.resumeJobId}. Spawn fresh with a consolidated brief, or pass resumeSessionDir if the child session path is known.`,
+      );
+    }
+    if (!job.sessionDir) {
+      throw new Error(
+        `resumeJobId ${params.resumeJobId} has no recorded sessionDir (ephemeral or not yet known). Pass resumeSessionDir or spawn fresh with a consolidated brief.`,
+      );
+    }
+    resumeSessionDir = job.sessionDir;
+  }
+  if (resumeSessionDir && params.sessionMode === "ephemeral") {
+    throw new Error(
+      "resumeSessionDir/resumeJobId conflicts with sessionMode=ephemeral; omit ephemeral to resume",
+    );
+  }
+  return resumeSessionDir;
 }
 
 /** In-process background job registry (session-scoped; survives follow-ups until session_shutdown). */
@@ -371,6 +479,8 @@ export interface BackgroundJob {
   finishedAt?: number;
   result?: ChildTaskResult;
   error?: string;
+  /** Child `--session-dir` when known (in-memory; enables resumeJobId within session). */
+  sessionDir?: string;
 }
 
 const backgroundJobs = new Map<string, BackgroundJob>();
@@ -420,6 +530,14 @@ export function enqueueBackgroundChild(
 ): BackgroundJob {
   const id = `bg-${++backgroundSeq}-${Date.now().toString(36)}`;
   const controller = new AbortController();
+  const cwd = input.cwd ?? defaultCwd;
+  // Resolve session dir synchronously so resumeJobId can see it while the job runs.
+  const prepared = resolveChildSessionDir(input, cwd);
+  const resolvedInput: ChildTaskInput = {
+    ...input,
+    sessionMode: prepared.sessionMode,
+    ...(prepared.sessionDir ? { resumeSessionDir: prepared.sessionDir } : { resumeSessionDir: undefined }),
+  };
   const job: BackgroundJob = {
     id,
     status: "queued",
@@ -430,6 +548,7 @@ export function enqueueBackgroundChild(
         : input.model,
     taskPreview: input.task.slice(0, 200),
     startedAt: Date.now(),
+    sessionDir: prepared.sessionDir,
   };
   backgroundJobs.set(id, job);
   backgroundControllers.set(id, controller);
@@ -437,8 +556,9 @@ export function enqueueBackgroundChild(
   void (async () => {
     job.status = "running";
     try {
-      const result = await runChildTask(input, defaultCwd, parentModel, controller.signal);
+      const result = await runChildTask(resolvedInput, defaultCwd, parentModel, controller.signal);
       job.result = result;
+      if (result.sessionDir) job.sessionDir = result.sessionDir;
       if (controller.signal.aborted) job.status = "aborted";
       else if (result.exitCode === 0) job.status = "done";
       else job.status = "failed";
@@ -467,6 +587,25 @@ export async function awaitBackgroundJob(
     if (Date.now() >= deadline) throw new Error(`await timed out for job ${id}`);
     await new Promise((r) => setTimeout(r, 250));
   }
+}
+
+
+/** Test helper: seed a job record (for resumeJobId unit tests). */
+export function __seedBackgroundJobForTests(
+  job: Pick<BackgroundJob, "id" | "sessionDir"> & Partial<BackgroundJob>,
+): void {
+  backgroundJobs.set(job.id, {
+    id: job.id,
+    status: job.status ?? "done",
+    role: job.role,
+    model: job.model ?? "test/model",
+    taskPreview: job.taskPreview ?? "",
+    startedAt: job.startedAt ?? Date.now(),
+    finishedAt: job.finishedAt ?? Date.now(),
+    sessionDir: job.sessionDir,
+    result: job.result,
+    error: job.error,
+  });
 }
 
 /** Test helper: reset in-process job registry. */

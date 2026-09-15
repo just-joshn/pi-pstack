@@ -1,5 +1,9 @@
 # Changelog
 
+## close-orch-p1
+
+- Cap2 EQUIVALENT (local-Task) revision: `pstack_spawn` `resumeSessionDir` / `resumeJobId` (reuse `--session-dir`; fail closed; in-memory `sessionDir` on jobs; resume+ephemeral rejected); tool `background` omit→true + guidelines (sync = `background: false`); `inheritParentTools` default-on when `getActiveTools()` non-empty; poteto/orchestrate cite resume; swarm/arena framed as intentional sync gather (N× spawn for bg drain); PARITY row 2 IN list updated (no resume-deferred carve-out).
+
 ## close-orch-p0
 
 - Promote PARITY capability **2** to **EQUIVALENT (local-Task)** per Architect contract: reframed MCP/history/session-job ceilings; poteto prefers `background: true` + `pstack_jobs` drain; swarm/arena concurrency docs → **8** (env default 8). Resume/job ledger remain P1 follow-on.

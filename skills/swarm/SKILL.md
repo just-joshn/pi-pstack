@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Swarm
 
-Fan out N parallel workers (Pi v1: local). They may cover separate slices, race the same brief, or mix both. The parent waits, aggregates, and returns one report.
+Fan out N parallel workers (Pi v1: local). They may cover separate slices, race the same brief, or mix both. `pstack_swarm` waits (intentional sync gather), aggregates, and returns one report. For detached drain, use N× `pstack_spawn` + `pstack_jobs`.
 
 ## Start
 
@@ -27,7 +27,9 @@ Open a todolist with one entry per phase before launching anything.
 
 ## Phase B: Fan out
 
-Call `pstack_swarm` with N worker briefs (or N× `pstack_spawn` with `role: "general"` and a unique `cwd` / worktree per writer) and the configured model. Pi v1 is local-only. Pass only registered `pstack_spawn` / `pstack_swarm` fields (`task`, `role`, `model`, `cwd`, …). `background: true` on spawn detaches (use `pstack_jobs` to drain); prefer `pstack_swarm` for parallel fan-out (global concurrency cap: 8 (env PSTACK_MAX_CONCURRENCY, default 8)).
+`pstack_swarm` is an **intentional sync gather/barrier** tool (EQUIVALENT local-gather): it fans out workers and waits for the barrier before Phase C aggregate. Call `pstack_swarm` with N worker briefs and the configured model. Pi v1 is local-only. Pass only registered `pstack_spawn` / `pstack_swarm` fields (`task`, `role`, `model`, `cwd`, …). Global concurrency cap: 8 (env `PSTACK_MAX_CONCURRENCY`, default 8).
+
+For **background fan-out + drain** (Cursor-style N× bg), use N× `pstack_spawn` (`role: "general"`, unique `cwd` / worktree per writer; background default / omit) then drain with `pstack_jobs` — not a PARTIAL for swarm being sync.
 
 Every brief stands alone. Include the goal, scope, exact slice or race arm, how to verify, and what to report. Reports use `PASS`, `ISSUES`, or `BLOCKED` with evidence.
 
