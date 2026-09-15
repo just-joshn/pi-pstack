@@ -1,7 +1,7 @@
 /**
  * Worktree helpers for arena/swarm isolation + session_shutdown safe cleanup.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
   MAX_PSTACK_WORKTREES,
@@ -26,7 +26,91 @@ export {
   sanitizeWorktreeName,
 } from "./helpers.ts";
 
-export function registerWorktree(pi: ExtensionAPI): void {
+type WorktreeParams = {
+  action: string;
+  name?: string;
+  base?: string;
+};
+
+async function executeWorktreeList(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  signal: AbortSignal | undefined,
+): Promise<AgentToolResult<{ code: number; count: number }>> {
+  const listed = await pi.exec("git", ["worktree", "list", "--porcelain"], { signal });
+  const count = countPstackWorktrees(ctx.cwd);
+  return {
+    content: [
+      {
+        type: "text",
+        text: `${listed.stdout || listed.stderr || "(no worktrees)"}\n\npstack-managed under .pstack-worktrees: ${count}/${MAX_PSTACK_WORKTREES}`,
+      },
+    ],
+    details: { code: listed.code, count },
+  };
+}
+
+async function executeWorktreePrune(ctx: ExtensionContext): Promise<AgentToolResult<Record<string, never>>> {
+  const out = await pruneWorktrees(ctx.cwd);
+  return { content: [{ type: "text", text: out }], details: {} };
+}
+
+async function executeWorktreeCleanup(ctx: ExtensionContext): Promise<AgentToolResult<unknown>> {
+  const result = await cleanupPstackWorktreesOnShutdown(ctx.cwd);
+  return {
+    content: [
+      {
+        type: "text",
+        text: `cleanup removed=[${result.removed.join(", ")}] skipped=${result.skipped.length} prune=${result.pruned}`,
+      },
+    ],
+    details: result,
+  };
+}
+
+async function executeWorktreeRemove(
+  ctx: ExtensionContext,
+  name: string | undefined,
+): Promise<AgentToolResult<unknown>> {
+  if (!name) throw new Error("name required for remove");
+  const path = await removeWorktree(ctx.cwd, name);
+  return {
+    content: [{ type: "text", text: `Removed worktree ${path}` }],
+    details: { path },
+  };
+}
+
+async function executeWorktreeCreate(
+  ctx: ExtensionContext,
+  params: WorktreeParams,
+): Promise<AgentToolResult<unknown>> {
+  if (params.name) sanitizeWorktreeName(params.name);
+  if (params.base) sanitizeBaseRef(params.base);
+  const slug = params.name ?? `pstack-${Date.now()}`;
+  const { path, branch } = await createIsolatedWorktree(ctx.cwd, slug, params.base ?? "HEAD");
+  return {
+    content: [{ type: "text", text: `Created worktree ${path} on ${branch}` }],
+    details: { path, branch },
+  };
+}
+
+async function executeWorktree(
+  pi: ExtensionAPI,
+  params: WorktreeParams,
+  signal: AbortSignal | undefined,
+  ctx: ExtensionContext,
+) {
+  if (params.action === "list") return await executeWorktreeList(pi, ctx, signal);
+  if (params.action === "prune") return await executeWorktreePrune(ctx);
+  if (params.action === "cleanup") return await executeWorktreeCleanup(ctx);
+  if (params.action === "remove") return await executeWorktreeRemove(ctx, params.name);
+  if (params.action !== "create") {
+    throw new Error("action must be create|list|remove|prune|cleanup");
+  }
+  return await executeWorktreeCreate(ctx, params);
+}
+
+function registerWorktreeShutdown(pi: ExtensionAPI): void {
   // Auto-cleanup pstack-owned empty/merged worktrees when the session ends.
   pi.on("session_shutdown", async () => {
     try {
@@ -36,7 +120,9 @@ export function registerWorktree(pi: ExtensionAPI): void {
       return;
     }
   });
+}
 
+function registerWorktreeTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_worktree",
     label: "Pstack Worktree",
@@ -49,54 +135,12 @@ export function registerWorktree(pi: ExtensionAPI): void {
       base: Type.Optional(Type.String({ description: "Base ref (default HEAD)" })),
     }),
     async execute(_id, params, signal, _onUpdate, ctx) {
-      if (params.action === "list") {
-        const listed = await pi.exec("git", ["worktree", "list", "--porcelain"], { signal });
-        const count = countPstackWorktrees(ctx.cwd);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `${listed.stdout || listed.stderr || "(no worktrees)"}\n\npstack-managed under .pstack-worktrees: ${count}/${MAX_PSTACK_WORKTREES}`,
-            },
-          ],
-          details: { code: listed.code, count },
-        };
-      }
-      if (params.action === "prune") {
-        const out = await pruneWorktrees(ctx.cwd);
-        return { content: [{ type: "text", text: out }], details: {} };
-      }
-      if (params.action === "cleanup") {
-        const result = await cleanupPstackWorktreesOnShutdown(ctx.cwd);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `cleanup removed=[${result.removed.join(", ")}] skipped=${result.skipped.length} prune=${result.pruned}`,
-            },
-          ],
-          details: result,
-        };
-      }
-      if (params.action === "remove") {
-        if (!params.name) throw new Error("name required for remove");
-        const path = await removeWorktree(ctx.cwd, params.name);
-        return {
-          content: [{ type: "text", text: `Removed worktree ${path}` }],
-          details: { path },
-        };
-      }
-      if (params.action !== "create") {
-        throw new Error("action must be create|list|remove|prune|cleanup");
-      }
-      if (params.name) sanitizeWorktreeName(params.name);
-      if (params.base) sanitizeBaseRef(params.base);
-      const slug = params.name ?? `pstack-${Date.now()}`;
-      const { path, branch } = await createIsolatedWorktree(ctx.cwd, slug, params.base ?? "HEAD");
-      return {
-        content: [{ type: "text", text: `Created worktree ${path} on ${branch}` }],
-        details: { path, branch },
-      };
+      return await executeWorktree(pi, params, signal, ctx);
     },
   });
+}
+
+export function registerWorktree(pi: ExtensionAPI): void {
+  registerWorktreeShutdown(pi);
+  registerWorktreeTool(pi);
 }
