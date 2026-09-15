@@ -10,9 +10,7 @@ import assert from "node:assert/strict";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-export async function runSpawnOrchP1Units() {
-  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/subagents/child-runner.ts")).href);
-
+async function assertBackgroundAndTools(mod) {
   // --- background omit → true ---
   assert.equal(mod.wantsBackground(undefined), true, "omit → background");
   assert.equal(mod.wantsBackground(true), true, "true → background");
@@ -47,95 +45,109 @@ export async function runSpawnOrchP1Units() {
   );
   assert.equal(mod.resolveTools("general", {}, undefined), undefined);
   assert.equal(mod.resolveTools("general", {}, []), undefined);
+}
 
-  // --- resumeSessionDir fail closed + mint + resumeJobId ---
+function checkResumeResolve(mod, dir, good) {
+  const resumed = mod.resolveChildSessionDir({ task: "t", resumeSessionDir: good }, dir);
+  assert.equal(resumed.sessionMode, "isolated");
+  assert.equal(resumed.sessionDir, good);
+  assert.equal(resumed.continueSession, true, "resume sets continueSession");
+
+  const rel = mod.resolveChildSessionDir({ task: "t", resumeSessionDir: "sess-a" }, dir);
+  assert.equal(rel.sessionDir, good);
+
+  let threw = false;
+  try {
+    mod.resolveChildSessionDir({ task: "t", resumeSessionDir: join(dir, "missing-dir") }, dir);
+  } catch (e) {
+    threw = true;
+    assert.match(String(e.message), /missing or unreadable/);
+  }
+  assert.ok(threw, "missing resume path must fail closed");
+
+  threw = false;
+  try {
+    mod.resolveChildSessionDir({ task: "t", resumeSessionDir: good, sessionMode: "ephemeral" }, dir);
+  } catch (e) {
+    threw = true;
+    assert.match(String(e.message), /ephemeral/);
+  }
+  assert.ok(threw, "resume+ephemeral must reject");
+}
+
+function checkMintAndJobs(mod, dir, good) {
+  const minted = mod.resolveChildSessionDir({ task: "t" }, dir);
+  assert.equal(minted.sessionMode, "isolated");
+  assert.ok(minted.sessionDir && minted.sessionDir.includes("pstack-child-sessions"));
+  assert.equal(minted.continueSession, false, "fresh mint does not continue");
+
+  mod.__resetBackgroundJobsForTests();
+  mod.__seedBackgroundJobForTests({ id: "bg-test-1", sessionDir: good });
+  assert.equal(mod.resolveResumeSessionDirParam({ resumeJobId: "bg-test-1" }), good);
+  assert.equal(
+    mod.resolveResumeSessionDirParam({ resumeSessionDir: good, resumeJobId: "ignored" }),
+    good,
+    "explicit resumeSessionDir wins over job id",
+  );
+
+  let threw = false;
+  try {
+    mod.resolveResumeSessionDirParam({ resumeJobId: "bg-nope" });
+  } catch (e) {
+    threw = true;
+    assert.match(String(e.message), /unknown/);
+  }
+  assert.ok(threw, "unknown resumeJobId fails closed");
+}
+
+function checkJobNoSessionAndEphemeral(mod, good) {
+  let threw = false;
+  mod.__seedBackgroundJobForTests({ id: "bg-nosess", sessionDir: undefined });
+  try {
+    mod.resolveResumeSessionDirParam({ resumeJobId: "bg-nosess" });
+  } catch (e) {
+    threw = true;
+    assert.match(String(e.message), /no recorded sessionDir/);
+  }
+  assert.ok(threw, "job without sessionDir fails closed");
+
+  threw = false;
+  try {
+    mod.resolveResumeSessionDirParam({ resumeSessionDir: good, sessionMode: "ephemeral" });
+  } catch (e) {
+    threw = true;
+    assert.match(String(e.message), /ephemeral/);
+  }
+  assert.ok(threw, "resume param + ephemeral rejected");
+
+  mod.__resetBackgroundJobsForTests();
+}
+
+async function assertResumeAndMint(mod) {
   const dir = mkdtempSync(join(tmpdir(), "pstack-resume-"));
   try {
     const good = join(dir, "sess-a");
     mkdirSync(good, { recursive: true });
     writeFileSync(join(good, "marker"), "ok");
 
-    const resumed = mod.resolveChildSessionDir({ task: "t", resumeSessionDir: good }, dir);
-    assert.equal(resumed.sessionMode, "isolated");
-    assert.equal(resumed.sessionDir, good);
-    assert.equal(resumed.continueSession, true, "resume sets continueSession");
-
-    const rel = mod.resolveChildSessionDir({ task: "t", resumeSessionDir: "sess-a" }, dir);
-    assert.equal(rel.sessionDir, good);
-
-    let threw = false;
-    try {
-      mod.resolveChildSessionDir({ task: "t", resumeSessionDir: join(dir, "missing-dir") }, dir);
-    } catch (e) {
-      threw = true;
-      assert.match(String(e.message), /missing or unreadable/);
-    }
-    assert.ok(threw, "missing resume path must fail closed");
-
-    threw = false;
-    try {
-      mod.resolveChildSessionDir(
-        { task: "t", resumeSessionDir: good, sessionMode: "ephemeral" },
-        dir,
-      );
-    } catch (e) {
-      threw = true;
-      assert.match(String(e.message), /ephemeral/);
-    }
-    assert.ok(threw, "resume+ephemeral must reject");
-
-    const minted = mod.resolveChildSessionDir({ task: "t" }, dir);
-    assert.equal(minted.sessionMode, "isolated");
-    assert.ok(minted.sessionDir && minted.sessionDir.includes("pstack-child-sessions"));
-    assert.equal(minted.continueSession, false, "fresh mint does not continue");
-
-    mod.__resetBackgroundJobsForTests();
-    mod.__seedBackgroundJobForTests({ id: "bg-test-1", sessionDir: good });
-    assert.equal(mod.resolveResumeSessionDirParam({ resumeJobId: "bg-test-1" }), good);
-    assert.equal(
-      mod.resolveResumeSessionDirParam({ resumeSessionDir: good, resumeJobId: "ignored" }),
-      good,
-      "explicit resumeSessionDir wins over job id",
-    );
-
-    threw = false;
-    try {
-      mod.resolveResumeSessionDirParam({ resumeJobId: "bg-nope" });
-    } catch (e) {
-      threw = true;
-      assert.match(String(e.message), /unknown/);
-    }
-    assert.ok(threw, "unknown resumeJobId fails closed");
-
-    threw = false;
-    mod.__seedBackgroundJobForTests({ id: "bg-nosess", sessionDir: undefined });
-    try {
-      mod.resolveResumeSessionDirParam({ resumeJobId: "bg-nosess" });
-    } catch (e) {
-      threw = true;
-      assert.match(String(e.message), /no recorded sessionDir/);
-    }
-    assert.ok(threw, "job without sessionDir fails closed");
-
-    threw = false;
-    try {
-      mod.resolveResumeSessionDirParam({ resumeSessionDir: good, sessionMode: "ephemeral" });
-    } catch (e) {
-      threw = true;
-      assert.match(String(e.message), /ephemeral/);
-    }
-    assert.ok(threw, "resume param + ephemeral rejected");
-
-    mod.__resetBackgroundJobsForTests();
+    checkResumeResolve(mod, dir, good);
+    checkMintAndJobs(mod, dir, good);
+    checkJobNoSessionAndEphemeral(mod, good);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
+export async function runSpawnOrchP1Units() {
+  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/subagents/child-runner.ts")).href);
+  await assertBackgroundAndTools(mod);
+  await assertResumeAndMint(mod);
+}
+
 if (import.meta.main) {
   runSpawnOrchP1Units()
     .then(() => {
-      console.log("PASS spawn-orch-p1-unit");
+      process.stdout.write("PASS spawn-orch-p1-unit\n");
     })
     .catch((err) => {
       console.error("FAIL spawn-orch-p1-unit:", err?.message ?? err);
