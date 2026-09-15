@@ -101,3 +101,13 @@ export function shouldAutoArmFromPlaybookMatch(playbookId: string, potetoArmed: 
 export function shouldAutoArmFromSkillText(text: string): boolean {
   return /^\/skill:poteto-mode\s+playbooks\/investigation(?:\s|$)/.test(text.trim());
 }
+
+/**
+ * Only user-authored input may arm sticky routing or readonly; extension-injected text
+ * (e.g. the follow-up this extension sends via pi.sendUserMessage to force skill invoke,
+ * which re-fires "input" with source "extension") must never re-enter the matcher.
+ * `undefined` stays allowed so an older Pi without provenance does not silently lose routing.
+ */
+export function shouldMatchStickyInput(source: string | undefined): boolean {
+  return source === undefined || source === "interactive" || source === "rpc";
+}

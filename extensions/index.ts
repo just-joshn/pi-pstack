@@ -29,6 +29,7 @@ import {
   shouldAutoArmFromPlaybookMatch,
   shouldAutoArmFromSkillText,
   shouldAutoArmReadonly,
+  shouldMatchStickyInput,
   stickyEntryPayload,
 } from "./sticky-session.ts";
 
@@ -176,6 +177,7 @@ export default function piPstack(pi: ExtensionAPI) {
   });
 
   pi.on("input", (event, ctx) => {
+    if (!shouldMatchStickyInput(event.source)) return;
     lastUserText = event.text ?? "";
     if (event.text.startsWith("/skill:poteto-mode") || event.text.startsWith("/poteto-mode")) {
       setPoteto(true, ctx);
