@@ -37,7 +37,10 @@ export const PLAYBOOK_RULES: PlaybookRule[] = [
       "pr status",
       "watch the pr",
     ],
-    patterns: [/\bcheck on\s+(?:pr\s*)?#?\d+/i, /\bbugbot\b/i],
+    patterns: [
+      /\bcheck on\s+(?:pr\s*)?#?\d+/i,
+      /\bbugbot\b.{0,60}\b(?:pulls?\s+request|pr|comment(?:ed|s)?|review(?:ed|s)?|thread|#\d+)/i,
+    ],
   },
   {
     id: "shipping",
