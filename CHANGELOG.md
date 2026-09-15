@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Pi skill id: `skills/poteto-mode/SKILL.md` frontmatter `name` is `poteto-mode` (kebab-case). Cursor upstream uses display name `Poteto Mode`; Pi requires `a-z0-9-hyphen` only — slash command remains `/poteto-mode` / `/skill:poteto-mode` for parity of invocation.
+
 ## docs-sync
 
 - Stage 2 docs-sync after close-orch-p0/p1/p1b: README lead = Verifier scorecard (EQUIVALENT sticky/Task/loop/worktrees/ship/models/recall/readonly; PARTIAL deslop only; NOT cloud/marketplace/Automations); tool table documents background omit→true + `resumeSessionDir`/`resumeJobId` → `--session-dir` + `--continue`/`-c`; PARITY inventory `skills/swarm` reframed as EQUIVALENT local-gather (cloud twin only); guides/prompts/agents/playbooks align spawn/resume/jobs/loop; honesty note that Pi `continueRecent` is **cwd-affined** (prefer same cwd on resume or `--session` file when known).

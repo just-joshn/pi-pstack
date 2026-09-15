@@ -3,7 +3,7 @@
  * Run: node --experimental-strip-types extensions/test/verify-local-partials.mjs
  *   or: bun extensions/test/verify-local-partials.mjs
  */
-import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync, readdirSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
@@ -575,6 +575,25 @@ await check("docs-sync: PARITY swarm inventory not PARTIAL-infra", async () => {
   assert.ok(swarmRow, "swarm inventory row missing");
   assert.ok(/EQUIVALENT.*local-gather|local-gather.*EQUIVALENT/i.test(swarmRow), "swarm row must say EQUIVALENT local-gather");
   assert.ok(!/\(PARTIAL infra\)/.test(swarmRow), "swarm row must not claim PARTIAL infra");
+});
+
+
+await check("skill frontmatter names are Pi kebab-case (a-z0-9-hyphen)", async () => {
+  const skillsDir = resolve(ROOT, "skills");
+  const dirs = readdirSync(skillsDir, { withFileTypes: true }).filter((d) => d.isDirectory());
+  const bad = [];
+  for (const d of dirs) {
+    const f = resolve(skillsDir, d.name, "SKILL.md");
+    if (!existsSync(f)) continue;
+    const m = readFileSync(f, "utf8").match(/^name:\s*(.+)$/m);
+    if (!m) {
+      bad.push(`${d.name}: missing name`);
+      continue;
+    }
+    const name = m[1].trim().replace(/^["']|["']$/g, "");
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) bad.push(`${d.name}: [${name}]`);
+  }
+  assert.equal(bad.length, 0, `invalid Pi skill names:\n${bad.join("\n")}`);
 });
 
 await check("PARITY scorecard documents local-scope EQUIVALENT criteria", async () => {

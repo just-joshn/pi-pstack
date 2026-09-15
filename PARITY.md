@@ -50,7 +50,9 @@ Bar: **Cursor CLI / local agent** semantics on Pi — not cloud VMs, marketplace
 | 11 | Ask-mode / readonly semantics | **EQUIVALENT** (local-readonly) | **Local-scope criteria:** `/pstack-readonly` strips write/edit/bash; sticky investigation playbook **auto-arms** readonly; spawn `investigator`/`comment-sicko` auto-readonly allowlist; `tool_call` blocks writes (and mutating ship/worktree/deslop-apply). **Not** Cursor Ask-mode MCP-strip — scored as local-readonly only. |
 | 12 | Automations / cloud agents / marketplace | NOT | Local spawn+worktree twin only; marketplace/Automations/cloud VMs absent |
 
-**Verifier-aligned scorecard (close-orch-p1b / Cap2 true continue):** **EQUIVALENT** (local-scope): **1** sticky, **2** spawn/Task (local-Task), **3** loop, **4** worktrees, **5** shipping/babysit, **7** models, **8** recall, **11** readonly. **PARTIAL:** **6** deslop (≤3 residual bullets). Out-of-scope **NOT:** 9, 10, 12. Never claim Cursor sticky-host / Ask-MCP / native `/loop` chrome / first-party MCP bit-identical.
+**Verifier-aligned scorecard (close-orch-p1b / Cap2 true continue):** **EQUIVALENT** (local-scope): **1** sticky, **2** spawn/Task (local-Task), **3** loop, **4** worktrees, **5** shipping/babysit, **7** models, **8** recall, **11** readonly. **PARTIAL:** **6** deslop (≤3 residual bullets). Out-of-scope **NOT:** 9, 10, 12. Pi skill `name` frontmatter must be kebab-case (`poteto-mode`); Cursor display title `Poteto Mode` is host-only — invocation path `/poteto-mode` unchanged.
+
+Never claim Cursor sticky-host / Ask-MCP / native `/loop` chrome / first-party MCP bit-identical.
 
 Artifact matrix below counts files on disk. Do not read “ported” as EQUIVALENT.
 
