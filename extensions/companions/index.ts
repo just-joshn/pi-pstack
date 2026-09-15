@@ -38,6 +38,184 @@ const ALLOWED_CONTROL_COMMANDS = new Set([
   "npx",
 ]);
 
+function buildGitDiffArgs(base: string, paths?: string[]): string[] {
+  const args = ["diff", "-U3", `${base}...HEAD`];
+  if (paths?.length) {
+    for (const p of paths) {
+      if (p.startsWith("-") || p.includes("\0")) throw new Error(`invalid path: ${p}`);
+    }
+    return [...args, "--", ...paths];
+  }
+  return args;
+}
+
+function extractAddedLines(text: string): Array<{ file: string; text: string }> {
+  const lines = text.split("\n");
+  let currentFile = "";
+  let result: Array<{ file: string; text: string }> = [];
+  for (const line of lines) {
+    if (line.startsWith("+++ ")) {
+      currentFile = line.slice(4).replace(/^[ab]\//, "").trim();
+      continue;
+    }
+    if (line.startsWith("+") && !line.startsWith("+++")) {
+      result = [...result, { file: currentFile || "(unknown)", text: line.slice(1) }];
+    }
+  }
+  return result;
+}
+
+type Hit = {
+  label: string;
+  severity: Severity;
+  count: number;
+  samples: string[];
+  suggestion: SlopPattern["suggestion"];
+  safeDelete: boolean;
+};
+
+function scanSlopPatterns(addedLines: Array<{ file: string; text: string }>): {
+  buckets: Map<string, Hit>;
+  suggestions: FixSuggestion[];
+} {
+  const buckets = new Map<string, Hit>();
+  let allSuggestions: FixSuggestion[] = [];
+
+  for (const row of addedLines) {
+    const plusLine = `+${row.text}`;
+    for (const pat of SLOP_PATTERNS) {
+      pat.re.lastIndex = 0;
+      const target = pat.lineAnchored ? plusLine : row.text;
+      if (!pat.re.test(target)) continue;
+
+      const existing = buckets.get(pat.label);
+      const hit = existing || {
+        label: pat.label,
+        severity: pat.severity,
+        count: 0,
+        samples: [],
+        suggestion: pat.suggestion,
+        safeDelete: Boolean(pat.safeDelete),
+      };
+
+      const nextCount = hit.count + 1;
+      const sample = `${row.file}: ${row.text.trim().slice(0, 140)}`;
+      const nextSamples =
+        hit.samples.length < 5 && !hit.samples.includes(sample)
+          ? [...hit.samples, sample]
+          : hit.samples;
+
+      buckets.set(pat.label, { ...hit, count: nextCount, samples: nextSamples });
+
+      if (allSuggestions.length < 80) {
+        allSuggestions = [
+          ...allSuggestions,
+          {
+            file: row.file,
+            line: row.text,
+            label: pat.label,
+            severity: pat.severity,
+            action: pat.suggestion,
+            safeDelete: Boolean(pat.safeDelete),
+          },
+        ];
+      }
+    }
+  }
+  return { buckets, suggestions: allSuggestions };
+}
+
+async function determineApplyAction(
+  params: { dryRun?: boolean; applySafe?: boolean; autoApply?: boolean },
+  suggestions: FixSuggestion[],
+  ctx: { ui?: { confirm?: (title: string, msg: string) => Promise<boolean | undefined> } },
+): Promise<{
+  applyReport: string;
+  applyDetails: { applied: number; files: string[]; dryRun?: boolean } | undefined;
+  doApply: boolean;
+}> {
+  if (params.dryRun === true) {
+    const would = suggestions.filter((s) => s.safeDelete && s.action === "delete-line");
+    return {
+      applyReport: `\n\ndryRun: would remove ${would.length} safeDelete line(s) across ${new Set(would.map((s) => s.file)).size} file(s) (no writes)`,
+      applyDetails: { applied: 0, files: [...new Set(would.map((s) => s.file))], dryRun: true },
+      doApply: false,
+    };
+  }
+
+  let doApply = params.applySafe === true;
+  let applyReport = "";
+
+  if (!doApply && params.autoApply === true && suggestions.some((s) => s.safeDelete)) {
+    const confirm = ctx.ui?.confirm;
+    if (typeof confirm === "function") {
+      const ok = await confirm(
+        "pstack_deslop autoApply",
+        `Delete ${suggestions.filter((s) => s.safeDelete).length} safe slop line(s)?`,
+      );
+      doApply = ok === true;
+      if (!doApply) applyReport = "\n\nautoApply: declined by operator";
+    } else {
+      applyReport =
+        "\n\nautoApply: skipped (no UI confirm available; pass applySafe:true to apply)";
+    }
+  }
+
+  return { applyReport, applyDetails: undefined, doApply };
+}
+
+function formatResult(
+  ranked: Hit[],
+  suggestions: FixSuggestion[],
+  addedLineCount: number,
+  applyDetails?: { applied: number; files: string[]; dryRun?: boolean },
+  applyReport = "",
+): { content: Array<{ type: string; text: string }>; details: unknown } {
+  if (ranked.length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "pstack_deslop: no common slop patterns in added lines (still run /skill:unslop on prose surfaces).",
+        },
+      ],
+      details: { findings: [], suggestions: [], cwd: "" },
+    };
+  }
+
+  const finalReport =
+    applyDetails && !applyReport
+      ? `\n\napplySafe: removed ${applyDetails.applied} line(s) in ${applyDetails.files.length} file(s): ${applyDetails.files.join(", ") || "(none)"}`
+      : applyReport;
+
+  const summary = ranked
+    .map(
+      (h) =>
+        `- [${h.severity}] ${h.label}: ${h.count} hit(s) → ${h.suggestion}${h.safeDelete ? " (safeDelete)" : ""}`,
+    )
+    .join("\n");
+  const samples = ranked
+    .map((h) => `  ${h.label}:\n${h.samples.map((s) => `    - ${s}`).join("\n")}`)
+    .join("\n");
+  const fixBlock = suggestions
+    .slice(0, 25)
+    .map(
+      (s) =>
+        `- ${s.action}${s.safeDelete ? "/safe" : ""} [${s.severity}] ${s.file}: ${s.line.trim().slice(0, 100)} (${s.label})`,
+    )
+    .join("\n");
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `pstack_deslop findings:\n${summary}\n\nSamples:\n${samples}\n\nStructured fixes (apply via edit, or re-run with applySafe:true for safeDelete lines):\n${fixBlock}\n\nThen /skill:unslop on prose. Added lines scanned: ${addedLineCount}.${finalReport}`,
+      },
+    ],
+    details: { findings: ranked, suggestions, apply: applyDetails, cwd: "" },
+  };
+}
+
 export function registerCompanions(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_deslop",
@@ -76,146 +254,34 @@ export function registerCompanions(pi: ExtensionAPI): void {
       if (base.startsWith("-") || base.includes("..") || /\s/.test(base)) {
         throw new Error("invalid git diff base");
       }
-      const args = ["diff", "-U3", `${base}...HEAD`];
-      if (params.paths?.length) {
-        for (const p of params.paths) {
-          if (p.startsWith("-") || p.includes("\0")) throw new Error(`invalid path: ${p}`);
-        }
-        args.push("--", ...params.paths);
-      }
+      const args = buildGitDiffArgs(base, params.paths);
       const diff = await pi.exec("git", args, { signal });
       const unstaged = await pi.exec("git", ["diff", "-U3"], { signal });
       const text = `${diff.stdout || ""}\n${unstaged.stdout || ""}`;
 
-      const addedLines: Array<{ file: string; text: string }> = [];
-      let currentFile = "";
-      for (const line of text.split("\n")) {
-        if (line.startsWith("+++ ")) {
-          currentFile = line.slice(4).replace(/^[ab]\//, "").trim();
-          continue;
-        }
-        if (line.startsWith("+") && !line.startsWith("+++")) {
-          addedLines.push({ file: currentFile || "(unknown)", text: line.slice(1) });
-        }
-      }
+      const addedLines = extractAddedLines(text);
+      const { buckets, suggestions } = scanSlopPatterns(addedLines);
 
-      type Hit = {
-        label: string;
-        severity: Severity;
-        count: number;
-        samples: string[];
-        suggestion: SlopPattern["suggestion"];
-        safeDelete: boolean;
-      };
-      const buckets = new Map<string, Hit>();
-      const suggestions: FixSuggestion[] = [];
-
-      for (const row of addedLines) {
-        const plusLine = `+${row.text}`;
-        for (const pat of SLOP_PATTERNS) {
-          pat.re.lastIndex = 0;
-          const target = pat.lineAnchored ? plusLine : row.text;
-          if (!pat.re.test(target)) continue;
-          let hit = buckets.get(pat.label);
-          if (!hit) {
-            hit = {
-              label: pat.label,
-              severity: pat.severity,
-              count: 0,
-              samples: [],
-              suggestion: pat.suggestion,
-              safeDelete: Boolean(pat.safeDelete),
-            };
-            buckets.set(pat.label, hit);
-          }
-          hit.count++;
-          if (hit.samples.length < 5) {
-            const sample = `${row.file}: ${row.text.trim().slice(0, 140)}`;
-            if (!hit.samples.includes(sample)) hit.samples.push(sample);
-          }
-          if (suggestions.length < 80) {
-            suggestions.push({
-              file: row.file,
-              line: row.text,
-              label: pat.label,
-              severity: pat.severity,
-              action: pat.suggestion,
-              safeDelete: Boolean(pat.safeDelete),
-            });
-          }
-        }
-      }
-
-      const ranked = [...buckets.values()].sort((a, b) => {
+      const ranked = [...buckets.values()].toSorted((a, b) => {
         const order = { high: 0, medium: 1, low: 2 } as const;
         return order[a.severity] - order[b.severity] || b.count - a.count;
       });
 
-      let applyReport = "";
-      let applyDetails: { applied: number; files: string[]; dryRun?: boolean } | undefined;
-      if (params.dryRun === true) {
-        const would = suggestions.filter((s) => s.safeDelete && s.action === "delete-line");
-        applyReport = `\n\ndryRun: would remove ${would.length} safeDelete line(s) across ${new Set(would.map((s) => s.file)).size} file(s) (no writes)`;
-        applyDetails = { applied: 0, files: [...new Set(would.map((s) => s.file))], dryRun: true };
-      }
-      let doApply = params.dryRun === true ? false : params.applySafe === true;
-      if (!doApply && params.autoApply === true && suggestions.some((s) => s.safeDelete)) {
-        const confirm = ctx.ui?.confirm;
-        if (typeof confirm === "function") {
-          const ok = await confirm(
-            "pstack_deslop autoApply",
-            `Delete ${suggestions.filter((s) => s.safeDelete).length} safe slop line(s)?`,
-          );
-          doApply = ok === true;
-          if (!doApply) applyReport = "\n\nautoApply: declined by operator";
-        } else {
-          applyReport =
-            "\n\nautoApply: skipped (no UI confirm available; pass applySafe:true to apply)";
-        }
-      }
+      const { applyReport, applyDetails, doApply } = await determineApplyAction(
+        params,
+        suggestions,
+        ctx,
+      );
+
       if (doApply && suggestions.some((s) => s.safeDelete)) {
-        applyDetails = applySafeDeletes(ctx.cwd, suggestions);
-        applyReport = `\n\napplySafe: removed ${applyDetails.applied} line(s) in ${applyDetails.files.length} file(s): ${applyDetails.files.join(", ") || "(none)"}`;
+        const result = applySafeDeletes(ctx.cwd, suggestions);
+        return formatResult(ranked, suggestions, addedLines.length, {
+          applied: result.applied,
+          files: result.files,
+        });
       }
 
-      if (ranked.length === 0) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "pstack_deslop: no common slop patterns in added lines (still run /skill:unslop on prose surfaces).",
-            },
-          ],
-          details: { findings: [], suggestions: [], cwd: ctx.cwd },
-        };
-      }
-
-      const summary = ranked
-        .map(
-          (h) =>
-            `- [${h.severity}] ${h.label}: ${h.count} hit(s) → ${h.suggestion}${h.safeDelete ? " (safeDelete)" : ""}`,
-        )
-        .join("\n");
-      const samples = ranked
-        .map((h) => `  ${h.label}:\n${h.samples.map((s) => `    - ${s}`).join("\n")}`)
-        .join("\n");
-      const fixBlock = suggestions
-        .slice(0, 25)
-        .map(
-          (s) =>
-            `- ${s.action}${s.safeDelete ? "/safe" : ""} [${s.severity}] ${s.file}: ${s.line.trim().slice(0, 100)} (${s.label})`,
-        )
-        .join("\n");
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `pstack_deslop findings:\n${summary}\n\nSamples:\n${samples}\n\nStructured fixes (apply via edit, or re-run with applySafe:true for safeDelete lines):\n${fixBlock}\n\nThen /skill:unslop on prose. Added lines scanned: ${addedLines.length}.${applyReport}`,
-          },
-        ],
-        details: { findings: ranked, suggestions, apply: applyDetails, cwd: ctx.cwd },
-      };
+      return formatResult(ranked, suggestions, addedLines.length, applyDetails, applyReport);
     },
   });
 
@@ -241,7 +307,8 @@ export function registerCompanions(pi: ExtensionAPI): void {
       if (!command || command.startsWith("-")) {
         throw new Error("argv[0] must be a command name/path");
       }
-      const base = command.split("/").pop() ?? command;
+      const parts = command.split("/");
+      const base = parts.length > 0 ? parts[parts.length - 1] : command;
       if (!ALLOWED_CONTROL_COMMANDS.has(base)) {
         throw new Error(
           `command '${base}' not in control_cli allowlist (${[...ALLOWED_CONTROL_COMMANDS].join(", ")})`,

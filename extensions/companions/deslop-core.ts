@@ -152,41 +152,58 @@ export interface FixSuggestion {
 }
 
 export function applySafeDeletes(cwd: string, suggestions: FixSuggestion[]): { applied: number; files: string[] } {
+  const byFile = groupSuggestionsByFile(suggestions);
+  const results = [...byFile.entries()].map(([file, hits]) =>
+    applySafeDeletesForFile(cwd, file, hits),
+  );
+  return {
+    applied: results.reduce((sum, r) => sum + r.applied, 0),
+    files: results.map((r) => r.file).filter((f) => f !== null) as string[],
+  };
+}
+
+function groupSuggestionsByFile(
+  suggestions: FixSuggestion[],
+): Map<string, FixSuggestion[]> {
   const byFile = new Map<string, FixSuggestion[]>();
   for (const s of suggestions) {
     if (!s.safeDelete || s.action !== "delete-line") continue;
     if (!s.file || s.file === "(unknown)") continue;
     const list = byFile.get(s.file) ?? [];
-    list.push(s);
-    byFile.set(s.file, list);
+    byFile.set(s.file, [...list, s]);
   }
-  let applied = 0;
-  const touched: string[] = [];
-  for (const [file, hits] of byFile) {
-    const path = resolve(cwd, file);
-    if (!existsSync(path)) continue;
-    let text: string;
-    try {
-      text = readFileSync(path, "utf8");
-    } catch {
-      continue;
+  return byFile;
+}
+
+function applySafeDeletesForFile(
+  cwd: string,
+  file: string,
+  hits: FixSuggestion[],
+): { applied: number; file: string | null } {
+  const path = resolve(cwd, file);
+  if (!existsSync(path)) return { applied: 0, file: null };
+  
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    return { applied: 0, file: null };
+  }
+  
+  const lines = text.split("\n");
+  const remove = new Set(hits.map((h) => h.line.trimEnd()));
+  const next = lines.filter((ln) => !remove.has(ln.trimEnd()) && !remove.has(ln));
+  const next2 = next.filter((ln) => {
+    for (const h of hits) {
+      if (ln === h.line || ln.trim() === h.line.trim()) return false;
     }
-    const lines = text.split("\n");
-    const remove = new Set(hits.map((h) => h.line.trimEnd()));
-    const next = lines.filter((ln) => !remove.has(ln.trimEnd()) && !remove.has(ln));
-    // Also match exact content without requiring trim identity on whitespace-only
-    const next2 = next.filter((ln) => {
-      for (const h of hits) {
-        if (ln === h.line || ln.trim() === h.line.trim()) return false;
-      }
-      return true;
-    });
-    if (next2.length === lines.length) continue;
-    writeFileSync(path, next2.join("\n"), "utf8");
-    applied += lines.length - next2.length;
-    touched.push(file);
-  }
-  return { applied, files: touched };
+    return true;
+  });
+  
+  if (next2.length === lines.length) return { applied: 0, file: null };
+  
+  writeFileSync(path, next2.join("\n"), "utf8");
+  return { applied: lines.length - next2.length, file };
 }
 
 
@@ -194,7 +211,7 @@ export function applySafeDeletes(cwd: string, suggestions: FixSuggestion[]): { a
 export function scanAddedLinesForSlop(
   addedLines: Array<{ file: string; text: string }>,
 ): { suggestions: FixSuggestion[]; rankedLabels: string[] } {
-  const suggestions: FixSuggestion[] = [];
+  let suggestions: FixSuggestion[] = [];
   const labels = new Set<string>();
   for (const row of addedLines) {
     const plusLine = `+${row.text}`;
@@ -204,14 +221,17 @@ export function scanAddedLinesForSlop(
       if (!pat.re.test(target)) continue;
       labels.add(pat.label);
       if (suggestions.length < 80) {
-        suggestions.push({
-          file: row.file,
-          line: row.text,
-          label: pat.label,
-          severity: pat.severity,
-          action: pat.suggestion,
-          safeDelete: Boolean(pat.safeDelete),
-        });
+        suggestions = [
+          ...suggestions,
+          {
+            file: row.file,
+            line: row.text,
+            label: pat.label,
+            severity: pat.severity,
+            action: pat.suggestion,
+            safeDelete: Boolean(pat.safeDelete),
+          },
+        ];
       }
     }
   }
