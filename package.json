@@ -1,0 +1,58 @@
+{
+  "name": "pi-pstack",
+  "version": "0.15.2-pi.0",
+  "description": "Local Pi twin of Cursor pstack v0.15.2 (max practical parity; see PARITY.md behavioral scorecard).",
+  "type": "module",
+  "license": "MIT",
+  "author": "Lauren Tan (original pstack); Pi port contributors (@just-joshn)",
+  "homepage": "https://github.com/cursor/plugins/tree/main/pstack",
+  "keywords": [
+    "pi-package",
+    "pstack",
+    "poteto-mode",
+    "agent-skills",
+    "workflow",
+    "subagents",
+    "unslop"
+  ],
+  "files": [
+    "extensions",
+    "skills",
+    "prompts",
+    "agents",
+    "docs",
+    "automations",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG.md",
+    "PARITY.md",
+    "assets",
+    ".gitignore"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "prompts": [
+      "./prompts"
+    ]
+  },
+  "scripts": {
+    "parity:check": "node port/port.mjs check && node port/contract.mjs",
+    "parity:sync": "node port/port.mjs sync"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
