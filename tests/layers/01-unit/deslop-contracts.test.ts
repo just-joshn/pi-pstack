@@ -178,7 +178,7 @@ test("deslop-01 registers the pstack_deslop tool and returns severity-ranked fin
 test("deslop-02 rejects invalid base refs and accepts a clean ref", async () => {
   const h = fakePi({ committed: COMMITTED_DIFF });
   const ctx = { cwd: "/tmp", ui: {} };
-  for (const bad of ["-x", "main..HEAD", "feature branch"]) {
+  for (const bad of ["-x", "main..HEAD", "feature branch", ".hidden"]) {
     await assert.rejects(
       () => h.deslop().execute("t", { base: bad }, undefined, undefined, ctx),
       /invalid git diff base/,
