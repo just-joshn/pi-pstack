@@ -11,12 +11,13 @@ export { BABYSIT_WATCH_RECIPES };
 export function babysitDynamicLoopHint(
   pr: string,
   recipeId = DEFAULT_BABYSIT_RECIPE,
+  stackPrs?: string[],
 ): {
   recipeId: string;
   watchArgv: string[];
   loopArm: Record<string, unknown>;
 } {
-  const watchArgv = materializeWatchArgv(recipeId, pr);
+  const watchArgv = materializeWatchArgv(recipeId, pr, { stackPrs });
   return {
     recipeId,
     watchArgv,

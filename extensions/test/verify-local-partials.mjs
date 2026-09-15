@@ -230,8 +230,24 @@ await check("babysit watchArgv recipes concrete + materialize + shipping default
   const argv = mod.materializeWatchArgv("watch-pr-status", "42");
   assert.deepEqual(argv.slice(-2), ["42", "--status-only"]);
   assert.ok(!argv.some((a) => a.includes("<pr>")));
+  assert.equal(argv[0], "bun", "watch-pr recipes must run through bun, not bash");
+  assert.ok(argv.includes("--pr"), "watch-pr recipes must pass the PR via --pr, the cli has no positional arg");
   const gh = mod.materializeWatchArgv("gh-checks-watch", "#99");
   assert.deepEqual(gh, ["gh", "pr", "checks", "99", "--watch"]);
+  const stackArgv = mod.materializeWatchArgv("watch-pr-stack", "7");
+  assert.deepEqual(stackArgv, ["bun", "skills/poteto-mode/scripts/watch-pr/watch-pr", "--stack", "--pr", "7"]);
+  const queuedArgv = mod.materializeWatchArgv("watch-pr-queued-stack", "7", { stackPrs: ["3", "5", "7"] });
+  assert.deepEqual(queuedArgv, [
+    "bun",
+    "skills/poteto-mode/scripts/watch-pr/watch-pr",
+    "--queued-stack",
+    "--stack-prs",
+    "3,5,7",
+  ]);
+  assert.throws(() => mod.materializeWatchArgv("watch-pr-queued-stack", "7"), /stackPrs/);
+  for (const recipeId of Object.keys(mod.BABYSIT_WATCH_RECIPES)) {
+    assert.ok(!mod.BABYSIT_WATCH_RECIPES[recipeId].argvTemplate.includes("bash"), `${recipeId} must not exec via bash`);
+  }
   const src = readFileSync(resolve(ROOT, "skills/poteto-mode/playbooks/babysit.md"), "utf8");
   assert.ok(src.includes("watchArgv"), "skill must bind the forge watcher to watchArgv");
   assert.ok(src.includes("dynamic"), "skill must bind the watch to pstack_loop dynamic mode");
@@ -242,6 +258,25 @@ await check("babysit watchArgv recipes concrete + materialize + shipping default
   assert.equal(hint.loopArm.mode, "dynamic");
   assert.ok(Array.isArray(hint.watchArgv) && hint.watchArgv.includes("123"));
   assert.ok(!hint.watchArgv.some((a) => String(a).includes("<pr>")));
+  const queuedHint = ship.babysitDynamicLoopHint("7", "watch-pr-queued-stack", ["3", "7"]);
+  assert.ok(queuedHint.watchArgv.includes("3,7"), "stackPrs must thread through babysitDynamicLoopHint");
+});
+
+await check("watch-pr runs via bun with an ENOENT-free failure when bun is missing", async () => {
+  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/heartbeat/coalesce.ts")).href);
+  assert.deepEqual(mod.watchPrInvocation("/abs/watch-pr", ["--pr", "9"]), {
+    command: "bun",
+    args: ["/abs/watch-pr", "--pr", "9"],
+  });
+  await mod.assertBunAvailable(async () => ({ code: 0 }));
+  await assert.rejects(
+    () => mod.assertBunAvailable(async () => ({ code: 1 })),
+    /bun is required.*not found on PATH/,
+    "missing bun must fail with an actionable message, not a bare ENOENT",
+  );
+  const src = readFileSync(resolve(ROOT, "extensions/shipping/index.ts"), "utf8");
+  assert.ok(src.includes("assertBunAvailable"), "pstack_babysit must gate the watch-pr recipes on bun being resolvable");
+  assert.ok(!/pi\.exec\(\s*"bash"/.test(src), "must not exec the bundled TypeScript watcher via bash");
 });
 
 await check("evaluateMergeGates fixture matrix", async () => {

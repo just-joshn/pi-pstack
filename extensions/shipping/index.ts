@@ -19,6 +19,14 @@ import {
   DEFAULT_BABYSIT_RECIPE,
   babysitDynamicLoopHint,
 } from "./babysit-recipes.ts";
+import { assertBunAvailable, watchPrInvocation } from "../heartbeat/coalesce.ts";
+
+const WATCH_PR_RECIPE_IDS = new Set([
+  "watch-pr-drive",
+  "watch-pr-status",
+  "watch-pr-stack",
+  "watch-pr-queued-stack",
+]);
 
 export {
   evaluateMergeGates,
@@ -341,7 +349,9 @@ function registerBabysitTool(pi: ExtensionAPI): void {
       "Watch a GitHub PR via gh (or bundled watch-pr script) until a terminal verdict. Defaults to concrete watchArgv recipes + pstack_loop mode=dynamic guidance (Cursor local babysit twin). Closest Pi twin to Babysit playbook polling.",
     promptSnippet: "Watch PR checks/comments until ready or blocked",
     promptGuidelines: [
-      "Prefer recipeId=watch-pr-drive (default) or watch-pr-status / gh-checks-watch / gh-view-json.",
+      "Prefer recipeId=watch-pr-drive (default) or watch-pr-status / watch-pr-stack / watch-pr-queued-stack / gh-checks-watch / gh-view-json.",
+      "watch-pr-queued-stack requires stackPrs (bottom-to-top PR numbers).",
+      "The bundled watch-pr recipes run via bun (its declared runtime); bun must be on PATH.",
       "Arm pstack_loop with the returned loopArm (mode=dynamic + watchArgv) for settle+watcher composite babysit.",
       "Never merge from babysit — route land/ship to pstack_ship / shipping playbook.",
     ],
@@ -352,6 +362,11 @@ function registerBabysitTool(pi: ExtensionAPI): void {
       recipeId: Type.Optional(
         Type.String({
           description: `Concrete watchArgv recipe: ${Object.keys(BABYSIT_WATCH_RECIPES).join(" | ")} (default ${DEFAULT_BABYSIT_RECIPE}; statusOnly forces watch-pr-status)`,
+        }),
+      ),
+      stackPrs: Type.Optional(
+        Type.Array(Type.String(), {
+          description: "Bottom-to-top PR numbers, required by recipeId=watch-pr-queued-stack",
         }),
       ),
       armLoopHint: Type.Optional(
