@@ -11,7 +11,6 @@ import assert from "node:assert/strict";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 async function assertBackgroundAndTools(mod) {
-  // --- role-aware background default (only poteto-agent detaches on omit) ---
   assert.equal(mod.wantsBackground(undefined, false), false, "omit + non-poteto role → sync");
   assert.equal(mod.wantsBackground(undefined, true), true, "omit + poteto-agent → background");
   assert.equal(mod.wantsBackground(undefined), false, "omit with no poteto flag → sync");

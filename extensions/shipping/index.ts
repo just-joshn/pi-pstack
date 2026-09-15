@@ -69,8 +69,8 @@ async function executeBabysitWithWatchPr(
   signal: AbortSignal | undefined,
 ): Promise<BabysitResponse> {
   await assertBunAvailable((command, argv, opts) => pi.exec(command, argv, opts), signal);
-  const scriptArgs = hint.watchArgv.slice(2); // drop ["bun", <script-path-token>]
-  if (params.pretty) scriptArgs.push("--pretty");
+  const tailArgs = hint.watchArgv.slice(2); // drop ["bun", <script-path-token>]
+  const scriptArgs = params.pretty ? [...tailArgs, "--pretty"] : tailArgs;
   const { command, args } = watchPrInvocation(WATCH_PR, scriptArgs);
   const result = await pi.exec(command, args, { signal, timeout: 60 * 60 * 1000 });
   const hintBlock = includeHint

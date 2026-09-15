@@ -100,7 +100,7 @@ if (!upstreamRoot) {
     const upstreamExec = (statSync(upstreamPath).mode & 0o111) !== 0;
     if (localExec !== upstreamExec) {
       out(`MODE DRIFT  ${rel} (local ${localExec ? "+x" : "-x"}, upstream ${upstreamExec ? "+x" : "-x"})`);
-      modeDrift++;
+      modeDrift = modeDrift + 1;
     }
   }
 }
