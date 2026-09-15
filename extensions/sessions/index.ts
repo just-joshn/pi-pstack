@@ -27,35 +27,164 @@ function candidateSessionDirs(cwd: string): string[] {
   ].filter(Boolean);
 }
 
-function listSessionFiles(cwd: string, limit: number): Array<{ path: string; mtimeMs: number; bytes: number }> {
-  const out: Array<{ path: string; mtimeMs: number; bytes: number }> = [];
-  for (const dir of candidateSessionDirs(cwd)) {
-    if (!existsSync(dir)) continue;
-    const walk = (d: string, depth: number) => {
-      if (depth > 4) return;
-      let entries: string[] = [];
-      try {
-        entries = readdirSync(d);
-      } catch {
-        return;
-      }
-      for (const name of entries) {
-        const p = join(d, name);
-        try {
-          const st = statSync(p);
-          if (st.isDirectory()) walk(p, depth + 1);
-          else if (name.endsWith(".jsonl") || name.endsWith(".json")) {
-            out.push({ path: p, mtimeMs: st.mtimeMs, bytes: st.size });
-          }
-        } catch {
-          /* skip */
-        }
-      }
-    };
-    walk(dir, 0);
+function walkSessionDir(
+  d: string,
+  depth: number,
+): Array<{ path: string; mtimeMs: number; bytes: number }> {
+  if (depth > 4) return [];
+  let entries: string[] = [];
+  try {
+    entries = readdirSync(d);
+  } catch {
+    /* skip permission denied or missing */
+    return [];
   }
-  out.sort((a, b) => b.mtimeMs - a.mtimeMs);
-  return out.slice(0, limit);
+  return entries.flatMap((name) => {
+    const p = join(d, name);
+    try {
+      const st = statSync(p);
+      if (st.isDirectory()) {
+        return walkSessionDir(p, depth + 1);
+      } else if (name.endsWith(".jsonl") || name.endsWith(".json")) {
+        return [{ path: p, mtimeMs: st.mtimeMs, bytes: st.size }];
+      }
+      return [];
+    } catch {
+      /* skip inaccessible files */
+      return [];
+    }
+  });
+}
+
+function listSessionFiles(cwd: string, limit: number): Array<{ path: string; mtimeMs: number; bytes: number }> {
+  const collected = candidateSessionDirs(cwd)
+    .filter(existsSync)
+    .flatMap((dir) => walkSessionDir(dir, 0));
+  return collected.toSorted((a, b) => b.mtimeMs - a.mtimeMs).slice(0, limit);
+}
+
+function handleListAction(
+  files: Array<{ path: string; mtimeMs: number; bytes: number }>,
+  limit: number,
+) {
+  const sliced = files.slice(0, limit);
+  const lines = sliced.map(
+    (f) => `${new Date(f.mtimeMs).toISOString()}  ${f.bytes}B  ${f.path}`,
+  );
+  return {
+    content: [{ type: "text", text: lines.join("\n") || "(no sessions found in known Pi dirs)" }],
+    details: { files: sliced },
+  };
+}
+
+function grepSingleFile(
+  f: { path: string },
+  query: string,
+): string | undefined {
+  try {
+    const text = readFileSync(f.path, "utf8");
+    if (!text.toLowerCase().includes(query)) return undefined;
+    const snip = text
+      .split(/\r?\n/)
+      .filter((l) => l.toLowerCase().includes(query))
+      .slice(0, 3)
+      .join(" | ")
+      .slice(0, 400);
+    return `${f.path}\n  ${snip}`;
+  } catch {
+    /* skip read errors or permission denied */
+    return undefined;
+  }
+}
+
+function handleGrepAction(
+  files: Array<{ path: string; mtimeMs: number; bytes: number }>,
+  query: string,
+  limit: number,
+) {
+  const q = query.toLowerCase();
+  if (!q) throw new Error("query required for grep");
+  const hits = files
+    .slice(0, 80)
+    .map((f) => grepSingleFile(f, q))
+    .filter((h): h is string => h !== undefined)
+    .slice(0, limit);
+  return {
+    content: [{ type: "text", text: hits.join("\n\n") || `(no hits for ${q})` }],
+    details: { hitCount: hits.length },
+  };
+}
+
+function searchSingleSessionFile(
+  f: { path: string },
+  query: string,
+): string | undefined {
+  try {
+    const text = readFileSync(f.path, "utf8");
+    if (!text.toLowerCase().includes(query.toLowerCase())) return undefined;
+    const snip = text
+      .split(/\r?\n/)
+      .filter((l) => l.toLowerCase().includes(query.toLowerCase()))
+      .slice(0, 2)
+      .join(" | ")
+      .slice(0, 300);
+    return `${f.path}\n  ${snip}`;
+  } catch {
+    /* skip read errors or permission denied */
+    return undefined;
+  }
+}
+
+function buildSessionHits(
+  files: Array<{ path: string; mtimeMs: number; bytes: number }>,
+  query: string,
+  limit: number,
+): string[] {
+  if (query) {
+    return files
+      .slice(0, 80)
+      .map((f) => searchSingleSessionFile(f, query))
+      .filter((h): h is string => h !== undefined)
+      .slice(0, limit);
+  }
+  return files
+    .slice(0, limit)
+    .map((f) => `${new Date(f.mtimeMs).toISOString()}  ${f.path}`);
+}
+
+async function handleRecallAction(
+  files: Array<{ path: string; mtimeMs: number; bytes: number }>,
+  query: string,
+  limit: number,
+  days: number,
+  cwd: string,
+) {
+  const q = query ?? "";
+  const sessionHits = buildSessionHits(files, q, limit);
+  const gitLog = await recallGitLog(cwd, q, limit);
+  const prs = await recallGhPrs(cwd, q, Math.min(limit, 15));
+  const corpus = buildRankedRecallCorpus({
+    query: q,
+    days,
+    sessionSnippets: sessionHits,
+    gitLog,
+    ghPrs: prs,
+    limit,
+  });
+  const body = formatRankedRecallBody(corpus, days);
+  return {
+    content: [{ type: "text", text: body }],
+    details: {
+      sessionHits: sessionHits.length,
+      rankedHits: corpus.hits.length,
+      corpus: ["sessions", "git-log", "gh-prs", "ranked-merge"],
+      top: corpus.hits.slice(0, 5).map((h) => ({
+        source: h.source,
+        score: h.score,
+        title: h.title,
+      })),
+    },
+  };
 }
 
 export function registerSessions(pi: ExtensionAPI): void {
@@ -86,96 +215,18 @@ export function registerSessions(pi: ExtensionAPI): void {
       const limit = params.limit ?? 20;
       const days = params.days ?? 7;
       const cutoff = Date.now() - days * 86400000;
-      let files = listSessionFiles(ctx.cwd, 200).filter((f) => f.mtimeMs >= cutoff);
+      const files = listSessionFiles(ctx.cwd, 200).filter((f) => f.mtimeMs >= cutoff);
 
       if (params.action === "list") {
-        files = files.slice(0, limit);
-        const lines = files.map(
-          (f) => `${new Date(f.mtimeMs).toISOString()}  ${f.bytes}B  ${f.path}`,
-        );
-        return {
-          content: [{ type: "text", text: lines.join("\n") || "(no sessions found in known Pi dirs)" }],
-          details: { files },
-        };
+        return handleListAction(files, limit);
       }
 
       if (params.action === "recall") {
-        const q = params.query ?? "";
-        const sessionHits: string[] = [];
-        if (q) {
-          for (const f of files.slice(0, 80)) {
-            try {
-              const text = readFileSync(f.path, "utf8");
-              if (!text.toLowerCase().includes(q.toLowerCase())) continue;
-              const snip = text
-                .split(/\r?\n/)
-                .filter((l) => l.toLowerCase().includes(q.toLowerCase()))
-                .slice(0, 2)
-                .join(" | ")
-                .slice(0, 300);
-              sessionHits.push(`${f.path}\n  ${snip}`);
-              if (sessionHits.length >= limit) break;
-            } catch {
-              /* skip */
-            }
-          }
-        } else {
-          sessionHits.push(
-            ...files
-              .slice(0, limit)
-              .map((f) => `${new Date(f.mtimeMs).toISOString()}  ${f.path}`),
-          );
-        }
-        const gitLog = await recallGitLog(ctx.cwd, q, limit);
-        const prs = await recallGhPrs(ctx.cwd, q, Math.min(limit, 15));
-        const corpus = buildRankedRecallCorpus({
-          query: q,
-          days,
-          sessionSnippets: sessionHits,
-          gitLog,
-          ghPrs: prs,
-          limit,
-        });
-        const body = formatRankedRecallBody(corpus, days);
-        return {
-          content: [{ type: "text", text: body }],
-          details: {
-            sessionHits: sessionHits.length,
-            rankedHits: corpus.hits.length,
-            corpus: ["sessions", "git-log", "gh-prs", "ranked-merge"],
-            top: corpus.hits.slice(0, 5).map((h) => ({
-              source: h.source,
-              score: h.score,
-              title: h.title,
-            })),
-          },
-        };
+        return await handleRecallAction(files, params.query ?? "", limit, days, ctx.cwd);
       }
 
       if (params.action !== "grep") throw new Error("action must be list|grep|current|recall");
-      const q = (params.query ?? "").toLowerCase();
-      if (!q) throw new Error("query required for grep");
-      const hits: string[] = [];
-      for (const f of files.slice(0, 80)) {
-        try {
-          const text = readFileSync(f.path, "utf8");
-          if (!text.toLowerCase().includes(q)) continue;
-          const snip = text
-            .split(/\r?\n/)
-            .filter((l) => l.toLowerCase().includes(q))
-            .slice(0, 3)
-            .join(" | ")
-            .slice(0, 400);
-          hits.push(`${f.path}\n  ${snip}`);
-          if (hits.length >= limit) break;
-        } catch {
-          /* skip */
-        }
-      }
-      return {
-        content: [{ type: "text", text: hits.join("\n\n") || `(no hits for ${q})` }],
-        details: { hitCount: hits.length },
-      };
+      return handleGrepAction(files, params.query ?? "", limit);
     },
   });
 }

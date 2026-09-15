@@ -11,16 +11,16 @@ export async function recallGitLog(
   query: string,
   limit = 20,
 ): Promise<string> {
-  const args = [
+  const baseArgs = [
     "log",
     `--max-count=${Math.min(100, Math.max(1, limit))}`,
     "--oneline",
     "--decorate",
     "--all",
   ];
-  if (query.trim()) {
-    args.push("--grep", query, "-i", "-E");
-  }
+  const args = query.trim()
+    ? [...baseArgs, "--grep", query, "-i", "-E"]
+    : baseArgs;
   try {
     const { stdout, stderr } = await execFileAsync("git", args, { cwd, timeout: 15_000 });
     return (stdout || stderr || "(no git log hits)").trim();
