@@ -45,13 +45,19 @@ function createLineStream(onMessage) {
     }
   };
 
-  return { messages, state, feed };
+  return {
+    get messages() {
+      return messages;
+    },
+    state,
+    feed,
+  };
 }
 
-function createDiagnostics(messages, stderrChunks) {
+function createDiagnostics(readMessages, readStderrChunks) {
   return (waitingFor) => {
-    const last5 = messages.slice(-5).map((m) => JSON.stringify(m)).join("\n");
-    return `Timeout waiting for ${waitingFor}.\nLast 5 messages:\n${last5}\nCaptured stderr:\n${stderrChunks.join("")}`;
+    const last5 = readMessages().slice(-5).map((m) => JSON.stringify(m)).join("\n");
+    return `Timeout waiting for ${waitingFor}.\nLast 5 messages:\n${last5}\nCaptured stderr:\n${readStderrChunks().join("")}`;
   };
 }
 
@@ -160,7 +166,7 @@ export async function withRpc(fn, options = {}) {
   child.stdout.on("data", stream.feed);
   child.stderr.on("data", (chunk) => { stderrChunks = [...stderrChunks, chunk.toString()]; });
 
-  const diagnostics = createDiagnostics(stream.messages, stderrChunks);
+  const diagnostics = createDiagnostics(() => stream.messages, () => stderrChunks);
   const request = createRequest(child, pending, nextId, diagnostics);
   const close = createCloser(child, state);
 

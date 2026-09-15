@@ -111,31 +111,30 @@ export async function ensureWriterIsolation(
 
   const parentResolved = resolve(parentCwd);
   const seen = new Map<string, string>();
+  let assigned: string[] = [];
 
-  const assigned = await Promise.all(
-    writers.map(async (w, i) => {
-      let cwd = w.cwd?.trim() || "";
-      const needsAuto = !cwd || resolve(cwd) === parentResolved;
+  for (const [i, w] of writers.entries()) {
+    let cwd = w.cwd?.trim() || "";
+    const needsAuto = !cwd || resolve(cwd) === parentResolved;
 
-      if (needsAuto) {
-        const created = await createIsolatedWorktree(
-          parentCwd,
-          `auto-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-        );
-        cwd = created.path;
-      }
+    if (needsAuto) {
+      const created = await createIsolatedWorktree(
+        parentCwd,
+        `auto-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
+      );
+      cwd = created.path;
+    }
 
-      const resolved = resolve(cwd);
-      const prev = seen.get(resolved);
-      if (prev) {
-        throw new Error(
-          `multi-writer isolation: ${w.label} and ${prev} share cwd ${cwd}; pass unique cwd or omit cwd for auto worktree`,
-        );
-      }
-      seen.set(resolved, w.label);
-      return cwd;
-    }),
-  );
+    const resolved = resolve(cwd);
+    const prev = seen.get(resolved);
+    if (prev) {
+      throw new Error(
+        `multi-writer isolation: ${w.label} and ${prev} share cwd ${cwd}; pass unique cwd or omit cwd for auto worktree`,
+      );
+    }
+    seen.set(resolved, w.label);
+    assigned = [...assigned, cwd];
+  }
   return assigned;
 }
 
@@ -270,26 +269,25 @@ export async function cleanupPstackWorktreesOnShutdown(
     names = [];
   }
 
-  const results = await Promise.all(
-    names.map(async (name) => {
-      const path = join(root, name);
-      const branch = `pstack/${name}`;
-      const verdict = await isSafeToRemovePstackWorktree(cwd, path, branch);
-      if (!verdict.ok) {
-        return { name, removed: false, reason: verdict.reason };
-      }
-      try {
-        await removeWorktree(cwd, name);
-        return { name, removed: true };
-      } catch (err) {
-        return {
-          name,
-          removed: false,
-          reason: err instanceof Error ? err.message : String(err),
-        };
-      }
-    }),
-  );
+  let results: Array<{ name: string; removed: boolean; reason?: string }> = [];
+  for (const name of names) {
+    const path = join(root, name);
+    const branch = `pstack/${name}`;
+    const verdict = await isSafeToRemovePstackWorktree(cwd, path, branch);
+    if (!verdict.ok) {
+      results = [...results, { name, removed: false, reason: verdict.reason }];
+      continue;
+    }
+    try {
+      await removeWorktree(cwd, name);
+      results = [...results, { name, removed: true }];
+    } catch (err) {
+      results = [
+        ...results,
+        { name, removed: false, reason: err instanceof Error ? err.message : String(err) },
+      ];
+    }
+  }
 
   const removed = results.filter((r) => r.removed).map((r) => r.name);
   const skipped = results
@@ -313,28 +311,27 @@ export async function ensureAlwaysIsolated(
   if (writers.length === 0) return [];
   const parentResolved = resolve(parentCwd);
   const seen = new Map<string, string>();
+  let assigned: string[] = [];
 
-  const assigned = await Promise.all(
-    writers.map(async (w, i) => {
-      let cwd = w.cwd?.trim() || "";
-      const needsAuto = !cwd || resolve(cwd) === parentResolved;
-      if (needsAuto) {
-        const created = await createIsolatedWorktree(
-          parentCwd,
-          `auto-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-        );
-        cwd = created.path;
-      }
-      const resolvedPath = resolve(cwd);
-      const prev = seen.get(resolvedPath);
-      if (prev) {
-        throw new Error(
-          `multi-writer isolation: ${w.label} and ${prev} share cwd ${cwd}; pass unique cwd or omit cwd for auto worktree`,
-        );
-      }
-      seen.set(resolvedPath, w.label);
-      return cwd;
-    }),
-  );
+  for (const [i, w] of writers.entries()) {
+    let cwd = w.cwd?.trim() || "";
+    const needsAuto = !cwd || resolve(cwd) === parentResolved;
+    if (needsAuto) {
+      const created = await createIsolatedWorktree(
+        parentCwd,
+        `auto-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
+      );
+      cwd = created.path;
+    }
+    const resolvedPath = resolve(cwd);
+    const prev = seen.get(resolvedPath);
+    if (prev) {
+      throw new Error(
+        `multi-writer isolation: ${w.label} and ${prev} share cwd ${cwd}; pass unique cwd or omit cwd for auto worktree`,
+      );
+    }
+    seen.set(resolvedPath, w.label);
+    assigned = [...assigned, cwd];
+  }
   return assigned;
 }

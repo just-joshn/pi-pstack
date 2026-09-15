@@ -199,8 +199,9 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
     if (params.watchCommand) {
       throw new Error("watchCommand is rejected (no bash -lc of model strings); pass watchArgv as an argv array");
     }
-    seq = seq + 1;
-    const id = params.id ?? `loop-${seq}`;
+    const explicitId = params.id;
+    if (explicitId === undefined || explicitId === null) seq = seq + 1;
+    const id = explicitId ?? `loop-${seq}`;
     const existing = loops.get(id);
     if (existing) clearLoop(existing);
     const mode = (params.mode as LoopState["mode"]) || "interval";

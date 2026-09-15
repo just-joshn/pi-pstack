@@ -50,6 +50,7 @@ function prepareChildInputFromParams(
     tools?: string[];
     timeoutMs?: number;
     persistOutput?: boolean;
+    background?: boolean;
     sessionMode?: string;
     resumeSessionDir?: string;
     resumeJobId?: string;

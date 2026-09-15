@@ -165,6 +165,7 @@ async function determineApplyAction(
 }
 
 function formatResult(
+  cwd: string,
   ranked: Hit[],
   suggestions: FixSuggestion[],
   addedLineCount: number,
@@ -179,7 +180,7 @@ function formatResult(
           text: "pstack_deslop: no common slop patterns in added lines (still run /skill:unslop on prose surfaces).",
         },
       ],
-      details: { findings: [], suggestions: [], cwd: "" },
+      details: { findings: [], suggestions: [], cwd },
     };
   }
 
@@ -212,7 +213,7 @@ function formatResult(
         text: `pstack_deslop findings:\n${summary}\n\nSamples:\n${samples}\n\nStructured fixes (apply via edit, or re-run with applySafe:true for safeDelete lines):\n${fixBlock}\n\nThen /skill:unslop on prose. Added lines scanned: ${addedLineCount}.${finalReport}`,
       },
     ],
-    details: { findings: ranked, suggestions, apply: applyDetails, cwd: "" },
+    details: { findings: ranked, suggestions, apply: applyDetails, cwd },
   };
 }
 
@@ -275,13 +276,13 @@ export function registerCompanions(pi: ExtensionAPI): void {
 
       if (doApply && suggestions.some((s) => s.safeDelete)) {
         const result = applySafeDeletes(ctx.cwd, suggestions);
-        return formatResult(ranked, suggestions, addedLines.length, {
+        return formatResult(ctx.cwd, ranked, suggestions, addedLines.length, {
           applied: result.applied,
           files: result.files,
         });
       }
 
-      return formatResult(ranked, suggestions, addedLines.length, applyDetails, applyReport);
+      return formatResult(ctx.cwd, ranked, suggestions, addedLines.length, applyDetails, applyReport);
     },
   });
 
