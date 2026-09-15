@@ -101,7 +101,7 @@ await check("extension modules wire sticky + playbook match + session readonly",
   const readonly = readFileSync(resolve(ROOT, "extensions/readonly-state/index.ts"), "utf8");
   assert.ok(poteto.includes("buildPotetoStickyPrompt"));
   assert.ok(poteto.includes("matchStickyPlaybook"));
-  assert.ok(poteto.includes("userText: lastUserText") || poteto.includes("userText:"));
+  assert.ok(poteto.includes("assignedPlaybookId") || poteto.includes("restoredPlaybookId"));
   assert.ok(readonly.includes("pstack-readonly"));
   assert.ok(readonly.includes("pstack-session-readonly") || readonly.includes("READONLY_ENTRY_TYPE"));
   assert.ok(readonly.includes("tool_call"));

@@ -39,7 +39,7 @@ test("computeReadonlyTools keeps read-only pstack tools and drops blocked ones",
 
 test("reduceSetEnabled enabling returns the stripped active set and a readonly status", () => {
   const result = reduceSetEnabled(createInitialReadonlyState(), true, universe, "command");
-  assert.deepEqual(result.state, { enabled: true, toolsBefore: [...ALL] });
+  assert.deepEqual(result.state, { enabled: true, toolsBefore: [...ALL], reason: "command" });
   assert.deepEqual(result.effects.map((effect) => effect.type), [
     "appendEntry",
     "setActiveTools",
@@ -53,7 +53,7 @@ test("reduceSetEnabled enabling returns the stripped active set and a readonly s
 test("reduceSetEnabled disabling restores the remembered tools through the guarded effect", () => {
   const armed = reduceSetEnabled(createInitialReadonlyState(), true, universe, "command").state;
   const result = reduceSetEnabled(armed, false, universe);
-  assert.deepEqual(result.state, { enabled: false, toolsBefore: undefined });
+  assert.deepEqual(result.state, { enabled: false, toolsBefore: undefined, reason: undefined });
   const restore = result.effects.find((effect) => effect.type === "setActiveTools");
   assert.deepEqual(restore, { type: "setActiveTools", tools: [...ALL], guarded: true });
   const status = result.effects.find((effect) => effect.type === "setStatus");
