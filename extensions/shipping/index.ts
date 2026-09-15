@@ -20,6 +20,7 @@ import {
   babysitDynamicLoopHint,
 } from "./babysit-recipes.ts";
 import { assertBunAvailable, watchPrInvocation } from "../heartbeat/coalesce.ts";
+import { evaluateStack, type StackPrView } from "./frontier.ts";
 
 const WATCH_PR_RECIPE_IDS = new Set([
   "watch-pr-drive",
@@ -178,22 +179,52 @@ async function handleShipView(
   return { content: [{ type: "text", text: r.stdout || r.stderr }], details: { code: r.code } };
 }
 
+async function fetchStackView(
+  pi: ExtensionAPI,
+  pr: string,
+  signal: AbortSignal | undefined,
+): Promise<StackPrView> {
+  const clean = pr.replace(/^#/, "");
+  const r = await pi.exec(
+    "gh",
+    [
+      "pr",
+      "view",
+      clean,
+      "--json",
+      "number,state,mergedAt,mergeStateStatus,title,statusCheckRollup,reviewDecision",
+    ],
+    { signal },
+  );
+  if (r.code !== 0) return { number: clean, state: "UNKNOWN" };
+  try {
+    const view = JSON.parse(r.stdout) as StackPrView;
+    return { ...view, number: String(view.number ?? clean) };
+  } catch {
+    return { number: clean, state: "UNKNOWN" };
+  }
+}
+
 async function handleShipStackStatus(
   pi: ExtensionAPI,
   prs: string[],
   signal: AbortSignal | undefined,
 ): Promise<ShipStackResponse> {
   if (!prs.length) throw new Error("stackPrs or pr required");
-  let chunks: string[] = [];
+  let views: StackPrView[] = [];
   for (const pr of prs) {
-    const r = await pi.exec(
-      "gh",
-      ["pr", "view", pr.replace(/^#/, ""), "--json", "number,state,mergedAt,mergeStateStatus,title"],
-      { signal },
-    );
-    chunks = [...chunks, r.stdout || `PR ${pr}: ${r.stderr}`];
+    views = [...views, await fetchStackView(pi, pr, signal)];
   }
-  return { content: [{ type: "text", text: chunks.join("\n") }], details: {} };
+  const status = evaluateStack(views);
+  const lines = [
+    `stack ${status.verdict}${status.frontier ? ` frontier=#${status.frontier}` : ""}`,
+    ...status.rows,
+    ...(status.problems.length ? [`frontier blockers: ${status.problems.join("; ")}`] : []),
+  ];
+  return {
+    content: [{ type: "text", text: lines.join("\n") }],
+    details: { verdict: status.verdict, frontier: status.frontier, problems: status.problems },
+  };
 }
 
 async function handleShipGateCheck(
