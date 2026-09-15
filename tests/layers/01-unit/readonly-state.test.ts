@@ -1,80 +1,61 @@
-/**
- * Unit tests for readonly-state pure functions and transitions.
- * Tests call exported helpers without a live Pi host.
- */
-import { describe, it } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeReadonlyTools } from "../../../extensions/readonly-state/index.ts";
+import {
+  computeReadonlyTools,
+  createInitialReadonlyState,
+  reduceSetEnabled,
+} from "../../../extensions/readonly-state/index.ts";
 
-describe("computeReadonlyTools basic", () => {
-    it("toolsBefore from activeTools when non-empty", () => {
-      const result = computeReadonlyTools(
-        ["read", "write", "bash", "pstack_spawn"],
-        ["write", "bash", "pstack_spawn"],
-        new Set(["write", "bash"]),
-      );
-      assert.deepEqual(result.toolsBefore, ["write", "bash", "pstack_spawn"]);
-      assert.ok(result.nextActive.includes("read"));
-      assert.ok(result.nextActive.includes("pstack_spawn"));
-      assert.ok(!result.nextActive.includes("write"));
-      assert.ok(!result.nextActive.includes("bash"));
-    });
+const ALL = ["read", "grep", "find", "ls", "write", "bash", "pstack_spawn", "pstack_ship"];
+const WRITE_BLOCKED = new Set(["write", "bash", "pstack_ship"]);
+const universe = { allTools: ALL, activeTools: [...ALL] };
 
-    it("toolsBefore from allTools when activeTools empty", () => {
-      const result = computeReadonlyTools(
-        ["read", "write", "bash"],
-        [],
-        new Set(["write", "bash"]),
-      );
-      assert.deepEqual(result.toolsBefore, ["read", "write", "bash"]);
-      assert.ok(result.nextActive.includes("read"));
-      assert.ok(!result.nextActive.includes("write"));
-    });
-
-    it("keeps pstack tools except write-blocked", () => {
-      const result = computeReadonlyTools(
-        ["read", "pstack_spawn", "pstack_ship", "write"],
-        ["read", "pstack_spawn", "pstack_ship", "write"],
-        new Set(["write", "pstack_ship"]),
-      );
-      assert.ok(result.nextActive.includes("pstack_spawn"));
-      assert.ok(!result.nextActive.includes("pstack_ship"));
-    });
+test("computeReadonlyTools remembers the active set and strips write-blocked tools", () => {
+  const result = computeReadonlyTools(ALL, ["write", "bash", "pstack_spawn"], WRITE_BLOCKED);
+  assert.deepEqual(result.toolsBefore, ["write", "bash", "pstack_spawn"]);
+  assert.deepEqual(result.nextActive, ["read", "grep", "find", "ls", "pstack_spawn"]);
 });
 
-describe("computeReadonlyTools edges", () => {
-    it("always keeps read grep find ls", () => {
-      const result = computeReadonlyTools(
-        ["read", "grep", "find", "ls", "write"],
-        ["write"],
-        new Set(["write"]),
-      );
-      assert.ok(result.nextActive.includes("read"));
-      assert.ok(result.nextActive.includes("grep"));
-      assert.ok(result.nextActive.includes("find"));
-      assert.ok(result.nextActive.includes("ls"));
-    });
+test("computeReadonlyTools falls back to all tools when none are active", () => {
+  const result = computeReadonlyTools(["read", "write"], [], WRITE_BLOCKED);
+  assert.deepEqual(result.toolsBefore, ["read", "write"]);
+  assert.deepEqual(result.nextActive, ["read"]);
+});
 
-    it("filters nextActive correctly", () => {
-      const result = computeReadonlyTools(
-        ["read", "write", "pstack_spawn"],
-        ["read", "write", "pstack_spawn"],
-        new Set(["write"]),
-      );
-      assert.ok(result.nextActive.includes("read"));
-      assert.ok(result.nextActive.includes("pstack_spawn"));
-      assert.ok(!result.nextActive.includes("write"));
-    });
+test("computeReadonlyTools keeps read-only pstack tools and drops blocked ones", () => {
+  const { nextActive } = computeReadonlyTools(ALL, [...ALL], WRITE_BLOCKED);
+  assert.equal(nextActive.includes("pstack_spawn"), true);
+  assert.equal(nextActive.includes("pstack_ship"), false);
+  assert.equal(nextActive.includes("write"), false);
+  assert.equal(nextActive.includes("bash"), false);
+});
 
-    it("empty nextActive when no match", () => {
-      const result = computeReadonlyTools([], [], new Set());
-      assert.deepEqual(result.nextActive, []);
-      assert.deepEqual(result.toolsBefore, []);
-    });
+test("reduceSetEnabled enabling returns the stripped active set and a readonly status", () => {
+  const result = reduceSetEnabled(createInitialReadonlyState(), true, universe, "command");
+  assert.deepEqual(result.state, { enabled: true, toolsBefore: [...ALL] });
+  assert.deepEqual(result.effects.map((effect) => effect.type), [
+    "appendEntry",
+    "setActiveTools",
+    "setStatus",
+    "notify",
+  ]);
+  const status = result.effects.find((effect) => effect.type === "setStatus");
+  assert.deepEqual(status, { type: "setStatus", statusId: "pstack-ro", value: "readonly" });
+});
 
-    it("handles empty inputs", () => {
-      const result = computeReadonlyTools([], [], new Set());
-      assert.ok(Array.isArray(result.nextActive));
-      assert.ok(Array.isArray(result.toolsBefore));
-    });
+test("reduceSetEnabled disabling restores the remembered tools through the guarded effect", () => {
+  const armed = reduceSetEnabled(createInitialReadonlyState(), true, universe, "command").state;
+  const result = reduceSetEnabled(armed, false, universe);
+  assert.deepEqual(result.state, { enabled: false, toolsBefore: undefined });
+  const restore = result.effects.find((effect) => effect.type === "setActiveTools");
+  assert.deepEqual(restore, { type: "setActiveTools", tools: [...ALL], guarded: true });
+  const status = result.effects.find((effect) => effect.type === "setStatus");
+  assert.deepEqual(status, { type: "setStatus", statusId: "pstack-ro", value: undefined });
+});
+
+test("reduceSetEnabled is a no-op when the flag is unchanged", () => {
+  const state = createInitialReadonlyState();
+  const result = reduceSetEnabled(state, false, universe);
+  assert.equal(result.state, state);
+  assert.deepEqual(result.effects, []);
 });

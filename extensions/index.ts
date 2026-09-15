@@ -1,6 +1,5 @@
 /**
  * pi-pstack extension entry — composition root for poteto-mode + orchestration tools.
- * Stage 3: split state machines into feature modules (poteto-state, readonly-state).
  * No Cursor SDKs. No pi-subagents / tintinweb deps.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -17,16 +16,17 @@ import { registerShipping } from "./shipping/index.ts";
 import { registerBenny } from "./benny/index.ts";
 import { registerPiOnlyCommands, registerSkillCommands } from "./commands/skill-commands.ts";
 import { createPotetoRuntime } from "./poteto-state/index.ts";
-import { createReadonlyRuntime } from "./readonly-state/index.ts";
+import { createReadonlyRuntime, type ReadonlyRuntime } from "./readonly-state/index.ts";
 import type { EffectContext } from "./effects.ts";
 
 export default function piPstack(pi: ExtensionAPI) {
-  const readonlyRuntime = createReadonlyRuntime(pi);
-  const potetoRuntime = createPotetoRuntime(pi, {
-    armReadonly: (ctx: EffectContext, reason: string) => {
-      readonlyRuntime.setEnabled(true, ctx, reason);
-    },
+  // Poteto registers first so its before_agent_start runs before the readonly
+  // section is appended, matching the original single-handler composition order.
+  let readonlyRuntime: ReadonlyRuntime | undefined;
+  createPotetoRuntime(pi, {
+    armReadonly: (ctx: EffectContext, reason: string) => readonlyRuntime?.setEnabled(true, ctx, reason),
   });
+  readonlyRuntime = createReadonlyRuntime(pi);
 
   registerSkillCommands(pi);
   registerPiOnlyCommands(pi);

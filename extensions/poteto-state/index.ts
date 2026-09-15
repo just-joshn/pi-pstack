@@ -30,7 +30,7 @@ export function createInitialPotetoState(): PotetoState {
   return { enabled: false, matchedPlaybookId: null, lastUserText: "" };
 }
 
-function setEnabled(
+export function reduceSetEnabled(
   state: PotetoState,
   enabled: boolean,
   match?: { id: string; score: number } | null,
@@ -71,7 +71,7 @@ function setEnabled(
   return { state: nextState, effects };
 }
 
-function persistMatch(
+export function reducePersistMatch(
   state: PotetoState,
   match: { id: string; score: number },
 ): { state: PotetoState; effects: Effect[] } {
@@ -89,11 +89,11 @@ function persistMatch(
   return { state: nextState, effects };
 }
 
-function setLastUserText(state: PotetoState, text: string): PotetoState {
+export function reduceRecordText(state: PotetoState, text: string): PotetoState {
   return { ...state, lastUserText: text };
 }
 
-function restoreFromEntries(entries: readonly unknown[]): PotetoState {
+export function reduceRestore(entries: readonly unknown[]): PotetoState {
   let enabled = false;
   let matchedPlaybookId: string | null = null;
   for (const entry of entries) {
@@ -124,7 +124,7 @@ export function createPotetoRuntime(
     ctx: EffectContext,
     match?: { id: string; score: number } | null,
   ) => {
-    const result = setEnabled(state, enabled, match);
+    const result = reduceSetEnabled(state, enabled, match);
     state = result.state;
     applyEffects(pi, ctx, result.effects);
   };
@@ -134,7 +134,7 @@ export function createPotetoRuntime(
       .getBranch()
       .filter((e) => e.type === "custom" && e.customType === STICKY_ENTRY_TYPE)
       .map((e) => e.data);
-    state = restoreFromEntries(entries);
+    state = reduceRestore(entries);
     if (state.enabled) {
       ctx.ui.setStatus(
         "pstack",
@@ -145,7 +145,7 @@ export function createPotetoRuntime(
 
   pi.on("input", (event, ctx) => {
     if (!shouldMatchStickyInput(event.source)) return;
-    state = setLastUserText(state, event.text ?? "");
+    state = reduceRecordText(state, event.text ?? "");
     if (event.text.startsWith("/skill:poteto-mode") || event.text.startsWith("/poteto-mode")) {
       setEnabledImpl(true, ctx);
     }
@@ -156,7 +156,7 @@ export function createPotetoRuntime(
         setEnabledImpl(true, ctx, { id: matched.id, score: matched.score });
         ctx.ui.notify?.(`Poteto sticky armed via playbook match: ${matched.id}`, "info");
       } else if (state.enabled) {
-        const result = persistMatch(state, { id: matched.id, score: matched.score });
+        const result = reducePersistMatch(state, { id: matched.id, score: matched.score });
         state = result.state;
         applyEffects(pi, ctx, result.effects);
         ctx.ui.setStatus("pstack", `poteto:${matched.id}`);
@@ -214,7 +214,7 @@ export function createPotetoRuntime(
         );
         return;
       }
-      state = setLastUserText(state, task);
+      state = reduceRecordText(state, task);
       pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
         expandPromptTemplates: true,
       });
@@ -242,7 +242,7 @@ export function createPotetoRuntime(
         );
         return;
       }
-      state = setLastUserText(state, task);
+      state = reduceRecordText(state, task);
       pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
         expandPromptTemplates: true,
       });

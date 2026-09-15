@@ -8,13 +8,23 @@ export type Effect =
   | { type: "appendEntry"; entryType: string; payload: unknown }
   | { type: "setStatus"; statusId: string; value: string | undefined }
   | { type: "notify"; message: string; level: "info" | "warning" | "error" }
-  | { type: "setActiveTools"; tools: string[] };
+  | { type: "setActiveTools"; tools: string[]; guarded?: boolean };
 
 export interface EffectContext {
   ui: {
     setStatus: (id: string, value: string | undefined) => void;
     notify?: (message: string, level: string) => void;
   };
+}
+
+function restoreToolsQuietly(pi: ExtensionAPI, tools: string[]): void {
+  try {
+    pi.setActiveTools(tools);
+  } catch {
+    // The session can be tearing down while readonly turns off; a rejected tool
+    // write there is not actionable and must not abort the remaining effects.
+    return;
+  }
 }
 
 export function applyEffects(
@@ -30,7 +40,8 @@ export function applyEffects(
     } else if (effect.type === "notify") {
       ctx.ui.notify?.(effect.message, effect.level);
     } else if (effect.type === "setActiveTools") {
-      pi.setActiveTools(effect.tools);
+      if (effect.guarded) restoreToolsQuietly(pi, effect.tools);
+      else pi.setActiveTools(effect.tools);
     }
   }
 }
