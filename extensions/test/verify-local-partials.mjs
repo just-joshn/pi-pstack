@@ -69,7 +69,7 @@ await check("sticky restore reinjects playbook steps (not routing note only)", a
 });
 
 await check("force-invoke routes via input transform, not a queued follow-up", async () => {
-  const src = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
+  const src = readFileSync(resolve(ROOT, "extensions/poteto-state/index.ts"), "utf8");
   assert.ok(src.includes('action: "transform"'), "force-invoke must return a transform result");
   assert.ok(src.includes("restoredPlaybookId"));
   assert.ok(!src.includes("forceInvokeFallbackId"), "fallback-on-catch machinery must be gone");
@@ -88,7 +88,7 @@ await check("sticky force skill message + persist helpers", async () => {
   assert.equal(payload.matchedPlaybookId, "feature");
   const parsed = mod.parseStickyEntry(payload);
   assert.equal(parsed.matchedPlaybookId, "feature");
-  const src = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
+  const src = readFileSync(resolve(ROOT, "extensions/poteto-state/index.ts"), "utf8");
   assert.ok(src.includes("forcePotetoSkillMessage"));
   assert.ok(src.includes("sendUserMessage"));
   assert.ok(src.includes("matchedPlaybookId"));
@@ -96,14 +96,15 @@ await check("sticky force skill message + persist helpers", async () => {
   assert.ok(src.includes("STICKY_ENTRY_TYPE") || src.includes("pstack-poteto-mode"));
 });
 
-await check("index.ts wires sticky + playbook match + session readonly", async () => {
-  const src = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
-  assert.ok(src.includes("buildPotetoStickyPrompt"));
-  assert.ok(src.includes("matchStickyPlaybook"));
-  assert.ok(src.includes("userText: lastUserText") || src.includes("userText:"));
-  assert.ok(src.includes("pstack-readonly"));
-  assert.ok(src.includes("pstack-session-readonly") || src.includes("READONLY_ENTRY_TYPE"));
-  assert.ok(src.includes("tool_call"));
+await check("extension modules wire sticky + playbook match + session readonly", async () => {
+  const poteto = readFileSync(resolve(ROOT, "extensions/poteto-state/index.ts"), "utf8");
+  const readonly = readFileSync(resolve(ROOT, "extensions/readonly-state/index.ts"), "utf8");
+  assert.ok(poteto.includes("buildPotetoStickyPrompt"));
+  assert.ok(poteto.includes("matchStickyPlaybook"));
+  assert.ok(poteto.includes("userText: lastUserText") || poteto.includes("userText:"));
+  assert.ok(readonly.includes("pstack-readonly"));
+  assert.ok(readonly.includes("pstack-session-readonly") || readonly.includes("READONLY_ENTRY_TYPE"));
+  assert.ok(readonly.includes("tool_call"));
 });
 
 await check("normalizeModelSelector refuses/maps bare slugs", async () => {
@@ -320,10 +321,11 @@ await check("AUTO_READONLY roles + investigation auto-arm wiring", async () => {
   assert.ok(spawnSrc.includes("investigator"));
   const sticky = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-session.ts")).href);
   assert.ok(sticky.shouldAutoArmReadonly("investigation"));
-  const idx = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
-  assert.ok(idx.includes("shouldAutoArmReadonly"));
-  assert.ok(idx.includes("SESSION_WRITE_TOOLS") || idx.includes('"write"'));
-  assert.ok(idx.includes("block: true"));
+  const poteto = readFileSync(resolve(ROOT, "extensions/poteto-state/index.ts"), "utf8");
+  const readonly = readFileSync(resolve(ROOT, "extensions/readonly-state/index.ts"), "utf8");
+  assert.ok(poteto.includes("shouldAutoArmReadonly"));
+  assert.ok(readonly.includes("SESSION_WRITE_TOOLS") || readonly.includes('"write"'));
+  assert.ok(readonly.includes("block: true"));
 });
 
 await check("playbook auto-arm ignores long briefs", async () => {
@@ -420,8 +422,8 @@ await check("why + guide + investigation Pi-local truth", async () => {
   assert.ok(!guide.includes("`cursor-team-kit [leave-behind on Pi]` plugin, not in pstack"));
   const inv = readFileSync(resolve(ROOT, "skills/poteto-mode/playbooks/investigation.md"), "utf8");
   assert.ok(inv.includes("read-only"), "investigation stays read-only");
-  const idx = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
-  assert.ok(idx.includes("pstack-readonly"), "parent readonly enforcement lives in the extension");
+  const readonly = readFileSync(resolve(ROOT, "extensions/readonly-state/index.ts"), "utf8");
+  assert.ok(readonly.includes("pstack-readonly"), "parent readonly enforcement lives in the extension");
 });
 
 
@@ -523,24 +525,25 @@ await check("close-orch-p1b: unit true-continue argv (resume -c; fresh no -c)", 
   await runSpawnOrchP1bUnits();
 });
 
-await check("close-orch-p1b: child-runner resume pushes --continue with --session-dir", async () => {
+await check("close-orch-p1b: child-runner resume carries --continue with --session-dir", async () => {
   const runner = readFileSync(resolve(ROOT, "extensions/subagents/child-runner.ts"), "utf8");
   assert.ok(runner.includes("buildChildPiArgs"), "must export/build argv via buildChildPiArgs");
-  assert.ok(runner.includes("continueSession"), "must track continueSession");
-  assert.ok(
-    /args\.push\("--continue"\)|args\.push\("-c"\)/.test(runner) ||
-      runner.includes('args.push("--continue")') ||
-      runner.includes("args.push('--continue')") ||
-      runner.includes('push("--continue")'),
-    "resume path must push --continue or -c",
+  const { buildChildPiArgs, argvHasContinueSemantics } = await import(
+    pathToFileURL(resolve(ROOT, "extensions/subagents/child-runner.ts")).href
   );
-  assert.ok(runner.includes("--session-dir"), "still passes --session-dir");
-  assert.ok(!/args\.push\("--resume"\)|args\.push\("-r"\)/.test(runner), "must not push interactive -r");
-  // Forbidden: resume path that only pushes session-dir (false twin)
-  assert.ok(
-    runner.includes("if (opts.continueSession)") || runner.includes("if (continueSession)"),
-    "continue flag gated on resume",
-  );
+  const spawnArgs = {
+    selectedModel: "test/model",
+    sessionMode: "isolated",
+    sessionDir: "/tmp/pstack-resume-check",
+    inheritNote: "note",
+    prompt: "task",
+  };
+  const resumed = buildChildPiArgs({ ...spawnArgs, continueSession: true });
+  assert.ok(argvHasContinueSemantics(resumed), "resume path must carry --continue or -c");
+  assert.ok(resumed.includes("--session-dir"), "still passes --session-dir");
+  assert.ok(!resumed.includes("--resume") && !resumed.includes("-r"), "must not pass interactive -r");
+  const fresh = buildChildPiArgs({ ...spawnArgs, continueSession: false });
+  assert.ok(!argvHasContinueSemantics(fresh), "fresh isolated argv must not carry continue");
 });
 
 await check("close-orch-p1b: spawn/jobs surface sessionDir in text+details", async () => {
