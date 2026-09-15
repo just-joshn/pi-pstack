@@ -18,9 +18,9 @@ local file == apply(port/bindings.mjs, upstream file)
 
 `npm run parity:check` enforces it over all 153 upstream files under `skills/`, `agents/`, `automations/`, and `docs/`:
 
-- 104 files byte-identical to upstream.
-- 47 files differ only through declared bindings (each binding names the Cursor mechanism it replaces).
-- 2 files are declared whole-mechanism overrides (`skills/make-bot-ui/SKILL.md`, `skills/setup-pstack/SKILL.md`); the checker pins their upstream non-mechanism sections verbatim.
+- 103 files byte-identical to upstream.
+- 48 files differ only through declared bindings (each binding names the Cursor mechanism it replaces).
+- 2 files are declared whole-mechanism overrides (`skills/make-bot-ui/SKILL.md`, `skills/setup-pstack/SKILL.md`); the override must list pins named upstream sections and the leftover scan rejects Cursor mechanisms. Overrides are hand-maintained and reviewed.
 - 0 unmigrated Cursor mechanism tokens, 0 unknown `pstack_*` tool references, 0 dead `scripts/...` paths.
 
 A file outside the binding table cannot drift: the checker fails on any byte it did not produce. Platform `name` frontmatter is a binding (`Poteto Mode` → `poteto-mode`, `Make Bot UI` → `make-bot-ui`); upstream display titles remain documentation.
@@ -29,8 +29,8 @@ A file outside the binding table cannot drift: the checker fails on any byte it 
 
 | Status | Count |
 |---|---:|
-| ported | 103 |
-| rewritten | 20 |
+| ported | 115 |
+| rewritten | 8 |
 | deferred | 1 |
 | MISSING | 0 |
 | **Total inventory rows** | **124** |
@@ -41,7 +41,7 @@ A file outside the binding table cannot drift: the checker fails on any byte it 
 | poteto-mode playbooks | 23 | 23 |
 | Agents | 2 | 2 (as prompts + pstack_spawn roles) |
 | Docs guide pages | 11 | 11 + images/ |
-| Benny automation pack | present | rewritten twin (skills + pstack_benny_wake) |
+| Benny automation pack | present | ported (path + host bindings; Cursor Automations host out of scope) |
 | assets/logo.png | present | present |
 | .gitignore | present | present |
 | .cursor-plugin | present | deferred → package.json `pi` |
@@ -86,18 +86,18 @@ Artifact matrix below counts files on disk. Do not read “ported” as EQUIVALE
 | `assets/logo.png` | ported | yes | portable as SKILL.md | static branding asset present |
 | `agents/poteto-agent.md` | rewritten | yes | must port/rewrite | Spawn via pstack_spawn role=poteto-agent|comment-sicko |
 | `agents/comment-sicko.md` | rewritten | yes | must port/rewrite | Spawn via pstack_spawn role=poteto-agent|comment-sicko |
-| `automations/benny/README.md` | rewritten | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/FOR_AGENTS.md` | rewritten | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/templates/configuration.example.yaml` | rewritten | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/templates/triage-automation-prompt.md` | rewritten | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/templates/reproduce-automation-prompt.md` | rewritten | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/skills/setup-benny/SKILL.md` | rewritten | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/skills/triage-issue-reports/SKILL.md` | rewritten | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/skills/reproduce-and-fix-issues/SKILL.md` | rewritten | yes | depends on cursor-team-kit | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md` | rewritten | yes | depends on cursor-team-kit | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/skills/reproduce-and-fix-issues/references/feature-map.example.md` | rewritten | yes | portable as SKILL.md | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/skills/reproduce-and-fix-issues/references/verify-existing-fix.md` | rewritten | yes | portable as SKILL.md | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
-| `automations/benny/skills/triage-issue-reports/references/routing.example.md` | rewritten | yes | portable as SKILL.md | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/README.md` | ported (path + host bindings; Cursor Automations host out of scope) | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/FOR_AGENTS.md` | ported (path + host bindings; Cursor Automations host out of scope) | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/templates/configuration.example.yaml` | ported (path + host bindings; Cursor Automations host out of scope) | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/templates/triage-automation-prompt.md` | ported (path + host bindings; Cursor Automations host out of scope) | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/templates/reproduce-automation-prompt.md` | ported (path + host bindings; Cursor Automations host out of scope) | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/skills/setup-benny/SKILL.md` | ported (path + host bindings; Cursor Automations host out of scope) | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/skills/triage-issue-reports/SKILL.md` | ported (path bindings only; Cursor Automations host out of scope) | yes | must port/rewrite | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/skills/reproduce-and-fix-issues/SKILL.md` | ported (path + host bindings; Cursor Automations host out of scope) | yes | depends on cursor-team-kit | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md` | ported (path bindings only; Cursor Automations host out of scope) | yes | depends on cursor-team-kit | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/skills/reproduce-and-fix-issues/references/feature-map.example.md` | ported (path bindings only; Cursor Automations host out of scope) | yes | portable as SKILL.md | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/skills/reproduce-and-fix-issues/references/verify-existing-fix.md` | ported (path bindings only; Cursor Automations host out of scope) | yes | portable as SKILL.md | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
+| `automations/benny/skills/triage-issue-reports/references/routing.example.md` | ported (path bindings only; Cursor Automations host out of scope) | yes | portable as SKILL.md | Pi twin: skills under automations/benny + pstack_benny_wake /setup-benny;/benny-triage;/benny-repro + pstack_loop |
 | `docs/guide/README.md` | ported | yes | portable as SKILL.md | Pi install paths; /loop→pstack_loop; .cursor/skills→.pi/skills |
 | `docs/guide/01-setup.md` | ported | yes | must port/rewrite | Pi install paths; /loop→pstack_loop; .cursor/skills→.pi/skills |
 | `docs/guide/02-poteto-mode.md` | ported | yes | portable as SKILL.md | Pi install paths; /loop→pstack_loop; .cursor/skills→.pi/skills |

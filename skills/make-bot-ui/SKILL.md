@@ -57,6 +57,7 @@ The server POSTs to the webhook URL with:
 - timeout: 8 seconds
 - one try, no retry
 
+The POST returns HTTP 200 when the wake is accepted.
 Before you tell the user that the UI is live, probe once with a harmless payload.
 Use an action that the prompt ignores.
 

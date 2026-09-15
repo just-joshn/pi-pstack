@@ -1,12 +1,12 @@
 # benny
 
-benny gives you two cursor automations for slack issue reports. one triages each report. the other reproduces confirmed bugs and may prepare a small draft fix.
+benny gives you two automations for slack issue reports. one triages each report. the other reproduces confirmed bugs and may prepare a small draft fix.
 
 the files in this directory are dormant setup and automation sources. they do not appear as slash skills.
 
 ## set it up
 
-1. point cursor at [`FOR_AGENTS.md`](./FOR_AGENTS.md) and name the target repository.
+1. point your agent at [`FOR_AGENTS.md`](./FOR_AGENTS.md) and name the target repository.
 2. let setup merge this whole directory into the target at `.pi/automations/benny/`. it must preserve destination-only files and review conflicts instead of overwriting local edits.
 3. let setup enable pstack in the target repository's `.pi/settings.json` for shared dependencies:
 
