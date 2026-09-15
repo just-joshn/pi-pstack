@@ -2,7 +2,7 @@
  * Repro + regression test: the "input" handler in extensions/index.ts must not match,
  * persist, force-invoke, or arm readonly on extension-injected text (event.source === "extension").
  * Drives the real default export, not a reimplementation.
- * Run: node --experimental-strip-types extensions/test/sticky-input-source.mjs
+ * Run: node --experimental-strip-types --import ./extensions/test/peer-deps.mjs extensions/test/sticky-input-source.mjs
  */
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
