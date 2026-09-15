@@ -4,13 +4,13 @@ In this page you install the plugin, pick which models pstack uses, and run your
 
 ## Install the plugin
 
-In a Cursor chat, run:
+In a Pi session (or your shell), run:
 
 ```text
 pi install <path-or-git:pi-pstack>
 ```
 
-Cursor confirms the plugin is installed.
+Pi confirms the package is installed (`pi` lists it among loaded packages).
 
 ## Pick your models
 
