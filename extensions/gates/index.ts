@@ -4,6 +4,38 @@
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
+type PRData = {
+  state?: string;
+  mergedAt?: string | null;
+  mergeStateStatus?: string;
+  reviewDecision?: string | null;
+  statusCheckRollup?: Array<{ name?: string; state?: string; conclusion?: string | null }>;
+  url?: string;
+  title?: string;
+};
+
+function collectGateProblems(data: PRData): string[] {
+  const initial: string[] = [];
+  const afterMerged = data.mergedAt ? [...initial, "already merged"] : initial;
+  const afterState =
+    data.state && data.state !== "OPEN" ? [...afterMerged, `state=${data.state}`] : afterMerged;
+  const afterMergeState = ["UNSTABLE", "DIRTY", "DRAFT"].includes(data.mergeStateStatus ?? "")
+    ? [...afterState, `mergeStateStatus=${data.mergeStateStatus}`]
+    : afterState;
+  
+  const checkProblems = (data.statusCheckRollup ?? []).flatMap((c) => {
+    const conclusion = (c.conclusion ?? c.state ?? "").toUpperCase();
+    return ["FAILURE", "CANCELLED", "TIMED_OUT"].includes(conclusion)
+      ? [`check ${c.name ?? "?"}=${conclusion}`]
+      : [];
+  });
+  
+  const afterChecks = [...afterMergeState, ...checkProblems];
+  return data.reviewDecision === "CHANGES_REQUESTED"
+    ? [...afterChecks, "reviewDecision=CHANGES_REQUESTED"]
+    : afterChecks;
+}
+
 export function registerGates(pi: ExtensionAPI): void {
   pi.registerCommand("pstack-gates", {
     description: "Run a real pre-ship gate check for a PR number (fail closed). Usage: /pstack-gates <pr>",
@@ -31,36 +63,14 @@ export function registerGates(pi: ExtensionAPI): void {
         ctx.ui.notify(`Gate check FAILED (fail closed): cannot view PR — ${r.stderr || r.stdout}`, "error");
         return;
       }
-      let data: {
-        state?: string;
-        mergedAt?: string | null;
-        mergeStateStatus?: string;
-        reviewDecision?: string | null;
-        statusCheckRollup?: Array<{ name?: string; state?: string; conclusion?: string | null }>;
-        url?: string;
-        title?: string;
-      };
+      let data: PRData;
       try {
         data = JSON.parse(r.stdout);
       } catch {
         ctx.ui.notify("Gate check FAILED (fail closed): invalid gh JSON", "error");
         return;
       }
-      const problems: string[] = [];
-      if (data.mergedAt) problems.push("already merged");
-      if (data.state && data.state !== "OPEN") problems.push(`state=${data.state}`);
-      if (["UNSTABLE", "DIRTY", "DRAFT"].includes(data.mergeStateStatus ?? "")) {
-        problems.push(`mergeStateStatus=${data.mergeStateStatus}`);
-      }
-      for (const c of data.statusCheckRollup ?? []) {
-        const conclusion = (c.conclusion ?? c.state ?? "").toUpperCase();
-        if (["FAILURE", "CANCELLED", "TIMED_OUT"].includes(conclusion)) {
-          problems.push(`check ${c.name ?? "?"}=${conclusion}`);
-        }
-      }
-      if (data.reviewDecision === "CHANGES_REQUESTED") {
-        problems.push("reviewDecision=CHANGES_REQUESTED");
-      }
+      const problems = collectGateProblems(data);
       if (problems.length) {
         ctx.ui.notify(`Gate check FAILED (fail closed): ${problems.join("; ")}`, "error");
         pi.sendUserMessage(

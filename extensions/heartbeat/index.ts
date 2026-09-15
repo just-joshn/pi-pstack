@@ -48,8 +48,8 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
     clearTimer(state);
     try {
       state.child?.kill("SIGTERM");
-    } catch {
-      /* ignore */
+    } catch (_err) {
+      void _err;
     }
     loops.delete(state.id);
   };
@@ -69,7 +69,7 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       return;
     }
 
-    state.fires++;
+    state.fires = state.fires + 1;
     state.lastFireAt = now;
     state.lastFireReason = reason;
     if (state.fires > state.maxFires) {
@@ -153,6 +153,98 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
         `${s.id} mode=${s.mode} fires=${s.fires}/${s.maxFires} armed=${s.armed} lastReason=${s.lastFireReason ?? "-"}`,
     );
 
+  const handleStopAll = (ctx: { ui: { setStatus: (k: string, v: undefined) => void; notify: (msg: string, level: string) => void } }) => {
+    for (const state of [...loops.values()]) clearLoop(state);
+    ctx.ui.setStatus("pstack-loop", undefined);
+    ctx.ui.notify("All pstack loops stopped.", "info");
+  };
+
+  const handleStatusList = (ctx: { ui: { notify: (msg: string, level: string) => void } }) => {
+    const rows = formatLoopRows();
+    ctx.ui.notify(rows.length ? rows.join("\n") : "(no active loops)", "info");
+  };
+
+  const handleStopOne = (id: string, ctx: { ui: { setStatus: (k: string, v: undefined) => void; notify: (msg: string, level: string) => void } }) => {
+    const s = loops.get(id);
+    if (s) clearLoop(s);
+    if (!loops.size) ctx.ui.setStatus("pstack-loop", undefined);
+    ctx.ui.notify(s ? `Stopped ${id}` : `No loop ${id}`, "info");
+  };
+
+  const armIntervalLoop = (seconds: number, prompt: string, ctx: { ui: { setStatus: (k: string, v: string) => void; notify: (msg: string, level: string) => void } }) => {
+    seq = seq + 1;
+    const id = `loop-${seq}`;
+    const state: LoopState = {
+      id,
+      mode: "interval",
+      prompt,
+      basePrompt: prompt,
+      intervalMs: Math.max(5, seconds) * 1000,
+      maxFires: 100,
+      fires: 0,
+      armed: true,
+      lastFireAt: 0,
+    };
+    loops.set(id, state);
+    ctx.ui.setStatus("pstack-loop", id);
+    ctx.ui.notify(`Armed ${id} every ${seconds}s`, "info");
+    clearTimer(state);
+    state.timer = setTimeout(() => fire(state, "interval"), state.intervalMs);
+    state.timer.unref?.();
+  };
+
+  const validateAndInitLoopState = (
+    params: { id?: string; mode?: string; prompt: string; intervalSeconds?: number; maxFires?: number; watchArgv?: string[]; watchCommand?: string },
+  ): LoopState => {
+    if (params.watchCommand) {
+      throw new Error("watchCommand is rejected (no bash -lc of model strings); pass watchArgv as an argv array");
+    }
+    seq = seq + 1;
+    const id = params.id ?? `loop-${seq}`;
+    const existing = loops.get(id);
+    if (existing) clearLoop(existing);
+    const mode = (params.mode as LoopState["mode"]) || "interval";
+    if (mode !== "interval" && mode !== "settle" && mode !== "watcher" && mode !== "dynamic") {
+      throw new Error("mode must be interval|settle|watcher|dynamic");
+    }
+    return {
+      id,
+      mode,
+      prompt: params.prompt,
+      basePrompt: params.prompt,
+      intervalMs: (params.intervalSeconds ?? 1800) * 1000,
+      maxFires: params.maxFires ?? 50,
+      fires: 0,
+      armed: true,
+      watchArgv: params.watchArgv,
+      lastFireAt: 0,
+    };
+  };
+
+  const startLoopByMode = (state: LoopState, signal?: AbortSignal) => {
+    loops.set(state.id, state);
+    if (state.mode === "watcher") {
+      if (!state.watchArgv?.length) throw new Error("watchArgv required for mode=watcher");
+      const [command] = state.watchArgv;
+      if (!command || command.startsWith("-")) {
+        throw new Error("watchArgv[0] must be a command path/name (not an option)");
+      }
+      startWatcher(state, signal);
+    } else if (state.mode === "dynamic") {
+      if (state.watchArgv?.length) {
+        const [command] = state.watchArgv;
+        if (!command || command.startsWith("-")) {
+          throw new Error("watchArgv[0] must be a command path/name (not an option)");
+        }
+        startWatcher(state, signal);
+      }
+    } else if (state.mode === "interval") {
+      clearTimer(state);
+      state.timer = setTimeout(() => fire(state, "interval"), state.intervalMs);
+      state.timer.unref?.();
+    }
+  };
+
   pi.registerCommand("pstack-loop", {
     description:
       "Arm/status/stop/list heartbeat loops (Cursor /loop twin). Args: <seconds> <prompt…> | status | list | stop [id] | off",
@@ -160,22 +252,16 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       const trimmed = args.trim();
       const lower = trimmed.toLowerCase();
       if (!trimmed || lower === "off" || lower === "stop") {
-        for (const state of [...loops.values()]) clearLoop(state);
-        ctx.ui.setStatus("pstack-loop", undefined);
-        ctx.ui.notify("All pstack loops stopped.", "info");
+        handleStopAll(ctx);
         return;
       }
       if (lower === "status" || lower === "list") {
-        const rows = formatLoopRows();
-        ctx.ui.notify(rows.length ? rows.join("\n") : "(no active loops)", "info");
+        handleStatusList(ctx);
         return;
       }
       const stopOne = trimmed.match(/^stop\s+(\S+)$/i);
       if (stopOne) {
-        const s = loops.get(stopOne[1]);
-        if (s) clearLoop(s);
-        if (!loops.size) ctx.ui.setStatus("pstack-loop", undefined);
-        ctx.ui.notify(s ? `Stopped ${stopOne[1]}` : `No loop ${stopOne[1]}`, "info");
+        handleStopOne(stopOne[1], ctx);
         return;
       }
       const m = trimmed.match(/^(\d+)\s+([\s\S]+)$/);
@@ -186,26 +272,7 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
         );
         return;
       }
-      const seconds = Number(m[1]);
-      const prompt = m[2];
-      const id = `loop-${++seq}`;
-      const state: LoopState = {
-        id,
-        mode: "interval",
-        prompt,
-        basePrompt: prompt,
-        intervalMs: Math.max(5, seconds) * 1000,
-        maxFires: 100,
-        fires: 0,
-        armed: true,
-        lastFireAt: 0,
-      };
-      loops.set(id, state);
-      ctx.ui.setStatus("pstack-loop", id);
-      ctx.ui.notify(`Armed ${id} every ${seconds}s`, "info");
-      clearTimer(state);
-      state.timer = setTimeout(() => fire(state, "interval"), state.intervalMs);
-      state.timer.unref?.();
+      armIntervalLoop(Number(m[1]), m[2], ctx);
     },
   });
 
@@ -265,62 +332,19 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       }
       if (params.action !== "arm") throw new Error("action must be arm|stop|status|list");
       if (!params.prompt) throw new Error("prompt required to arm");
-      if (params.watchCommand) {
-        throw new Error("watchCommand is rejected (no bash -lc of model strings); pass watchArgv as an argv array");
-      }
-      const id = params.id ?? `loop-${++seq}`;
-      const existing = loops.get(id);
-      if (existing) clearLoop(existing);
-      const mode = (params.mode as LoopState["mode"]) || "interval";
-      if (mode !== "interval" && mode !== "settle" && mode !== "watcher" && mode !== "dynamic") {
-        throw new Error("mode must be interval|settle|watcher|dynamic");
-      }
-      const state: LoopState = {
-        id,
-        mode,
-        prompt: params.prompt,
-        basePrompt: params.prompt,
-        intervalMs: (params.intervalSeconds ?? 1800) * 1000,
-        maxFires: params.maxFires ?? 50,
-        fires: 0,
-        armed: true,
-        watchArgv: params.watchArgv,
-        lastFireAt: 0,
-      };
-      loops.set(id, state);
-      ctx.ui.setStatus("pstack-loop", id);
-
-      if (mode === "watcher") {
-        if (!params.watchArgv?.length) throw new Error("watchArgv required for mode=watcher");
-        const [command] = params.watchArgv;
-        if (!command || command.startsWith("-")) {
-          throw new Error("watchArgv[0] must be a command path/name (not an option)");
-        }
-        startWatcher(state, signal);
-      } else if (mode === "dynamic") {
-        // settle arm happens on agent_settled; optional watcher runs in parallel and re-arms
-        if (params.watchArgv?.length) {
-          const [command] = params.watchArgv;
-          if (!command || command.startsWith("-")) {
-            throw new Error("watchArgv[0] must be a command path/name (not an option)");
-          }
-          startWatcher(state, signal);
-        }
-      } else if (mode === "interval") {
-        clearTimer(state);
-        state.timer = setTimeout(() => fire(state, "interval"), state.intervalMs);
-        state.timer.unref?.();
-      }
-      // settle mode waits for agent_settled hook (timer cleared before each re-arm)
+      
+      const state = validateAndInitLoopState(params);
+      ctx.ui.setStatus("pstack-loop", state.id);
+      startLoopByMode(state, signal);
 
       return {
         content: [
           {
             type: "text",
-            text: `Armed ${id} mode=${mode} intervalSeconds=${params.intervalSeconds ?? 1800} maxFires=${state.maxFires}${params.watchArgv?.length ? " watcher=on" : ""} coalesceMs=${DYNAMIC_COALESCE_MS}`,
+            text: `Armed ${state.id} mode=${state.mode} intervalSeconds=${params.intervalSeconds ?? 1800} maxFires=${state.maxFires}${params.watchArgv?.length ? " watcher=on" : ""} coalesceMs=${DYNAMIC_COALESCE_MS}`,
           },
         ],
-        details: { id, mode, coalesceMs: DYNAMIC_COALESCE_MS },
+        details: { id: state.id, mode: state.mode, coalesceMs: DYNAMIC_COALESCE_MS },
       };
     },
   });
