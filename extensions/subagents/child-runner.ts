@@ -553,9 +553,16 @@ async function runChildTaskUnlocked(
 /** Roles that always get the readonly tool allowlist (no bash/write/edit). */
 export const AUTO_READONLY_ROLES = new Set(["comment-sicko", "investigator"]);
 
-/** Omit/undefined → background (detach); explicit false → sync-await. */
-export function wantsBackground(background?: boolean): boolean {
-  return background !== false;
+/**
+ * Explicit `background` wins in both directions. Otherwise the `poteto-agent`
+ * role (or the `poteto` flag) detaches by default, mirroring
+ * `agents/poteto-agent.md`'s `is_background: true`. Every other role
+ * (general, comment-sicko, investigator, ...) is synchronous by default,
+ * matching upstream `Task` calls with no `run_in_background`.
+ */
+export function wantsBackground(background?: boolean, poteto?: boolean): boolean {
+  if (background !== undefined) return background;
+  return poteto === true;
 }
 
 /**

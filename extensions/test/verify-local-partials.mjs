@@ -518,7 +518,7 @@ await check("close-orch-p0: PARITY row 2 EQUIVALENT (local-Task) + ceilings", as
 });
 
 
-await check("close-orch-p1: unit resume / background omit→true / inherit default-on", async () => {
+await check("close-orch-p1: unit resume / role-aware background default / inherit default-on", async () => {
   const { runSpawnOrchP1Units } = await import(pathToFileURL(resolve(ROOT, "extensions/test/spawn-orch-p1-unit.mjs")).href);
   await runSpawnOrchP1Units();
 });
@@ -528,11 +528,12 @@ await check("close-orch-p1: pstack_spawn schema + guidelines (resume, bg default
   assert.ok(src.includes("resumeSessionDir"), "must declare resumeSessionDir");
   assert.ok(src.includes("resumeJobId"), "must declare resumeJobId");
   assert.ok(src.includes("wantsBackground"), "must use wantsBackground");
-  assert.ok(src.includes("wantsBackground(params.background)"), "omit→true call site");
-  assert.ok(/Prefer \/ default background|omit background or pass true/i.test(src), "guidelines prefer/default background");
-  assert.ok(src.includes("background:false") || src.includes("background: false"), "guidelines mention sync false");
+  assert.ok(src.includes("wantsBackground(params.background, poteto)"), "role-aware call site");
+  assert.ok(/role-aware/i.test(src), "guidelines describe role-aware background default");
+  assert.ok(src.includes("background:false") || src.includes("background: false") || src.includes("background:true/false"), "guidelines mention explicit override");
   const runner = readFileSync(resolve(ROOT, "extensions/subagents/child-runner.ts"), "utf8");
-  assert.ok(runner.includes("background !== false"), "wantsBackground omit→true");
+  assert.ok(runner.includes("if (background !== undefined) return background"), "explicit background always wins");
+  assert.ok(runner.includes("return poteto === true"), "only poteto-agent detaches by default");
   assert.ok(runner.includes("inheritParentTools !== false"), "inherit default-on");
   assert.ok(runner.includes("resolveChildSessionDir"), "child-runner must resolve resume session dir");
   assert.ok(runner.includes("resumeSessionDir"), "child-runner accepts resumeSessionDir");
