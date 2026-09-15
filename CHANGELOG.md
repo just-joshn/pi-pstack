@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.2-pi.0 (harden-p0)
+
+- Skill↔tool contract: drop Cursor-only spawn args from skills; document sync-await background; remove fake loop `dynamic` mode; unify models path to `pstack-models.json`
+- Parallel isolation: swarm/arena auto-allocate unique worktrees (or require unique cwd); no shared parent dirty cwd for multi-writer
+- Security: decision_log allowlisted under `cwd/.pi`; worktree name/base sanitize; ship/merge real gate check (fail closed); no `bash -lc` of model strings; readonly/judge = Pi builtins without bash
+- Performance: clear settle timers before re-arm; global child concurrency cap 4; mid-stream output caps; worktree remove/prune + session cap 12
+- Simplicity: `pstack_decision_log` aligned to show-me-your-work 6-column schema
+
 ## 0.15.2-pi.0 (gap pass)
 
 - Added missing portable assets: `.gitignore`, `assets/logo.png`, `docs/guide/images/*` (6 jpgs)

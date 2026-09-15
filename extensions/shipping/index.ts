@@ -1,6 +1,7 @@
 /**
  * pstack_ship / pstack_babysit — gh-only stack-aware land + watch (Shipping/Babysit twins).
  * Prefers skills/poteto-mode/scripts/watch-pr when present.
+ * Merge fails closed unless PR gate check passes.
  */
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -10,6 +11,69 @@ import { Type } from "typebox";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WATCH_PR = resolve(PACKAGE_ROOT, "skills/poteto-mode/scripts/watch-pr/watch-pr");
+
+interface PrGateView {
+  state?: string;
+  mergedAt?: string | null;
+  mergeStateStatus?: string;
+  reviewDecision?: string | null;
+  statusCheckRollup?: Array<{
+    name?: string;
+    state?: string;
+    conclusion?: string | null;
+    status?: string;
+  }>;
+}
+
+async function assertMergeGates(
+  pi: ExtensionAPI,
+  pr: string,
+  signal: AbortSignal | undefined,
+): Promise<PrGateView> {
+  const r = await pi.exec(
+    "gh",
+    [
+      "pr",
+      "view",
+      pr,
+      "--json",
+      "number,title,state,mergedAt,mergeStateStatus,statusCheckRollup,reviewDecision,url",
+    ],
+    { signal },
+  );
+  if (r.code !== 0) {
+    throw new Error(`merge gate check failed (fail closed): cannot view PR — ${r.stderr || r.stdout || `exit ${r.code}`}`);
+  }
+  let data: PrGateView;
+  try {
+    data = JSON.parse(r.stdout) as PrGateView;
+  } catch {
+    throw new Error("merge gate check failed (fail closed): invalid gh JSON");
+  }
+  if (data.mergedAt) {
+    throw new Error("merge gate check failed (fail closed): PR already merged");
+  }
+  if (data.state && data.state !== "OPEN") {
+    throw new Error(`merge gate check failed (fail closed): PR state is ${data.state}`);
+  }
+  const status = data.mergeStateStatus ?? "";
+  if (["UNSTABLE", "DIRTY", "DRAFT"].includes(status)) {
+    throw new Error(`merge gate check failed (fail closed): mergeStateStatus=${status}`);
+  }
+  const rollup = data.statusCheckRollup ?? [];
+  const failed = rollup.filter((c) => {
+    const conclusion = (c.conclusion ?? c.state ?? "").toUpperCase();
+    return conclusion === "FAILURE" || conclusion === "CANCELLED" || conclusion === "TIMED_OUT";
+  });
+  if (failed.length > 0) {
+    const names = failed.map((c) => c.name ?? c.state ?? "check").join(", ");
+    throw new Error(`merge gate check failed (fail closed): failing checks: ${names}`);
+  }
+  if (data.reviewDecision === "CHANGES_REQUESTED") {
+    throw new Error("merge gate check failed (fail closed): reviewDecision=CHANGES_REQUESTED");
+  }
+  return data;
+}
 
 export function registerShipping(pi: ExtensionAPI): void {
   pi.registerTool({
@@ -25,6 +89,7 @@ export function registerShipping(pi: ExtensionAPI): void {
     }),
     async execute(_id, params, signal) {
       if (existsSync(WATCH_PR)) {
+        // argv array only — never bash -lc of model strings
         const args = [WATCH_PR, params.pr];
         if (params.statusOnly) args.push("--status-only");
         if (params.pretty) args.push("--pretty");
@@ -57,10 +122,10 @@ export function registerShipping(pi: ExtensionAPI): void {
     name: "pstack_ship",
     label: "Pstack Ship",
     description:
-      "Stack-aware GitHub land helper: view/merge contiguous green PRs via gh. Closest twin to Shipping playbook (gh-only v1).",
+      "Stack-aware GitHub land helper: view/merge contiguous green PRs via gh. Merge runs a real gate check and fails closed if unmet (not a notify toast).",
     promptSnippet: "Merge or inspect a green PR stack with gh",
     parameters: Type.Object({
-      action: Type.String({ description: "view | merge | stack-status" }),
+      action: Type.String({ description: "view | merge | stack-status | gate-check" }),
       pr: Type.Optional(Type.String()),
       stackPrs: Type.Optional(Type.Array(Type.String(), { description: "Bottom-to-top PR numbers" })),
       mergeMethod: Type.Optional(Type.String({ description: "squash | merge | rebase" })),
@@ -89,21 +154,39 @@ export function registerShipping(pi: ExtensionAPI): void {
         }
         return { content: [{ type: "text", text: chunks.join("\n") }], details: {} };
       }
-      if (params.action !== "merge") throw new Error("action must be view|merge|stack-status");
+      if (params.action === "gate-check") {
+        if (!params.pr) throw new Error("pr required for gate-check");
+        const gate = await assertMergeGates(pi, params.pr.replace(/^#/, ""), signal);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `gate-check PASS\n${JSON.stringify(gate, null, 2)}`,
+            },
+          ],
+          details: { gate },
+        };
+      }
+      if (params.action !== "merge") throw new Error("action must be view|merge|stack-status|gate-check");
       if (!params.pr) throw new Error("pr required for merge");
+      const pr = params.pr.replace(/^#/, "");
+      const gate = await assertMergeGates(pi, pr, signal);
       const method = params.mergeMethod ?? "squash";
       const flag = method === "merge" ? "--merge" : method === "rebase" ? "--rebase" : "--squash";
-      const r = await pi.exec("gh", ["pr", "merge", params.pr.replace(/^#/, ""), flag, "--auto"], {
+      const r = await pi.exec("gh", ["pr", "merge", pr, flag], {
         signal,
       });
+      if (r.code !== 0) {
+        throw new Error(`gh pr merge failed (fail closed): ${r.stderr || r.stdout || `exit ${r.code}`}`);
+      }
       return {
         content: [
           {
             type: "text",
-            text: r.stdout || r.stderr || `gh pr merge exited ${r.code}. Parent must verify Shipping playbook independent verdict before arming.`,
+            text: `Merged PR ${pr} after gate check (mergeStateStatus=${gate.mergeStateStatus ?? "n/a"}).\n${r.stdout || ""}`,
           },
         ],
-        details: { code: r.code },
+        details: { code: r.code, gate },
       };
     },
   });

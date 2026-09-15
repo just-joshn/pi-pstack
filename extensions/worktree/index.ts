@@ -1,44 +1,72 @@
 /**
  * Worktree helpers for arena/swarm isolation.
- * TODO: deepen git worktree create/cleanup automation; skill playbooks still own policy.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import {
+  MAX_PSTACK_WORKTREES,
+  createIsolatedWorktree,
+  countPstackWorktrees,
+  pruneWorktrees,
+  removeWorktree,
+  sanitizeBaseRef,
+  sanitizeWorktreeName,
+} from "./helpers.ts";
+
+export {
+  MAX_PSTACK_WORKTREES,
+  createIsolatedWorktree,
+  ensureWriterIsolation,
+  pruneWorktrees,
+  removeWorktree,
+  sanitizeBaseRef,
+  sanitizeWorktreeName,
+} from "./helpers.ts";
 
 export function registerWorktree(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_worktree",
     label: "Pstack Worktree",
     description:
-      "Create or list a git worktree path for isolated arena/swarm writes. Thin helper; prefer playbook worktree-cleanup for teardown.",
+      `Create/list/remove/prune git worktrees for isolated arena/swarm writes. Create rejects path/option injection and enforces a session cap of ${MAX_PSTACK_WORKTREES}.`,
     promptSnippet: "Allocate an isolated git worktree path",
     parameters: Type.Object({
-      action: Type.String({ description: "create | list" }),
-      name: Type.Optional(Type.String({ description: "Worktree/branch slug for create" })),
+      action: Type.String({ description: "create | list | remove | prune" }),
+      name: Type.Optional(Type.String({ description: "Worktree/branch slug for create/remove" })),
       base: Type.Optional(Type.String({ description: "Base ref (default HEAD)" })),
     }),
     async execute(_id, params, signal, _onUpdate, ctx) {
       if (params.action === "list") {
         const listed = await pi.exec("git", ["worktree", "list", "--porcelain"], { signal });
+        const count = countPstackWorktrees(ctx.cwd);
         return {
-          content: [{ type: "text", text: listed.stdout || listed.stderr || "(no worktrees)" }],
-          details: { code: listed.code },
+          content: [
+            {
+              type: "text",
+              text: `${listed.stdout || listed.stderr || "(no worktrees)"}\n\npstack-managed under .pstack-worktrees: ${count}/${MAX_PSTACK_WORKTREES}`,
+            },
+          ],
+          details: { code: listed.code, count },
         };
       }
-      if (params.action !== "create") throw new Error("action must be create or list");
-      const slug = params.name ?? `pstack-${Date.now()}`;
-      const path = `${ctx.cwd}/.pstack-worktrees/${slug}`;
-      const base = params.base ?? "HEAD";
-      const branch = `pstack/${slug}`;
-      // TODO: harden for dirty trees / existing branches
-      const add = await pi.exec(
-        "git",
-        ["worktree", "add", "-b", branch, path, base],
-        { signal },
-      );
-      if (add.code !== 0) {
-        throw new Error(`git worktree add failed: ${add.stderr || add.stdout}`);
+      if (params.action === "prune") {
+        const out = await pruneWorktrees(ctx.cwd);
+        return { content: [{ type: "text", text: out }], details: {} };
       }
+      if (params.action === "remove") {
+        if (!params.name) throw new Error("name required for remove");
+        const path = await removeWorktree(ctx.cwd, params.name);
+        return {
+          content: [{ type: "text", text: `Removed worktree ${path}` }],
+          details: { path },
+        };
+      }
+      if (params.action !== "create") throw new Error("action must be create|list|remove|prune");
+      // Validate before create (also done inside helper)
+      if (params.name) sanitizeWorktreeName(params.name);
+      if (params.base) sanitizeBaseRef(params.base);
+      const slug = params.name ?? `pstack-${Date.now()}`;
+      const { path, branch } = await createIsolatedWorktree(ctx.cwd, slug, params.base ?? "HEAD");
       return {
         content: [{ type: "text", text: `Created worktree ${path} on ${branch}` }],
         details: { path, branch },

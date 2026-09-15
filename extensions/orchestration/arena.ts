@@ -9,21 +9,24 @@ import {
   MAX_CONCURRENCY,
   MAX_TASKS,
   MAX_TIMEOUT_MS,
+  READONLY_TOOLS,
   mapConcurrent,
   runChildTask,
 } from "../subagents/child-runner.ts";
 import { resolveRoleModel } from "../models/config.ts";
+import { ensureWriterIsolation } from "../worktree/helpers.ts";
 
 export function registerArena(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_arena",
     label: "Pstack Arena",
     description:
-      "Run N parallel candidates at the same task (optional cross-judge). Parent skill picks base and grafts. Replaces Cursor arena Task fan-out.",
+      `Run N parallel candidates at the same task (optional cross-judge). Multi-writer runs auto-allocate unique worktrees. Global child concurrency cap: ${MAX_CONCURRENCY}. Parent skill picks base and grafts.`,
     promptSnippet: "Parallel design/code candidates for arena synthesis",
     promptGuidelines: [
       "Use pstack_arena for arena Phase B fan-out; then pick/graft per the arena skill.",
-      "Give each candidate its own output path (worktree or /tmp/arena-...).",
+      "Give each candidate its own output path (worktree or /tmp/arena-...). Omit cwd to auto-isolate writers.",
+      `Cap ${MAX_CONCURRENCY} concurrent children globally. Cross-judge is read-only (no bash).`,
     ],
     parameters: Type.Object({
       prompt: Type.String({ description: "Shared candidate prompt/contract" }),
@@ -44,6 +47,13 @@ export function registerArena(pi: ExtensionAPI): void {
     async execute(_id, params, signal, onUpdate, ctx) {
       if (!ctx.model) throw new Error("pstack_arena requires an active parent model");
       const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
+      const cwds = await ensureWriterIsolation(
+        ctx.cwd,
+        params.candidates.map((c, i) => ({
+          cwd: c.cwd,
+          label: c.label ?? `candidate-${i + 1}`,
+        })),
+      );
       let done = 0;
       const results = await mapConcurrent(params.candidates, MAX_CONCURRENCY, async (c, index) => {
         const model =
@@ -62,7 +72,7 @@ export function registerArena(pi: ExtensionAPI): void {
           {
             task,
             model,
-            cwd: c.cwd,
+            cwd: cwds[index],
             role: "general",
             timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
           },
@@ -75,7 +85,7 @@ export function registerArena(pi: ExtensionAPI): void {
           content: [{ type: "text", text: `${done}/${params.candidates.length} arena candidates done` }],
           details: {},
         });
-        return { label, outputPath: c.outputPath, result };
+        return { label, outputPath: c.outputPath, cwd: cwds[index], result };
       });
 
       let judgeText = "";
@@ -87,7 +97,7 @@ export function registerArena(pi: ExtensionAPI): void {
         const summaries = results
           .map(
             (r) =>
-              `### ${r.label} (${r.result.model})\npath: ${r.outputPath ?? "(inline)"}\n\n${r.result.output}`,
+              `### ${r.label} (${r.result.model})\npath: ${r.outputPath ?? "(inline)"}\ncwd: ${r.cwd}\n\n${r.result.output}`,
           )
           .join("\n\n");
         const judge = await runChildTask(
@@ -99,7 +109,7 @@ export function registerArena(pi: ExtensionAPI): void {
             ].join("\n\n"),
             model: judgeModel,
             role: "general",
-            tools: ["read", "bash", "grep", "find", "ls"],
+            tools: [...READONLY_TOOLS],
             timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
           },
           ctx.cwd,
@@ -112,7 +122,7 @@ export function registerArena(pi: ExtensionAPI): void {
       const body = results
         .map(
           (r) =>
-            `### ${r.label} (${r.result.model}, exit ${r.result.exitCode})\npath: ${r.outputPath ?? "(inline)"}\n\n${r.result.output}`,
+            `### ${r.label} (${r.result.model}, exit ${r.result.exitCode})\npath: ${r.outputPath ?? "(inline)"}\ncwd: ${r.cwd}\n\n${r.result.output}`,
         )
         .join("\n\n---\n\n");
 
@@ -123,7 +133,7 @@ export function registerArena(pi: ExtensionAPI): void {
             text: `## Arena candidates\n\n${body}${judgeText}\n\nNext: pick a base and graft per the arena skill.`,
           },
         ],
-        details: { results },
+        details: { results, concurrencyCap: MAX_CONCURRENCY },
       };
     },
   });

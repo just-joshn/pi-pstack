@@ -1,15 +1,22 @@
 /**
  * Thin Pi child-agent runner (official Pi ExtensionAPI child-process pattern).
  * Spawns `pi --mode json -p` subprocesses. No pi-subagents dependency.
+ *
+ * Global child concurrency is capped at MAX_CONCURRENCY (4) across
+ * pstack_spawn / pstack_swarm / pstack_arena via withChildSlot.
  */
 import { spawn } from "node:child_process";
 import type { Message } from "@earendil-works/pi-ai";
 
 export const MAX_TASKS = 8;
+/** Shared cap for all pstack child agents (spawn + swarm + arena). */
 export const MAX_CONCURRENCY = 4;
 export const MAX_OUTPUT_BYTES = 50 * 1024;
 export const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 export const MAX_TIMEOUT_MS = 30 * 60 * 1000;
+
+/** Pi builtins that cannot mutate the tree (no bash / write / edit). */
+export const READONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
 
 export interface ChildTaskInput {
   task: string;
@@ -30,6 +37,27 @@ export interface ChildTaskResult {
   output: string;
   stderr: string;
   stopReason?: string;
+}
+
+let activeChildren = 0;
+const childWaiters: Array<() => void> = [];
+
+export function childConcurrencyStats(): { active: number; cap: number; waiting: number } {
+  return { active: activeChildren, cap: MAX_CONCURRENCY, waiting: childWaiters.length };
+}
+
+export async function withChildSlot<T>(run: () => Promise<T>): Promise<T> {
+  if (activeChildren >= MAX_CONCURRENCY) {
+    await new Promise<void>((resolve) => childWaiters.push(resolve));
+  }
+  activeChildren++;
+  try {
+    return await run();
+  } finally {
+    activeChildren--;
+    const next = childWaiters.shift();
+    if (next) next();
+  }
 }
 
 export function piInvocation(args: string[]): { command: string; args: string[] } {
@@ -57,6 +85,13 @@ export function truncate(text: string): string {
   return `${content}\n\n[Output truncated to ${MAX_OUTPUT_BYTES} bytes.]`;
 }
 
+function appendCapped(current: string, chunk: string): string {
+  if (Buffer.byteLength(current, "utf8") >= MAX_OUTPUT_BYTES) return current;
+  const next = current + chunk;
+  if (Buffer.byteLength(next, "utf8") <= MAX_OUTPUT_BYTES) return next;
+  return truncate(next);
+}
+
 export async function mapConcurrent<T, U>(
   items: T[],
   limit: number,
@@ -75,6 +110,15 @@ export async function mapConcurrent<T, U>(
 }
 
 export async function runChildTask(
+  input: ChildTaskInput,
+  defaultCwd: string,
+  parentModel: string,
+  signal: AbortSignal | undefined,
+): Promise<ChildTaskResult> {
+  return withChildSlot(() => runChildTaskUnlocked(input, defaultCwd, parentModel, signal));
+}
+
+async function runChildTaskUnlocked(
   input: ChildTaskInput,
   defaultCwd: string,
   parentModel: string,
@@ -109,6 +153,7 @@ export async function runChildTask(
   let aborted = false;
   let timedOut = false;
   let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
+  let midStreamCapped = false;
   const invocation = piInvocation(args);
   const child = spawn(invocation.command, invocation.args, {
     cwd: input.cwd ?? defaultCwd,
@@ -122,7 +167,9 @@ export async function runChildTask(
       const event = JSON.parse(line) as { type?: string; message?: Message };
       if (event.type === "message_end" && event.message) {
         messages.push(event.message);
-        if (event.message.role === "assistant") stopReason = (event.message as { stopReason?: string }).stopReason;
+        if (event.message.role === "assistant") {
+          stopReason = (event.message as { stopReason?: string }).stopReason;
+        }
       }
     } catch {
       /* ignore non-JSON diagnostics */
@@ -130,13 +177,26 @@ export async function runChildTask(
   };
 
   child.stdout.on("data", (chunk: Buffer) => {
-    buffer += chunk.toString();
+    const text = chunk.toString();
+    if (Buffer.byteLength(buffer, "utf8") >= MAX_OUTPUT_BYTES * 2) {
+      midStreamCapped = true;
+      // Keep draining so the child does not block on a full pipe, but stop retaining.
+      const nl = text.lastIndexOf("\n");
+      if (nl >= 0) {
+        for (const line of text.slice(0, nl).split("\n")) processLine(line);
+        buffer = text.slice(nl + 1).slice(-1024);
+      }
+      return;
+    }
+    buffer += text;
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
     for (const line of lines) processLine(line);
   });
   child.stderr.on("data", (chunk: Buffer) => {
-    stderr += chunk.toString();
+    const before = stderr.length;
+    stderr = appendCapped(stderr, chunk.toString());
+    if (stderr.length === before && chunk.length > 0) midStreamCapped = true;
   });
 
   const stopChild = (reason: "aborted" | "timeout") => {
@@ -161,12 +221,17 @@ export async function runChildTask(
   signal?.removeEventListener("abort", abort);
   if (buffer.trim()) processLine(buffer);
 
+  let output = truncate(finalText(messages) || stderr || (timedOut ? "(timed out)" : "(no output)"));
+  if (midStreamCapped && !output.includes("[Output truncated")) {
+    output = `${output}\n\n[Mid-stream output capped at ${MAX_OUTPUT_BYTES} bytes.]`;
+  }
+
   return {
     task: input.task,
     model: selectedModel,
     role: input.role,
     exitCode: timedOut ? 124 : aborted ? 130 : exitCode,
-    output: truncate(finalText(messages) || stderr || (timedOut ? "(timed out)" : "(no output)")),
+    output,
     stderr: truncate(stderr),
     stopReason: timedOut ? "timeout" : aborted ? "aborted" : stopReason,
   };

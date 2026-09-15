@@ -8,7 +8,9 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
   DEFAULT_TIMEOUT_MS,
+  MAX_CONCURRENCY,
   MAX_TIMEOUT_MS,
+  READONLY_TOOLS,
   runChildTask,
   type ChildTaskResult,
 } from "./child-runner.ts";
@@ -22,12 +24,13 @@ export function registerSpawn(pi: ExtensionAPI): void {
     name: "pstack_spawn",
     label: "Pstack Spawn",
     description:
-      "Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review, general for independent workers/reviewers. Replaces Cursor Task/subagent_type.",
+      `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review, general for independent workers/reviewers. Global child concurrency cap: ${MAX_CONCURRENCY} (shared with swarm/arena). Replaces Cursor Task/subagent_type.`,
     promptSnippet: "Spawn an isolated Pi child agent (pstack delegate)",
     promptGuidelines: [
       "Use pstack_spawn instead of Cursor Task / subagent_type.",
       "Use role poteto-agent for code-writing playbook delegates; comment-sicko for /no-comments; general for reviewers.",
       "Review child output and diffs yourself before accepting work.",
+      `v1 awaits the child synchronously (background is accepted for schema parity but does not detach). Cap ${MAX_CONCURRENCY} concurrent children globally.`,
     ],
     parameters: Type.Object({
       task: Type.String({ description: "Complete self-contained brief for the child" }),
@@ -45,11 +48,14 @@ export function registerSpawn(pi: ExtensionAPI): void {
       poteto: Type.Optional(Type.Boolean({ description: "Force poteto-mode in child" })),
       tools: Type.Optional(Type.Array(Type.String(), { description: "Child tool allowlist" })),
       readonly: Type.Optional(
-        Type.Boolean({ description: "If true, restrict child tools to read,bash,grep,find,ls" }),
+        Type.Boolean({
+          description: `If true, restrict child to Pi read-only builtins: ${READONLY_TOOLS.join(",")}`,
+        }),
       ),
       background: Type.Optional(
         Type.Boolean({
-          description: "Accepted for parity; v1 still awaits the child (TODO: true async jobs)",
+          description:
+            "Accepted for Cursor Task parity only. v1 always sync-awaits the child; do not treat as async/detach.",
         }),
       ),
       timeoutMs: Type.Optional(
@@ -66,11 +72,16 @@ export function registerSpawn(pi: ExtensionAPI): void {
         parentModel;
       const tools =
         params.tools ??
-        (params.readonly ? ["read", "bash", "grep", "find", "ls"] : undefined);
+        (params.readonly ? [...READONLY_TOOLS] : undefined);
       const poteto = params.poteto === true || role === "poteto-agent";
 
       onUpdate?.({
-        content: [{ type: "text", text: `Spawning ${role} on ${model}…` }],
+        content: [
+          {
+            type: "text",
+            text: `Spawning ${role} on ${model}${params.background ? " (background requested; v1 still sync-awaits)" : ""}…`,
+          },
+        ],
         details: {},
       });
 

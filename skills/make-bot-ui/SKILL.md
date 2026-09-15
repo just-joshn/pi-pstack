@@ -16,7 +16,7 @@ Build a page the user clicks. A server on this computer POSTs JSON to a webhook.
 ## Create the wake target
 
 1. Ask the user for the webhook URL they already own (Slack workflow, GitHub repo_dispatch, personal automation host, etc.). Pi has no Cursor `update_state` routine API.
-2. If they have no webhook yet, offer the **local wake file** twin: buttons append JSON lines to `~/.pi/agent/pstack-wakes.jsonl`; a `pstack_loop` watcher (`mode=watcher`, `watchCommand` that `tail -n0 -F` or polls the file) injects the payload into the session.
+2. If they have no webhook yet, offer the **local wake file** twin: buttons append JSON lines to `~/.pi/agent/pstack-wakes.jsonl`; a `pstack_loop` watcher (`mode=watcher`, `watchArgv` argv array that polls/tails the file — never a raw shell string) injects the payload into the session.
 
 ## Request the sender key safely
 

@@ -1,9 +1,29 @@
 /**
  * Thin Pi-native twins for cursor-team-kit deslop / control-cli / control-ui.
  * Skills remain the philosophy; these tools give callable verification surfaces.
+ * No bash -lc of raw model strings — argv arrays only.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+
+const ALLOWED_CONTROL_COMMANDS = new Set([
+  "npm",
+  "pnpm",
+  "yarn",
+  "bun",
+  "node",
+  "python",
+  "python3",
+  "go",
+  "cargo",
+  "make",
+  "pytest",
+  "git",
+  "gh",
+  "pi",
+  "tsx",
+  "npx",
+]);
 
 export function registerCompanions(pi: ExtensionAPI): void {
   pi.registerTool({
@@ -21,17 +41,19 @@ export function registerCompanions(pi: ExtensionAPI): void {
     }),
     async execute(_id, params, signal, _onUpdate, ctx) {
       const base = params.base ?? "main";
-      const diff = await pi.exec(
-        "bash",
-        [
-          "-lc",
-          params.paths?.length
-            ? `git diff ${JSON.stringify(base)} -- ${params.paths.map((p) => JSON.stringify(p)).join(" ")}`
-            : `git diff ${JSON.stringify(base)}...HEAD; git diff`,
-        ],
-        { signal },
-      );
-      const text = diff.stdout || "";
+      if (base.startsWith("-") || base.includes("..") || /\s/.test(base)) {
+        throw new Error("invalid git diff base");
+      }
+      const args = ["diff", `${base}...HEAD`];
+      if (params.paths?.length) {
+        for (const p of params.paths) {
+          if (p.startsWith("-") || p.includes("\0")) throw new Error(`invalid path: ${p}`);
+        }
+        args.push("--", ...params.paths);
+      }
+      const diff = await pi.exec("git", args, { signal });
+      const unstaged = await pi.exec("git", ["diff"], { signal });
+      const text = `${diff.stdout || ""}\n${unstaged.stdout || ""}`;
       const findings: string[] = [];
       const patterns: Array<[RegExp, string]> = [
         [/\b(?:Just|Simply|Easily|Basically|Clearly)\b/g, "hedge/filler adverb"],
@@ -63,20 +85,34 @@ export function registerCompanions(pi: ExtensionAPI): void {
     name: "pstack_control_cli",
     label: "Pstack Control CLI",
     description:
-      "Closest Pi twin to cursor-team-kit control-cli: run a CLI/TUI verification command, capture stdout/stderr/exit, truncate for the model.",
+      "Closest Pi twin to cursor-team-kit control-cli: run a CLI/TUI verification via argv array (no shell), capture stdout/stderr/exit, truncate for the model.",
     promptSnippet: "Drive a CLI/TUI and capture proof output",
     promptGuidelines: [
-      "Use pstack_control_cli to prove CLI behavior instead of cursor-team-kit control-cli.",
+      "Use pstack_control_cli with argv=[cmd,...args] — never a raw shell string.",
     ],
     parameters: Type.Object({
-      command: Type.String({ description: "Shell command to run" }),
+      argv: Type.Array(Type.String(), {
+        minItems: 1,
+        description: "Argv array: [command, ...args]. No shell metacharacters.",
+      }),
       cwd: Type.Optional(Type.String()),
       timeoutSeconds: Type.Optional(Type.Integer({ minimum: 1, maximum: 600 })),
     }),
     async execute(_id, params, signal) {
-      const result = await pi.exec("bash", ["-lc", params.command], {
+      const [command, ...args] = params.argv;
+      if (!command || command.startsWith("-")) {
+        throw new Error("argv[0] must be a command name/path");
+      }
+      const base = command.split("/").pop() ?? command;
+      if (!ALLOWED_CONTROL_COMMANDS.has(base)) {
+        throw new Error(
+          `command '${base}' not in control_cli allowlist (${[...ALLOWED_CONTROL_COMMANDS].join(", ")})`,
+        );
+      }
+      const result = await pi.exec(command, args, {
         signal,
         timeout: (params.timeoutSeconds ?? 120) * 1000,
+        cwd: params.cwd,
       });
       const out = `${result.stdout || ""}\n${result.stderr || ""}`.slice(0, 50_000);
       return {
