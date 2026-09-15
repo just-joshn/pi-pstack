@@ -3,6 +3,9 @@
   "version": "0.15.2-pi.0",
   "description": "Local Pi twin of Cursor pstack v0.15.2 (max practical parity; see PARITY.md behavioral scorecard).",
   "type": "module",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
   "license": "MIT",
   "author": "Lauren Tan (original pstack); Pi port contributors (@just-joshn)",
   "homepage": "https://github.com/cursor/plugins/tree/main/pstack",
