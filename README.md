@@ -2,7 +2,9 @@
 
 Native [Pi](https://pi.dev) package porting [Cursor pstack](https://github.com/cursor/plugins/tree/main/pstack) (v0.15.2) as a **local Pi twin**.
 
-This is **not** Cursor-equivalence theater: skill/playbook *files* match upstream, and extensions implement the closest executable Pi-native behavior. Several host capabilities remain **PARTIAL** or **NOT EQUIVALENT** (see [PARITY.md](./PARITY.md) behavioral scorecard). Known gaps include Cursor marketplace, Automations Slack bus, cloud agent VMs, full IDE control-ui, and Grok Bot `update_state`/secret cards.
+This is **not** Cursor-equivalence theater: skill/playbook *files* match upstream, and extensions implement the closest executable Pi-native behavior.
+
+**Local-scope scorecard** (after close-orch-p0/p1/p1b — see [PARITY.md](./PARITY.md)): **EQUIVALENT** sticky / Task-spawn (Cap2) / loop / worktrees / ship / models / recall / readonly; **PARTIAL** deslop only (honest residual, off the user's orch bar); **NOT** cloud agents, marketplace, Automations/Slack, Grok Bot cards. Cap2 resume = `--session-dir` + `--continue`/`-c` (Pi `continueRecent`); background omit→true; concurrency 8; swarm/arena = intentional sync gather.
 
 if you want to go fast, go deep first. pstack helps you write less, but higher quality code — rigorous agent workflows you can parallelize with confidence.
 
@@ -43,8 +45,8 @@ pi -e /absolute/path/to/pi-pstack
 
 | Tool | Purpose |
 |------|---------|
-| `pstack_spawn` | One isolated Pi child (`role`: poteto-agent / comment-sicko / investigator / general). `background: true` detaches |
-| `pstack_jobs` | List / status / await / abort detached background spawn jobs |
+| `pstack_spawn` | One isolated Pi child (`role`: poteto-agent / comment-sicko / investigator / general). Background **omit→true** (sync needs `background: false`); resume via `resumeSessionDir` / `resumeJobId` → `--session-dir` + `--continue`/`-c` |
+| `pstack_jobs` | List / status / await / abort\|cancel detached background spawn jobs (surfaces `sessionDir` for resume) |
 | `pstack_swarm` | N parallel workers → one report |
 | `pstack_arena` | N candidates (+ optional cross-judge) for arena pick/graft |
 | `pstack_loop` | Heartbeat / settle / watcher / **dynamic** (settle+watcher) wakes |
@@ -71,7 +73,7 @@ Slash prompt aliases under `prompts/` expand common short names.
 
 ## Honesty / known gaps
 
-See **PARITY.md → Behavioral scorecard (12 capabilities)**. Artifact counts (ported/rewritten) are not runtime equivalence. Highest-leverage twins in this package: background spawn jobs, `pstack_loop` dynamic mode, worktree fleets, auto-readonly comment-sicko/investigator, gh shipping tools.
+See **[PARITY.md](./PARITY.md) → Behavioral scorecard (12 capabilities)** for the Verifier-aligned summary. Artifact counts (ported/rewritten) are not runtime equivalence. Highest-leverage twins: Cap2 local-Task spawn (omit→true bg, `--continue` resume, jobs, concurrency 8), `pstack_loop` dynamic mode, worktree fleets, auto-readonly comment-sicko/investigator, gh shipping tools. **deslop** stays PARTIAL; Benny under `automations/benny/` is a manual twin (**NOT** on the local orch bar — no Automations Slack bus).
 
 **Not supported** (one-line): Cursor plugin marketplace · Automations Slack bus · cloud agent VMs · full Electron/IDE control-ui · Grok Bot `update_state` / secret-request cards.
 

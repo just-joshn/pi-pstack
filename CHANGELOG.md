@@ -1,5 +1,10 @@
 # Changelog
 
+## docs-sync
+
+- Stage 2 docs-sync after close-orch-p0/p1/p1b: README lead = Verifier scorecard (EQUIVALENT sticky/Task/loop/worktrees/ship/models/recall/readonly; PARTIAL deslop only; NOT cloud/marketplace/Automations); tool table documents background omit→true + `resumeSessionDir`/`resumeJobId` → `--session-dir` + `--continue`/`-c`; PARITY inventory `skills/swarm` reframed as EQUIVALENT local-gather (cloud twin only); guides/prompts/agents/playbooks align spawn/resume/jobs/loop; honesty note that Pi `continueRecent` is **cwd-affined** (prefer same cwd on resume or `--session` file when known).
+
+
 ## close-orch-p1b
 
 - Cap2 true resume continue: `resumeSessionDir` / `resumeJobId` child argv is `--session-dir <resolved> --continue`/`-c` (Pi `continueRecent`), not dir-only `SessionManager.create`. Fresh spawn still creates without `-c`. `sessionDir` surfaced in `pstack_spawn` / `pstack_jobs` text+details. Verify/unit assert continue argv (fail on session-dir alone). PARITY Cap2 EQUIVALENT (local-Task) with continue language. Keeps p1 bg omit→true + inherit default-on.
@@ -21,7 +26,7 @@
 - Models: validated always-applied role inject; refuse invalid selectors at spawn → **EQUIVALENT (local-role-routing)**
 - Recall: ranked merge of sessions+git+gh → **EQUIVALENT (local-recall)**
 - Readonly: auto-arm `/pstack-readonly` on investigation sticky match; spawn readonly defaults → **EQUIVALENT (local-readonly)**
-- Spawn: `inheritParentTools` passthrough; jobs polish (PARTIAL residuals: MCP/history/session-scoped jobs)
+- Spawn: `inheritParentTools` passthrough; jobs polish (PARTIAL residuals: MCP/history/session-scoped jobs — **historical pre-reframe**; Cap2 later EQUIVALENT local-Task; MCP inherit = HOST ceiling N/A)
 - Deslop: expanded patterns + `dryRun` (PARTIAL residuals: team-kit depth / HTTP-only UI / unslop pair)
 - Extension tests: expanded `extensions/test/verify-local-partials.mjs`
 

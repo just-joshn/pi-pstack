@@ -114,7 +114,7 @@ Artifact matrix below counts files on disk. Do not read “ported” as EQUIVALE
 | `skills/principle-type-system-discipline/SKILL.md` | ported | yes | portable as SKILL.md | drop-in / light path tweaks |
 | `skills/poteto-mode/SKILL.md` | ported | yes | must port/rewrite | bindings → pstack_spawn/swarm/arena |
 | `skills/setup-pstack/SKILL.md` | rewritten | yes | must port/rewrite | /setup-pstack → ~/.pi/agent/pstack-models.json |
-| `skills/swarm/SKILL.md` | ported | yes | must port/rewrite | pstack_swarm; cloud env → local+worktree (PARTIAL infra) |
+| `skills/swarm/SKILL.md` | ported | yes | must port/rewrite | pstack_swarm intentional sync gather (**EQUIVALENT** local-gather); cloud VM twin only via N× local `pstack_spawn`+worktree |
 | `skills/arena/SKILL.md` | ported | yes | must port/rewrite | bindings → pstack_spawn/swarm/arena |
 | `skills/architect/SKILL.md` | ported | yes | must port/rewrite | bindings → pstack_spawn/swarm/arena |
 | `skills/how/SKILL.md` | ported | yes | must port/rewrite | bindings → pstack_spawn/swarm/arena |

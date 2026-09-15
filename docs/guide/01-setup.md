@@ -34,6 +34,10 @@ Say yes and it writes `.pi/skills/verify-<app>/`, a project-local skill that tea
 
 After setup, start a new chat. The model rule applies to new sessions.
 
+## Spawn, jobs, and resume (Pi local)
+
+Cursor `Task` maps to `pstack_spawn` (+ `pstack_swarm` / `pstack_arena`). Background **omit→true** (pass `background: false` only when you need sync-await). Drain detached children with `pstack_jobs`. Resume a prior child with `resumeSessionDir` / `resumeJobId` → `--session-dir` + `--continue`/`-c` (Pi `continueRecent`). Prefer the **same cwd** on resume — `continueRecent` is cwd-affined. See [PARITY.md](../../PARITY.md) Cap2.
+
 ## Run your first task
 
 Pick something real but small, and describe it the way you'd describe it to a colleague:

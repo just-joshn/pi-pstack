@@ -559,6 +559,24 @@ await check("close-orch-p1b: orchestrate/poteto cite true continue", async () =>
   assert.ok(/--continue|-c|continueRecent|continue prior child transcript/i.test(skill), "poteto must say continue transcript");
 });
 
+await check("docs-sync: README scorecard lead + spawn omit→true / resume", async () => {
+  const readme = readFileSync(resolve(ROOT, "README.md"), "utf8");
+  assert.ok(!/several PARTIAL/i.test(readme), "README must not lead with several PARTIAL");
+  assert.ok(readme.includes("omit→true"), "README must document background omit→true");
+  assert.ok(/resumeSessionDir|resumeJobId|--continue/.test(readme), "README must mention resume / --continue");
+  assert.ok(/PARITY\.md/.test(readme), "README must link PARITY");
+  assert.ok(/EQUIVALENT/.test(readme) && /PARTIAL/.test(readme), "README scorecard summary names EQUIVALENT and PARTIAL");
+  assert.ok(!/background: true detaches/.test(readme), "README must not sole-story background:true detaches");
+});
+
+await check("docs-sync: PARITY swarm inventory not PARTIAL-infra", async () => {
+  const parity = readFileSync(resolve(ROOT, "PARITY.md"), "utf8");
+  const swarmRow = parity.split("\n").find((l) => l.includes("`skills/swarm/SKILL.md`"));
+  assert.ok(swarmRow, "swarm inventory row missing");
+  assert.ok(/EQUIVALENT.*local-gather|local-gather.*EQUIVALENT/i.test(swarmRow), "swarm row must say EQUIVALENT local-gather");
+  assert.ok(!/\(PARTIAL infra\)/.test(swarmRow), "swarm row must not claim PARTIAL infra");
+});
+
 await check("PARITY scorecard documents local-scope EQUIVALENT criteria", async () => {
   const parity = readFileSync(resolve(ROOT, "PARITY.md"), "utf8");
   assert.ok(parity.includes("EQUIVALENT"));
