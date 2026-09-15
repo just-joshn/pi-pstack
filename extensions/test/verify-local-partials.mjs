@@ -66,22 +66,15 @@ await check("sticky restore reinjects playbook steps (not routing note only)", a
   assert.ok(prompt.includes("Restored sticky playbook") || prompt.includes("investigation"));
   assert.ok(!prompt.includes("Previously matched") || prompt.includes("Open a todolist"));
   assert.ok(prompt.includes("Open a todolist"), "restore path must reinject steps");
-  const fb = mod.buildPotetoStickyPrompt("BASE", {
-    userText: "hello casual",
-    restoredPlaybookId: null,
-    forceInvokeFallbackId: "babysit",
-  });
-  assert.ok(fb.includes("Force-invoke fallback") || fb.includes("babysit"));
-  assert.ok(fb.includes("Open a todolist"));
 });
 
-await check("force-invoke path is not silent empty-catch", async () => {
+await check("force-invoke routes via input transform, not a queued follow-up", async () => {
   const src = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
-  assert.ok(src.includes("forceInvokeFallbackId"));
-  assert.ok(src.includes("Poteto force-invoke failed"));
+  assert.ok(src.includes('action: "transform"'), "force-invoke must return a transform result");
   assert.ok(src.includes("restoredPlaybookId"));
-  // Must not keep a bare empty catch around sendUserMessage force-invoke
-  assert.ok(!/sendUserMessage\([\s\S]*?\)\s*;\s*\}\s*catch\s*\{\s*\}/.test(src));
+  assert.ok(!src.includes("forceInvokeFallbackId"), "fallback-on-catch machinery must be gone");
+  assert.ok(!src.includes("lastForcedSkillKey"), "re-entrant dedupe machinery must be gone");
+  assert.ok(!src.includes("deliverAs"), "must not queue a followUp for force-invoke");
 });
 
 await check("sticky force skill message + persist helpers", async () => {

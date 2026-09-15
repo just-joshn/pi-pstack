@@ -66,8 +66,6 @@ export interface StickyPromptOptions {
   minScore?: number;
   /** Persisted playbook id from session restore — reinject full steps when no live match. */
   restoredPlaybookId?: string | null;
-  /** Force-invoke failed: still route by injecting full playbook steps. */
-  forceInvokeFallbackId?: string | null;
 }
 
 /**
@@ -97,19 +95,11 @@ export function buildPotetoStickyPrompt(
   if (match) {
     parts.push("", buildPlaybookInjectBlock(match));
   } else {
-    const fallbackId = opts?.forceInvokeFallbackId || opts?.restoredPlaybookId || undefined;
-    const restoredBlock = fallbackId
-      ? buildPlaybookInjectFromId(fallbackId, { restored: true, score: 0 })
+    const restoredBlock = opts?.restoredPlaybookId
+      ? buildPlaybookInjectFromId(opts.restoredPlaybookId, { restored: true, score: 0 })
       : undefined;
     if (restoredBlock) {
       parts.push("", restoredBlock);
-      if (opts?.forceInvokeFallbackId) {
-        parts.push(
-          "",
-          "## Force-invoke fallback",
-          "sendUserMessage skill force-invoke failed or was unavailable; playbook steps above are the reliable routing path for this turn.",
-        );
-      }
     } else {
       parts.push(
         "",
