@@ -17,6 +17,13 @@ import {
 import { createPotetoRuntime } from "../../../extensions/poteto-state/index.ts";
 import { createReadonlyRuntime } from "../../../extensions/readonly-state/index.ts";
 
+const savedChildRole = process.env.PSTACK_CHILD_ROLE;
+Reflect.deleteProperty(process.env, "PSTACK_CHILD_ROLE");
+test.after(() => {
+  if (savedChildRole === undefined) Reflect.deleteProperty(process.env, "PSTACK_CHILD_ROLE");
+  else process.env.PSTACK_CHILD_ROLE = savedChildRole;
+});
+
 function liveList<T>() {
   let items: T[] = [];
   return {
