@@ -26,21 +26,21 @@ export function layerFiles(layer, repoRoot) {
   const dir = join(repoRoot, layer.dir);
   if (!existsSync(dir)) return [];
 
-  const files = [];
   function walk(path) {
+    let entries = [];
     for (const entry of readdirSync(path)) {
       const fullPath = join(path, entry);
       const stat = statSync(fullPath);
       if (stat.isDirectory()) {
-        walk(fullPath);
+        entries = [...entries, ...walk(fullPath)];
       } else if (/\.test\.(mjs|ts)$/.test(entry)) {
-        files.push(fullPath);
+        entries = [...entries, fullPath];
       }
     }
+    return entries;
   }
-  walk(dir);
 
-  return files.sort();
+  return walk(dir).toSorted();
 }
 
 export function resolveLayers(selector) {

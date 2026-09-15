@@ -3,18 +3,18 @@ import { resolve, join, dirname } from "node:path";
 import { execSync } from "node:child_process";
 
 export function findHostPi() {
-  const tried = [];
+  let tried = [];
   
   if (process.env.PI_INSTALL_DIR) {
     const packageRoot = resolve(process.env.PI_INSTALL_DIR);
-    tried.push(`PI_INSTALL_DIR=${packageRoot}`);
+    tried = [...tried, `PI_INSTALL_DIR=${packageRoot}`];
     if (existsSync(join(packageRoot, "package.json"))) {
       return buildPackageMap(packageRoot);
     }
   }
 
   const nodeModulesGuess = join(dirname(dirname(process.execPath)), "lib", "node_modules", "@earendil-works", "pi-coding-agent");
-  tried.push(nodeModulesGuess);
+  tried = [...tried, nodeModulesGuess];
   if (existsSync(join(nodeModulesGuess, "package.json"))) {
     return buildPackageMap(nodeModulesGuess);
   }
@@ -23,12 +23,12 @@ export function findHostPi() {
   try {
     globalRoot = execSync("npm root -g", { encoding: "utf8" }).trim();
     const globalGuess = join(globalRoot, "@earendil-works", "pi-coding-agent");
-    tried.push(globalGuess);
+    tried = [...tried, globalGuess];
     if (existsSync(join(globalGuess, "package.json"))) {
       return buildPackageMap(globalGuess);
     }
   } catch (err) {
-    tried.push(`npm root -g failed: ${err.message}`);
+    tried = [...tried, `npm root -g failed: ${err.message}`];
   }
 
   throw new Error(`Could not find pi-coding-agent installation. Set PI_INSTALL_DIR. Tried:\n${tried.join("\n")}`);
@@ -59,8 +59,8 @@ export function ensurePeerLinks(repoRoot) {
   mkdirSync(repoNodeModules, { recursive: true });
   mkdirSync(join(repoNodeModules, "@earendil-works"), { recursive: true });
 
-  const created = [];
-  const repaired = [];
+  let created = [];
+  let repaired = [];
 
   const links = [
     [join(repoNodeModules, "typebox"), packages.typebox],
@@ -75,24 +75,21 @@ export function ensurePeerLinks(repoRoot) {
 
     if (!stat) {
       symlinkSync(target, link);
-      created.push(link);
+      created = [...created, link];
       continue;
     }
 
     if (stat.isSymbolicLink()) {
       const current = readlinkSync(link);
       const resolved = resolve(dirname(link), current);
-      // A prior install path that no longer resolves is repaired, not left dangling.
       if (resolved !== target || !existsSync(resolved)) {
         unlinkSync(link);
         symlinkSync(target, link);
-        repaired.push(link);
+        repaired = [...repaired, link];
       }
       continue;
     }
 
-    // A real file/dir in the farm path means the caller has their own
-    // node_modules content; refuse to destroy it.
     throw new Error(
       `Refusing to replace non-symlink ${link}. Remove it or set PI_INSTALL_DIR and re-run tests/support/link-peers.mjs.`,
     );
@@ -104,14 +101,14 @@ export function ensurePeerLinks(repoRoot) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   try {
     const result = findHostPi();
-    console.log("Pi installation found:");
-    console.log("  packageRoot:", result.packageRoot);
+    process.stdout.write("Pi installation found:\n");
+    process.stdout.write(`  packageRoot: ${result.packageRoot}\n`);
     for (const [name, path] of Object.entries(result.packages)) {
-      console.log(`  ${name}: ${path}`);
+      process.stdout.write(`  ${name}: ${path}\n`);
     }
     process.exit(0);
   } catch (err) {
-    console.error(err.message);
+    process.stderr.write(`${err.message}\n`);
     process.exit(1);
   }
 }
