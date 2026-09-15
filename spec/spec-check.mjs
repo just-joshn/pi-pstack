@@ -38,12 +38,18 @@ const ROOT = repoRoot();
 const SPEC_DIR = join(ROOT, "spec");
 const CONTRACTS_DIR = join(SPEC_DIR, "contracts");
 
-const LEDGER_HEADER = "id\tsurface\tstatus\tkind\tname\tobligation\tverification\tupstream\treference\tfinding";
+const LEDGER_HEADER = "id\tsurface\tstatus\tkind\tname\tobligation\tverification\tupstream\treference\tfinding\tclass";
 const SURFACES_HEADER = "slug\tcapability\towns\tupstream_basis";
 const MECHANISMS_HEADER = "mechanism\tupstream_evidence\tdisposition\tref\ttwin_surface";
 
 const STATUS = new Set(["VERIFIED", "UNVERIFIED", "DEFECT", "EXCLUDED"]);
 const KINDS = new Set(["tool", "command", "behavior", "ceiling"]);
+const CLASSES = new Set([
+  "EXACT-CONTRACT",
+  "ADAPTED-EQUIVALENT",
+  "HOSTED-CAPABILITY-REQUIRED",
+  "APPROVED-EXCEPTION",
+]);
 
 function listFilesRecursive(dir) {
   if (!existsSync(dir)) return [];
@@ -174,8 +180,8 @@ function validateLedger(parsedFiles) {
 }
 
 function parseLedgerRow(r) {
-  const [id, surface, status, kind, name, obligation, verification, upstream, reference, finding] = r.cols;
-  return { id, surface, status, kind, name, obligation, verification, upstream, reference, finding, file: r.file, line: r.line };
+  const [id, surface, status, kind, name, obligation, verification, upstream, reference, finding, cls] = r.cols;
+  return { id, surface, status, kind, name, obligation, verification, upstream, reference, finding, cls, file: r.file, line: r.line };
 }
 
 function validateRowForm(rows) {
@@ -186,6 +192,13 @@ function validateRowForm(rows) {
     if (idM[1] !== row.surface) return [{ row, msg: `id prefix ${idM[1]} != surface ${row.surface}` }];
     if (!STATUS.has(row.status)) return [{ row, msg: `invalid status ${row.status}` }];
     if (!KINDS.has(row.kind)) return [{ row, msg: `invalid kind ${row.kind}` }];
+    if (!CLASSES.has(row.cls)) return [{ row, msg: `invalid class ${row.cls}` }];
+    if (row.kind === "ceiling" && row.cls !== "HOSTED-CAPABILITY-REQUIRED" && row.cls !== "APPROVED-EXCEPTION") {
+      return [{ row, msg: "ceiling rows must be HOSTED-CAPABILITY-REQUIRED or APPROVED-EXCEPTION" }];
+    }
+    if (row.kind !== "ceiling" && row.cls !== "EXACT-CONTRACT" && row.cls !== "ADAPTED-EQUIVALENT") {
+      return [{ row, msg: `${row.kind} rows must be EXACT-CONTRACT or ADAPTED-EQUIVALENT` }];
+    }
     const isNameDashOk = row.kind === "behavior" || row.kind === "ceiling";
     if (isNameDashOk && row.name !== "-") return [{ row, msg: `name must be '-' for ${row.kind}` }];
     if (!isNameDashOk && (!row.name || row.name === "-")) return [{ row, msg: `name required for ${row.kind}` }];
@@ -393,12 +406,16 @@ function computeCoverage(rows) {
   );
   const eligible = total - counts.E;
   const cov = eligible > 0 ? counts.V / eligible : 0;
-  return { total, ...counts, eligible, coverage: cov };
+  const classes = parsed.reduce(
+    (acc, r) => ({ ...acc, [r.cls]: (acc[r.cls] ?? 0) + 1 }),
+    {},
+  );
+  return { total, ...counts, eligible, coverage: cov, classes };
 }
 
 function formatCoverage(cov) {
   const pct = cov.eligible > 0 ? Math.round((cov.coverage * 100 + Number.EPSILON) * 100) / 100 : 0;
-  return `total=${cov.total} VERIFIED=${cov.V} UNVERIFIED=${cov.U} DEFECT=${cov.D} EXCLUDED=${cov.E} eligible=${cov.eligible} coverage=${pct}%`;
+  return `total=${cov.total} VERIFIED=${cov.V} UNVERIFIED=${cov.U} DEFECT=${cov.D} EXCLUDED=${cov.E} eligible=${cov.eligible} coverage=${pct}% classes=${JSON.stringify(cov.classes)}`;
 }
 
 function openWorkQueue(rows) {

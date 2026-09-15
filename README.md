@@ -2,6 +2,8 @@
 
 Native [Pi](https://pi.dev) package porting [Cursor pstack](https://github.com/cursor/plugins/tree/main/pstack) (v0.15.2) as a **local Pi twin**.
 
+**Parity target: pstack 0.15.2 @ `c1c0a32802223f4be824112dd83d33ad29a8b26c`** (pinned in `port/upstream.json`). Every ledger row is `VERIFIED` with a proof that runs in `npm test`, and every row carries one DoD class. `node spec/spec-check.mjs --require-complete` and `npm run spec:gate` are the release gates; the class split and the Cursor-side comparison procedure live in [`spec/SPEC.md`](./spec/SPEC.md) and [`spec/DIFFERENTIAL.md`](./spec/DIFFERENTIAL.md).
+
 This is **not** Cursor-equivalence theater: skill/playbook *files* match upstream, and extensions implement the closest executable Pi-native behavior.
 
 **Content parity is machine-checked.** Every file under `skills/`, `agents/`, `automations/`, and `docs/` is `apply(declared Cursor→Pi bindings, upstream pstack@v0.15.2)`. `npm run parity:check` fails on any drift, any unmigrated Cursor mechanism, any unknown `pstack_*` tool, or any dead `scripts/...` path. 103 of 153 upstream files are byte-identical; 48 differ only where a binding names a Cursor mechanism; 2 whole-mechanism files are declared overrides: each override's must list pins named upstream sections, the leftover scan rejects Cursor mechanisms, and the override is hand-maintained and reviewed. See [port/README.md](./port/README.md).

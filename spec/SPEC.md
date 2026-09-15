@@ -21,7 +21,7 @@ The ledger is portable. Each row states an obligation. The `status` column descr
 The ledger lives in `spec/contracts/`. Every `.tsv` file in that directory is part of the ledger, and the union of those files is the ledger. A row lives in exactly one file. Every file carries the same header line.
 
 ```
-id	surface	status	kind	name	obligation	verification	upstream	reference	finding
+id	surface	status	kind	name	obligation	verification	upstream	reference	finding	class
 ```
 
 Columns and their rules.
@@ -36,6 +36,7 @@ Columns and their rules.
 - `upstream`. An upstream file path relative to the upstream `pstack/` root, or `mechanism:<label>` when no in-tree spec exists.
 - `reference`. Repo-relative path and line of the current implementation, or a dash.
 - `finding`. `#<n>` from `.pi/audit-findings.md`, or a dash.
+- `class`. Exactly one of `EXACT-CONTRACT`, `ADAPTED-EQUIVALENT`, `HOSTED-CAPABILITY-REQUIRED`, `APPROVED-EXCEPTION`. `EXACT-CONTRACT` means Pi reproduces the contract directly. `ADAPTED-EQUIVALENT` means a Pi mechanism stands in for a Cursor mechanism while the contract holds, and every such row must name the Cursor mechanism in `upstream` (`mechanism:<label>`) or live on a surface whose mechanism row is `excluded` with a twin. `HOSTED-CAPABILITY-REQUIRED` and `APPROVED-EXCEPTION` are allowed only on `kind=ceiling` rows; every other kind must be `EXACT-CONTRACT` or `ADAPTED-EQUIVALENT`. The checker enforces the mapping.
 
 Status state machine.
 
@@ -111,7 +112,7 @@ coverage = V / eligible
 
 At completion every `EXCLUDED` row's `twin@<surface>` names a surface with a `VERIFIED` row.
 
-As of authoring, the ledger gives `T = 228` with `V = 57`, `U = 144`, `D = 15`, `E = 12`, so `eligible = 216` and `coverage = 57 / 216`. The checker is the authority for these numbers.
+As implemented, the ledger gives `T = 233` with `V = 221`, `U = 0`, `D = 0`, `E = 12`, so `eligible = 221` and `coverage = 100%`. Class split: `ADAPTED-EQUIVALENT = 152`, `EXACT-CONTRACT = 69`, `APPROVED-EXCEPTION = 6`, `HOSTED-CAPABILITY-REQUIRED = 6`. The checker is the authority for these numbers.
 
 ## 4. Host ceilings and exclusions
 
@@ -193,7 +194,8 @@ Documented host limits from `PI/README.md` Philosophy: no MCP, no sub-agents, no
 - `spec/SPEC.md`. The contract frame, coverage rule, ceilings, and builder path.
 - `spec/surfaces.tsv`. The surface list and ownership.
 - `spec/mechanisms.tsv`. Upstream mechanism dispositions.
-- `spec/contracts/*.tsv`. The behavioral ledger. The live contract and reference status.
+- `spec/contracts/*.tsv`. The behavioral ledger. The live contract, reference status, and DoD class per row.
+- `spec/DIFFERENTIAL.md`. What the repo proves without a Cursor host, and the procedure and fixtures for the Cursor-side comparison.
 - `PARITY.md`. Historical scorecard. A banner names `spec/SPEC.md` and `spec/contracts/` as the live contract.
 - `README.md`. Install and usage. Replaces the inline status sentence with a pointer to `spec/SPEC.md`.
 - `port/README.md`. Content parity mechanics. One line states the behavioral contract lives in `spec/SPEC.md`.
