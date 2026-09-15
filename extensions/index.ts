@@ -29,6 +29,7 @@ import {
   shouldAutoArmFromPlaybookMatch,
   shouldAutoArmFromSkillText,
   shouldAutoArmReadonly,
+  shouldMatchStickyInput,
   stickyEntryPayload,
 } from "./sticky-session.ts";
 
@@ -49,12 +50,8 @@ export default function piPstack(pi: ExtensionAPI) {
   let lastUserText = "";
   /** Persisted matched playbook id (restored on session_start). */
   let matchedPlaybookId: string | null = null;
-  /** When sendUserMessage force-invoke fails, inject full playbook steps instead of silent catch. */
-  let forceInvokeFallbackId: string | null = null;
   /** Tools active before readonly was applied (restored on off). */
   let toolsBeforeReadonly: string[] | undefined;
-  /** Dedupe force-invoke within a turn. */
-  let lastForcedSkillKey = "";
 
   const setPoteto = (
     enabled: boolean,
@@ -151,9 +148,7 @@ export default function piPstack(pi: ExtensionAPI) {
     sessionReadonly = false;
     lastUserText = "";
     matchedPlaybookId = null;
-    forceInvokeFallbackId = null;
     toolsBeforeReadonly = undefined;
-    lastForcedSkillKey = "";
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "custom") continue;
       if (entry.customType === STICKY_ENTRY_TYPE) {
@@ -176,10 +171,12 @@ export default function piPstack(pi: ExtensionAPI) {
   });
 
   pi.on("input", (event, ctx) => {
+    if (!shouldMatchStickyInput(event.source)) return;
     lastUserText = event.text ?? "";
     if (event.text.startsWith("/skill:poteto-mode") || event.text.startsWith("/poteto-mode")) {
       setPoteto(true, ctx);
     }
+    let transformText: string | undefined;
     const matched = matchStickyPlaybook(event.text);
     if (matched && matched.score >= 2) {
       // Persist match whenever sticky is on or strong match arms sticky
@@ -191,34 +188,10 @@ export default function piPstack(pi: ExtensionAPI) {
         ctx.ui.setStatus("pstack", `poteto:${matched.id}`);
       }
 
-      // Force skill invocation (not inject-only) once per match key
-      if (potetoEnabled || matched.score >= 5) {
-        const forceKey = `${matched.id}::${event.text.slice(0, 120)}`;
-        if (forceKey !== lastForcedSkillKey && !event.text.startsWith("/skill:poteto-mode")) {
-          lastForcedSkillKey = forceKey;
-          const msg = forcePotetoSkillMessage(event.text, matched.id);
-          // Deliver as follow-up so the turn routes through skill expand (Cursor sticky twin).
-          // Never silent-catch: surface failure and arm inject fallback that still routes.
-          let forced = false;
-          try {
-            pi.sendUserMessage(msg, { deliverAs: "followUp", expandPromptTemplates: true });
-            forced = true;
-            forceInvokeFallbackId = null;
-          } catch (err1) {
-            try {
-              pi.sendUserMessage(msg, { expandPromptTemplates: true });
-              forced = true;
-              forceInvokeFallbackId = null;
-            } catch (err2) {
-              forceInvokeFallbackId = matched.id;
-              const detail = err2 instanceof Error ? err2.message : String(err2 ?? err1);
-              ctx.ui.notify?.(
-                `Poteto force-invoke failed (${detail}); injecting playbook ${matched.id} steps as fallback.`,
-                "warning",
-              );
-            }
-          }
-        }
+      // Force skill invocation via input transform: same turn, no queued follow-up,
+      // no re-entrant "input" event to re-match against (Pi skill-expands the transformed text).
+      if ((potetoEnabled || matched.score >= 5) && !event.text.startsWith("/skill:poteto-mode")) {
+        transformText = forcePotetoSkillMessage(event.text, matched.id);
       }
 
       // Investigation playbook → auto-arm session readonly
@@ -229,6 +202,10 @@ export default function piPstack(pi: ExtensionAPI) {
 
     if (!process.env.PSTACK_CHILD_ROLE && shouldAutoArmFromSkillText(event.text)) {
       setSessionReadonly(true, ctx, "skill:investigation");
+    }
+
+    if (transformText) {
+      return { action: "transform", text: transformText };
     }
   });
 
@@ -241,10 +218,7 @@ export default function piPstack(pi: ExtensionAPI) {
         match: live ?? null,
         // Reinject full playbook steps on restore (not a routing note only)
         restoredPlaybookId: live ? null : matchedPlaybookId,
-        forceInvokeFallbackId,
       });
-      // Clear one-shot force-invoke fallback after it has been injected into the prompt
-      if (forceInvokeFallbackId) forceInvokeFallbackId = null;
     }
     if (sessionReadonly) {
       prompt = `${prompt}\n\n## pstack session readonly\nThis session is read-only. Do not write, edit, or run bash. Use read/grep/find/ls (and read-safe pstack_* tools). Spawn children with readonly:true or role investigator/comment-sicko. Deliver citations and recommendations only.`;
@@ -321,6 +295,7 @@ export default function piPstack(pi: ExtensionAPI) {
         );
         return;
       }
+      lastUserText = task;
       pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
         expandPromptTemplates: true,
       });
@@ -362,6 +337,7 @@ export default function piPstack(pi: ExtensionAPI) {
         );
         return;
       }
+      lastUserText = task;
       pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
         expandPromptTemplates: true,
       });
