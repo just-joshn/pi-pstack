@@ -38,8 +38,9 @@ export function computeReadonlyTools(
       keep.add(name);
     }
   }
+  const alwaysKeep = new Set<string>([...READONLY_TOOLS]);
   const nextActive = [...keep].filter(
-    (n) => allTools.includes(n) || toolsBefore.includes(n),
+    (n) => alwaysKeep.has(n) || allTools.includes(n) || toolsBefore.includes(n),
   );
   return { nextActive, toolsBefore };
 }
@@ -151,56 +152,102 @@ function restoreReadonlyState(
   }
 }
 
-function writeToolBlock(name: string): ToolCallDecision {
-  return {
-    block: true,
-    reason: `pstack session readonly: blocked ${name}. Use /pstack-readonly-off to re-enable writes.`,
-  };
+type ReadonlyAction = "block" | "allow" | "coerceReadonly";
+
+interface ReadonlyPolicyDecision {
+  readonly action: ReadonlyAction;
+  readonly reason?: string;
 }
 
-function worktreeBlock(input: unknown): ToolCallDecision {
-  const action = (input as { action?: string } | undefined)?.action;
+type ReadonlyToolPolicy = (input: unknown) => ReadonlyPolicyDecision;
+
+function blockPolicy(reason: string): ReadonlyToolPolicy {
+  return () => ({ action: "block", reason });
+}
+
+function writeToolPolicy(name: string): ReadonlyToolPolicy {
+  return blockPolicy(
+    `pstack session readonly: blocked ${name}. Use /pstack-readonly-off to re-enable writes.`,
+  );
+}
+
+const allowPolicy: ReadonlyToolPolicy = () => ({ action: "allow" });
+
+function actionOf(input: unknown): string | undefined {
+  return (input as { action?: string } | undefined)?.action;
+}
+
+function worktreePolicy(input: unknown): ReadonlyPolicyDecision {
+  const action = actionOf(input);
   if (action && action !== "list") {
-    return {
-      block: true,
-      reason: "pstack session readonly: blocked mutating pstack_worktree.",
-    };
+    return { action: "block", reason: "pstack session readonly: blocked mutating pstack_worktree." };
   }
-  return undefined;
+  return { action: "allow" };
 }
 
-function deslopBlock(input: unknown): ToolCallDecision {
+function deslopPolicy(input: unknown): ReadonlyPolicyDecision {
   const value = input as { applySafe?: boolean; autoApply?: boolean };
   if (value.applySafe || value.autoApply) {
-    return {
-      block: true,
-      reason: "pstack session readonly: blocked deslop applySafe/autoApply.",
-    };
+    return { action: "block", reason: "pstack session readonly: blocked deslop applySafe/autoApply." };
   }
-  return undefined;
+  return { action: "allow" };
 }
 
-function spawnCoercion(input: unknown): ToolCallDecision {
+function spawnPolicy(input: unknown): ReadonlyPolicyDecision {
   const value = input as { readonly?: boolean; role?: string };
   const role = value.role ?? "general";
   const ok = value.readonly === true || role === "investigator" || role === "comment-sicko";
-  if (!ok) return { coerceReadonly: true };
-  return undefined;
+  return { action: ok ? "allow" : "coerceReadonly" };
 }
+
+function loopPolicy(input: unknown): ReadonlyPolicyDecision {
+  const action = actionOf(input);
+  if (action === "status" || action === "list" || action === "stop") return { action: "allow" };
+  return { action: "block", reason: "pstack session readonly: blocked pstack_loop arm (subprocess watcher)." };
+}
+
+function bennyWakePolicy(input: unknown): ReadonlyPolicyDecision {
+  if (actionOf(input) === "path") return { action: "allow" };
+  return { action: "block", reason: "pstack session readonly: blocked pstack_benny_wake write." };
+}
+
+/**
+ * One policy per tool the extension registers. A tool absent from the table is
+ * allowed. The census in tests/layers/01-unit/readonly-state.test.ts fails when
+ * a registered pstack tool has no entry, so a new tool cannot slip past this.
+ */
+export const READONLY_TOOL_POLICIES: Record<string, ReadonlyToolPolicy> = {
+  write: writeToolPolicy("write"),
+  edit: writeToolPolicy("edit"),
+  bash: writeToolPolicy("bash"),
+  powershell: writeToolPolicy("powershell"),
+  pstack_worktree: worktreePolicy,
+  pstack_ship: blockPolicy("pstack session readonly: blocked pstack_ship."),
+  pstack_babysit: blockPolicy("pstack session readonly: blocked pstack_babysit."),
+  pstack_deslop: deslopPolicy,
+  pstack_spawn: spawnPolicy,
+  pstack_swarm: blockPolicy("pstack session readonly: blocked pstack_swarm."),
+  pstack_arena: blockPolicy("pstack session readonly: blocked pstack_arena."),
+  pstack_loop: loopPolicy,
+  pstack_decision_log: blockPolicy("pstack session readonly: blocked pstack_decision_log."),
+  pstack_benny_wake: bennyWakePolicy,
+  pstack_control_cli: blockPolicy("pstack session readonly: blocked pstack_control_cli."),
+  pstack_control_ui: allowPolicy,
+  pstack_sessions: allowPolicy,
+  pstack_jobs: allowPolicy,
+};
 
 function decideToolCall(state: ReadonlyState, event: ToolCallEvent): ToolCallDecision {
   if (!state.enabled) return undefined;
-  const name = event.toolName;
-  if (SESSION_WRITE_TOOLS.has(name)) return writeToolBlock(name);
-  if (name === "pstack_worktree") return worktreeBlock(event.input);
-  if (name === "pstack_ship" || name === "pstack_babysit") {
-    return { block: true, reason: `pstack session readonly: blocked ${name}.` };
-  }
-  if (name === "pstack_deslop") return deslopBlock(event.input);
-  if (name === "pstack_spawn" || name === "pstack_swarm" || name === "pstack_arena") {
-    if (name === "pstack_spawn") return spawnCoercion(event.input);
-  }
-  return undefined;
+  const policy = READONLY_TOOL_POLICIES[event.toolName];
+  if (!policy) return undefined;
+  const decision = policy(event.input);
+  if (decision.action === "allow") return undefined;
+  if (decision.action === "coerceReadonly") return { coerceReadonly: true };
+  return {
+    block: true,
+    reason: decision.reason ?? `pstack session readonly: blocked ${event.toolName}.`,
+  };
 }
 
 function registerReadonlyHooks(pi: ExtensionAPI, stateRef: ReadonlyStateRef): void {
