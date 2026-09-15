@@ -44,7 +44,7 @@ export function computeReadonlyTools(
   return { nextActive, toolsBefore };
 }
 
-function setEnabled(
+export function reduceSetEnabled(
   state: ReadonlyState,
   enabled: boolean,
   ctx: {
@@ -81,7 +81,9 @@ function setEnabled(
   }
   const offEffects: Effect[] = [
     baseEffect,
-    ...(state.toolsBefore?.length ? [{ type: "setActiveTools" as const, tools: state.toolsBefore }] : []),
+    ...(state.toolsBefore?.length
+      ? [{ type: "setActiveTools" as const, tools: state.toolsBefore, guarded: true }]
+      : []),
     { type: "setStatus" as const, statusId: "pstack-ro", value: undefined },
     { type: "notify" as const, message: "Session readonly off.", level: "info" as const },
   ];
@@ -106,7 +108,7 @@ export function createReadonlyRuntime(pi: ExtensionAPI): ReadonlyRuntime {
   let state = createInitialReadonlyState();
 
   const setEnabledImpl = (enabled: boolean, ctx: EffectContext, reason?: string) => {
-    const result = setEnabled(
+    const result = reduceSetEnabled(
       state,
       enabled,
       {
