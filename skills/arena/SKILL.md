@@ -30,7 +30,7 @@ The N candidates will receive the same prompt, so the prompt is the contract.
 
 ## Phase B: Fan out
 
-Call `pstack_arena` (preferred) or N× `pstack_spawn` with unique `cwd`s. `background: true` on spawn detaches; prefer `pstack_arena` for parallel fan-out (global concurrency cap: 4). Each candidate gets the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale.
+Call `pstack_arena` (preferred) or N× `pstack_spawn` with unique `cwd`s. `background: true` on spawn detaches; prefer `pstack_arena` for parallel fan-out (global concurrency cap: 8 (env PSTACK_MAX_CONCURRENCY, default 8)). Each candidate gets the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale.
 
 Each rationale names the alternatives the candidate considered and what it rejected.
 

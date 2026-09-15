@@ -1,5 +1,10 @@
 # Changelog
 
+## close-orch-p0
+
+- Promote PARITY capability **2** to **EQUIVALENT (local-Task)** per Architect contract: reframed MCP/history/session-job ceilings; poteto prefers `background: true` + `pstack_jobs` drain; swarm/arena concurrency docs → **8** (env default 8). Resume/job ledger remain P1 follow-on.
+
+
 ## 0.15.2-pi.0 (close-local-v3 Stage 2)
 
 - Sticky: force `sendUserMessage(/skill:poteto-mode playbooks/<id>)` on match; persist sticky+matched playbook; restore on session_start → **EQUIVALENT (local-Pi-sticky)**

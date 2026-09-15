@@ -1,5 +1,8 @@
 ### Orchestrate
 
+> **Honesty (close-orch-p0):** spawn resume (`resumeSessionDir` / job-ledger reattach) is a **P1 follow-on**, not required for local-Task EQUIVALENT. Prefer `background: true` + `pstack_jobs` drain; briefs are self-contained (clean-context children).
+
+
 **You own the program, never the code. Author briefs, drain the queue, keep the frontier green, decide.** For a whole project handed to one standing coordinator chat: multi-day, many stacked PRs, dozens to hundreds of subagents, the human checking in twice a day instead of every five minutes. One task driven to a predicate is Autonomous run. One ambitious run needing a bespoke workflow is figure-it-out. Route here when the work outlives any single agent. Work one agent could finish inside the session's budget is not a program.
 
 Ceremony must scale with the program. On cheap near-identical units, collapse it as each section directs.

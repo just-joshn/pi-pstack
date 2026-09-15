@@ -412,6 +412,36 @@ await check("why + guide + investigation Pi-local truth", async () => {
   assert.ok(inv.includes("/pstack-readonly"));
 });
 
+
+await check("close-orch-p0: poteto prefers background:true + pstack_jobs drain", async () => {
+  const skill = readFileSync(resolve(ROOT, "skills/poteto-mode/SKILL.md"), "utf8");
+  assert.ok(skill.includes("Prefer **`background: true`**"), "poteto must prefer background:true");
+  assert.ok(!skill.includes("**Defaults for every `pstack_spawn` call.** Foreground sync-awaits."), "must not lead with Foreground sync-awaits as primary default");
+  assert.ok(skill.includes("pstack_jobs"), "must cite pstack_jobs drain");
+});
+
+await check("close-orch-p0: swarm/arena concurrency cap 8 (not 4)", async () => {
+  const swarm = readFileSync(resolve(ROOT, "skills/swarm/SKILL.md"), "utf8");
+  const arena = readFileSync(resolve(ROOT, "skills/arena/SKILL.md"), "utf8");
+  assert.ok(!/concurrency cap:\s*4\b/.test(swarm), "swarm must not say cap 4");
+  assert.ok(!/concurrency cap:\s*4\b/.test(arena), "arena must not say cap 4");
+  assert.ok(/concurrency cap:\s*8\b/.test(swarm) || swarm.includes("default 8"), "swarm must say 8");
+  assert.ok(/concurrency cap:\s*8\b/.test(arena) || arena.includes("default 8"), "arena must say 8");
+  const runner = readFileSync(resolve(ROOT, "extensions/subagents/child-runner.ts"), "utf8");
+  assert.ok(/parsePositiveInt\(process\.env\.PSTACK_MAX_CONCURRENCY,\s*8/.test(runner), "code default must remain 8");
+});
+
+await check("close-orch-p0: PARITY row 2 EQUIVALENT (local-Task) + ceilings", async () => {
+  const parity = readFileSync(resolve(ROOT, "PARITY.md"), "utf8");
+  const row2 = parity.split("\n").find((l) => l.startsWith("| 2 | Task"));
+  assert.ok(row2, "row 2 line missing");
+  assert.ok(row2.includes("EQUIVALENT") && row2.includes("local-Task"), `row2 must be EQUIVALENT (local-Task): ${row2.slice(0, 120)}`);
+  assert.ok(!/Residuals \(≤3\):\s*\(1\)/.test(row2), "must not keep blocking Residuals (1)(2)(3) PARTIAL framing");
+  assert.ok(/host ceiling|N\/A/i.test(row2) && /MCP/i.test(row2), "must mark MCP inherit as host ceiling / N/A");
+  assert.ok(/clean|start clean|parent transcript/i.test(row2), "must mark clean-context / no parent-history as Cursor-aligned");
+  assert.ok(/session_shutdown|session-scoped|Cursor-local restart/i.test(row2), "must mark session-scoped jobs as Cursor-local parity");
+});
+
 await check("PARITY scorecard documents local-scope EQUIVALENT criteria", async () => {
   const parity = readFileSync(resolve(ROOT, "PARITY.md"), "utf8");
   assert.ok(parity.includes("EQUIVALENT"));
