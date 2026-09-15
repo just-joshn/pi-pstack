@@ -40,3 +40,5 @@ A new binding must replace a Cursor mechanism, stay minimal, and not add Pi comm
 3. For each drift: add a binding if a Cursor mechanism changed, or `npm run parity:sync` to absorb upstream edits verbatim.
 4. Fix `leftoverTokens` hits with bindings, never by editing the ported file.
 5. Re-read the override files against upstream if they changed.
+
+The behavioral contract lives in `spec/SPEC.md`; this file owns content parity.

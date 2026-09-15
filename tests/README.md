@@ -1,7 +1,8 @@
 # Tests
 
 One entry point. `node tests/runner.mjs` runs every layer in order, bootstraps peer resolution
-first, and prints a per-layer summary.
+first, and prints a per-layer summary. `npm test` also runs `node spec/spec-check.mjs` first, the
+structural gate over `spec/`.
 
 ```
 npm test                  # layers 0-6 + legacy
