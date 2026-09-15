@@ -7,6 +7,7 @@
  * oversized output can be summarized to disk under .pi/pstack-child-output/.
  */
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import type { Message } from "@earendil-works/pi-ai";
@@ -171,9 +172,34 @@ export function resolveChildSessionDir(
     const sessionDir = isAbsolute(input.sessionDir) ? input.sessionDir : resolve(cwd, input.sessionDir);
     return { sessionMode, sessionDir, continueSession: false };
   }
-  const sessionDir = join(cwd, ".pi", "pstack-child-sessions", `c-${Date.now().toString(36)}`);
-  mkdirSync(sessionDir, { recursive: true });
+  const sessionDir = mintChildSessionDir(join(cwd, ".pi", "pstack-child-sessions"));
   return { sessionMode, sessionDir, continueSession: false };
+}
+
+/**
+ * Mint a fresh, collision-free directory under `parentDir`. Date.now() alone
+ * has millisecond resolution, so two spawns in one tick (a common case: a
+ * parallel pstack_spawn batch mints all children synchronously before any
+ * await) would otherwise share one directory. That breaks resume: Pi's
+ * continueRecent picks the newest session file in --session-dir, so a shared
+ * directory can attach the wrong child's transcript. A random suffix alone
+ * only makes collision astronomically unlikely; mkdirSync without `recursive`
+ * turns "unlikely" into "detected and retried", including across two Pi
+ * processes racing on the same repo's .pi/pstack-child-sessions.
+ */
+function mintChildSessionDir(parentDir: string): string {
+  mkdirSync(parentDir, { recursive: true });
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const dir = join(parentDir, `c-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`);
+    try {
+      mkdirSync(dir);
+      return dir;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "EEXIST") continue;
+      throw err;
+    }
+  }
+  throw new Error(`failed to mint a unique child session dir under ${parentDir} after 20 attempts`);
 }
 
 /**
@@ -224,13 +250,28 @@ export function argvIsDirOnlyResume(args: string[]): boolean {
   return hasSessionDir && !hasContinue && !hasSessionOpen && !hasInteractiveResume;
 }
 
-/** Persist full text under outDir; return path. */
+/**
+ * Persist full text under outDir; return path.
+ * Same collision hazard as mintChildSessionDir: two children sharing a role
+ * (a common parallel-spawn pattern) finish in the same millisecond and would
+ * mint the same `${tag}-${timestamp}.txt`, so a plain write would silently
+ * clobber the first child's persisted output. Write exclusively (`wx`) and
+ * retry on EEXIST instead of overwriting.
+ */
 export function persistOutputSummary(fullText: string, outDir: string, tag: string): string {
   mkdirSync(outDir, { recursive: true });
   const safe = tag.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "child";
-  const path = join(outDir, `${safe}-${Date.now().toString(36)}.txt`);
-  writeFileSync(path, fullText, "utf8");
-  return path;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const path = join(outDir, `${safe}-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}.txt`);
+    try {
+      writeFileSync(path, fullText, { encoding: "utf8", flag: "wx" });
+      return path;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "EEXIST") continue;
+      throw err;
+    }
+  }
+  throw new Error(`failed to mint a unique output path under ${outDir} after 20 attempts`);
 }
 
 export function truncate(
