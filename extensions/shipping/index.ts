@@ -264,7 +264,76 @@ async function assertMergeGates(
   return data;
 }
 
-export function registerShipping(pi: ExtensionAPI): void {
+type BabysitParams = {
+  pr: string;
+  statusOnly?: boolean;
+  pretty?: boolean;
+  recipeId?: string;
+  armLoopHint?: boolean;
+};
+
+type ShipParams = {
+  action: string;
+  pr?: string;
+  stackPrs?: string[];
+  mergeMethod?: string;
+};
+
+function resolveBabysitRecipeId(params: BabysitParams): string {
+  if (params.statusOnly === true) return "watch-pr-status";
+  if (params.recipeId && params.recipeId in BABYSIT_WATCH_RECIPES) return params.recipeId;
+  if (params.recipeId) {
+    throw new Error(
+      `unknown babysit recipeId '${params.recipeId}'. Known: ${Object.keys(BABYSIT_WATCH_RECIPES).join(", ")}`,
+    );
+  }
+  return DEFAULT_BABYSIT_RECIPE;
+}
+
+async function executeBabysit(
+  pi: ExtensionAPI,
+  params: BabysitParams,
+  signal: AbortSignal | undefined,
+): Promise<BabysitResponse> {
+  const prRaw = params.pr.replace(/^#/, "");
+  const recipeId = resolveBabysitRecipeId(params);
+  const hint = babysitDynamicLoopHint(prRaw, recipeId);
+  const includeHint = params.armLoopHint !== false;
+
+  if (existsSync(WATCH_PR) && (recipeId === "watch-pr-drive" || recipeId === "watch-pr-status")) {
+    return await executeBabysitWithWatchPr(pi, prRaw, params, recipeId, hint, includeHint, signal);
+  }
+
+  if (recipeId === "gh-checks-watch" || recipeId === "gh-view-json") {
+    return await executeBabysitWithGhRecipe(pi, recipeId, hint, includeHint, signal);
+  }
+
+  return await executeBabysitWithGhView(pi, prRaw, recipeId, hint, includeHint, signal);
+}
+
+async function executeShip(
+  pi: ExtensionAPI,
+  params: ShipParams,
+  signal: AbortSignal | undefined,
+): Promise<ShipStackResponse> {
+  if (params.action === "view") {
+    if (!params.pr) throw new Error("pr required");
+    return await handleShipView(pi, params.pr, signal);
+  }
+  if (params.action === "stack-status") {
+    const prs = params.stackPrs ?? (params.pr ? [params.pr] : []);
+    return await handleShipStackStatus(pi, prs, signal);
+  }
+  if (params.action === "gate-check") {
+    if (!params.pr) throw new Error("pr required for gate-check");
+    return await handleShipGateCheck(pi, params.pr, signal);
+  }
+  if (params.action !== "merge") throw new Error("action must be view|merge|stack-status|gate-check");
+  if (!params.pr) throw new Error("pr required for merge");
+  return await handleShipMerge(pi, params.pr, params.mergeMethod, signal);
+}
+
+function registerBabysitTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_babysit",
     label: "Pstack Babysit",
@@ -293,34 +362,12 @@ export function registerShipping(pi: ExtensionAPI): void {
       ),
     }),
     async execute(_id, params, signal) {
-      const prRaw = params.pr.replace(/^#/, "");
-      const recipeId =
-        params.statusOnly === true
-          ? "watch-pr-status"
-          : params.recipeId && params.recipeId in BABYSIT_WATCH_RECIPES
-            ? params.recipeId
-            : params.recipeId
-              ? (() => {
-                  throw new Error(
-                    `unknown babysit recipeId '${params.recipeId}'. Known: ${Object.keys(BABYSIT_WATCH_RECIPES).join(", ")}`,
-                  );
-                })()
-              : DEFAULT_BABYSIT_RECIPE;
-      const hint = babysitDynamicLoopHint(prRaw, recipeId);
-      const includeHint = params.armLoopHint !== false;
-
-      if (existsSync(WATCH_PR) && (recipeId === "watch-pr-drive" || recipeId === "watch-pr-status")) {
-        return await executeBabysitWithWatchPr(pi, prRaw, params, recipeId, hint, includeHint, signal);
-      }
-
-      if (recipeId === "gh-checks-watch" || recipeId === "gh-view-json") {
-        return await executeBabysitWithGhRecipe(pi, recipeId, hint, includeHint, signal);
-      }
-
-      return await executeBabysitWithGhView(pi, prRaw, recipeId, hint, includeHint, signal);
+      return await executeBabysit(pi, params, signal);
     },
   });
+}
 
+function registerShipTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_ship",
     label: "Pstack Ship",
@@ -334,21 +381,12 @@ export function registerShipping(pi: ExtensionAPI): void {
       mergeMethod: Type.Optional(Type.String({ description: "squash | merge | rebase" })),
     }),
     async execute(_id, params, signal) {
-      if (params.action === "view") {
-        if (!params.pr) throw new Error("pr required");
-        return await handleShipView(pi, params.pr, signal);
-      }
-      if (params.action === "stack-status") {
-        const prs = params.stackPrs ?? (params.pr ? [params.pr] : []);
-        return await handleShipStackStatus(pi, prs, signal);
-      }
-      if (params.action === "gate-check") {
-        if (!params.pr) throw new Error("pr required for gate-check");
-        return await handleShipGateCheck(pi, params.pr, signal);
-      }
-      if (params.action !== "merge") throw new Error("action must be view|merge|stack-status|gate-check");
-      if (!params.pr) throw new Error("pr required for merge");
-      return await handleShipMerge(pi, params.pr, params.mergeMethod, signal);
+      return await executeShip(pi, params, signal);
     },
   });
+}
+
+export function registerShipping(pi: ExtensionAPI): void {
+  registerBabysitTool(pi);
+  registerShipTool(pi);
 }
