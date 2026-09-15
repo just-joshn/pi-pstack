@@ -18,7 +18,6 @@
   "files": [
     "extensions",
     "skills",
-    "prompts",
     "agents",
     "docs",
     "automations",
@@ -36,9 +35,6 @@
     ],
     "skills": [
       "./skills"
-    ],
-    "prompts": [
-      "./prompts"
     ]
   },
   "scripts": {

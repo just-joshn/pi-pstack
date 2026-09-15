@@ -18,6 +18,7 @@ import { registerCompanions } from "./companions/index.ts";
 import { registerSessions } from "./sessions/index.ts";
 import { registerShipping } from "./shipping/index.ts";
 import { registerBenny } from "./benny/index.ts";
+import { registerPiOnlyCommands, registerSkillCommands } from "./commands/skill-commands.ts";
 import { buildPotetoStickyPrompt, matchStickyPlaybook } from "./sticky-poteto.ts";
 import { READONLY_TOOLS } from "./subagents/child-runner.ts";
 import {
@@ -368,6 +369,8 @@ export default function piPstack(pi: ExtensionAPI) {
     },
   });
 
+  registerSkillCommands(pi);
+  registerPiOnlyCommands(pi);
   registerSpawn(pi);
   registerOrchestration(pi);
   registerModels(pi);
