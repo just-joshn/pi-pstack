@@ -25,11 +25,11 @@ function spawnRpcProcess(extensionPath, extraArgs, tmp) {
 }
 
 function createLineStream(onMessage) {
-  const messages = [];
+  let messages = [];
   const state = { cursor: 0, tail: "" };
 
   const feed = (chunk) => {
-    state.tail += chunk.toString();
+    state.tail = state.tail + chunk.toString();
     let index;
     while ((index = state.tail.indexOf("\n")) !== -1) {
       const line = state.tail.slice(0, index);
@@ -37,9 +37,11 @@ function createLineStream(onMessage) {
       if (!line.trim()) continue;
       try {
         const msg = JSON.parse(line);
-        messages.push(msg);
+        messages = [...messages, msg];
         onMessage(msg);
-      } catch {}
+      } catch (error) {
+        continue;
+      }
     }
   };
 
@@ -56,7 +58,8 @@ function createDiagnostics(messages, stderrChunks) {
 function createRequest(child, pending, nextId, diagnostics) {
   return (cmd) =>
     new Promise((resolve, reject) => {
-      const id = cmd.id ?? nextId.current++;
+      const id = cmd.id ?? nextId.current;
+      nextId.current = nextId.current + 1;
       const timer = setTimeout(() => {
         if (pending.has(id)) {
           pending.delete(id);
@@ -74,7 +77,8 @@ function createNext(stream, diagnostics) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       while (stream.state.cursor < stream.messages.length) {
-        const msg = stream.messages[stream.state.cursor++];
+        const msg = stream.messages[stream.state.cursor];
+        stream.state.cursor = stream.state.cursor + 1;
         if (pred(msg)) return msg;
       }
       await sleep(50);
@@ -83,13 +87,13 @@ function createNext(stream, diagnostics) {
   };
 }
 
-function createUiWaiter(uiQueue, diagnostics) {
+function createUiWaiter(queueHolder, diagnostics) {
   return async (method, pred, timeoutMs = DEFAULT_TIMEOUT_MS) => {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-      const found = uiQueue.find((msg) => msg.method === method && (!pred || pred(msg)));
+      const found = queueHolder.queue.find((msg) => msg.method === method && (!pred || pred(msg)));
       if (found) {
-        uiQueue.splice(uiQueue.indexOf(found), 1);
+        queueHolder.queue = queueHolder.queue.filter((msg) => msg !== found);
         return found;
       }
       await sleep(50);
@@ -136,9 +140,9 @@ export async function withRpc(fn, options = {}) {
   const extensionPath = options.extensionPath || join(process.cwd(), "extensions", "index.ts");
 
   const child = spawnRpcProcess(extensionPath, options.extraArgs || [], tmp);
-  const stderrChunks = [];
+  let stderrChunks = [];
   const pending = new Map();
-  const uiQueue = [];
+  const queueHolder = { queue: [] };
   const nextId = { current: 1 };
   const state = { closed: false };
 
@@ -151,10 +155,10 @@ export async function withRpc(fn, options = {}) {
         entry.resolve(msg);
       }
     }
-    if (msg.type === "extension_ui_request") uiQueue.push(msg);
+    if (msg.type === "extension_ui_request") queueHolder.queue = [...queueHolder.queue, msg];
   });
   child.stdout.on("data", stream.feed);
-  child.stderr.on("data", (chunk) => stderrChunks.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => { stderrChunks = [...stderrChunks, chunk.toString()]; });
 
   const diagnostics = createDiagnostics(stream.messages, stderrChunks);
   const request = createRequest(child, pending, nextId, diagnostics);
@@ -169,7 +173,7 @@ export async function withRpc(fn, options = {}) {
       },
       request,
       next: createNext(stream, diagnostics),
-      ui: createUiWaiter(uiQueue, diagnostics),
+      ui: createUiWaiter(queueHolder, diagnostics),
       respondUi: (id, payload) => child.stdin.write(JSON.stringify({ type: "extension_ui_response", id, ...payload }) + "\n"),
       prompt: (text) => request({ type: "prompt", message: text }),
       commands: async () => (await request({ type: "get_commands" })).data?.commands ?? [],
