@@ -29,6 +29,58 @@ type WorkerResult = {
   cwd: string;
 };
 
+export type SwarmSelection = "coverage" | "first-pass" | "rank-all" | "best-of";
+
+export type SwarmVerdict = "PASS" | "ISSUES" | "BLOCKED" | "UNKNOWN";
+
+const VERDICT_RANK: Record<SwarmVerdict, number> = { PASS: 3, ISSUES: 2, UNKNOWN: 1, BLOCKED: 0 };
+
+export function parseSwarmSelection(value: string | undefined): SwarmSelection {
+  const selection = value ?? "coverage";
+  if (
+    selection === "coverage" ||
+    selection === "first-pass" ||
+    selection === "rank-all" ||
+    selection === "best-of"
+  ) {
+    return selection;
+  }
+  throw new Error("selection must be first-pass|rank-all|best-of|coverage");
+}
+
+/** The worker's declared verdict: the last PASS/ISSUES/BLOCKED token, else exit-code derived. */
+export function swarmVerdict(output: string, exitCode: number): SwarmVerdict {
+  const matches = [...output.matchAll(/\b(PASS|ISSUES|BLOCKED)\b/g)];
+  const last = matches.at(-1)?.[1];
+  if (last === "PASS" || last === "ISSUES" || last === "BLOCKED") return last;
+  return exitCode === 0 ? "UNKNOWN" : "BLOCKED";
+}
+
+export interface SwarmSelectionResult {
+  readonly ordered: number[];
+  readonly winner?: number;
+  readonly verdicts: SwarmVerdict[];
+}
+
+/** Order results by verdict rank and name the winner the declared race rule selects. */
+export function selectSwarmResults(
+  results: ReadonlyArray<{ readonly output: string; readonly exitCode: number }>,
+  selection: SwarmSelection,
+): SwarmSelectionResult {
+  const verdicts = results.map((result) => swarmVerdict(result.output, result.exitCode));
+  if (selection === "coverage") {
+    return { ordered: results.map((_result, index) => index), verdicts };
+  }
+  let byRank: number[] = [];
+  for (const rank of [3, 2, 1, 0]) {
+    for (const [index, verdict] of verdicts.entries()) {
+      if (VERDICT_RANK[verdict] === rank) byRank = [...byRank, index];
+    }
+  }
+  const winner = selection === "first-pass" ? verdicts.findIndex((v) => v === "PASS") : byRank[0];
+  return { ordered: byRank, winner: winner >= 0 ? winner : undefined, verdicts };
+}
+
 async function runSwarmWorkers(
   workers: WorkerSpec[],
   cwds: string[],
@@ -42,7 +94,7 @@ async function runSwarmWorkers(
   return await mapConcurrent(workers, MAX_CONCURRENCY, async (w, index) => {
     const model =
       w.model ??
-      resolveRoleModel("swarm workers", parentModel) ??
+      resolveRoleModel("swarm workers", parentModel, 0, ctxCwd) ??
       parentModel;
     const result = await runChildTask(
       {
@@ -65,25 +117,39 @@ async function runSwarmWorkers(
   });
 }
 
-function formatSwarmResponse(results: WorkerResult[], selection: string) {
-  const table = results
+function formatSwarmResponse(results: WorkerResult[], selection: SwarmSelection) {
+  const ranking = selectSwarmResults(results, selection);
+  const table = ranking.ordered
     .map(
-      (r, i) =>
-        `| ${i + 1} | ${r.model} | exit ${r.exitCode} | ${r.stopReason ?? "-"} | ${r.cwd} |`,
+      (index) =>
+        `| ${index + 1} | ${results[index].model} | ${ranking.verdicts[index]} | exit ${results[index].exitCode} | ${results[index].stopReason ?? "-"} | ${results[index].cwd} |`,
     )
     .join("\n");
-  const bodies = results
-    .map((r, i) => `### Worker ${i + 1} (${r.model}, exit ${r.exitCode}, cwd ${r.cwd})\n\n${r.output}`)
+  const bodies = ranking.ordered
+    .map(
+      (index) =>
+        `### Worker ${index + 1} (${results[index].model}, exit ${results[index].exitCode}, cwd ${results[index].cwd})\n\n${results[index].output}`,
+    )
     .join("\n\n---\n\n");
+  const winnerLine =
+    ranking.winner === undefined
+      ? ""
+      : `\n\nDeclared rule \`${selection}\`: take worker ${ranking.winner + 1} (${ranking.verdicts[ranking.winner]}).`;
 
   return {
     content: [
       {
         type: "text",
-        text: `## Swarm report (${selection})\n\n| # | model | exit | stop | cwd |\n|---|-------|------|------|-----|\n${table}\n\n${bodies}`,
+        text: `## Swarm report (${selection})\n\n| # | model | verdict | exit | stop | cwd |\n|---|-------|---------|------|------|-----|\n${table}${winnerLine}\n\n${bodies}`,
       },
     ],
-    details: { selection, results, concurrencyCap: MAX_CONCURRENCY },
+    details: {
+      selection,
+      verdicts: ranking.verdicts,
+      winner: ranking.winner,
+      results,
+      concurrencyCap: MAX_CONCURRENCY,
+    },
   };
 }
 
@@ -131,7 +197,7 @@ export function registerSwarm(pi: ExtensionAPI): void {
         onUpdate,
       );
 
-      const selection = params.selection ?? "coverage";
+      const selection = parseSwarmSelection(params.selection);
       return formatSwarmResponse(results, selection);
     },
   });
