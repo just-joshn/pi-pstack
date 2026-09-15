@@ -1,40 +1,11 @@
 /**
  * Gates: real pre-ship gate check (not notify-only).
- * Invokes the same criteria as pstack_ship merge; fails closed on unmet gates.
+ * Uses the same evaluator as pstack_ship merge so the two cannot diverge.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { evaluateMergeGates, type PrGateView } from "../shipping/gates.ts";
 
-type PRData = {
-  state?: string;
-  mergedAt?: string | null;
-  mergeStateStatus?: string;
-  reviewDecision?: string | null;
-  statusCheckRollup?: Array<{ name?: string; state?: string; conclusion?: string | null }>;
-  url?: string;
-  title?: string;
-};
-
-function collectGateProblems(data: PRData): string[] {
-  const initial: string[] = [];
-  const afterMerged = data.mergedAt ? [...initial, "already merged"] : initial;
-  const afterState =
-    data.state && data.state !== "OPEN" ? [...afterMerged, `state=${data.state}`] : afterMerged;
-  const afterMergeState = ["UNSTABLE", "DIRTY", "DRAFT"].includes(data.mergeStateStatus ?? "")
-    ? [...afterState, `mergeStateStatus=${data.mergeStateStatus}`]
-    : afterState;
-  
-  const checkProblems = (data.statusCheckRollup ?? []).flatMap((c) => {
-    const conclusion = (c.conclusion ?? c.state ?? "").toUpperCase();
-    return ["FAILURE", "CANCELLED", "TIMED_OUT"].includes(conclusion)
-      ? [`check ${c.name ?? "?"}=${conclusion}`]
-      : [];
-  });
-  
-  const afterChecks = [...afterMergeState, ...checkProblems];
-  return data.reviewDecision === "CHANGES_REQUESTED"
-    ? [...afterChecks, "reviewDecision=CHANGES_REQUESTED"]
-    : afterChecks;
-}
+type PRData = PrGateView & { url?: string; title?: string };
 
 export function registerGates(pi: ExtensionAPI): void {
   pi.registerCommand("pstack-gates", {
@@ -70,7 +41,7 @@ export function registerGates(pi: ExtensionAPI): void {
         ctx.ui.notify("Gate check FAILED (fail closed): invalid gh JSON", "error");
         return;
       }
-      const problems = collectGateProblems(data);
+      const problems = evaluateMergeGates(data);
       if (problems.length) {
         ctx.ui.notify(`Gate check FAILED (fail closed): ${problems.join("; ")}`, "error");
         pi.sendUserMessage(
