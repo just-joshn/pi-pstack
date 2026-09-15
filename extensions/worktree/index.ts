@@ -33,7 +33,6 @@ export function registerWorktree(pi: ExtensionAPI): void {
       const cwd = process.cwd();
       await cleanupPstackWorktreesOnShutdown(cwd);
     } catch {
-      // Best-effort cleanup must never block shutdown.
       return;
     }
   });

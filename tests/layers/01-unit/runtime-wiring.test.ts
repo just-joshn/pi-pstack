@@ -27,7 +27,7 @@ function liveList<T>() {
   };
 }
 
-function fakeEnvironment(options: any = {}) {
+function fakeEnvironment(options: { allTools?: string[]; activeTools?: string[] } = {}) {
   const handlers = new Map<string, any[]>();
   const entries = liveList<any>();
   const statuses = liveList<any>();

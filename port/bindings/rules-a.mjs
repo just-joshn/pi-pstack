@@ -1,6 +1,4 @@
-// Core bindings excluding the Benny automations group.
 export const bindingsA = [
-  // ---- Platform frontmatter -------------------------------------------------
   {
     id: "name-kebab",
     why: "Pi skill names are lowercase kebab; upstream uses display-case names",
@@ -17,7 +15,6 @@ export const bindingsA = [
       "- `read` tool calls against any `SKILL.md` file (workspace `.pi/skills/`, user-level `~/.pi/agent/skills/`, or package paths under `~/.pi/agent/npm/` and `~/.pi/agent/git/`)",
   },
 
-  // ---- Filesystem locations -------------------------------------------------
   {
     id: "recall-transcript-paragraph",
     why: "Cursor transcript paths -> Pi session store; pstack_sessions is the Pi locator",
@@ -39,7 +36,6 @@ export const bindingsA = [
   { id: "cursor-install-cmd", why: "Cursor /add-plugin has no Pi counterpart; Pi installs packages with `pi install`", find: "/add-plugin pstack", replace: "pi install <path-or-git:pi-pstack>" },
   { id: "cursor-install-confirm", why: "Cursor plugin confirmation has no Pi counterpart; Pi lists loaded packages", find: "Cursor confirms the plugin is installed.", replace: "Pi confirms the package is installed." },
 
-  // ---- Spawn tool -----------------------------------------------------------
   { id: "subagent-type-general", why: "Cursor Task subagent_type -> Pi pstack_spawn role (Pi has no Task tool)", find: "- `subagent_type`: `generalPurpose`", replace: "- `role`: `general` via `pstack_spawn`" },
   { id: "spawn-one-task-subagent", why: "Cursor Task tool -> Pi pstack_spawn", find: "Spawn one Task subagent", replace: "Spawn one agent via `pstack_spawn`" },
   { id: "spawn-synthesize-task", why: "Cursor Task tool -> Pi pstack_spawn", find: "Once all explorers have returned, spawn one Task subagent", replace: "Once all explorers have returned, spawn one agent via `pstack_spawn`" },
@@ -72,7 +68,6 @@ export const bindingsA = [
   { id: "autonomous-run-askquestion", why: "Cursor AskQuestion tool has no Pi tool; asking happens in chat", find: "Do not park reversible work for the human or use `AskQuestion`.", replace: "Do not park reversible work for the human or ask before proceeding." },
   { id: "poteto-askquestion-trigger", why: "Cursor AskQuestion tool has no Pi tool; asking happens in chat", find: "- About to `AskQuestion` on a \"which approach\", \"how should I\", or \"what should this do\" fork → classify it before you ask.", replace: "- About to ask in chat on a \"which approach\", \"how should I\", or \"what should this do\" fork → classify it before you ask." },
 
-  // ---- /loop ----------------------------------------------------------------
   { id: "loop-autonomous", why: "Cursor built-in /loop -> Pi pstack_loop extension tool", find: "2. Pick the wake mechanism using Cursor's `/loop` command (a built-in, not a pstack skill).", replace: "2. Pick the wake mechanism using `pstack_loop` (a Pi extension tool, not a pstack skill)." },
   { id: "loop-bugfix", why: "Cursor built-in /loop -> Pi pstack_loop extension tool", find: "Drive a long or stubborn hunt with Cursor's `/loop` command.", replace: "Drive a long or stubborn hunt with `pstack_loop`." },
   { id: "loop-babysit", why: "Cursor built-in /loop -> Pi pstack_loop extension tool (dynamic mode = settle+watcher)", find: "Run `drive` and `background` under `/loop` in dynamic mode.", replace: "Run `drive` and `background` under `pstack_loop` in dynamic mode (`watchArgv` carries the forge watcher)." },
@@ -99,7 +94,6 @@ export const bindingsA = [
   { id: "cursor-builtin-babysit-poteto", why: "Cursor built-in babysit skill -> generic built-in disambiguation", find: "and not Cursor's built-in babysit skill, whose description matches the same words", replace: "and not a built-in babysit skill with a matching description" },
   { id: "cursor-builtin-babysit-playbook", why: "Cursor built-in babysit skill -> generic built-in disambiguation", find: "This playbook replaces Cursor's built-in babysit skill for these requests, so do not route there even though its description matches the same words.", replace: "This playbook replaces any built-in babysit skill for these requests, so do not route there even though its description matches the same words." },
 
-  // ---- deslop ---------------------------------------------------------------
   { id: "loop-until-x", why: "Cursor built-in /loop -> Pi pstack_loop extension tool", find: '"/loop until X"', replace: '"pstack_loop until X"' },
   { id: "deslop-team-kit", why: "cursor-team-kit /deslop -> Pi pstack_deslop (+ unslop for prose)", find: "the `deslop` skill from the `cursor-team-kit` plugin (`/deslop`)", replace: "`pstack_deslop`" },
   { id: "deslop-team-kit-run", why: "cursor-team-kit /deslop -> Pi pstack_deslop", find: "Run `/deslop` from `cursor-team-kit` over the diff before commit.", replace: "Run `pstack_deslop` over the diff before commit." },
@@ -110,7 +104,6 @@ export const bindingsA = [
   { id: "deslop-multi-phase", why: "cursor-team-kit /deslop -> Pi pstack_deslop", find: "- [ ] Run `/deslop` before each commit and `/no-comments` before review.", replace: "- [ ] Run `pstack_deslop` before each commit and `/no-comments` before review." },
   { id: "deslop-subagent-pr", why: "cursor-team-kit /deslop -> Pi pstack_deslop", find: "A subagent that opens a PR runs `interrogate`, `/deslop`, and `/no-comments`.", replace: "A subagent that opens a PR runs `interrogate`, `pstack_deslop`, and `/no-comments`." },
 
-  // ---- control skills -------------------------------------------------------
   { id: "control-multi-phase", why: "cursor-team-kit control-ui/control-cli -> Pi pstack_control_ui / pstack_control_cli", find: "Browser, Electron, and web UIs use `control-ui` from `cursor-team-kit`. CLIs and TUIs use `control-cli` from `cursor-team-kit`.", replace: "Browser, Electron, and web UIs use `pstack_control_ui` (add a browser MCP when a full drive is needed). CLIs and TUIs use `pstack_control_cli`." },
   { id: "control-live-lane", why: "cursor-team-kit control-ui/control-cli -> Pi pstack_control_ui / pstack_control_cli", find: "Drive through `control-ui` or `control-cli` from `cursor-team-kit`.", replace: "Drive through `pstack_control_ui` or `pstack_control_cli`." },
   { id: "control-shipping", why: "cursor-team-kit control-ui/control-cli -> Pi pstack_control_ui / pstack_control_cli", find: "each exercising the real surface (`control-ui` or `control-cli` from `cursor-team-kit` as the change demands)", replace: "each exercising the real surface (`pstack_control_ui` or `pstack_control_cli` as the change demands)" },
@@ -118,7 +111,6 @@ export const bindingsA = [
     replace: "- Shipping UI / IDE / CLI → `pstack_control_cli` (CLIs and TUIs) / `pstack_control_ui` (browser / Electron / web UIs)." },
   { id: "control-autopilot-full", why: "cursor-team-kit control-ui/control-cli -> Pi pstack_control_ui / pstack_control_cli", find: "(`control-cli` or `control-ui` from `cursor-team-kit` as the change demands)", replace: "(`pstack_control_cli` or `pstack_control_ui` as the change demands)" },
 
-  // ---- create-skill ---------------------------------------------------------
   { id: "create-skill-authoring", why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard", find: "Use the **create-skill** skill (Cursor's built-in for authoring SKILL.md files).", replace: "Use Pi skill authoring (Agent Skills SKILL.md standard)." },
   { id: "create-skill-poteto-trigger", why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard", find: "Agent-facing prose also follows the **create-skill** skill (Cursor's built-in for authoring SKILL.md files).", replace: "Agent-facing prose also follows Pi skill authoring (Agent Skills SKILL.md standard)." },
   { id: "create-skill-automate-me-a", why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard", find: "Drafts or revises a personal -mode skill via create-skill + unslop,", replace: "Drafts or revises a personal -mode skill via Pi skill authoring (Agent Skills SKILL.md) + unslop," },
@@ -136,21 +128,18 @@ export const bindingsA = [
   { id: "create-skill-docs-a", why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard", find: "through Cursor's built-in `create-skill` flow,", replace: "per the Agent Skills standard," },
   { id: "create-skill-docs-b", why: "Cursor built-in create-skill has no Pi counterpart; Pi authors SKILL.md per the Agent Skills standard", find: "which routes through Cursor's built-in `create-skill`,", replace: "which authors a Pi `SKILL.md` per the Agent Skills standard," },
 
-  // ---- reflect --------------------------------------------------------------
   { id: "reflect-new-skill-label", why: "Cursor create-skill -> Pi skill authoring", find: "- `new skill via create-skill: <kebab-name>`: hand creation to Pi skill authoring.", replace: "- `new skill via Pi skill authoring: <kebab-name>`: hand creation to Pi skill authoring." },
   { id: "reflect-task-response", why: "Cursor Task response -> Pi pstack_spawn response", find: "Reviewers return findings in the `Task` response body.", replace: "Reviewers return findings in the `pstack_spawn` response body." },
   { id: "reflect-task-prompts", why: "Cursor Task prompts -> Pi pstack_spawn prompts", find: "- `Task` prompts that name a skill path", replace: "- `pstack_spawn` prompts that name a skill path" },
   { id: "reflect-synthesizer-label", why: "Cursor create-skill -> Pi skill authoring", find: "<new skill via create-skill: <kebab-name>>", replace: "<new skill via Pi skill authoring: <kebab-name>>" },
   { id: "worktree-audit-transcripts", why: "Cursor transcript dir -> Pi session store", find: "# Transcripts dir: ~/.cursor/projects/<slugified-repo-path>/agent-transcripts.\nslug=$(printf '%s' \"$main_wt\" | sed 's#^/##; s#/#-#g')\ntranscripts=\"$HOME/.cursor/projects/$slug/agent-transcripts\"", replace: "# Transcripts dir: ~/.pi/agent/sessions (Pi session store).\ntranscripts=\"$HOME/.pi/agent/sessions\"" },
 
-  // ---- MCP discovery --------------------------------------------------------
   { id: "mcps-discovery", why: "Cursor exposes an mcps/ directory; Pi exposes MCP servers as live tools", find: "Before spawning investigators, list the available MCPs from the Cursor environment. Use the available-tools map when present. Otherwise inspect the `mcps/` directory Cursor exposes for enabled MCP servers.", replace: "Before spawning investigators, list the MCP servers available in this Pi session from the live tool list. If none are present, document the gap and run the source-control investigator anyway." },
   { id: "why-readonly-investigator", why: "Pi readonly allowlists builtins and does not strip MCP; investigator role is auto-readonly", find: "- `readonly`: `false` (agent mode). **Do not use readonly/Ask mode.** It strips MCP access, which disables MCP-backed investigators entirely. Investigators still shouldn't write anything.", replace: "- `readonly`: `false` (agent mode). **Do not use readonly for MCP-backed investigators.** On Pi it restricts builtins to `read,grep,find,ls` and does not strip MCP tools. Investigators still shouldn't write anything." },
   { id: "why-readonly-synthesizer", why: "Pi readonly allowlists builtins and does not strip MCP", find: "- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. Readonly/Ask mode strips MCPs and defeats that.", replace: "- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access; on Pi, readonly restricts builtins to `read,grep,find,ls` and does not strip MCP tools." },
   { id: "reflect-readonly-a", why: "Pi readonly allowlists builtins and does not strip MCP", find: "One message, three `Task` calls, `subagent_type: generalPurpose`, explicit `model:` on each, agent mode (`readonly: false`). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Readonly strips MCPs.", replace: "One message, three `pstack_spawn` calls, `role: general`, explicit `model:` on each, agent mode (`readonly: false`). Reviewers may need MCP tools for context lookups (tickets, chat threads, observability traces referenced in the transcript). Pi readonly keeps MCP tools but restricts builtins to `read,grep,find,ls`." },
   { id: "reflect-readonly-b", why: "Pi readonly allowlists builtins and does not strip MCP", find: "One `Task` call, `subagent_type: generalPurpose`, using your configured reflect-judgment model (default `claude-fable-5-1-thinking-max`), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP access. Readonly strips MCPs.", replace: "One `pstack_spawn` call, `role: general`, using your configured reflect-judgment model (default `claude-fable-5-1-thinking-max`), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP tools. Pi readonly keeps MCP tools but restricts builtins to `read,grep,find,ls`." },
 
-  // ---- Transcripts ----------------------------------------------------------
   { id: "reflect-transcript-command", why: "Cursor transcript globs -> Pi session store (pstack_sessions finds the active file)", find: "ls -t <agent-transcripts>/*.jsonl <agent-transcripts>/*/*.jsonl <agent-transcripts>/*/subagents/*.jsonl 2>/dev/null | head -10", replace: "ls -t ~/.pi/agent/sessions/*/*.jsonl 2>/dev/null | head -10\n# Prefer the pstack_sessions tool for the active workspace's store." },
   { id: "transcript-dir-phrase", why: "Cursor agent-transcripts directory -> Pi session transcripts; pstack_sessions locates it", find: "`agent-transcripts/` directory", replace: "Pi session transcripts directory" },
   { id: "cloud-agent-pr-tools", why: "Cursor cloud-agent PR tooling defaults to draft; the Pi twin has no such default", files: ["skills/poteto-mode/playbooks/opening-a-pr.md"], find: "Cloud-agent PR tools default to draft, so set `draft: false` on every PR creation call.", replace: "Some PR tools default to draft, so confirm every PR creation call opens it ready." },
