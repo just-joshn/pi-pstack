@@ -87,13 +87,6 @@ When creating PRs:
 4. Include test plan with TODOs
 5. Push with `-u` flag if new branch
 
-## Feature Implementation Workflow
-
-1. **Plan First** - Use `planner` agent
-2. **TDD Approach** - Use `tdd-guide` agent
-3. **Code Review** - Use `code-reviewer` agent after writing code
-4. **Commit** - Follow conventional commits format
-
 ## Branch Naming
 
 - `feature/` - New features
@@ -109,16 +102,6 @@ Test Types (ALL required):
 1. **Unit Tests** - Individual functions, utilities, components
 2. **Integration Tests** - API endpoints, database operations
 3. **E2E Tests** - Critical user flows
-
-## Test-Driven Development
-
-MANDATORY workflow:
-1. Write test first (RED)
-2. Run test - it should FAIL
-3. Write minimal implementation (GREEN)
-4. Run test - it should PASS
-5. Refactor (IMPROVE)
-6. Verify coverage (80%+)
 
 ## Edge Cases to Test
 
