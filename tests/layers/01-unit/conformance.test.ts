@@ -90,6 +90,23 @@ test("sanitize masks strings, templates, comments, and regex without shifting li
   assert.equal(clean.includes("const c = 1;"), true);
 });
 
+test("auditSource flags secrets inside string and template literals", () => {
+  const key = ["sk", "a".repeat(24)].join("-");
+  const source = [`const fromString = "${key}";`, `const fromTemplate = \`${key}\`;`].join("\n");
+  assert.deepEqual(
+    auditSource(source).map((violation) => `${violation.rule}:${violation.line}`),
+    ["secret:1", "secret:2"],
+  );
+});
+
+test("auditSource flags scoped OpenAI key formats", () => {
+  const key = ["sk", "proj", "b".repeat(40)].join("-");
+  assert.deepEqual(
+    auditSource(`const apiKey = "${key}";`).map((violation) => `${violation.rule}:${violation.line}`),
+    ["secret:1"],
+  );
+});
+
 test("auditSource flags each banned construct with its line number", () => {
   const source = [
     "function f(items) {",
