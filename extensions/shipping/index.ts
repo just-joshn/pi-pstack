@@ -68,11 +68,11 @@ async function executeBabysitWithWatchPr(
   includeHint: boolean,
   signal: AbortSignal | undefined,
 ): Promise<BabysitResponse> {
-  const baseArgs = [WATCH_PR, prRaw];
-  const statusArgs = params.statusOnly || recipeId === "watch-pr-status" ? ["--status-only"] : [];
-  const prettyArgs = params.pretty ? ["--pretty"] : [];
-  const args = [...baseArgs, ...statusArgs, ...prettyArgs];
-  const result = await pi.exec("bash", args, { signal, timeout: 60 * 60 * 1000 });
+  await assertBunAvailable((command, argv, opts) => pi.exec(command, argv, opts), signal);
+  const scriptArgs = hint.watchArgv.slice(2); // drop ["bun", <script-path-token>]
+  if (params.pretty) scriptArgs.push("--pretty");
+  const { command, args } = watchPrInvocation(WATCH_PR, scriptArgs);
+  const result = await pi.exec(command, args, { signal, timeout: 60 * 60 * 1000 });
   const hintBlock = includeHint
     ? `\n\n--- pstack_loop dynamic arm (default babysit recipe ${recipeId}) ---\n${JSON.stringify(hint.loopArm, null, 2)}\nwatchArgv=${JSON.stringify(hint.watchArgv)}`
     : "";
@@ -277,6 +277,7 @@ type BabysitParams = {
   statusOnly?: boolean;
   pretty?: boolean;
   recipeId?: string;
+  stackPrs?: string[];
   armLoopHint?: boolean;
 };
 
@@ -305,10 +306,13 @@ async function executeBabysit(
 ): Promise<BabysitResponse> {
   const prRaw = params.pr.replace(/^#/, "");
   const recipeId = resolveBabysitRecipeId(params);
-  const hint = babysitDynamicLoopHint(prRaw, recipeId);
+  if (recipeId === "watch-pr-queued-stack" && !params.stackPrs?.length) {
+    throw new Error("recipeId=watch-pr-queued-stack requires stackPrs (bottom-to-top PR numbers)");
+  }
+  const hint = babysitDynamicLoopHint(prRaw, recipeId, params.stackPrs);
   const includeHint = params.armLoopHint !== false;
 
-  if (existsSync(WATCH_PR) && (recipeId === "watch-pr-drive" || recipeId === "watch-pr-status")) {
+  if (existsSync(WATCH_PR) && WATCH_PR_RECIPE_IDS.has(recipeId)) {
     return await executeBabysitWithWatchPr(pi, prRaw, params, recipeId, hint, includeHint, signal);
   }
 
