@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Seven-layer test setup with a single runner: `npm test` runs pure unit tests, an in-process SDK + faux-provider integration harness, the real CLI load smoke test (with a broken-extension negative control), a tmux `/reload` dev-loop test, RPC UI tests, tmux TUI tests, and an opt-in `pi-test-harness` compatibility gate. Layer 7 is skipped by default and never touches the network. [`tests/README.md`](./tests/README.md) documents the matrix, flags, and exit codes.
 - Strict content parity is now machine-checked: the ported tree (`skills/`, `agents/`, `automations/`, `docs/`) is `apply(declared Cursor→Pi bindings, upstream pstack@v0.15.2)`. `npm run parity:check` fails on drift, an unmigrated Cursor mechanism, a missing override section, an unknown `pstack_*` tool, or a dead `scripts/...` path. See [`port/README.md`](./port/README.md).
 
 ### Changed
@@ -10,6 +11,7 @@
 - Fixed bindings the previous hand port missed: `reflect/references/synthesizer.md` `create-skill` rows, `reflect` `Task` response wording, and the `worktree-audit.sh` transcript path.
 
 ### Fixed
+- `port/port.mjs` now skips `node_modules` when walking the ported tree. Dependency files under `skills/poteto-mode/scripts/node_modules` were being reported as undeclared local-only extras, so `npm run parity:check` exited 1 despite 0 drift.
 - Pi skill id: `skills/poteto-mode/SKILL.md` frontmatter `name` is `poteto-mode` (kebab-case). Cursor upstream uses display name `Poteto Mode`; Pi requires `a-z0-9-hyphen` only. The slash command remains `/poteto-mode` / `/skill:poteto-mode` for parity of invocation.
 - Adversarial-verification round: byte-safe port checker (Buffer.equals first, BYTE DRIFT/BINARY DRIFT, sync refuses binaries), declared local-only extras gate, Benny host bindings (Cursor /automate and Automations-editor wording replaced with a user-provided host), make-bot-ui restored generic HTTP 200 success line, why readonly bindings tightened against the false upstream premise, arena-cross-judge-readonly rule removed so arena reverts to upstream text, and session-readonly auto-arm now requires an explicit playbooks/investigation invocation.
 
