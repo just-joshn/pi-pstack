@@ -19,16 +19,7 @@ function run(argv, cwd, timeout) {
   };
 }
 
-test("pi-test-harness 0.6.1 compatibility gate against pi 0.85.1", (t) => {
-  if (process.env[OPT_IN_ENV] !== "1") {
-    t.skip(
-      `recorded verdict 2026-09-15: ${HARNESS_SPEC} does not import against pi ${PI_VERSION} ` +
-        `("SyntaxError: The requested module '@earendil-works/pi-ai' does not provide an export named 'getModel'"). ` +
-        `Set ${OPT_IN_ENV}=1 to run the live install check (network).`,
-    );
-    return;
-  }
-
+function performHarnessCheck() {
   const dir = mkdtempSync(join(tmpdir(), "pstack-pi-test-harness-"));
   try {
     writeFileSync(
@@ -73,4 +64,17 @@ test("pi-test-harness 0.6.1 compatibility gate against pi 0.85.1", (t) => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+test("pi-test-harness 0.6.1 compatibility gate against pi 0.85.1", (t) => {
+  if (process.env[OPT_IN_ENV] !== "1") {
+    t.skip(
+      `recorded verdict 2026-09-15: ${HARNESS_SPEC} does not import against pi ${PI_VERSION} ` +
+        `("SyntaxError: The requested module '@earendil-works/pi-ai' does not provide an export named 'getModel'"). ` +
+        `Set ${OPT_IN_ENV}=1 to run the live install check (network).`,
+    );
+    return;
+  }
+
+  performHarnessCheck();
 });

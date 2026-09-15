@@ -16,9 +16,9 @@ let failed = 0;
 async function check(name, fn) {
   try {
     await fn();
-    console.log(`PASS ${name}`);
+    process.stdout.write(`PASS ${name}\n`);
   } catch (err) {
-    failed++;
+    failed = failed + 1;
     console.error(`FAIL ${name}:`, err?.message ?? err);
   }
 }
@@ -215,7 +215,7 @@ await check("zero double-fire under rapid settle+watcher script", async () => {
   ]) {
     const d = mod.decideFire(state, reason, t, mod.DYNAMIC_COALESCE_MS, "dynamic");
     if (d.action === "fire") {
-      fires++;
+      fires = fires + 1;
       mod.applyFire(state, t);
     }
   }
@@ -591,17 +591,17 @@ await check("docs-sync: PARITY swarm inventory not PARTIAL-infra", async () => {
 await check("skill frontmatter names are Pi kebab-case (a-z0-9-hyphen)", async () => {
   const skillsDir = resolve(ROOT, "skills");
   const dirs = readdirSync(skillsDir, { withFileTypes: true }).filter((d) => d.isDirectory());
-  const bad = [];
+  let bad = [];
   for (const d of dirs) {
     const f = resolve(skillsDir, d.name, "SKILL.md");
     if (!existsSync(f)) continue;
     const m = readFileSync(f, "utf8").match(/^name:\s*(.+)$/m);
     if (!m) {
-      bad.push(`${d.name}: missing name`);
+      bad = [...bad, `${d.name}: missing name`];
       continue;
     }
     const name = m[1].trim().replace(/^["']|["']$/g, "");
-    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) bad.push(`${d.name}: [${name}]`);
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) bad = [...bad, `${d.name}: [${name}]`];
   }
   assert.equal(bad.length, 0, `invalid Pi skill names:\n${bad.join("\n")}`);
 });
@@ -615,5 +615,5 @@ await check("PARITY scorecard documents local-scope EQUIVALENT criteria", async 
   assert.ok(equivCount >= 2, `expected >=2 EQUIVALENT markers, got ${equivCount}`);
 });
 
-console.log(failed ? `\n${failed} failed` : "\nAll checks passed");
+process.stdout.write((failed ? `\n${failed} failed` : "\nAll checks passed") + "\n");
 process.exit(failed ? 1 : 0);
