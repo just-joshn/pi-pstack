@@ -107,33 +107,32 @@ export async function ensureWriterIsolation(
   }
 
   const parentResolved = resolve(parentCwd);
-  const assigned: string[] = [];
   const seen = new Map<string, string>();
 
-  for (let i = 0; i < writers.length; i++) {
-    const w = writers[i];
-    let cwd = w.cwd?.trim() || "";
-    const needsAuto =
-      !cwd || resolve(cwd) === parentResolved;
+  const assigned = await Promise.all(
+    writers.map(async (w, i) => {
+      let cwd = w.cwd?.trim() || "";
+      const needsAuto = !cwd || resolve(cwd) === parentResolved;
 
-    if (needsAuto) {
-      const created = await createIsolatedWorktree(
-        parentCwd,
-        `auto-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-      );
-      cwd = created.path;
-    }
+      if (needsAuto) {
+        const created = await createIsolatedWorktree(
+          parentCwd,
+          `auto-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
+        );
+        cwd = created.path;
+      }
 
-    const resolved = resolve(cwd);
-    const prev = seen.get(resolved);
-    if (prev) {
-      throw new Error(
-        `multi-writer isolation: ${w.label} and ${prev} share cwd ${cwd}; pass unique cwd or omit cwd for auto worktree`,
-      );
-    }
-    seen.set(resolved, w.label);
-    assigned.push(cwd);
-  }
+      const resolved = resolve(cwd);
+      const prev = seen.get(resolved);
+      if (prev) {
+        throw new Error(
+          `multi-writer isolation: ${w.label} and ${prev} share cwd ${cwd}; pass unique cwd or omit cwd for auto worktree`,
+        );
+      }
+      seen.set(resolved, w.label);
+      return cwd;
+    }),
+  );
   return assigned;
 }
 
@@ -143,6 +142,7 @@ export async function removeWorktree(cwd: string, name: string): Promise<string>
   try {
     await execFileAsync("git", ["worktree", "remove", "--force", path], { cwd });
   } catch {
+    /* retry without force */
     await execFileAsync("git", ["worktree", "remove", path], { cwd });
   }
   return path;
@@ -206,7 +206,8 @@ async function isSafeToRemovePstackWorktree(
     );
     if ((merged.stdout || "").includes(branchName)) return { ok: true };
   } catch {
-    /* ignore */
+    /* ignore branch check failure */
+    return { ok: false, reason: "has commits not merged into HEAD" };
   }
   return { ok: false, reason: "has commits not merged into HEAD" };
 }
@@ -215,10 +216,8 @@ export async function cleanupPstackWorktreesOnShutdown(
   cwd: string,
 ): Promise<CleanupResult> {
   const root = worktreeRoot(cwd);
-  const removed: string[] = [];
-  const skipped: Array<{ name: string; reason: string }> = [];
   if (!existsSync(root)) {
-    return { removed, pruned: await pruneWorktrees(cwd).catch(() => "n/a"), skipped };
+    return { removed: [], pruned: await pruneWorktrees(cwd).catch(() => "n/a"), skipped: [] };
   }
   let names: string[] = [];
   try {
@@ -233,25 +232,31 @@ export async function cleanupPstackWorktreesOnShutdown(
     names = [];
   }
 
-  for (const name of names) {
-    const path = join(root, name);
-    const branch = `pstack/${name}`;
-    const verdict = await isSafeToRemovePstackWorktree(cwd, path, branch);
-    if (!verdict.ok) {
-      skipped.push({ name, reason: verdict.reason });
-      continue;
-    }
-    try {
-      await removeWorktree(cwd, name);
-      removed.push(name);
-    } catch (err) {
-      skipped.push({
-        name,
-        reason: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+  const results = await Promise.all(
+    names.map(async (name) => {
+      const path = join(root, name);
+      const branch = `pstack/${name}`;
+      const verdict = await isSafeToRemovePstackWorktree(cwd, path, branch);
+      if (!verdict.ok) {
+        return { name, removed: false, reason: verdict.reason };
+      }
+      try {
+        await removeWorktree(cwd, name);
+        return { name, removed: true };
+      } catch (err) {
+        return {
+          name,
+          removed: false,
+          reason: err instanceof Error ? err.message : String(err),
+        };
+      }
+    }),
+  );
 
+  const removed = results.filter((r) => r.removed).map((r) => r.name);
+  const skipped = results
+    .filter((r) => !r.removed)
+    .map((r) => ({ name: r.name, reason: r.reason ?? "unknown" }));
   const pruned = await pruneWorktrees(cwd).catch((e) =>
     e instanceof Error ? e.message : String(e),
   );
@@ -269,29 +274,29 @@ export async function ensureAlwaysIsolated(
 ): Promise<string[]> {
   if (writers.length === 0) return [];
   const parentResolved = resolve(parentCwd);
-  const assigned: string[] = [];
   const seen = new Map<string, string>();
 
-  for (let i = 0; i < writers.length; i++) {
-    const w = writers[i];
-    let cwd = w.cwd?.trim() || "";
-    const needsAuto = !cwd || resolve(cwd) === parentResolved;
-    if (needsAuto) {
-      const created = await createIsolatedWorktree(
-        parentCwd,
-        `auto-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-      );
-      cwd = created.path;
-    }
-    const resolvedPath = resolve(cwd);
-    const prev = seen.get(resolvedPath);
-    if (prev) {
-      throw new Error(
-        `multi-writer isolation: ${w.label} and ${prev} share cwd ${cwd}; pass unique cwd or omit cwd for auto worktree`,
-      );
-    }
-    seen.set(resolvedPath, w.label);
-    assigned.push(cwd);
-  }
+  const assigned = await Promise.all(
+    writers.map(async (w, i) => {
+      let cwd = w.cwd?.trim() || "";
+      const needsAuto = !cwd || resolve(cwd) === parentResolved;
+      if (needsAuto) {
+        const created = await createIsolatedWorktree(
+          parentCwd,
+          `auto-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
+        );
+        cwd = created.path;
+      }
+      const resolvedPath = resolve(cwd);
+      const prev = seen.get(resolvedPath);
+      if (prev) {
+        throw new Error(
+          `multi-writer isolation: ${w.label} and ${prev} share cwd ${cwd}; pass unique cwd or omit cwd for auto worktree`,
+        );
+      }
+      seen.set(resolvedPath, w.label);
+      return cwd;
+    }),
+  );
   return assigned;
 }

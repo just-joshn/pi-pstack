@@ -83,7 +83,7 @@ export function buildPotetoStickyPrompt(
       : opts?.match ??
         (opts?.userText ? matchPlaybook(opts.userText, opts.minScore ?? 2) : undefined);
 
-  const parts = [
+  const baseParts = [
     baseSystemPrompt,
     "",
     "## Poteto mode (sticky — re-injected each turn)",
@@ -92,22 +92,22 @@ export function buildPotetoStickyPrompt(
     "(End sticky skill body. Casual turns: stay concise. Opt out: /poteto-mode-off.)",
   ];
 
-  if (match) {
-    parts.push("", buildPlaybookInjectBlock(match));
-  } else {
-    const restoredBlock = opts?.restoredPlaybookId
-      ? buildPlaybookInjectFromId(opts.restoredPlaybookId, { restored: true, score: 0 })
-      : undefined;
-    if (restoredBlock) {
-      parts.push("", restoredBlock);
-    } else {
-      parts.push(
-        "",
-        "## Sticky playbook routing",
-        "No high-confidence playbook match this turn. If the task clearly maps to a poteto playbook, open `skills/poteto-mode/playbooks/<id>.md` and copy steps into the todolist before acting.",
-      );
-    }
-  }
+  const tailParts = match
+    ? ["", buildPlaybookInjectBlock(match)]
+    : (() => {
+        const restoredBlock = opts?.restoredPlaybookId
+          ? buildPlaybookInjectFromId(opts.restoredPlaybookId, { restored: true, score: 0 })
+          : undefined;
+        return restoredBlock
+          ? ["", restoredBlock]
+          : [
+              "",
+              "## Sticky playbook routing",
+              "No high-confidence playbook match this turn. If the task clearly maps to a poteto playbook, open `skills/poteto-mode/playbooks/<id>.md` and copy steps into the todolist before acting.",
+            ];
+      })();
+
+  const parts = [...baseParts, ...tailParts];
 
   return parts.join("\n");
 }
