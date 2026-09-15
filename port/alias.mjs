@@ -3,20 +3,32 @@
  * Alias-surface check: every upstream skill (minus the five names the extension
  * registers itself) must resolve to a Pi `/name` command that forwards its args,
  * no name is claimed twice, no leftover `prompts/*.md` shadows a registered name,
- * and the five reserved names are still registered in extensions/index.ts.
+ * and the five reserved names are still registered somewhere in extensions/.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const problems = [];
 
+// Commands may be registered by any module in the extension, not only the root.
+function readExtensionSources(dir) {
+  let sources = "";
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) sources += readExtensionSources(path);
+    else if (extname(name) === ".ts") sources += readFileSync(path, "utf8");
+  }
+  return sources;
+}
+
 const mod = await import(pathToFileURL(resolve(ROOT, "extensions/commands/skill-commands.ts")).href);
 const { RESERVED_COMMAND_NAMES, PI_ONLY_COMMANDS, readSkillCommands } = mod;
 const reserved = new Set(RESERVED_COMMAND_NAMES);
 
 const indexSrc = readFileSync(join(ROOT, "extensions/index.ts"), "utf8");
+const extensionSrc = readExtensionSources(join(ROOT, "extensions"));
 const skillCommandsSrc = readFileSync(join(ROOT, "extensions/commands/skill-commands.ts"), "utf8");
 
 /**
@@ -78,10 +90,10 @@ for (const [name, sources] of claims) {
   if (sources.length > 1) problems.push(`name claimed twice: ${name} (${sources.join(", ")})`);
 }
 
-// --- reserved names still registered in extensions/index.ts ---
+// --- reserved names registered anywhere in the extension ---
 for (const name of reserved) {
-  if (!indexSrc.includes(`registerCommand("${name}"`)) {
-    problems.push(`reserved name missing from extensions/index.ts registrations: ${name}`);
+  if (!extensionSrc.includes(`registerCommand("${name}"`)) {
+    problems.push(`reserved name missing from extension registrations: ${name}`);
   }
 }
 
