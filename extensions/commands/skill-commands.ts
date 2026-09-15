@@ -40,11 +40,6 @@ export const PI_ONLY_COMMANDS: PiOnlyCommand[] = [
     description: "Ship a green stack",
     body: "Follow poteto-mode playbooks/shipping.md. Use pstack_ship (gh-only). Per-PR verify via local pstack_spawn + worktree (background omit/default; drain pstack_jobs), not Cursor cloud VMs.",
   },
-  {
-    name: "deslop",
-    description: "Deslop twin before commit",
-    body: "Run pstack_deslop on the current diff, then /skill:unslop.",
-  },
 ];
 
 export interface SkillCommand {
