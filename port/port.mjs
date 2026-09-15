@@ -24,8 +24,8 @@ const cmd = args.find((a) => !a.startsWith("-")) ?? "check";
 const fileFlag = valueOf("--file");
 const upstreamDir = valueOf("--upstream") ?? process.env.PORT_UPSTREAM_DIR ?? join(ROOT, ".port-upstream", `cursor-plugins-${upstream.commit.slice(0, 7)}`);
 
-const TEXT_EXTENSIONS = new Set([".md", ".sh", ".ts", ".tsx", ".mjs", ".cjs", ".json", ".yaml", ".yml", ".tsv", ".txt"]);
-const isText = (rel) => TEXT_EXTENSIONS.has(extname(rel).toLowerCase());
+const TEXT_EXTENSIONS = new Set([".md", ".sh", ".ts", ".tsx", ".mjs", ".cjs", ".json", ".yaml", ".yml", ".tsv", ".txt", ".lock"]);
+const isText = (rel, buf) => TEXT_EXTENSIONS.has(extname(rel).toLowerCase()) || (extname(rel) === "" && !buf.includes(0));
 
 function valueOf(flag) {
   const i = args.indexOf(flag);
@@ -142,7 +142,7 @@ for (const rel of files) {
     stats.identical++;
     continue;
   }
-  if (!isText(rel)) {
+  if (!isText(rel, localBuf)) {
     console.log("BINARY DRIFT  " + rel);
     stats.drift++;
     continue;
@@ -180,7 +180,7 @@ if (cmd === "sync") {
     const upstreamBuf = readFileSync(join(root, rel));
     const localPath = join(ROOT, rel);
     const localBuf = existsSync(localPath) ? readFileSync(localPath) : null;
-    if (!isText(rel)) {
+    if (!isText(rel, upstreamBuf)) {
       if (!localBuf || !localBuf.equals(upstreamBuf)) {
         console.log(`REFUSING to sync binary ${rel}`);
         process.exitCode = 1;
