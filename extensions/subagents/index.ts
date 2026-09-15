@@ -299,7 +299,7 @@ const SPAWN_PROMPT_GUIDELINES = [
 ];
 
 const SPAWN_PARAMETERS = Type.Object({
-      task: Type.String({ description: "Complete self-contained brief for the child" }),
+      task: Type.String({ description: "Complete self-contained brief for the child", minLength: 1 }),
       role: Type.Optional(
         Type.String({
           description:

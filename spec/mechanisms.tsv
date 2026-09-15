@@ -6,7 +6,7 @@ grok-bot	update_state, SendToUser secret cards, api2.cursor.sh webhook; make-bot
 mcp	mcps/ directory and mcp_auth; why SKILL.md:62,83; no tool/URI/schema spec	excluded	rows:ceiling	spawn
 sticky-host	reminder, mode, icon, color frontmatter; poteto-mode SKILL.md:5-8; Pi ignores unknown frontmatter	excluded	rows:ceiling	sticky
 /loop	named in 15 places; guide 07:24 calls it Cursor's built-in wake mechanism; no cadence or stop spec	excluded	rows:ceiling	loop
-durable-jobs	run_in_background and is_background flags; no spec; Pi registry is an in-process Map cleared on session_shutdown	excluded	rows:ceiling	jobs
+durable-jobs	run_in_background and is_background flags; no spec; Pi registry is an in-process Map whose jobs are aborted on session_shutdown and dropped with the process	excluded	rows:ceiling	jobs
 ide-driving	full Electron and IDE driving via control-ui; cursor-team-kit skill, not in pstack	excluded	rows:ceiling	control
 mdc-rules	~/.cursor/rules/*.mdc alwaysApply; setup-pstack:39-44 example only; no rule-engine spec	excluded	rows:ceiling	models
 transcript-store	~/.cursor/projects/<slug>/agent-transcripts/<uuid>/<uuid>.jsonl; recall:15 and reflect:19-22	excluded	rows:ceiling	sessions

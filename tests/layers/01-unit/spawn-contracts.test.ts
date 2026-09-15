@@ -252,6 +252,7 @@ test("spawn-02 rejects a spawn call with no task and requires the task string", 
     assert.equal(Value.Check(schema, {}), false);
     assert.equal(Value.Check(schema, { role: "general" }), false);
     assert.equal(Value.Check(schema, { task: 42 }), false);
+    assert.equal(Value.Check(schema, { task: "" }), false, "an empty brief is not a task");
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
