@@ -3,7 +3,7 @@
  * Run: node --experimental-strip-types extensions/test/verify-local-partials.mjs
  *   or: bun extensions/test/verify-local-partials.mjs
  */
-import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, utimesSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
@@ -344,6 +344,37 @@ await check("readonly auto-arm requires the read-only investigation playbook tar
   assert.equal(mod.shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/investigation how does auth work"), true);
 });
 
+async function verifyWorktreeCleanup(mod, dir) {
+  const created = await mod.createIsolatedWorktree(dir, "cleanup-me");
+  assert.ok(existsSync(created.path));
+  const result = await mod.cleanupPstackWorktreesOnShutdown(dir);
+  assert.ok(result.removed.includes("cleanup-me") || result.skipped.length >= 0, JSON.stringify(result));
+
+  const busy = await mod.createIsolatedWorktree(dir, "child-busy");
+  const busySessions = join(busy.path, ".pi", "pstack-child-sessions", "c-test");
+  mkdirSync(busySessions, { recursive: true });
+  writeFileSync(join(busySessions, "session.jsonl"), "{}\n");
+  const busyResult = await mod.cleanupPstackWorktreesOnShutdown(dir);
+  assert.ok(existsSync(busy.path), "a live child session must block cleanup");
+  assert.ok(
+    busyResult.skipped.some(
+      (entry) => entry.name === "child-busy" && entry.reason.includes("child session active"),
+    ),
+    JSON.stringify(busyResult),
+  );
+
+  const stale = await mod.createIsolatedWorktree(dir, "child-stale");
+  const staleSessions = join(stale.path, ".pi", "pstack-child-sessions", "c-old");
+  mkdirSync(staleSessions, { recursive: true });
+  const staleFile = join(staleSessions, "session.jsonl");
+  writeFileSync(staleFile, "{}\n");
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  utimesSync(staleFile, twoHoursAgo, twoHoursAgo);
+  const staleResult = await mod.cleanupPstackWorktreesOnShutdown(dir);
+  assert.ok(staleResult.removed.includes("child-stale"), JSON.stringify(staleResult));
+  assert.ok(!existsSync(stale.path), "a stale child session must not block cleanup");
+}
+
 await check("worktree sanitize + always-isolate + cleanup helpers", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/worktree/helpers.ts")).href);
   assert.equal(mod.sanitizeWorktreeName("ok-name_1"), "ok-name_1");
@@ -363,16 +394,11 @@ await check("worktree sanitize + always-isolate + cleanup helpers", async () => 
     execFileSync("git", ["init"], { cwd: dir, stdio: "ignore" });
     execFileSync("git", ["config", "user.email", "test@test"], { cwd: dir, stdio: "ignore" });
     execFileSync("git", ["config", "user.name", "test"], { cwd: dir, stdio: "ignore" });
+    writeFileSync(join(dir, ".gitignore"), ".pi/\n.pstack-worktrees/\n");
     writeFileSync(join(dir, "README"), "x\n");
     execFileSync("git", ["add", "."], { cwd: dir, stdio: "ignore" });
     execFileSync("git", ["commit", "-m", "init"], { cwd: dir, stdio: "ignore" });
-    const created = await mod.createIsolatedWorktree(dir, "cleanup-me");
-    assert.ok(existsSync(created.path));
-    const result = await mod.cleanupPstackWorktreesOnShutdown(dir);
-    assert.ok(
-      result.removed.includes("cleanup-me") || result.skipped.length >= 0,
-      JSON.stringify(result),
-    );
+    await verifyWorktreeCleanup(mod, dir);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
