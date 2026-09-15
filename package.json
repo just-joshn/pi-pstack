@@ -39,7 +39,8 @@
   },
   "scripts": {
     "parity:check": "node port/port.mjs check && node port/contract.mjs && node port/alias.mjs",
-    "parity:sync": "node port/port.mjs sync"
+    "parity:sync": "node port/port.mjs sync",
+    "test:extensions": "node --experimental-strip-types extensions/test/verify-local-partials.mjs && node --experimental-strip-types extensions/test/skill-commands.mjs"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
