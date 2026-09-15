@@ -14,6 +14,79 @@ import {
 import { resolveRoleModel } from "../models/config.ts";
 import { ensureAlwaysIsolated } from "../worktree/helpers.ts";
 
+type WorkerSpec = {
+  task: string;
+  model?: string;
+  cwd?: string;
+  role?: string;
+};
+
+type WorkerResult = {
+  model: string;
+  exitCode: number;
+  stopReason?: string;
+  output: string;
+  cwd: string;
+};
+
+async function runSwarmWorkers(
+  workers: WorkerSpec[],
+  cwds: string[],
+  parentModel: string,
+  ctxCwd: string,
+  signal: AbortSignal | undefined,
+  timeoutMs: number,
+  onUpdate: ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void) | undefined,
+): Promise<WorkerResult[]> {
+  let doneCount = 0;
+  return await mapConcurrent(workers, MAX_CONCURRENCY, async (w, index) => {
+    const model =
+      w.model ??
+      resolveRoleModel("swarm workers", parentModel) ??
+      parentModel;
+    const result = await runChildTask(
+      {
+        task: w.task,
+        model,
+        cwd: cwds[index],
+        role: w.role ?? "general",
+        timeoutMs,
+      },
+      ctxCwd,
+      parentModel,
+      signal,
+    );
+    doneCount = doneCount + 1;
+    onUpdate?.({
+      content: [{ type: "text", text: `${doneCount}/${workers.length} swarm workers done` }],
+      details: {},
+    });
+    return { ...result, cwd: cwds[index] };
+  });
+}
+
+function formatSwarmResponse(results: WorkerResult[], selection: string) {
+  const table = results
+    .map(
+      (r, i) =>
+        `| ${i + 1} | ${r.model} | exit ${r.exitCode} | ${r.stopReason ?? "-"} | ${r.cwd} |`,
+    )
+    .join("\n");
+  const bodies = results
+    .map((r, i) => `### Worker ${i + 1} (${r.model}, exit ${r.exitCode}, cwd ${r.cwd})\n\n${r.output}`)
+    .join("\n\n---\n\n");
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `## Swarm report (${selection})\n\n| # | model | exit | stop | cwd |\n|---|-------|------|------|-----|\n${table}\n\n${bodies}`,
+      },
+    ],
+    details: { selection, results, concurrencyCap: MAX_CONCURRENCY },
+  };
+}
+
 export function registerSwarm(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_swarm",
@@ -48,52 +121,18 @@ export function registerSwarm(pi: ExtensionAPI): void {
         ctx.cwd,
         params.workers.map((w, i) => ({ cwd: w.cwd, label: `worker-${i + 1}` })),
       );
-      let done = 0;
-      const results = await mapConcurrent(params.workers, MAX_CONCURRENCY, async (w, index) => {
-        const model =
-          w.model ??
-          resolveRoleModel("swarm workers", parentModel) ??
-          parentModel;
-        const result = await runChildTask(
-          {
-            task: w.task,
-            model,
-            cwd: cwds[index],
-            role: w.role ?? "general",
-            timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-          },
-          ctx.cwd,
-          parentModel,
-          signal,
-        );
-        done++;
-        onUpdate?.({
-          content: [{ type: "text", text: `${done}/${params.workers.length} swarm workers done` }],
-          details: {},
-        });
-        return { ...result, cwd: cwds[index] };
-      });
+      const results = await runSwarmWorkers(
+        params.workers,
+        cwds,
+        parentModel,
+        ctx.cwd,
+        signal,
+        params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        onUpdate,
+      );
 
       const selection = params.selection ?? "coverage";
-      const table = results
-        .map(
-          (r, i) =>
-            `| ${i + 1} | ${r.model} | exit ${r.exitCode} | ${r.stopReason ?? "-"} | ${r.cwd} |`,
-        )
-        .join("\n");
-      const bodies = results
-        .map((r, i) => `### Worker ${i + 1} (${r.model}, exit ${r.exitCode}, cwd ${r.cwd})\n\n${r.output}`)
-        .join("\n\n---\n\n");
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `## Swarm report (${selection})\n\n| # | model | exit | stop | cwd |\n|---|-------|------|------|-----|\n${table}\n\n${bodies}`,
-          },
-        ],
-        details: { selection, results, concurrencyCap: MAX_CONCURRENCY },
-      };
+      return formatSwarmResponse(results, selection);
     },
   });
 }
