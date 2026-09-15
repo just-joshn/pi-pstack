@@ -38,7 +38,7 @@
     ]
   },
   "scripts": {
-    "parity:check": "node port/port.mjs check && node port/contract.mjs",
+    "parity:check": "node port/port.mjs check && node port/contract.mjs && node port/alias.mjs",
     "parity:sync": "node port/port.mjs sync"
   },
   "peerDependencies": {
