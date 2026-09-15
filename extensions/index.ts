@@ -26,6 +26,7 @@ import {
   forcePotetoSkillMessage,
   parseReadonlyEntry,
   parseStickyEntry,
+  shouldAutoArmFromPlaybookMatch,
   shouldAutoArmFromSkillText,
   shouldAutoArmReadonly,
   stickyEntryPayload,
@@ -221,7 +222,7 @@ export default function piPstack(pi: ExtensionAPI) {
       }
 
       // Investigation playbook → auto-arm session readonly
-      if (!process.env.PSTACK_CHILD_ROLE && shouldAutoArmReadonly(matched.id) && (potetoEnabled || matched.score >= 5)) {
+      if (!process.env.PSTACK_CHILD_ROLE && shouldAutoArmFromPlaybookMatch(matched.id, potetoEnabled, matched.score, event.text)) {
         setSessionReadonly(true, ctx, `playbook:${matched.id}`);
       }
     }

@@ -333,6 +333,14 @@ await check("AUTO_READONLY roles + investigation auto-arm wiring", async () => {
   assert.ok(idx.includes("block: true"));
 });
 
+await check("playbook auto-arm ignores long briefs", async () => {
+  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-session.ts")).href);
+  assert.equal(mod.shouldAutoArmFromPlaybookMatch("investigation", false, 5, "short request"), true);
+  assert.equal(mod.shouldAutoArmFromPlaybookMatch("investigation", true, 12, "x".repeat(500)), false);
+  assert.equal(mod.shouldAutoArmFromPlaybookMatch("investigation", false, 3, "short request"), false);
+  assert.equal(mod.shouldAutoArmFromPlaybookMatch("babysit", true, 12, "x"), false);
+});
+
 await check("readonly auto-arm requires the read-only investigation playbook target", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-session.ts")).href);
   assert.equal(mod.shouldAutoArmFromSkillText("please investigate this"), false);
