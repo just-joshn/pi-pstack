@@ -9,14 +9,16 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-function walk(dir, base = dir, out = []) {
-  for (const name of readdirSync(dir)) {
-    if (name === ".DS_Store") continue;
+function out(line) {
+  process.stdout.write(String(line) + "\n");
+}
+
+function walk(dir, base = dir) {
+  return readdirSync(dir).reduce((acc, name) => {
+    if (name === ".DS_Store") return acc;
     const p = join(dir, name);
-    if (statSync(p).isDirectory()) walk(p, base, out);
-    else out.push(relative(base, p));
-  }
-  return out;
+    return statSync(p).isDirectory() ? acc.concat(walk(p, base)) : acc.concat([relative(base, p)]);
+  }, []);
 }
 
 const extensionFiles = walk(join(ROOT, "extensions")).filter((f) => f.endsWith(".ts"));
@@ -33,31 +35,34 @@ for (const rel of docFiles) {
   if (!/\.(md|sh)$/.test(rel)) continue;
   const text = readFileSync(join(ROOT, rel), "utf8");
   for (const m of text.matchAll(/\bpstack_[a-z_]+/g)) {
-    if (!referenced.has(m[0])) referenced.set(m[0], []);
-    referenced.get(m[0]).push(rel);
+    const prev = referenced.get(m[0]) ?? [];
+    referenced.set(m[0], [...prev, rel]);
   }
 }
 
-const unknown = [...referenced.keys()].filter((t) => !registered.has(t)).sort();
+const unknown = [...referenced.keys()].filter((t) => !registered.has(t)).toSorted();
 for (const tool of unknown) {
   const files = [...new Set(referenced.get(tool))].slice(0, 4).join(", ");
-  console.log(`UNKNOWN TOOL  ${tool} (named in ${files})`);
+  out(`UNKNOWN TOOL  ${tool} (named in ${files})`);
 }
 
 const scriptIndex = new Set(walk(join(ROOT, "skills")).map((p) => `skills/${p}`));
 // Example rows in show-me-your-work's TSV sample name a hypothetical script.
 const illustrativeRefs = new Set(["scripts/snapshot.sh"]);
-const scriptRefs = [];
-for (const rel of docFiles) {
-  if (!rel.endsWith(".md")) continue;
-  const text = readFileSync(join(ROOT, rel), "utf8");
-  for (const m of text.matchAll(/scripts\/[\w./-]+/g)) {
-    const ref = m[0].replace(/[.,)]$/, "");
-    if (illustrativeRefs.has(ref)) continue;
-    if (![...scriptIndex].some((p) => p.endsWith(`/${ref}`) || p.endsWith(ref))) scriptRefs.push(`${ref} (named in ${rel})`);
-  }
-}
-for (const ref of scriptRefs) console.log(`MISSING SCRIPT  ${ref}`);
+const scriptRefs = docFiles
+  .filter((rel) => rel.endsWith(".md"))
+  .flatMap((rel) => {
+    const text = readFileSync(join(ROOT, rel), "utf8");
+    return [...text.matchAll(/scripts\/[\w./-]+/g)].flatMap((m) => {
+      const ref = m[0].replace(/[.,)]$/, "");
+      if (illustrativeRefs.has(ref)) return [];
+      const exists = [...scriptIndex].some((p) => p.endsWith(`/${ref}`) || p.endsWith(ref));
+      return exists ? [] : [`${ref} (named in ${rel})`];
+    });
+  });
+for (const ref of scriptRefs) out(`MISSING SCRIPT  ${ref}`);
 
-console.log(`${registered.size} registered tools, ${referenced.size} named in docs, ${unknown.length} unknown; ${scriptRefs.length} missing script paths`);
+out(
+  `${registered.size} registered tools, ${referenced.size} named in docs, ${unknown.length} unknown; ${scriptRefs.length} missing script paths`,
+);
 if (unknown.length || scriptRefs.length) process.exitCode = 1;

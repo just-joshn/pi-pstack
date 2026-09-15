@@ -43,7 +43,7 @@ npm run parity:check   # ported tree == upstream + declared bindings; tools/scri
 npm run parity:sync    # regenerate the ported tree after an upstream bump
 ```
 
-The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported file: a legitimate platform difference belongs in `port/bindings.mjs`, and everything else belongs upstream.
+The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported file: a legitimate platform difference belongs in `port/bindings/`, and everything else belongs upstream.
 
 ## Testing
 
