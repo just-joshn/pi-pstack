@@ -2,7 +2,8 @@
  * pstack_spawn — single isolated Pi child agent.
  * Maps Cursor Task / subagent_type → role + child process.
  * background omit/undefined → detach (default); background:false → sync-await.
- * resumeSessionDir / resumeJobId reuse child --session-dir (no parent-history dump).
+ * resumeSessionDir / resumeJobId continue prior child via --session-dir + --continue/-c
+ * (Pi continueRecent; no parent-history dump). sessionDir surfaced in spawn/jobs replies.
  */
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,14 +51,14 @@ export function registerSpawn(pi: ExtensionAPI): void {
     name: "pstack_spawn",
     label: "Pstack Spawn",
     description:
-      `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review (auto-readonly), investigator for read-only investigation, general for independent workers/reviewers. Default background (omit or true) detaches and posts a follow-up on completion; pass background:false for sync-await. resumeSessionDir / resumeJobId reuse a prior child --session-dir (fail closed if missing; no parent-history dump). Global child concurrency cap: ${MAX_CONCURRENCY} (env PSTACK_MAX_CONCURRENCY; shared with swarm/arena). Output cap ${MAX_OUTPUT_BYTES} bytes (env PSTACK_MAX_OUTPUT_BYTES; persistOutput or PSTACK_PERSIST_OUTPUT=1 writes full text under .pi/pstack-child-output/). Default sessionMode=isolated (--session-dir; extensions/skills discover, no --no-extensions). ephemeral uses --no-session. inheritParentTools defaults on when tools unset and getActiveTools() is non-empty (pass false to disable; explicit tools[] always wins). Readonly roles still force READONLY_TOOLS. Pi cannot inherit parent MCP/history — documented flags only. persistOutput defaults on for long children (timeout>=5m) and background.`,
+      `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review (auto-readonly), investigator for read-only investigation, general for independent workers/reviewers. Default background (omit or true) detaches and posts a follow-up on completion; pass background:false for sync-await. resumeSessionDir / resumeJobId continue a prior child via --session-dir + --continue/-c (fail closed if missing; no parent-history dump). Replies include sessionDir for Orchestrate reattach. Global child concurrency cap: ${MAX_CONCURRENCY} (env PSTACK_MAX_CONCURRENCY; shared with swarm/arena). Output cap ${MAX_OUTPUT_BYTES} bytes (env PSTACK_MAX_OUTPUT_BYTES; persistOutput or PSTACK_PERSIST_OUTPUT=1 writes full text under .pi/pstack-child-output/). Default sessionMode=isolated (--session-dir; extensions/skills discover, no --no-extensions). ephemeral uses --no-session. inheritParentTools defaults on when tools unset and getActiveTools() is non-empty (pass false to disable; explicit tools[] always wins). Readonly roles still force READONLY_TOOLS. Pi cannot inherit parent MCP/history — documented flags only. persistOutput defaults on for long children (timeout>=5m) and background.`,
     promptSnippet: "Spawn an isolated Pi child agent (pstack delegate)",
     promptGuidelines: [
       "Use pstack_spawn for local child agents (Pi has no Cursor Task).",
       "Use role poteto-agent for code-writing playbook delegates; comment-sicko for /no-comments (auto-readonly); investigator for investigation playbook children (auto-readonly); general for reviewers.",
       "Prefer / default background: omit background or pass true to detach (job id + completion follow-up). Sync-await requires explicit background:false. Use pstack_jobs to list/await across follow-ups in this session.",
       "pstack_swarm / pstack_arena are intentional sync gather/barrier tools; for background fan-out + drain use N× pstack_spawn (default background) then pstack_jobs.",
-      "Resume a prior child with resumeSessionDir (path to its --session-dir) or resumeJobId (in-session job with recorded sessionDir). Still paste standing orders / self-contained brief — no parent-history dump.",
+      "Resume a prior child with resumeSessionDir (path to its --session-dir) or resumeJobId (in-session job with recorded sessionDir); child argv uses --continue/-c + --session-dir (not dir-only). sessionDir is returned in spawn/jobs replies for standing-store reattach. Still paste standing orders / self-contained brief — no parent-history dump.",
       "inheritParentTools defaults on when tools unset and getActiveTools() is non-empty; pass inheritParentTools:false to disable. Explicit tools[] wins. Readonly roles force READONLY_TOOLS.",
       "Pass model as provider/id (or inherit-parent/auto). Bare marketing slugs are refused/mapped.",
       "Review child output and diffs yourself before accepting work.",
@@ -111,7 +112,7 @@ export function registerSpawn(pi: ExtensionAPI): void {
       resumeSessionDir: Type.Optional(
         Type.String({
           description:
-            "Absolute or cwd-relative path to a prior child --session-dir to continue. Fail closed if missing. Do not dump parent history; keep the task brief self-contained.",
+            "Absolute or cwd-relative path to a prior child --session-dir. Passes --continue/-c so Pi continueRecent loads the child transcript (not SessionManager.create). Fail closed if missing. Do not dump parent history; keep the task brief self-contained.",
         }),
       ),
       resumeJobId: Type.Optional(
@@ -193,18 +194,21 @@ export function registerSpawn(pi: ExtensionAPI): void {
           details: {},
         });
         const job = enqueueBackgroundChild(childInput, ctx.cwd, parentModel, (done) => {
+          const sessDir = done.result?.sessionDir ?? done.sessionDir;
+          const sess = sessDir ? `, sessionDir=${sessDir}` : "";
           const body =
             done.result != null
-              ? `### pstack_spawn background complete (${done.id}, ${done.result.role ?? role}, ${done.result.model}, exit ${done.result.exitCode}, status=${done.status}${done.result.outputPath ? `, full=${done.result.outputPath}` : ""})\n\n${done.result.output}`
-              : `### pstack_spawn background ${done.status} (${done.id}): ${done.error ?? "(no result)"}`;
+              ? `### pstack_spawn background complete (${done.id}, ${done.result.role ?? role}, ${done.result.model}, exit ${done.result.exitCode}, status=${done.status}${done.result.outputPath ? `, full=${done.result.outputPath}` : ""}${sess})\n\n${done.result.output}`
+              : `### pstack_spawn background ${done.status} (${done.id}${sess}): ${done.error ?? "(no result)"}`;
           pi.sendUserMessage(body, { deliverAs: "followUp" });
         });
         const stats = childConcurrencyStats();
+        const sessionDirNote = job.sessionDir ? ` sessionDir=${job.sessionDir}` : "";
         return {
           content: [
             {
               type: "text",
-              text: `Background job ${job.id} started (role=${role}, model=${model}${readonlyApplied ? ", readonly" : ""}). Completion will arrive as a follow-up. Poll with pstack_jobs action=status|await id=${job.id}. Concurrency ${stats.active}/${stats.cap} (waiting ${stats.waiting}). Jobs remain queryable for this session.`,
+              text: `Background job ${job.id} started (role=${role}, model=${model}${readonlyApplied ? ", readonly" : ""}${sessionDirNote}). Completion will arrive as a follow-up. Poll with pstack_jobs action=status|await id=${job.id}. Concurrency ${stats.active}/${stats.cap} (waiting ${stats.waiting}). Jobs remain queryable for this session.`,
             },
           ],
           details: {
@@ -213,6 +217,7 @@ export function registerSpawn(pi: ExtensionAPI): void {
             background: true,
             readonly: readonlyApplied,
             concurrency: stats,
+            sessionDir: job.sessionDir,
           },
         };
       }
@@ -234,14 +239,15 @@ export function registerSpawn(pi: ExtensionAPI): void {
         signal,
       );
 
+      const sessionDirNote = result.sessionDir ? `, sessionDir=${result.sessionDir}` : "";
       return {
         content: [
           {
             type: "text",
-            text: `### pstack_spawn (${result.role ?? role}, ${result.model}, exit ${result.exitCode}${result.outputPath ? `, full=${result.outputPath}` : ""})\n\n${result.output}`,
+            text: `### pstack_spawn (${result.role ?? role}, ${result.model}, exit ${result.exitCode}${result.outputPath ? `, full=${result.outputPath}` : ""}${sessionDirNote})\n\n${result.output}`,
           },
         ],
-        details: { result, readonly: readonlyApplied },
+        details: { result, readonly: readonlyApplied, sessionDir: result.sessionDir },
       };
     },
   });
@@ -266,9 +272,10 @@ export function registerSpawn(pi: ExtensionAPI): void {
     async execute(_id, params) {
       const action = params.action;
       if (action === "list") {
-        const rows = listBackgroundJobs().map(
+        const jobs = listBackgroundJobs();
+        const rows = jobs.map(
           (j) =>
-            `${j.id} status=${j.status} role=${j.role ?? "?"} model=${j.model} started=${new Date(j.startedAt).toISOString()}${j.finishedAt ? ` finished=${new Date(j.finishedAt).toISOString()}` : ""}`,
+            `${j.id} status=${j.status} role=${j.role ?? "?"} model=${j.model} started=${new Date(j.startedAt).toISOString()}${j.finishedAt ? ` finished=${new Date(j.finishedAt).toISOString()}` : ""}${j.sessionDir ? ` sessionDir=${j.sessionDir}` : ""}`,
         );
         const stats = childConcurrencyStats();
         const header = `concurrency ${stats.active}/${stats.cap} waiting=${stats.waiting}`;
@@ -279,7 +286,10 @@ export function registerSpawn(pi: ExtensionAPI): void {
               text: rows.length ? `${header}\n${rows.join("\n")}` : `${header}\n(no background jobs)`,
             },
           ],
-          details: { jobs: listBackgroundJobs().map((j) => j.id), concurrency: stats },
+          details: {
+            jobs: jobs.map((j) => ({ id: j.id, status: j.status, sessionDir: j.sessionDir })),
+            concurrency: stats,
+          },
         };
       }
       if (action === "abort" || action === "cancel") {
@@ -306,27 +316,29 @@ export function registerSpawn(pi: ExtensionAPI): void {
             : job.error
               ? `\n\nerror: ${job.error}`
               : "";
+        const sessionDirNote = job.sessionDir ? ` sessionDir=${job.sessionDir}` : "";
         return {
           content: [
             {
               type: "text",
-              text: `${job.id} status=${job.status} role=${job.role ?? "?"} model=${job.model}${tail}`,
+              text: `${job.id} status=${job.status} role=${job.role ?? "?"} model=${job.model}${sessionDirNote}${tail}`,
             },
           ],
-          details: { job },
+          details: { job, sessionDir: job.sessionDir },
         };
       }
       if (action === "await") {
         const job = await awaitBackgroundJob(params.id, params.timeoutMs ?? DEFAULT_TIMEOUT_MS);
         const out = job.result?.output ?? job.error ?? "(no output)";
+        const sessionDirNote = job.sessionDir ? `, sessionDir=${job.sessionDir}` : "";
         return {
           content: [
             {
               type: "text",
-              text: `### pstack_jobs await (${job.id}, status=${job.status})\n\n${out}`,
+              text: `### pstack_jobs await (${job.id}, status=${job.status}${sessionDirNote})\n\n${out}`,
             },
           ],
-          details: { job },
+          details: { job, sessionDir: job.sessionDir },
         };
       }
       throw new Error("action must be list|status|await|abort|cancel");

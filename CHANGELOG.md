@@ -1,5 +1,9 @@
 # Changelog
 
+## close-orch-p1b
+
+- Cap2 true resume continue: `resumeSessionDir` / `resumeJobId` child argv is `--session-dir <resolved> --continue`/`-c` (Pi `continueRecent`), not dir-only `SessionManager.create`. Fresh spawn still creates without `-c`. `sessionDir` surfaced in `pstack_spawn` / `pstack_jobs` text+details. Verify/unit assert continue argv (fail on session-dir alone). PARITY Cap2 EQUIVALENT (local-Task) with continue language. Keeps p1 bg omit→true + inherit default-on.
+
 ## close-orch-p1
 
 - Cap2 EQUIVALENT (local-Task) revision: `pstack_spawn` `resumeSessionDir` / `resumeJobId` (reuse `--session-dir`; fail closed; in-memory `sessionDir` on jobs; resume+ephemeral rejected); tool `background` omit→true + guidelines (sync = `background: false`); `inheritParentTools` default-on when `getActiveTools()` non-empty; poteto/orchestrate cite resume; swarm/arena framed as intentional sync gather (N× spawn for bg drain); PARITY row 2 IN list updated (no resume-deferred carve-out).

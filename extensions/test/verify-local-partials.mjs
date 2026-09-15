@@ -507,6 +507,58 @@ await check("close-orch-p1: PARITY row 2 IN list (resume + bg default + inherit 
   assert.ok(!parity.includes(".pi/pstack-jobs/") || !/required.*pstack-jobs/i.test(parity), "no required disk ledger product");
 });
 
+
+await check("close-orch-p1b: unit true-continue argv (resume -c; fresh no -c)", async () => {
+  const { runSpawnOrchP1bUnits } = await import(pathToFileURL(resolve(ROOT, "extensions/test/spawn-orch-p1b-unit.mjs")).href);
+  await runSpawnOrchP1bUnits();
+});
+
+await check("close-orch-p1b: child-runner resume pushes --continue with --session-dir", async () => {
+  const runner = readFileSync(resolve(ROOT, "extensions/subagents/child-runner.ts"), "utf8");
+  assert.ok(runner.includes("buildChildPiArgs"), "must export/build argv via buildChildPiArgs");
+  assert.ok(runner.includes("continueSession"), "must track continueSession");
+  assert.ok(
+    /args\.push\("--continue"\)|args\.push\("-c"\)/.test(runner) ||
+      runner.includes('args.push("--continue")') ||
+      runner.includes("args.push('--continue')") ||
+      runner.includes('push("--continue")'),
+    "resume path must push --continue or -c",
+  );
+  assert.ok(runner.includes("--session-dir"), "still passes --session-dir");
+  assert.ok(!/args\.push\("--resume"\)|args\.push\("-r"\)/.test(runner), "must not push interactive -r");
+  // Forbidden: resume path that only pushes session-dir (false twin)
+  assert.ok(
+    runner.includes("if (opts.continueSession)") || runner.includes("if (continueSession)"),
+    "continue flag gated on resume",
+  );
+});
+
+await check("close-orch-p1b: spawn/jobs surface sessionDir in text+details", async () => {
+  const src = readFileSync(resolve(ROOT, "extensions/subagents/index.ts"), "utf8");
+  assert.ok(src.includes("sessionDir: job.sessionDir") || /sessionDir:\s*job\.sessionDir/.test(src), "details.sessionDir");
+  assert.ok(/sessionDir=\$\{/.test(src), "text advertises sessionDir=");
+  assert.ok(/sessionDir:\s*result\.sessionDir/.test(src) || src.includes("sessionDir: result.sessionDir"), "sync spawn details");
+});
+
+await check("close-orch-p1b: PARITY Cap2 EQUIVALENT cites continue/-c (not dir-only)", async () => {
+  const parity = readFileSync(resolve(ROOT, "PARITY.md"), "utf8");
+  const row2 = parity.split("\n").find((l) => l.startsWith("| 2 | Task"));
+  assert.ok(row2, "row 2 missing");
+  assert.ok(row2.includes("EQUIVALENT") && row2.includes("local-Task"), `row2 must be EQUIVALENT after true continue: ${row2.slice(0, 160)}`);
+  assert.ok(/--continue|-c|continueRecent|true continue/i.test(row2), "row2 must cite continue/-c semantics");
+  assert.ok(!/reuse child `--session-dir`(?!;|;|,| \+)/.test(row2) || /--continue|-c/.test(row2), "must not claim dir-only reuse as sole resume");
+  assert.ok(!/\*\*PARTIAL\*\*.*false twin|false-twin residual/i.test(row2), "after fix must not remain PARTIAL false-twin");
+  assert.ok(/sessionDir/i.test(row2), "row2 mentions sessionDir surfacing or resume path");
+});
+
+await check("close-orch-p1b: orchestrate/poteto cite true continue", async () => {
+  const orch = readFileSync(resolve(ROOT, "skills/poteto-mode/playbooks/orchestrate.md"), "utf8");
+  const skill = readFileSync(resolve(ROOT, "skills/poteto-mode/SKILL.md"), "utf8");
+  assert.ok(/--continue|-c|continueRecent|true continue/i.test(orch), "orchestrate must document continue argv");
+  assert.ok(orch.includes("sessionDir"), "orchestrate cites surfaced sessionDir");
+  assert.ok(/--continue|-c|continueRecent|continue prior child transcript/i.test(skill), "poteto must say continue transcript");
+});
+
 await check("PARITY scorecard documents local-scope EQUIVALENT criteria", async () => {
   const parity = readFileSync(resolve(ROOT, "PARITY.md"), "utf8");
   assert.ok(parity.includes("EQUIVALENT"));

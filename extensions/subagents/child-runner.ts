@@ -58,10 +58,16 @@ export interface ChildTaskInput {
    */
   sessionMode?: "ephemeral" | "isolated";
   /**
-   * Reuse an existing Pi `--session-dir` (absolute or cwd-relative).
+   * Resume a prior child: reuse its `--session-dir` AND pass `--continue`/`-c`
+   * so Pi calls continueRecent (not SessionManager.create). Absolute or cwd-relative.
    * Fail closed if missing/unreadable. Conflicts with sessionMode=ephemeral.
    */
   resumeSessionDir?: string;
+  /**
+   * Pre-resolved isolated session dir (e.g. minted by enqueueBackgroundChild).
+   * Uses `--session-dir` without `--continue` (fresh create). Not a resume signal.
+   */
+  sessionDir?: string;
 }
 
 export interface ChildTaskResult {
@@ -130,11 +136,12 @@ function resolveSessionMode(input: ChildTaskInput): "ephemeral" | "isolated" {
  * Resolve child session dir for isolated/resume paths.
  * Resume fails closed if path missing; resume+ephemeral is rejected.
  * Mint creates under cwd/.pi/pstack-child-sessions when not resuming.
+ * `continueSession` is true only for true resume (resumeSessionDir) — argv must add -c/--continue.
  */
 export function resolveChildSessionDir(
   input: ChildTaskInput,
   cwd: string,
-): { sessionMode: "ephemeral" | "isolated"; sessionDir?: string } {
+): { sessionMode: "ephemeral" | "isolated"; sessionDir?: string; continueSession: boolean } {
   const sessionMode = resolveSessionMode(input);
   if (input.resumeSessionDir) {
     if (sessionMode === "ephemeral") {
@@ -156,12 +163,65 @@ export function resolveChildSessionDir(
       if (err instanceof Error && err.message.startsWith("resumeSessionDir")) throw err;
       throw new Error(`resumeSessionDir missing or unreadable: ${sessionDir}`);
     }
-    return { sessionMode: "isolated", sessionDir };
+    return { sessionMode: "isolated", sessionDir, continueSession: true };
   }
-  if (sessionMode === "ephemeral") return { sessionMode };
+  if (sessionMode === "ephemeral") return { sessionMode, continueSession: false };
+  // Pre-resolved mint (enqueue): reuse dir without continue semantics.
+  if (input.sessionDir) {
+    const sessionDir = isAbsolute(input.sessionDir) ? input.sessionDir : resolve(cwd, input.sessionDir);
+    return { sessionMode, sessionDir, continueSession: false };
+  }
   const sessionDir = join(cwd, ".pi", "pstack-child-sessions", `c-${Date.now().toString(36)}`);
   mkdirSync(sessionDir, { recursive: true });
-  return { sessionMode, sessionDir };
+  return { sessionMode, sessionDir, continueSession: false };
+}
+
+/**
+ * Build pi child argv. Resume MUST include --continue|-c with --session-dir.
+ * Fresh isolated: --session-dir only (create OK). Never -r/--resume for -p children.
+ */
+export function buildChildPiArgs(opts: {
+  selectedModel: string;
+  sessionMode: "ephemeral" | "isolated";
+  sessionDir?: string;
+  continueSession?: boolean;
+  inheritNote: string;
+  skillPath?: string;
+  tools?: string[];
+  prompt: string;
+}): string[] {
+  const args = ["--mode", "json", "-p", "--model", opts.selectedModel];
+  if (opts.sessionMode === "ephemeral") {
+    args.push("--no-session");
+  } else {
+    if (!opts.sessionDir) {
+      throw new Error("internal: isolated child missing sessionDir");
+    }
+    args.push("--session-dir", opts.sessionDir);
+    if (opts.continueSession) {
+      // Pi 0.85.1: parsed.continue → SessionManager.continueRecent(cwd, sessionDir)
+      args.push("--continue");
+    }
+  }
+  args.push("--append-system-prompt", opts.inheritNote);
+  if (opts.skillPath) args.push("--skill", opts.skillPath);
+  if (opts.tools?.length) args.push("--tools", opts.tools.join(","));
+  args.push(opts.prompt);
+  return args;
+}
+
+/** True if argv has continue semantics (not dir-only / not interactive -r). */
+export function argvHasContinueSemantics(args: string[]): boolean {
+  return args.includes("--continue") || args.includes("-c");
+}
+
+/** True if argv is the forbidden dir-only resume shape (session-dir without continue/session open). */
+export function argvIsDirOnlyResume(args: string[]): boolean {
+  const hasSessionDir = args.includes("--session-dir");
+  const hasContinue = argvHasContinueSemantics(args);
+  const hasSessionOpen = args.includes("--session") || args.includes("--session-id");
+  const hasInteractiveResume = args.includes("--resume") || args.includes("-r");
+  return hasSessionDir && !hasContinue && !hasSessionOpen && !hasInteractiveResume;
 }
 
 /** Persist full text under outDir; return path. */
@@ -255,16 +315,7 @@ async function runChildTaskUnlocked(
   const prepared = resolveChildSessionDir(input, cwd);
   const sessionMode = prepared.sessionMode;
   const sessionDir = prepared.sessionDir;
-  const args = ["--mode", "json", "-p", "--model", selectedModel];
-
-  if (sessionMode === "ephemeral") {
-    args.push("--no-session");
-  } else {
-    if (!sessionDir) {
-      throw new Error("internal: isolated child missing sessionDir");
-    }
-    args.push("--session-dir", sessionDir);
-  }
+  const continueSession = prepared.continueSession;
 
   // Children still discover extensions/skills from package + project (not --no-extensions).
   // Append a short inheritance note so the child knows parent role expectations.
@@ -275,10 +326,6 @@ async function runChildTaskUnlocked(
   ]
     .filter(Boolean)
     .join(" ");
-  args.push("--append-system-prompt", inheritNote);
-
-  if (input.skillPath) args.push("--skill", input.skillPath);
-  if (input.tools?.length) args.push("--tools", input.tools.join(","));
 
   let prompt = input.task;
   if (input.role === "poteto-agent" || input.poteto) {
@@ -298,7 +345,16 @@ async function runChildTaskUnlocked(
     ].join("\n\n");
   }
 
-  args.push(prompt);
+  const args = buildChildPiArgs({
+    selectedModel,
+    sessionMode,
+    sessionDir,
+    continueSession,
+    inheritNote,
+    skillPath: input.skillPath,
+    tools: input.tools,
+    prompt,
+  });
 
   const messages: Message[] = [];
   let stderr = "";
@@ -532,12 +588,21 @@ export function enqueueBackgroundChild(
   const controller = new AbortController();
   const cwd = input.cwd ?? defaultCwd;
   // Resolve session dir synchronously so resumeJobId can see it while the job runs.
+  // Fresh mint → pass sessionDir (no continue). True resume → keep resumeSessionDir (adds -c).
   const prepared = resolveChildSessionDir(input, cwd);
-  const resolvedInput: ChildTaskInput = {
-    ...input,
-    sessionMode: prepared.sessionMode,
-    ...(prepared.sessionDir ? { resumeSessionDir: prepared.sessionDir } : { resumeSessionDir: undefined }),
-  };
+  const resolvedInput: ChildTaskInput = prepared.continueSession
+    ? {
+        ...input,
+        sessionMode: prepared.sessionMode,
+        resumeSessionDir: prepared.sessionDir,
+        sessionDir: undefined,
+      }
+    : {
+        ...input,
+        sessionMode: prepared.sessionMode,
+        resumeSessionDir: undefined,
+        sessionDir: prepared.sessionDir,
+      };
   const job: BackgroundJob = {
     id,
     status: "queued",

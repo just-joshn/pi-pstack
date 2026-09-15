@@ -58,6 +58,7 @@ export async function runSpawnOrchP1Units() {
     const resumed = mod.resolveChildSessionDir({ task: "t", resumeSessionDir: good }, dir);
     assert.equal(resumed.sessionMode, "isolated");
     assert.equal(resumed.sessionDir, good);
+    assert.equal(resumed.continueSession, true, "resume sets continueSession");
 
     const rel = mod.resolveChildSessionDir({ task: "t", resumeSessionDir: "sess-a" }, dir);
     assert.equal(rel.sessionDir, good);
@@ -86,6 +87,7 @@ export async function runSpawnOrchP1Units() {
     const minted = mod.resolveChildSessionDir({ task: "t" }, dir);
     assert.equal(minted.sessionMode, "isolated");
     assert.ok(minted.sessionDir && minted.sessionDir.includes("pstack-child-sessions"));
+    assert.equal(minted.continueSession, false, "fresh mint does not continue");
 
     mod.__resetBackgroundJobsForTests();
     mod.__seedBackgroundJobForTests({ id: "bg-test-1", sessionDir: good });
