@@ -18,7 +18,7 @@ The ledger is portable. Each row states an obligation. The `status` column descr
 
 ## 1. The contract ledger
 
-The ledger lives in `spec/contracts/`. Every file carries the same header line.
+The ledger lives in `spec/contracts/`. Every `.tsv` file in that directory is part of the ledger, and the union of those files is the ledger. A row lives in exactly one file. Every file carries the same header line.
 
 ```
 id	surface	status	kind	name	obligation	verification	upstream	reference	finding
@@ -49,7 +49,10 @@ Verification grammar.
 - `VERIFIED`, `gate@<npm-script>`. An npm script in `package.json` that runs offline with the pin cached.
 - `UNVERIFIED`, `todo@<proof to build>`. Free text naming the proof to add.
 - `DEFECT`, `fix@#<n>`. The `.pi/audit-findings.md` finding number.
+- `DEFECT`, `fix@local:<slug>`. A defect the reference tree carries that has no audit finding number yet.
 - `EXCLUDED`, `twin@<surface>`. The surface whose rows carry the feasible twin. At `--require-complete` that surface must have a `VERIFIED` row.
+
+A proof is sufficient when it runs in the default gate, calls the code the way its user does, and asserts the observable result. A test name alone is not a proof. The checker proves only that the test exists, is discovered by a non-opt-in layer, and contains the named substring. When a `todo@` row names a proof, write the smallest test that observes the contract and then cite its file and test name.
 
 Row granularity rules.
 
@@ -84,7 +87,7 @@ The 20 surfaces and what each owns.
 - `readonly`. `/pstack-readonly(-off)`, tool policy, auto-arm, status.
 - `sessions`. `pstack_sessions` list/grep/current/recall, ranking.
 - `benny`. `pstack_benny_wake`, `/setup-benny`, `/benny-triage`, `/benny-repro`.
-- `ceiling`. EXCLUDED rows only, each naming its twin surface.
+- `ceiling`. EXCLUDED rows only, each naming its twin surface. The ceiling rows live in `spec/contracts/companions.tsv` with the companion surfaces.
 
 Completeness directions, and the honest limit of each.
 
