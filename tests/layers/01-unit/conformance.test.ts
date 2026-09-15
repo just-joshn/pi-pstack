@@ -37,6 +37,46 @@ test("scanFrames reports declaration, arrow, and method spans", () => {
   );
 });
 
+test("scanFrames spans typed and generic signatures", () => {
+  const source = [
+    "function typed(): string {",
+    "  return \"a\";",
+    "}",
+    "",
+    "async function generic<T>(value: T): Promise<T> {",
+    "  return value;",
+    "}",
+    "",
+    "const obj = {",
+    "  async run(input: string): Promise<number> {",
+    "    return input.length;",
+    "  },",
+    "};",
+    "",
+    "function bad(): void {",
+    "  const filler = 1;",
+    "}",
+  ].join("\n");
+  const named = scanFrames(source).frames.filter((frame) => frame.kind !== "block");
+  assert.deepEqual(
+    named.map((frame) => [frame.name, frame.startLine, frame.endLine]),
+    [
+      ["typed", 1, 3],
+      ["generic", 5, 7],
+      ["run", 10, 12],
+      ["bad", 15, 17],
+    ],
+  );
+});
+
+test("auditSource flags a typed function body longer than 50 lines", () => {
+  const body = "  const x = 1;\n".repeat(51);
+  const hits = auditSource(`function big(): Promise<void> {\n${body}}\n`).filter(
+    (violation) => violation.rule === "function>50",
+  );
+  assert.deepEqual(hits.map((hit) => hit.detail), ["big spans 53 lines"]);
+});
+
 test("sanitize masks strings, templates, comments, and regex without shifting lines", () => {
   const source = ['const a = "push(" + `splice(`;', "// console.log(x)", "const b = /delete\\s+/;", "const c = 1;"].join(
     "\n",
