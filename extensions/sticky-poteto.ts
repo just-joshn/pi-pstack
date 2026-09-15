@@ -10,6 +10,7 @@ import {
   buildPlaybookInjectBlock,
   buildPlaybookInjectFromId,
   matchPlaybook,
+  playbookMatchFromId,
   type PlaybookMatch,
 } from "./sticky-playbook.ts";
 

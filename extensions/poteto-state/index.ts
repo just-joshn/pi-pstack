@@ -178,19 +178,17 @@ function applyMatchedPlaybook(
     applyEffects(pi, ctx, result.effects);
     ctx.ui.setStatus("pstack", `poteto:${matched.id}`);
   }
-  if (!process.env.PSTACK_CHILD_ROLE) {
-    const armFromMatch = shouldAutoArmFromPlaybookMatch(
-      matched.id,
-      stateRef.state.enabled,
-      matched.score,
-      text,
-    );
-    if (armFromMatch) {
-      options.armReadonly(ctx, `playbook:${matched.id}`);
-    }
-    if (assigns && matched.score >= PLAYBOOK_ASSIGN_SCORE && !shouldAutoArmReadonly(matched.id)) {
-      options.releaseReadonly?.(ctx);
-    }
+  const armFromMatch = shouldAutoArmFromPlaybookMatch(
+    matched.id,
+    stateRef.state.enabled,
+    matched.score,
+    text,
+  );
+  if (armFromMatch) {
+    options.armReadonly(ctx, `playbook:${matched.id}`);
+  }
+  if (assigns && matched.score >= PLAYBOOK_ASSIGN_SCORE && !shouldAutoArmReadonly(matched.id)) {
+    options.releaseReadonly?.(ctx);
   }
   const forces = assigns && (stateRef.state.enabled || matched.score >= PLAYBOOK_ASSIGN_SCORE);
   if (forces && !text.startsWith("/skill:poteto-mode")) {
@@ -206,6 +204,8 @@ function registerPotetoInput(
   setEnabled: PotetoSetEnabled,
 ): void {
   pi.on("input", (event, ctx) => {
+    // Child sessions get poteto-mode through --append-system-prompt; never re-enter sticky routing.
+    if (process.env.PSTACK_CHILD_ROLE) return;
     if (!shouldMatchStickyInput(event.source)) return;
     const text = event.text ?? "";
     stateRef.state = reduceRecordText(stateRef.state, text);
@@ -213,7 +213,7 @@ function registerPotetoInput(
       setEnabled(true, ctx);
     }
     const transformText = applyMatchedPlaybook(pi, stateRef, options, setEnabled, text, ctx);
-    if (!process.env.PSTACK_CHILD_ROLE && shouldAutoArmFromSkillText(text)) {
+    if (shouldAutoArmFromSkillText(text)) {
       options.armReadonly(ctx, "skill:investigation");
     }
     if (transformText) {
