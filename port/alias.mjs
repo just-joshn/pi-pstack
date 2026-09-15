@@ -95,7 +95,6 @@ for (const [name, sources] of claims) {
   if (sources.length > 1) problems = [...problems, `name claimed twice: ${name} (${sources.join(", ")})`];
 }
 
-// --- reserved names registered anywhere in the extension ---
 for (const name of reserved) {
   if (!extensionSrc.includes(`registerCommand("${name}"`)) {
     problems = [...problems, `reserved name missing from extension registrations: ${name}`];

@@ -1,5 +1,5 @@
 /**
- * pi-pstack extension entry — composition root for poteto-mode + orchestration tools.
+ * pi-pstack extension entry. Composition root for poteto-mode and orchestration tools.
  * No Cursor SDKs. No pi-subagents / tintinweb deps.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
