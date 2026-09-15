@@ -681,6 +681,7 @@ export function enqueueBackgroundChild(
   void (async () => {
     const runningJob = { ...job, status: "running" as const };
     backgroundJobs.set(id, runningJob);
+    let finalJob: BackgroundJob;
     try {
       const result = await runChildTask(resolvedInput, defaultCwd, parentModel, controller.signal);
       const finalStatus = controller.signal.aborted
@@ -688,27 +689,25 @@ export function enqueueBackgroundChild(
         : result.exitCode === 0
           ? "done"
           : "failed";
-      const completedJob = {
+      finalJob = {
         ...runningJob,
         result,
         sessionDir: result.sessionDir ?? runningJob.sessionDir,
         status: finalStatus as BackgroundJobStatus,
         finishedAt: Date.now(),
       };
-      backgroundJobs.set(id, completedJob);
-      backgroundControllers.delete(id);
-      onComplete?.(completedJob);
     } catch (err) {
-      const failedJob = {
+      finalJob = {
         ...runningJob,
         status: (controller.signal.aborted ? "aborted" : "failed") as BackgroundJobStatus,
         error: err instanceof Error ? err.message : String(err),
         finishedAt: Date.now(),
       };
-      backgroundJobs.set(id, failedJob);
-      backgroundControllers.delete(id);
-      onComplete?.(failedJob);
     }
+    backgroundJobs.set(id, finalJob);
+    backgroundControllers.delete(id);
+    // A throwing onComplete must not reclassify a finished job or fire twice.
+    onComplete?.(finalJob);
   })();
 
   return job;

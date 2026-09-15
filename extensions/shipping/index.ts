@@ -176,16 +176,15 @@ async function handleShipStackStatus(
   signal: AbortSignal | undefined,
 ): Promise<ShipStackResponse> {
   if (!prs.length) throw new Error("stackPrs or pr required");
-  const chunks = await Promise.all(
-    prs.map(async (pr) => {
-      const r = await pi.exec(
-        "gh",
-        ["pr", "view", pr.replace(/^#/, ""), "--json", "number,state,mergedAt,mergeStateStatus,title"],
-        { signal },
-      );
-      return r.stdout || `PR ${pr}: ${r.stderr}`;
-    }),
-  );
+  let chunks: string[] = [];
+  for (const pr of prs) {
+    const r = await pi.exec(
+      "gh",
+      ["pr", "view", pr.replace(/^#/, ""), "--json", "number,state,mergedAt,mergeStateStatus,title"],
+      { signal },
+    );
+    chunks = [...chunks, r.stdout || `PR ${pr}: ${r.stderr}`];
+  }
   return { content: [{ type: "text", text: chunks.join("\n") }], details: {} };
 }
 
