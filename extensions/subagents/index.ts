@@ -40,6 +40,247 @@ import { normalizeModelSelector, resolveRoleModel } from "../models/config.ts";
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const POTETO_SKILL = resolve(PACKAGE_ROOT, "skills", "poteto-mode", "SKILL.md");
 
+function prepareChildInputFromParams(
+  params: {
+    task: string;
+    model?: string;
+    cwd?: string;
+    role?: string;
+    poteto?: boolean;
+    tools?: string[];
+    timeoutMs?: number;
+    persistOutput?: boolean;
+    sessionMode?: string;
+    resumeSessionDir?: string;
+    resumeJobId?: string;
+  },
+  ctx: { model: { provider: string; id: string }; cwd: string },
+  pi: ExtensionAPI,
+): {
+  childInput: ChildTaskInput;
+  model: string;
+  role: string;
+  readonlyApplied: boolean;
+  background: boolean;
+} {
+  const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
+  const role = params.role ?? "general";
+  const rawModel =
+    params.model ??
+    resolveRoleModel(role, parentModel) ??
+    parentModel;
+  const modelNorm = params.model
+    ? normalizeModelSelector(rawModel, parentModel, { allowFallbackToParent: false })
+    : normalizeModelSelector(rawModel, parentModel);
+  if (!modelNorm.ok) {
+    throw new Error(modelNorm.error);
+  }
+  const model = modelNorm.model;
+  let parentTools: string[] | undefined;
+  try {
+    parentTools = pi.getActiveTools?.() ?? undefined;
+  } catch {
+    parentTools = undefined;
+  }
+  const tools = resolveTools(role, params, parentTools);
+  const poteto = params.poteto === true || role === "poteto-agent";
+  const readonlyApplied = Boolean(tools && tools.every((t) => (READONLY_TOOLS as readonly string[]).includes(t)));
+  const sessionMode =
+    params.sessionMode === "isolated" || params.sessionMode === "ephemeral"
+      ? params.sessionMode
+      : undefined;
+  const resumeSessionDir = resolveResumeSessionDirParam({
+    resumeSessionDir: params.resumeSessionDir,
+    resumeJobId: params.resumeJobId,
+    sessionMode,
+  });
+  const background = wantsBackground(params.background);
+
+  const childInput = {
+    task: params.task,
+    model,
+    cwd: params.cwd,
+    role,
+    poteto,
+    tools,
+    timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    skillPath: poteto ? POTETO_SKILL : undefined,
+    persistOutput:
+      params.persistOutput === true
+        ? true
+        : params.persistOutput === false
+          ? false
+          : background
+            ? true
+            : undefined,
+    sessionMode,
+    resumeSessionDir,
+  };
+
+  return { childInput, model, role, readonlyApplied, background };
+}
+
+function formatBackgroundJobResult(done: BackgroundJob, role: string): string {
+  const sessDir = done.result?.sessionDir ?? done.sessionDir;
+  const sess = sessDir ? `, sessionDir=${sessDir}` : "";
+  return done.result != null
+    ? `### pstack_spawn background complete (${done.id}, ${done.result.role ?? role}, ${done.result.model}, exit ${done.result.exitCode}, status=${done.status}${done.result.outputPath ? `, full=${done.result.outputPath}` : ""}${sess})\n\n${done.result.output}`
+    : `### pstack_spawn background ${done.status} (${done.id}${sess}): ${done.error ?? "(no result)"}`;
+}
+
+function handleListAction() {
+  const jobs = listBackgroundJobs();
+  const rows = jobs.map(
+    (j) =>
+      `${j.id} status=${j.status} role=${j.role ?? "?"} model=${j.model} started=${new Date(j.startedAt).toISOString()}${j.finishedAt ? ` finished=${new Date(j.finishedAt).toISOString()}` : ""}${j.sessionDir ? ` sessionDir=${j.sessionDir}` : ""}`,
+  );
+  const stats = childConcurrencyStats();
+  const header = `concurrency ${stats.active}/${stats.cap} waiting=${stats.waiting}`;
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: rows.length ? `${header}\n${rows.join("\n")}` : `${header}\n(no background jobs)`,
+      },
+    ],
+    details: {
+      jobs: jobs.map((j) => ({ id: j.id, status: j.status, sessionDir: j.sessionDir })),
+      concurrency: stats,
+    },
+  };
+}
+
+function handleAbortAction(jobId: string) {
+  const job = abortBackgroundJob(jobId);
+  if (!job) throw new Error(`unknown job: ${jobId}`);
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: `abort requested; job ${jobId} status=${job.status}`,
+      },
+    ],
+    details: { id: jobId, status: job.status },
+  };
+}
+
+function handleStatusAction(jobId: string) {
+  const job = getBackgroundJob(jobId);
+  if (!job) throw new Error(`unknown job: ${jobId}`);
+  const tail =
+    job.result != null
+      ? `\n\nexit ${job.result.exitCode}${job.result.outputPath ? ` full=${job.result.outputPath}` : ""}\n${job.result.output.slice(0, 8000)}`
+      : job.error
+        ? `\n\nerror: ${job.error}`
+        : "";
+  const sessionDirNote = job.sessionDir ? ` sessionDir=${job.sessionDir}` : "";
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: `${job.id} status=${job.status} role=${job.role ?? "?"} model=${job.model}${sessionDirNote}${tail}`,
+      },
+    ],
+    details: { job, sessionDir: job.sessionDir },
+  };
+}
+
+async function handleAwaitAction(jobId: string, timeoutMs: number) {
+  const job = await awaitBackgroundJob(jobId, timeoutMs);
+  const out = job.result?.output ?? job.error ?? "(no output)";
+  const sessionDirNote = job.sessionDir ? `, sessionDir=${job.sessionDir}` : "";
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: `### pstack_jobs await (${job.id}, status=${job.status}${sessionDirNote})\n\n${out}`,
+      },
+    ],
+    details: { job, sessionDir: job.sessionDir },
+  };
+}
+
+function handleBackgroundSpawn(
+  childInput: ChildTaskInput,
+  ctx: { cwd: string },
+  parentModel: string,
+  role: string,
+  model: string,
+  readonlyApplied: boolean,
+  onUpdate: ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void) | undefined,
+  pi: ExtensionAPI,
+) {
+  onUpdate?.({
+    content: [
+      {
+        type: "text",
+        text: `Spawning ${role} on ${model} in background${readonlyApplied ? " (readonly)" : ""}…`,
+      },
+    ],
+    details: {},
+  });
+  const job = enqueueBackgroundChild(childInput, ctx.cwd, parentModel, (done) => {
+    pi.sendUserMessage(formatBackgroundJobResult(done, role), { deliverAs: "followUp" });
+  });
+  const stats = childConcurrencyStats();
+  const sessionDirNote = job.sessionDir ? ` sessionDir=${job.sessionDir}` : "";
+  return {
+    content: [
+      {
+        type: "text",
+        text: `Background job ${job.id} started (role=${role}, model=${model}${readonlyApplied ? ", readonly" : ""}${sessionDirNote}). Completion will arrive as a follow-up. Poll with pstack_jobs action=status|await id=${job.id}. Concurrency ${stats.active}/${stats.cap} (waiting ${stats.waiting}). Jobs remain queryable for this session.`,
+      },
+    ],
+    details: {
+      jobId: job.id,
+      status: job.status,
+      background: true,
+      readonly: readonlyApplied,
+      concurrency: stats,
+      sessionDir: job.sessionDir,
+    },
+  };
+}
+
+async function handleForegroundSpawn(
+  childInput: ChildTaskInput,
+  ctx: { cwd: string },
+  parentModel: string,
+  role: string,
+  model: string,
+  readonlyApplied: boolean,
+  signal: AbortSignal | undefined,
+  onUpdate: ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void) | undefined,
+) {
+  onUpdate?.({
+    content: [
+      {
+        type: "text",
+        text: `Spawning ${role} on ${model}${readonlyApplied ? " (readonly)" : ""}…`,
+      },
+    ],
+    details: {},
+  });
+
+  const result: ChildTaskResult = await runChildTask(
+    childInput,
+    ctx.cwd,
+    parentModel,
+    signal,
+  );
+
+  const sessionDirNote = result.sessionDir ? `, sessionDir=${result.sessionDir}` : "";
+  return {
+    content: [
+      {
+        type: "text",
+        text: `### pstack_spawn (${result.role ?? role}, ${result.model}, exit ${result.exitCode}${result.outputPath ? `, full=${result.outputPath}` : ""}${sessionDirNote})\n\n${result.output}`,
+      },
+    ],
+    details: { result, readonly: readonlyApplied, sessionDir: result.sessionDir },
+  };
+}
+
 export function registerSpawn(pi: ExtensionAPI): void {
   pi.on("session_shutdown", () => {
     // Abort in-flight children; finished job records are discarded with the process.
@@ -128,127 +369,13 @@ export function registerSpawn(pi: ExtensionAPI): void {
     async execute(_id, params, signal, onUpdate, ctx) {
       if (!ctx.model) throw new Error("pstack_spawn requires an active parent model");
       const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
-      const role = params.role ?? "general";
-      const rawModel =
-        params.model ??
-        resolveRoleModel(role, parentModel) ??
-        parentModel;
-      // Explicit caller model: refuse invalid bare slugs (no silent parent fallback).
-      // Role-resolved / default paths may map or fall back.
-      const modelNorm = params.model
-        ? normalizeModelSelector(rawModel, parentModel, { allowFallbackToParent: false })
-        : normalizeModelSelector(rawModel, parentModel);
-      if (!modelNorm.ok) {
-        throw new Error(modelNorm.error);
-      }
-      const model = modelNorm.model;
-      let parentTools: string[] | undefined;
-      try {
-        parentTools = pi.getActiveTools?.() ?? undefined;
-      } catch {
-        parentTools = undefined;
-      }
-      const tools = resolveTools(role, params, parentTools);
-      const poteto = params.poteto === true || role === "poteto-agent";
-      const readonlyApplied = Boolean(tools && tools.every((t) => (READONLY_TOOLS as readonly string[]).includes(t)));
-      const sessionMode =
-        params.sessionMode === "isolated" || params.sessionMode === "ephemeral"
-          ? params.sessionMode
-          : undefined;
-      const resumeSessionDir = resolveResumeSessionDirParam({
-        resumeSessionDir: params.resumeSessionDir,
-        resumeJobId: params.resumeJobId,
-        sessionMode,
-      });
-      const background = wantsBackground(params.background);
-
-      const childInput = {
-        task: params.task,
-        model,
-        cwd: params.cwd,
-        role,
-        poteto,
-        tools,
-        timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-        skillPath: poteto ? POTETO_SKILL : undefined,
-        persistOutput:
-          params.persistOutput === true
-            ? true
-            : params.persistOutput === false
-              ? false
-              : background
-                ? true
-                : undefined,
-        sessionMode,
-        resumeSessionDir,
-      };
+      const { childInput, model, role, readonlyApplied, background } = prepareChildInputFromParams(params, ctx, pi);
 
       if (background) {
-        onUpdate?.({
-          content: [
-            {
-              type: "text",
-              text: `Spawning ${role} on ${model} in background${readonlyApplied ? " (readonly)" : ""}…`,
-            },
-          ],
-          details: {},
-        });
-        const job = enqueueBackgroundChild(childInput, ctx.cwd, parentModel, (done) => {
-          const sessDir = done.result?.sessionDir ?? done.sessionDir;
-          const sess = sessDir ? `, sessionDir=${sessDir}` : "";
-          const body =
-            done.result != null
-              ? `### pstack_spawn background complete (${done.id}, ${done.result.role ?? role}, ${done.result.model}, exit ${done.result.exitCode}, status=${done.status}${done.result.outputPath ? `, full=${done.result.outputPath}` : ""}${sess})\n\n${done.result.output}`
-              : `### pstack_spawn background ${done.status} (${done.id}${sess}): ${done.error ?? "(no result)"}`;
-          pi.sendUserMessage(body, { deliverAs: "followUp" });
-        });
-        const stats = childConcurrencyStats();
-        const sessionDirNote = job.sessionDir ? ` sessionDir=${job.sessionDir}` : "";
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Background job ${job.id} started (role=${role}, model=${model}${readonlyApplied ? ", readonly" : ""}${sessionDirNote}). Completion will arrive as a follow-up. Poll with pstack_jobs action=status|await id=${job.id}. Concurrency ${stats.active}/${stats.cap} (waiting ${stats.waiting}). Jobs remain queryable for this session.`,
-            },
-          ],
-          details: {
-            jobId: job.id,
-            status: job.status,
-            background: true,
-            readonly: readonlyApplied,
-            concurrency: stats,
-            sessionDir: job.sessionDir,
-          },
-        };
+        return handleBackgroundSpawn(childInput, ctx, parentModel, role, model, readonlyApplied, onUpdate, pi);
       }
 
-      onUpdate?.({
-        content: [
-          {
-            type: "text",
-            text: `Spawning ${role} on ${model}${readonlyApplied ? " (readonly)" : ""}…`,
-          },
-        ],
-        details: {},
-      });
-
-      const result: ChildTaskResult = await runChildTask(
-        childInput,
-        ctx.cwd,
-        parentModel,
-        signal,
-      );
-
-      const sessionDirNote = result.sessionDir ? `, sessionDir=${result.sessionDir}` : "";
-      return {
-        content: [
-          {
-            type: "text",
-            text: `### pstack_spawn (${result.role ?? role}, ${result.model}, exit ${result.exitCode}${result.outputPath ? `, full=${result.outputPath}` : ""}${sessionDirNote})\n\n${result.output}`,
-          },
-        ],
-        details: { result, readonly: readonlyApplied, sessionDir: result.sessionDir },
-      };
+      return handleForegroundSpawn(childInput, ctx, parentModel, role, model, readonlyApplied, signal, onUpdate);
     },
   });
 
@@ -271,76 +398,14 @@ export function registerSpawn(pi: ExtensionAPI): void {
     }),
     async execute(_id, params) {
       const action = params.action;
-      if (action === "list") {
-        const jobs = listBackgroundJobs();
-        const rows = jobs.map(
-          (j) =>
-            `${j.id} status=${j.status} role=${j.role ?? "?"} model=${j.model} started=${new Date(j.startedAt).toISOString()}${j.finishedAt ? ` finished=${new Date(j.finishedAt).toISOString()}` : ""}${j.sessionDir ? ` sessionDir=${j.sessionDir}` : ""}`,
-        );
-        const stats = childConcurrencyStats();
-        const header = `concurrency ${stats.active}/${stats.cap} waiting=${stats.waiting}`;
-        return {
-          content: [
-            {
-              type: "text",
-              text: rows.length ? `${header}\n${rows.join("\n")}` : `${header}\n(no background jobs)`,
-            },
-          ],
-          details: {
-            jobs: jobs.map((j) => ({ id: j.id, status: j.status, sessionDir: j.sessionDir })),
-            concurrency: stats,
-          },
-        };
-      }
+      if (action === "list") return handleListAction();
       if (action === "abort" || action === "cancel") {
         if (!params.id) throw new Error("id required for abort");
-        const job = abortBackgroundJob(params.id);
-        if (!job) throw new Error(`unknown job: ${params.id}`);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `abort requested; job ${params.id} status=${job.status}`,
-            },
-          ],
-          details: { id: params.id, status: job.status },
-        };
+        return handleAbortAction(params.id);
       }
       if (!params.id) throw new Error("id required for status|await");
-      if (action === "status") {
-        const job = getBackgroundJob(params.id);
-        if (!job) throw new Error(`unknown job: ${params.id}`);
-        const tail =
-          job.result != null
-            ? `\n\nexit ${job.result.exitCode}${job.result.outputPath ? ` full=${job.result.outputPath}` : ""}\n${job.result.output.slice(0, 8000)}`
-            : job.error
-              ? `\n\nerror: ${job.error}`
-              : "";
-        const sessionDirNote = job.sessionDir ? ` sessionDir=${job.sessionDir}` : "";
-        return {
-          content: [
-            {
-              type: "text",
-              text: `${job.id} status=${job.status} role=${job.role ?? "?"} model=${job.model}${sessionDirNote}${tail}`,
-            },
-          ],
-          details: { job, sessionDir: job.sessionDir },
-        };
-      }
-      if (action === "await") {
-        const job = await awaitBackgroundJob(params.id, params.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-        const out = job.result?.output ?? job.error ?? "(no output)";
-        const sessionDirNote = job.sessionDir ? `, sessionDir=${job.sessionDir}` : "";
-        return {
-          content: [
-            {
-              type: "text",
-              text: `### pstack_jobs await (${job.id}, status=${job.status}${sessionDirNote})\n\n${out}`,
-            },
-          ],
-          details: { job, sessionDir: job.sessionDir },
-        };
-      }
+      if (action === "status") return handleStatusAction(params.id);
+      if (action === "await") return handleAwaitAction(params.id, params.timeoutMs ?? DEFAULT_TIMEOUT_MS);
       throw new Error("action must be list|status|await|abort|cancel");
     },
   });
