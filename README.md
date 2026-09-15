@@ -4,7 +4,7 @@ Native [Pi](https://pi.dev) package porting [Cursor pstack](https://github.com/c
 
 This is **not** Cursor-equivalence theater: skill/playbook *files* match upstream, and extensions implement the closest executable Pi-native behavior.
 
-**Content parity is machine-checked.** Every file under `skills/`, `agents/`, `automations/`, and `docs/` is `apply(declared Cursor→Pi bindings, upstream pstack@v0.15.2)`. `npm run parity:check` fails on any drift, any unmigrated Cursor mechanism, any unknown `pstack_*` tool, or any dead `scripts/...` path. 104 of 153 upstream files are byte-identical; 47 differ only where a binding names a Cursor mechanism; 2 whole-mechanism files are declared overrides with their non-Cursor sections pinned verbatim. See [port/README.md](./port/README.md).
+**Content parity is machine-checked.** Every file under `skills/`, `agents/`, `automations/`, and `docs/` is `apply(declared Cursor→Pi bindings, upstream pstack@v0.15.2)`. `npm run parity:check` fails on any drift, any unmigrated Cursor mechanism, any unknown `pstack_*` tool, or any dead `scripts/...` path. 103 of 153 upstream files are byte-identical; 48 differ only where a binding names a Cursor mechanism; 2 whole-mechanism files are declared overrides: each override's must list pins named upstream sections, the leftover scan rejects Cursor mechanisms, and the override is hand-maintained and reviewed. See [port/README.md](./port/README.md).
 
 **Local-scope scorecard** (after close-orch-p0/p1/p1b — see [PARITY.md](./PARITY.md)): **EQUIVALENT** sticky / Task-spawn (Cap2) / loop / worktrees / ship / models / recall / readonly; **PARTIAL** deslop only (honest residual, off the user's orch bar); **NOT** cloud agents, marketplace, Automations/Slack, Grok Bot cards. Cap2 resume = `--session-dir` + `--continue`/`-c` (Pi `continueRecent`); background omit→true; concurrency 8; swarm/arena = intentional sync gather.
 
@@ -84,7 +84,7 @@ Slash prompt aliases under `prompts/` expand common short names.
 
 ## Honesty / known gaps
 
-See **[PARITY.md](./PARITY.md) → Behavioral scorecard (12 capabilities)** for the Verifier-aligned summary. Artifact counts (ported/rewritten) are not runtime equivalence. Highest-leverage twins: Cap2 local-Task spawn (omit→true bg, `--continue` resume, jobs, concurrency 8), `pstack_loop` dynamic mode, worktree fleets, auto-readonly comment-sicko/investigator, gh shipping tools. **deslop** stays PARTIAL; Benny under `automations/benny/` is a manual twin (**NOT** on the local orch bar — no Automations Slack bus).
+See **[PARITY.md](./PARITY.md) → Behavioral scorecard (12 capabilities)** for the Verifier-aligned summary. Artifact counts (ported/rewritten) are not runtime equivalence. Highest-leverage twins: Cap2 local-Task spawn (omit→true bg, `--continue` resume, jobs, concurrency 8), `pstack_loop` dynamic mode, worktree fleets, auto-readonly comment-sicko/investigator, gh shipping tools. **deslop** stays PARTIAL; Benny under `automations/benny/` is a ported pack (path + host bindings; the Cursor Automations host is out of scope) (**NOT** on the local orch bar — no Automations Slack bus).
 
 **Not supported** (one-line): Cursor plugin marketplace · Automations Slack bus · cloud agent VMs · full Electron/IDE control-ui · Grok Bot `update_state` / secret-request cards.
 

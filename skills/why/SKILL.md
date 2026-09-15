@@ -80,7 +80,7 @@ Launch all matching investigators in a single message so they run concurrently. 
 Subagent config (each):
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured why-investigators model (default `grok-4.6-fast-xhigh`)
-- `readonly`: `false` (agent mode). Use `role: "investigator"` for code and git work (auto-readonly: `read,grep,find,ls`). A readonly child keeps MCP tools on Pi, unlike Cursor Ask mode, but investigators still shouldn't write anything.
+- `readonly`: `false` (agent mode). **Do not use readonly for MCP-backed investigators.** On Pi it restricts builtins to `read,grep,find,ls` and does not strip MCP tools. Investigators still shouldn't write anything.
 
 Each investigator gets:
 1. The base prompt from `references/investigator-prompt.md`
@@ -124,7 +124,7 @@ Spawn one synthesizer subagent:
 
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured why-synthesizer model (default `claude-fable-5-1-thinking-max`)
-- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. A readonly child keeps MCP tools on Pi, unlike Cursor Ask mode.
+- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access; on Pi, readonly restricts builtins to `read,grep,find,ls` and does not strip MCP tools.
 
 The synthesizer gets:
 1. The investigator findings, including any null results and any categories skipped with justification

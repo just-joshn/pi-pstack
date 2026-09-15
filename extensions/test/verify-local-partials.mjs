@@ -333,6 +333,14 @@ await check("AUTO_READONLY roles + investigation auto-arm wiring", async () => {
   assert.ok(idx.includes("block: true"));
 });
 
+await check("readonly auto-arm requires the read-only investigation playbook target", async () => {
+  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-session.ts")).href);
+  assert.equal(mod.shouldAutoArmFromSkillText("please investigate this"), false);
+  assert.equal(mod.shouldAutoArmFromSkillText("playbooks/investigation how does auth work"), false);
+  assert.equal(mod.shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/babysit investigate CI"), false);
+  assert.equal(mod.shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/investigation how does auth work"), true);
+});
+
 await check("worktree sanitize + always-isolate + cleanup helpers", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/worktree/helpers.ts")).href);
   assert.equal(mod.sanitizeWorktreeName("ok-name_1"), "ok-name_1");

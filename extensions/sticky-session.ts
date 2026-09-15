@@ -89,3 +89,8 @@ export const AUTO_READONLY_PLAYBOOKS = new Set(["investigation"]);
 export function shouldAutoArmReadonly(playbookId: string | undefined | null): boolean {
   return Boolean(playbookId && AUTO_READONLY_PLAYBOOKS.has(playbookId));
 }
+
+/** Explicit read-only-playbook invocation is the only skill text that arms readonly. */
+export function shouldAutoArmFromSkillText(text: string): boolean {
+  return /^\/skill:poteto-mode\s+playbooks\/investigation(?:\s|$)/.test(text.trim());
+}

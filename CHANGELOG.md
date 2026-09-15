@@ -6,11 +6,12 @@
 - Strict content parity is now machine-checked: the ported tree (`skills/`, `agents/`, `automations/`, `docs/`) is `apply(declared Cursor→Pi bindings, upstream pstack@v0.15.2)`. `npm run parity:check` fails on drift, an unmigrated Cursor mechanism, a missing override section, an unknown `pstack_*` tool, or a dead `scripts/...` path. See [`port/README.md`](./port/README.md).
 
 ### Changed
-- Every ported file was regenerated from upstream through the binding table. Surplus Pi commentary, duplicated mechanics, and hand-rewritten prose are gone; 104 of 153 upstream files are byte-identical, 47 are binding-only, and 2 are declared whole-mechanism overrides (`make-bot-ui`, `setup-pstack`) whose non-mechanism sections are pinned verbatim by the checker.
+- Every ported file was regenerated from upstream through the binding table. Surplus Pi commentary, duplicated mechanics, and hand-rewritten prose are gone; 103 of 153 upstream files are byte-identical, 48 are binding-only, and 2 are declared whole-mechanism overrides (`make-bot-ui`, `setup-pstack`) whose `must` list pins named upstream sections and whose leftover scan rejects Cursor mechanisms.
 - Fixed bindings the previous hand port missed: `reflect/references/synthesizer.md` `create-skill` rows, `reflect` `Task` response wording, and the `worktree-audit.sh` transcript path.
 
 ### Fixed
 - Pi skill id: `skills/poteto-mode/SKILL.md` frontmatter `name` is `poteto-mode` (kebab-case). Cursor upstream uses display name `Poteto Mode`; Pi requires `a-z0-9-hyphen` only. The slash command remains `/poteto-mode` / `/skill:poteto-mode` for parity of invocation.
+- Adversarial-verification round: byte-safe port checker (Buffer.equals first, BYTE DRIFT/BINARY DRIFT, sync refuses binaries), declared local-only extras gate, Benny host bindings (Cursor /automate and Automations-editor wording replaced with a user-provided host), make-bot-ui restored generic HTTP 200 success line, why readonly bindings tightened against the false upstream premise, arena-cross-judge-readonly rule removed so arena reverts to upstream text, and session-readonly auto-arm now requires an explicit playbooks/investigation invocation.
 
 ## docs-sync
 

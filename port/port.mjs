@@ -13,16 +13,19 @@
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import upstream from "./upstream.json" with { type: "json" };
-import { bindings, overrides, leftoverTokens } from "./bindings.mjs";
+import { bindings, overrides, leftoverTokens, extras } from "./bindings.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const cmd = args.find((a) => !a.startsWith("-")) ?? "check";
 const fileFlag = valueOf("--file");
 const upstreamDir = valueOf("--upstream") ?? process.env.PORT_UPSTREAM_DIR ?? join(ROOT, ".port-upstream", `cursor-plugins-${upstream.commit.slice(0, 7)}`);
+
+const TEXT_EXTENSIONS = new Set([".md", ".sh", ".ts", ".tsx", ".mjs", ".cjs", ".json", ".yaml", ".yml", ".tsv", ".txt"]);
+const isText = (rel) => TEXT_EXTENSIONS.has(extname(rel).toLowerCase());
 
 function valueOf(flag) {
   const i = args.indexOf(flag);
@@ -105,23 +108,24 @@ const files = upstream.scoped.flatMap((d) => walk(join(root, d), root)).sort();
 const upstreamSet = new Set(files);
 const localSet = new Set(upstream.scoped.flatMap((d) => (existsSync(join(ROOT, d)) ? walk(join(ROOT, d), ROOT) : [])));
 
-const stats = { identical: 0, bound: 0, override: 0, drift: 0, missing: 0, loose: 0, unused: 0 };
+const stats = { identical: 0, bound: 0, override: 0, drift: 0, missing: 0, loose: 0, unused: 0, localOnly: 0, undeclared: 0 };
 const firedRules = new Set();
 
 for (const rel of files) {
   if (fileFlag && rel !== fileFlag) continue;
-  const upstreamText = readFileSync(join(root, rel), "utf8");
   const localPath = join(ROOT, rel);
   if (!existsSync(localPath)) {
     console.log(`MISSING  ${rel}`);
     stats.missing++;
     continue;
   }
-  const localText = readFileSync(localPath, "utf8");
+  const upstreamBuf = readFileSync(join(root, rel));
+  const localBuf = readFileSync(localPath);
 
   const override = overrides[rel];
   if (override) {
     stats.override++;
+    const localText = localBuf.toString("utf8");
     const missingMust = (override.must ?? []).filter((s) => !localText.includes(s));
     const hits = scanLeftovers(rel, localText);
     if (missingMust.length || hits.length) {
@@ -133,6 +137,19 @@ for (const rel of files) {
     continue;
   }
 
+  // Byte-identical files need no decode and no binding pass.
+  if (localBuf.equals(upstreamBuf)) {
+    stats.identical++;
+    continue;
+  }
+  if (!isText(rel)) {
+    console.log("BINARY DRIFT  " + rel);
+    stats.drift++;
+    continue;
+  }
+
+  const upstreamText = upstreamBuf.toString("utf8");
+  const localText = localBuf.toString("utf8");
   const { text: generated, applied } = applyBindings(rel, upstreamText);
   for (const id of applied) firedRules.add(id);
   const loose = scanLeftovers(rel, generated);
@@ -141,29 +158,40 @@ for (const rel of files) {
     for (const h of loose) console.log(`  ${h}`);
     stats.loose++;
   }
-  if (generated === localText) {
+  if (Buffer.from(generated, "utf8").equals(localBuf)) {
     if (applied.length) stats.bound++;
     else stats.identical++;
     continue;
   }
   stats.drift++;
+  const label = generated === localText ? "BYTE DRIFT" : "DRIFT";
   if (cmd === "diff" || cmd === "sync") {
-    console.log(`DRIFT  ${rel} (applied: ${applied.join(", ") || "none"})`);
+    console.log(`${label}  ${rel} (applied: ${applied.join(", ") || "none"})`);
     if (cmd === "diff") console.log(showDiff(rel, generated, localText));
     continue;
   }
-  console.log(`DRIFT  ${rel} (applied: ${applied.join(", ") || "none"})`);
+  console.log(`${label}  ${rel} (applied: ${applied.join(", ") || "none"})`);
 }
 
 if (cmd === "sync") {
   let written = 0;
   for (const rel of files) {
     if (overrides[rel]) continue;
-    const generated = applyBindings(rel, readFileSync(join(root, rel), "utf8")).text;
+    const upstreamBuf = readFileSync(join(root, rel));
     const localPath = join(ROOT, rel);
-    if (existsSync(localPath) && readFileSync(localPath, "utf8") === generated) continue;
+    const localBuf = existsSync(localPath) ? readFileSync(localPath) : null;
+    if (!isText(rel)) {
+      if (!localBuf || !localBuf.equals(upstreamBuf)) {
+        console.log(`REFUSING to sync binary ${rel}`);
+        process.exitCode = 1;
+      }
+      continue;
+    }
+    const generated = applyBindings(rel, upstreamBuf.toString("utf8")).text;
+    const generatedBuf = Buffer.from(generated, "utf8");
+    if (localBuf && generatedBuf.equals(localBuf)) continue;
     mkdirSync(dirname(localPath), { recursive: true });
-    writeFileSync(localPath, generated);
+    writeFileSync(localPath, generatedBuf);
     written++;
   }
   console.log(`sync: wrote ${written} file(s)`);
@@ -178,10 +206,17 @@ const unusedRules = fileFlag ? [] : bindings.filter((r) => !firedRules.has(r.id)
 for (const rule of unusedRules) console.log(`UNUSED RULE  ${rule.id}`);
 stats.unused = unusedRules.length;
 
-const extras = [...localSet].filter((f) => !upstreamSet.has(f)).sort();
-for (const rel of extras) console.log(`EXTRA  ${rel} (no upstream counterpart)`);
+const extrasList = [...localSet].filter((f) => !upstreamSet.has(f)).sort();
+for (const rel of extrasList) {
+  if (extras[rel]) console.log(`EXTRA  ${rel} (declared local-only)`);
+  else {
+    console.log(`EXTRA  ${rel} (undeclared local-only)`);
+    stats.undeclared++;
+  }
+  stats.localOnly++;
+}
 
 console.log(
-  `\n${files.length} upstream files: ${stats.identical} identical, ${stats.bound} bound, ${stats.override} override, ${stats.drift} drift, ${stats.loose} loose, ${stats.missing} missing; ${bindings.length - stats.unused}/${bindings.length} rules fired; local-only ${extras.length}`,
+  `\n${files.length} upstream files: ${stats.identical} identical, ${stats.bound} bound, ${stats.override} override, ${stats.drift} drift, ${stats.loose} loose, ${stats.missing} missing; ${bindings.length - stats.unused}/${bindings.length} rules fired; local-only ${stats.localOnly} (${stats.undeclared} undeclared)`,
 );
-if ((stats.drift || stats.missing || stats.loose || stats.unused) && cmd === "check") process.exitCode = 1;
+if ((stats.drift || stats.missing || stats.loose || stats.unused || stats.undeclared) && cmd === "check") process.exitCode = 1;

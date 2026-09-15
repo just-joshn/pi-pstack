@@ -2,7 +2,7 @@
 
 ## what i want to automate
 
-i want two cursor automations that work together in one slack issue channel.
+i want two automations that work together in one slack issue channel.
 
 ### automation 1: triage issue reports
 
@@ -54,7 +54,7 @@ start from [`configuration.example.yaml`](./templates/configuration.example.yaml
 
 ## for the agent
 
-the human enters setup by pointing cursor at this file. do not look for or invoke a discovered benny slash skill.
+the human enters setup by pointing their agent at this file. do not look for or invoke a discovered benny slash skill.
 
 1. ask which repository will run the automations.
 2. treat the directory containing this `FOR_AGENTS.md` as the source pack.
@@ -82,8 +82,8 @@ if project-scoped plugins are unavailable or any shared dependency does not reso
 
 tell me that `.pi/settings.json`, `.pi/automations/benny/`, and any referenced secret-free configuration must be committed before either automation is enabled. do not create or update an automation until i explicitly ask.
 
-for first-time creation, use built-in `/automate` once for triage and once for repro and fix. complete the draft review, approval, readiness check, and Automations editor handoff for the first automation before starting the second.
+for first-time creation, create two automations on a host you provide (a scheduled job, CI workflow, or Slack bot), one for triage and one for repro and fix. complete the live-prompt review, approval, readiness check, and trigger handoff for the first automation before starting the second.
 
-paraphrase this intent and the finished configuration into each draft. the triage prompt must read and follow `.pi/automations/benny/skills/triage-issue-reports/SKILL.md`. the repro prompt must read and follow `.pi/automations/benny/skills/reproduce-and-fix-issues/SKILL.md`. use these repo-relative paths only after `/automate` confirms they are committed in the repository where the automation will run.
+paraphrase this intent and the finished configuration into each draft. the triage prompt must read and follow `.pi/automations/benny/skills/triage-issue-reports/SKILL.md`. the repro prompt must read and follow `.pi/automations/benny/skills/reproduce-and-fix-issues/SKILL.md`. use these repo-relative paths only after you confirm they are committed in the repository where the automation will run.
 
-for existing automations, do not use `/automate` to inspect or update them. validate the configuration, then use the concise field checklist in the copied setup file so i can edit each automation directly in its editor. do not create duplicates.
+for existing automations, validate the configuration, then use the concise field checklist in the copied setup file so i can edit each automation directly on its host. do not create duplicates.

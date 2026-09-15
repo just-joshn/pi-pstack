@@ -12,7 +12,7 @@ slack:
   thread_post_action: "configured-slack-thread-post-action"
   file_download_action: "configured-slack-file-download-action"
   operations_edit_action: "configured-slack-edit-action"
-  prefer_cursor_actions: true
+  prefer_host_actions: true
   optional_bot_token_env: "BENNY_SLACK_BOT_TOKEN"
   allow_source_root_posts: false
   allow_worker_slack_writes: false
