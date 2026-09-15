@@ -38,6 +38,44 @@ const ALLOWED_CONTROL_COMMANDS = new Set([
   "npx",
 ]);
 
+const DESLOP_PARAMETERS = Type.Object({
+  base: Type.Optional(Type.String({ description: "git diff base (default main)" })),
+  paths: Type.Optional(Type.Array(Type.String())),
+  applySafe: Type.Optional(
+    Type.Boolean({
+      description:
+        "If true, delete high-confidence safe comment/slop lines (banner/empty/narration comments) from the working tree.",
+    }),
+  ),
+  autoApply: Type.Optional(
+    Type.Boolean({
+      description:
+        "Stage-2 optional: if true and UI confirm is available, prompt once then applySafe. Ignored without confirm UI.",
+    }),
+  ),
+  dryRun: Type.Optional(
+    Type.Boolean({
+      description:
+        "If true, report which safeDelete lines would be removed without writing files (overrides applySafe/autoApply).",
+    }),
+  ),
+});
+
+const CONTROL_CLI_PARAMETERS = Type.Object({
+  argv: Type.Array(Type.String(), {
+    minItems: 1,
+    description: "Argv array: [command, ...args]. No shell metacharacters.",
+  }),
+  cwd: Type.Optional(Type.String()),
+  timeoutSeconds: Type.Optional(Type.Integer({ minimum: 1, maximum: 600 })),
+});
+
+const CONTROL_UI_PARAMETERS = Type.Object({
+  url: Type.String(),
+  method: Type.Optional(Type.String()),
+  expectStatus: Type.Optional(Type.Integer()),
+});
+
 function buildGitDiffArgs(base: string, paths?: string[]): string[] {
   const args = ["diff", "-U3", `${base}...HEAD`];
   if (paths?.length) {
@@ -123,6 +161,26 @@ function scanSlopPatterns(addedLines: Array<{ file: string; text: string }>): {
     }
   }
   return { buckets, suggestions: allSuggestions };
+}
+
+async function scanDiffForSlop(
+  pi: ExtensionAPI,
+  base: string,
+  paths: string[] | undefined,
+  signal: AbortSignal | undefined,
+): Promise<{ ranked: Hit[]; suggestions: FixSuggestion[]; addedLineCount: number }> {
+  const args = buildGitDiffArgs(base, paths);
+  const diff = await pi.exec("git", args, { signal });
+  const unstaged = await pi.exec("git", ["diff", "-U3"], { signal });
+  const addedLines = extractAddedLines(`${diff.stdout || ""}\n${unstaged.stdout || ""}`);
+  const { buckets, suggestions } = scanSlopPatterns(addedLines);
+
+  const ranked = [...buckets.values()].toSorted((a, b) => {
+    const order = { high: 0, medium: 1, low: 2 } as const;
+    return order[a.severity] - order[b.severity] || b.count - a.count;
+  });
+
+  return { ranked, suggestions, addedLineCount: addedLines.length };
 }
 
 async function determineApplyAction(
@@ -217,7 +275,7 @@ function formatResult(
   };
 }
 
-export function registerCompanions(pi: ExtensionAPI): void {
+function registerDeslopTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_deslop",
     label: "Pstack Deslop",
@@ -228,46 +286,18 @@ export function registerCompanions(pi: ExtensionAPI): void {
       "Use pstack_deslop before commit; then applySafe for safe comment deletes and /skill:unslop for prose.",
       "Never require cursor-team-kit — pstack_deslop + unslop are the Pi path.",
     ],
-    parameters: Type.Object({
-      base: Type.Optional(Type.String({ description: "git diff base (default main)" })),
-      paths: Type.Optional(Type.Array(Type.String())),
-      applySafe: Type.Optional(
-        Type.Boolean({
-          description:
-            "If true, delete high-confidence safe comment/slop lines (banner/empty/narration comments) from the working tree.",
-        }),
-      ),
-      autoApply: Type.Optional(
-        Type.Boolean({
-          description:
-            "Stage-2 optional: if true and UI confirm is available, prompt once then applySafe. Ignored without confirm UI.",
-        }),
-      ),
-      dryRun: Type.Optional(
-        Type.Boolean({
-          description:
-            "If true, report which safeDelete lines would be removed without writing files (overrides applySafe/autoApply).",
-        }),
-      ),
-    }),
+    parameters: DESLOP_PARAMETERS,
     async execute(_id, params, signal, _onUpdate, ctx) {
       const base = params.base ?? "main";
       if (base.startsWith("-") || base.includes("..") || /\s/.test(base)) {
         throw new Error("invalid git diff base");
       }
-      const args = buildGitDiffArgs(base, params.paths);
-      const diff = await pi.exec("git", args, { signal });
-      const unstaged = await pi.exec("git", ["diff", "-U3"], { signal });
-      const text = `${diff.stdout || ""}\n${unstaged.stdout || ""}`;
-
-      const addedLines = extractAddedLines(text);
-      const { buckets, suggestions } = scanSlopPatterns(addedLines);
-
-      const ranked = [...buckets.values()].toSorted((a, b) => {
-        const order = { high: 0, medium: 1, low: 2 } as const;
-        return order[a.severity] - order[b.severity] || b.count - a.count;
-      });
-
+      const { ranked, suggestions, addedLineCount } = await scanDiffForSlop(
+        pi,
+        base,
+        params.paths,
+        signal,
+      );
       const { applyReport, applyDetails, doApply } = await determineApplyAction(
         params,
         suggestions,
@@ -276,16 +306,18 @@ export function registerCompanions(pi: ExtensionAPI): void {
 
       if (doApply && suggestions.some((s) => s.safeDelete)) {
         const result = applySafeDeletes(ctx.cwd, suggestions);
-        return formatResult(ctx.cwd, ranked, suggestions, addedLines.length, {
+        return formatResult(ctx.cwd, ranked, suggestions, addedLineCount, {
           applied: result.applied,
           files: result.files,
         });
       }
 
-      return formatResult(ctx.cwd, ranked, suggestions, addedLines.length, applyDetails, applyReport);
+      return formatResult(ctx.cwd, ranked, suggestions, addedLineCount, applyDetails, applyReport);
     },
   });
+}
 
+function registerControlCliTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_control_cli",
     label: "Pstack Control CLI",
@@ -295,14 +327,7 @@ export function registerCompanions(pi: ExtensionAPI): void {
     promptGuidelines: [
       "Use pstack_control_cli with argv=[cmd,...args] — never a raw shell string.",
     ],
-    parameters: Type.Object({
-      argv: Type.Array(Type.String(), {
-        minItems: 1,
-        description: "Argv array: [command, ...args]. No shell metacharacters.",
-      }),
-      cwd: Type.Optional(Type.String()),
-      timeoutSeconds: Type.Optional(Type.Integer({ minimum: 1, maximum: 600 })),
-    }),
+    parameters: CONTROL_CLI_PARAMETERS,
     async execute(_id, params, signal) {
       const [command, ...args] = params.argv;
       if (!command || command.startsWith("-")) {
@@ -332,18 +357,16 @@ export function registerCompanions(pi: ExtensionAPI): void {
       };
     },
   });
+}
 
+function registerControlUiTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_control_ui",
     label: "Pstack Control UI",
     description:
       "Pi-local control-ui twin: probe a URL (HTTP) or run a browser MCP hint. Returns status + body snippet. Full browser automation depends on available MCP/browser tools — HTTP-only unless a browser MCP is present.",
     promptSnippet: "HTTP-probe a UI surface for proof",
-    parameters: Type.Object({
-      url: Type.String(),
-      method: Type.Optional(Type.String()),
-      expectStatus: Type.Optional(Type.Integer()),
-    }),
+    parameters: CONTROL_UI_PARAMETERS,
     async execute(_id, params, signal) {
       const method = params.method ?? "GET";
       try {
@@ -373,7 +396,9 @@ export function registerCompanions(pi: ExtensionAPI): void {
       }
     },
   });
+}
 
+function registerDeslopCommand(pi: ExtensionAPI): void {
   pi.registerCommand("deslop", {
     description: "Run pstack_deslop twin then remind /skill:unslop",
     handler: async (_args, ctx) => {
@@ -384,4 +409,11 @@ export function registerCompanions(pi: ExtensionAPI): void {
       ctx.ui.notify("Queued deslop twin", "info");
     },
   });
+}
+
+export function registerCompanions(pi: ExtensionAPI): void {
+  registerDeslopTool(pi);
+  registerControlCliTool(pi);
+  registerControlUiTool(pi);
+  registerDeslopCommand(pi);
 }

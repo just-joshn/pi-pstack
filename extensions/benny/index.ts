@@ -9,19 +9,81 @@ import { fileURLToPath } from "node:url";
 import { existsSync, mkdirSync, appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
+import { Type, type Static } from "typebox";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const BENNY_ROOT = resolve(PACKAGE_ROOT, "automations/benny");
 const WAKE_DIR = resolve(homedir(), ".pi/agent");
 const WAKE_FILE = resolve(WAKE_DIR, "pstack-benny-wakes.jsonl");
 
+const BENNY_WAKE_PARAMETERS = Type.Object({
+  action: Type.Union([Type.Literal("append"), Type.Literal("drain"), Type.Literal("path")], {
+    description: "append JSON payload, drain all pending lines, or return wake file path",
+  }),
+  payload: Type.Optional(Type.String({ description: "JSON string to append (action=append)" })),
+  intent: Type.Optional(
+    Type.Union([Type.Literal("triage"), Type.Literal("repro")], {
+      description: "Hint which Benny skill should handle this wake",
+    }),
+  ),
+});
+
+type WakeParams = Static<typeof BENNY_WAKE_PARAMETERS>;
+
+type WakeToolResult = {
+  content: Array<{ type: "text"; text: string }>;
+  details: Record<string, unknown>;
+};
+
 function ensureWakeFile(): void {
   if (!existsSync(WAKE_DIR)) mkdirSync(WAKE_DIR, { recursive: true });
   if (!existsSync(WAKE_FILE)) writeFileSync(WAKE_FILE, "", "utf8");
 }
 
-export function registerBenny(pi: ExtensionAPI): void {
+function appendWake(params: WakeParams): WakeToolResult {
+  if (!params.payload?.trim()) {
+    return {
+      content: [{ type: "text", text: "pstack_benny_wake append requires payload JSON" }],
+      details: { ok: false },
+    };
+  }
+  const line = JSON.stringify({
+    ts: new Date().toISOString(),
+    intent: params.intent ?? "triage",
+    payload: (() => {
+      try {
+        return JSON.parse(params.payload!);
+      } catch {
+        return params.payload;
+      }
+    })(),
+  });
+  appendFileSync(WAKE_FILE, line + "\n", "utf8");
+  return {
+    content: [{ type: "text", text: `Appended wake to ${WAKE_FILE}` }],
+    details: { ok: true, path: WAKE_FILE },
+  };
+}
+
+function drainWakes(): WakeToolResult {
+  const raw = readFileSync(WAKE_FILE, "utf8");
+  writeFileSync(WAKE_FILE, "", "utf8");
+  const lines = raw.split("\n").filter((l) => l.trim());
+  return {
+    content: [
+      {
+        type: "text",
+        text:
+          lines.length === 0
+            ? "No pending Benny wakes."
+            : `Drained ${lines.length} wake(s):\n${lines.join("\n")}`,
+      },
+    ],
+    details: { count: lines.length, path: WAKE_FILE },
+  };
+}
+
+function registerSetupBennyCommand(pi: ExtensionAPI): void {
   pi.registerCommand("setup-benny", {
     description: "Run Benny setup skill (Pi twin of Cursor Automations pack setup)",
     handler: async (_args, ctx) => {
@@ -36,7 +98,9 @@ export function registerBenny(pi: ExtensionAPI): void {
       );
     },
   });
+}
 
+function registerBennyTriageCommand(pi: ExtensionAPI): void {
   pi.registerCommand("benny-triage", {
     description: "Run Benny triage-issue-reports skill once",
     handler: async (args, _ctx) => {
@@ -48,7 +112,9 @@ export function registerBenny(pi: ExtensionAPI): void {
       );
     },
   });
+}
 
+function registerBennyReproCommand(pi: ExtensionAPI): void {
   pi.registerCommand("benny-repro", {
     description: "Run Benny reproduce-and-fix-issues skill once",
     handler: async (args, _ctx) => {
@@ -60,23 +126,15 @@ export function registerBenny(pi: ExtensionAPI): void {
       );
     },
   });
+}
 
+function registerBennyWakeTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_benny_wake",
     label: "Benny wake",
     description:
       "Append or drain Benny wake payloads (Slack/tracker JSON). Closest twin to Cursor Automations Slack triggers — pair with pstack_loop watcher on the wake file.",
-    parameters: Type.Object({
-      action: Type.Union([Type.Literal("append"), Type.Literal("drain"), Type.Literal("path")], {
-        description: "append JSON payload, drain all pending lines, or return wake file path",
-      }),
-      payload: Type.Optional(Type.String({ description: "JSON string to append (action=append)" })),
-      intent: Type.Optional(
-        Type.Union([Type.Literal("triage"), Type.Literal("repro")], {
-          description: "Hint which Benny skill should handle this wake",
-        }),
-      ),
-    }),
+    parameters: BENNY_WAKE_PARAMETERS,
     promptSnippet: "Queue or drain Benny automation wake payloads",
     promptGuidelines: [
       "Use pstack_benny_wake + pstack_loop(mode=watcher) instead of Cursor Automations Slack triggers.",
@@ -91,45 +149,16 @@ export function registerBenny(pi: ExtensionAPI): void {
         };
       }
       if (params.action === "append") {
-        if (!params.payload?.trim()) {
-          return {
-            content: [{ type: "text", text: "pstack_benny_wake append requires payload JSON" }],
-            details: { ok: false },
-          };
-        }
-        const line = JSON.stringify({
-          ts: new Date().toISOString(),
-          intent: params.intent ?? "triage",
-          payload: (() => {
-            try {
-              return JSON.parse(params.payload!);
-            } catch {
-              return params.payload;
-            }
-          })(),
-        });
-        appendFileSync(WAKE_FILE, line + "\n", "utf8");
-        return {
-          content: [{ type: "text", text: `Appended wake to ${WAKE_FILE}` }],
-          details: { ok: true, path: WAKE_FILE },
-        };
+        return appendWake(params);
       }
-      // drain
-      const raw = readFileSync(WAKE_FILE, "utf8");
-      writeFileSync(WAKE_FILE, "", "utf8");
-      const lines = raw.split("\n").filter((l) => l.trim());
-      return {
-        content: [
-          {
-            type: "text",
-            text:
-              lines.length === 0
-                ? "No pending Benny wakes."
-                : `Drained ${lines.length} wake(s):\n${lines.join("\n")}`,
-          },
-        ],
-        details: { count: lines.length, path: WAKE_FILE },
-      };
+      return drainWakes();
     },
   });
+}
+
+export function registerBenny(pi: ExtensionAPI): void {
+  registerSetupBennyCommand(pi);
+  registerBennyTriageCommand(pi);
+  registerBennyReproCommand(pi);
+  registerBennyWakeTool(pi);
 }
