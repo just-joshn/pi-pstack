@@ -13,14 +13,14 @@ let failed = 0;
 
 // The handler gates auto-readonly on PSTACK_CHILD_ROLE; this test simulates a real
 // parent session (unset even when this test itself runs as a pstack child).
-delete process.env.PSTACK_CHILD_ROLE;
+Reflect.deleteProperty(process.env, "PSTACK_CHILD_ROLE");
 
 async function check(name, fn) {
   try {
     await fn();
-    console.log(`PASS ${name}`);
+    process.stdout.write(`PASS ${name}\n`);
   } catch (err) {
-    failed++;
+    failed = failed + 1;
     console.error(`FAIL ${name}:`, err?.message ?? err);
   }
 }
@@ -54,7 +54,7 @@ function makeFakeApi() {
         handlers[name] = fn;
       },
       appendEntry(type, data) {
-        appended.push({ type, data });
+        appended[appended.length] = { type, data };
       },
       registerCommand() {},
       registerTool() {},
@@ -65,10 +65,10 @@ function makeFakeApi() {
         return [];
       },
       setActiveTools(names) {
-        calls.setActiveTools.push(names);
+        calls.setActiveTools = [...calls.setActiveTools, names];
       },
       sendUserMessage(msg, opts) {
-        calls.sendUserMessage.push({ msg, opts });
+        calls.sendUserMessage = [...calls.sendUserMessage, { msg, opts }];
       },
       sendMessage() {},
       async exec() {
@@ -181,5 +181,5 @@ if (failed > 0) {
   console.error(`\n${failed} check(s) failed`);
   process.exit(1);
 } else {
-  console.log("\nAll checks passed");
+  process.stdout.write("\nAll checks passed\n");
 }

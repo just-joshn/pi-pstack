@@ -16,6 +16,127 @@ import {
 import { resolveRoleModel } from "../models/config.ts";
 import { ensureAlwaysIsolated } from "../worktree/helpers.ts";
 
+type ArenaCandidate = {
+  model?: string;
+  cwd?: string;
+  outputPath?: string;
+  label?: string;
+};
+
+type ArenaParams = {
+  prompt: string;
+  candidates: ArenaCandidate[];
+  rubric?: string;
+  crossJudge?: boolean;
+  judgeModel?: string;
+  timeoutMs?: number;
+};
+
+type CandidateResult = {
+  label: string;
+  outputPath?: string;
+  cwd: string;
+  result: { model: string; exitCode: number; output: string; stopReason?: string };
+};
+
+async function runArenaCandidates(
+  params: ArenaParams,
+  cwds: string[],
+  parentModel: string,
+  ctxCwd: string,
+  signal: AbortSignal | undefined,
+  onUpdate: ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void) | undefined,
+): Promise<CandidateResult[]> {
+  let doneCount = 0;
+  return await mapConcurrent(params.candidates, MAX_CONCURRENCY, async (c, index) => {
+    const model =
+      c.model ??
+      resolveRoleModel("arena runners", parentModel, index) ??
+      parentModel;
+    const label = c.label ?? `candidate-${index + 1}`;
+    const task = [
+      params.prompt,
+      c.outputPath ? `Write your artifact under: ${c.outputPath}` : "",
+      "Also return a short rationale naming alternatives considered and rejected.",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const result = await runChildTask(
+      {
+        task,
+        model,
+        cwd: cwds[index],
+        role: "general",
+        timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      },
+      ctxCwd,
+      parentModel,
+      signal,
+    );
+    doneCount = doneCount + 1;
+    onUpdate?.({
+      content: [{ type: "text", text: `${doneCount}/${params.candidates.length} arena candidates done` }],
+      details: {},
+    });
+    return { label, outputPath: c.outputPath, cwd: cwds[index], result };
+  });
+}
+
+async function runCrossJudge(
+  params: ArenaParams,
+  results: CandidateResult[],
+  parentModel: string,
+  ctxCwd: string,
+  signal: AbortSignal | undefined,
+): Promise<string> {
+  if (!params.crossJudge) return "";
+  const judgeModel =
+    params.judgeModel ??
+    resolveRoleModel("arena cross-judge pool", parentModel) ??
+    parentModel;
+  const summaries = results
+    .map(
+      (r) =>
+        `### ${r.label} (${r.result.model})\npath: ${r.outputPath ?? "(inline)"}\ncwd: ${r.cwd}\n\n${r.result.output}`,
+    )
+    .join("\n\n");
+  const judge = await runChildTask(
+    {
+      task: [
+        "You are an arena cross-judge. Score each candidate against the rubric. Recommend a base with rationale.",
+        `Rubric:\n${params.rubric ?? "(derive from the shared prompt)"}`,
+        summaries,
+      ].join("\n\n"),
+      model: judgeModel,
+      role: "general",
+      tools: [...READONLY_TOOLS],
+      timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    },
+    ctxCwd,
+    parentModel,
+    signal,
+  );
+  return `\n\n## Cross-judge (${judge.model})\n\n${judge.output}`;
+}
+
+function formatArenaResponse(results: CandidateResult[], judgeText: string) {
+  const body = results
+    .map(
+      (r) =>
+        `### ${r.label} (${r.result.model}, exit ${r.result.exitCode})\npath: ${r.outputPath ?? "(inline)"}\ncwd: ${r.cwd}\n\n${r.result.output}`,
+    )
+    .join("\n\n---\n\n");
+  return {
+    content: [
+      {
+        type: "text",
+        text: `## Arena candidates\n\n${body}${judgeText}\n\nNext: pick a base and graft per the arena skill.`,
+      },
+    ],
+    details: { results, concurrencyCap: MAX_CONCURRENCY },
+  };
+}
+
 export function registerArena(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_arena",
@@ -54,87 +175,10 @@ export function registerArena(pi: ExtensionAPI): void {
           label: c.label ?? `candidate-${i + 1}`,
         })),
       );
-      let done = 0;
-      const results = await mapConcurrent(params.candidates, MAX_CONCURRENCY, async (c, index) => {
-        const model =
-          c.model ??
-          resolveRoleModel("arena runners", parentModel, index) ??
-          parentModel;
-        const label = c.label ?? `candidate-${index + 1}`;
-        const task = [
-          params.prompt,
-          c.outputPath ? `Write your artifact under: ${c.outputPath}` : "",
-          "Also return a short rationale naming alternatives considered and rejected.",
-        ]
-          .filter(Boolean)
-          .join("\n\n");
-        const result = await runChildTask(
-          {
-            task,
-            model,
-            cwd: cwds[index],
-            role: "general",
-            timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-          },
-          ctx.cwd,
-          parentModel,
-          signal,
-        );
-        done++;
-        onUpdate?.({
-          content: [{ type: "text", text: `${done}/${params.candidates.length} arena candidates done` }],
-          details: {},
-        });
-        return { label, outputPath: c.outputPath, cwd: cwds[index], result };
-      });
 
-      let judgeText = "";
-      if (params.crossJudge) {
-        const judgeModel =
-          params.judgeModel ??
-          resolveRoleModel("arena cross-judge pool", parentModel) ??
-          parentModel;
-        const summaries = results
-          .map(
-            (r) =>
-              `### ${r.label} (${r.result.model})\npath: ${r.outputPath ?? "(inline)"}\ncwd: ${r.cwd}\n\n${r.result.output}`,
-          )
-          .join("\n\n");
-        const judge = await runChildTask(
-          {
-            task: [
-              "You are an arena cross-judge. Score each candidate against the rubric. Recommend a base with rationale.",
-              `Rubric:\n${params.rubric ?? "(derive from the shared prompt)"}`,
-              summaries,
-            ].join("\n\n"),
-            model: judgeModel,
-            role: "general",
-            tools: [...READONLY_TOOLS],
-            timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-          },
-          ctx.cwd,
-          parentModel,
-          signal,
-        );
-        judgeText = `\n\n## Cross-judge (${judge.model})\n\n${judge.output}`;
-      }
-
-      const body = results
-        .map(
-          (r) =>
-            `### ${r.label} (${r.result.model}, exit ${r.result.exitCode})\npath: ${r.outputPath ?? "(inline)"}\ncwd: ${r.cwd}\n\n${r.result.output}`,
-        )
-        .join("\n\n---\n\n");
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `## Arena candidates\n\n${body}${judgeText}\n\nNext: pick a base and graft per the arena skill.`,
-          },
-        ],
-        details: { results, concurrencyCap: MAX_CONCURRENCY },
-      };
+      const results = await runArenaCandidates(params, cwds, parentModel, ctx.cwd, signal, onUpdate);
+      const judgeText = await runCrossJudge(params, results, parentModel, ctx.cwd, signal);
+      return formatArenaResponse(results, judgeText);
     },
   });
 }

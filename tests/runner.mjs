@@ -19,7 +19,9 @@ function commandExists(cmd) {
       if (!statSync(candidate).isFile()) continue;
       accessSync(candidate, constants.X_OK);
       return true;
-    } catch {}
+    } catch {
+      continue;
+    }
   }
   return false;
 }
@@ -33,35 +35,42 @@ function failingFiles(output) {
 }
 
 const args = process.argv.slice(2);
-const flags = {
-  layer: null,
-  list: false,
-  dryRun: false,
-  verbose: false,
-  bail: false,
-  files: [],
-};
 
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-  if (arg === "--layer" && args[i + 1]) {
-    flags.layer = args[++i];
-  } else if (arg === "--list") {
-    flags.list = true;
-  } else if (arg === "--dry-run") {
-    flags.dryRun = true;
-  } else if (arg === "--verbose") {
-    flags.verbose = true;
-  } else if (arg === "--bail") {
-    flags.bail = true;
-  } else if (!arg.startsWith("-")) {
-    flags.files.push(arg);
-  } else {
-    console.error(`Unknown option: ${arg}`);
-    console.error(USAGE);
-    process.exit(2);
+function parseArgs(args) {
+  const flags = {
+    layer: null,
+    list: false,
+    dryRun: false,
+    verbose: false,
+    bail: false,
+    files: [],
+  };
+
+  for (let i = 0; i < args.length; i = i + 1) {
+    const arg = args[i];
+    if (arg === "--layer" && args[i + 1]) {
+      i = i + 1;
+      flags.layer = args[i];
+    } else if (arg === "--list") {
+      flags.list = true;
+    } else if (arg === "--dry-run") {
+      flags.dryRun = true;
+    } else if (arg === "--verbose") {
+      flags.verbose = true;
+    } else if (arg === "--bail") {
+      flags.bail = true;
+    } else if (!arg.startsWith("-")) {
+      flags.files = [...flags.files, arg];
+    } else {
+      process.stderr.write(`Unknown option: ${arg}\n`);
+      process.stderr.write(`${USAGE}\n`);
+      process.exit(2);
+    }
   }
+  return flags;
 }
+
+const flags = parseArgs(args);
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const positionalFiles = flags.files.map((file) =>
@@ -69,51 +78,51 @@ const positionalFiles = flags.files.map((file) =>
 );
 
 if (flags.list) {
-  console.log("Available layers:");
+  process.stdout.write("Available layers:\n");
   for (const layer of LAYERS) {
     const files = layerFiles(layer, repoRoot);
     const optInNote = layer.optIn ? " (opt-in)" : "";
     const requiresNote = layer.requires?.length ? ` [requires: ${layer.requires.join(", ")}]` : "";
-    console.log(`  ${layer.id}. ${layer.name}${optInNote}${requiresNote} (${layer.runner})`);
+    process.stdout.write(`  ${layer.id}. ${layer.name}${optInNote}${requiresNote} (${layer.runner})\n`);
     if (layer.runner === "commands") {
       for (const [cmd, cmdArgs, cwd] of layer.commands) {
-        console.log(`    ${cmd} ${cmdArgs.join(" ")} (cwd: ${join(repoRoot, cwd)})`);
+        process.stdout.write(`    ${cmd} ${cmdArgs.join(" ")} (cwd: ${join(repoRoot, cwd)})\n`);
       }
     } else if (files.length === 0) {
-      console.log(`    (no test files in ${layer.dir})`);
+      process.stdout.write(`    (no test files in ${layer.dir})\n`);
     } else {
       for (const file of files) {
-        console.log(`    ${file}`);
+        process.stdout.write(`    ${file}\n`);
       }
     }
   }
   process.exit(0);
 }
 
-console.log("Bootstrapping peer symlinks...");
+process.stdout.write("Bootstrapping peer symlinks...\n");
 try {
   const result = ensurePeerLinks(repoRoot);
   if (result.created.length > 0) {
-    console.log(`Created ${result.created.length} symlinks`);
+    process.stdout.write(`Created ${result.created.length} symlinks\n`);
   }
   if (result.repaired.length > 0) {
-    console.log(`Repaired ${result.repaired.length} symlinks`);
+    process.stdout.write(`Repaired ${result.repaired.length} symlinks\n`);
   }
-  console.log("Peer symlinks ready");
+  process.stdout.write("Peer symlinks ready\n");
 } catch (err) {
-  console.error("Peer bootstrap failed:", err.message);
+  process.stderr.write(`Peer bootstrap failed: ${err.message}\n`);
   process.exit(4);
 }
 
-const results = [];
+let results = [];
 let anyFailed = false;
 
 function record(entry) {
-  results.push(entry);
+  results = [...results, entry];
 }
 
 function runNodeTest(label, files, timeoutMs = LAYER_TIMEOUT_MS) {
-  console.log(`\nRunning ${label}...`);
+  process.stdout.write(`\nRunning ${label}...\n`);
   const result = spawnSync("node", ["--test", "--test-reporter=spec", ...files], {
     cwd: repoRoot,
     stdio: flags.verbose ? "inherit" : "pipe",
@@ -125,12 +134,12 @@ function runNodeTest(label, files, timeoutMs = LAYER_TIMEOUT_MS) {
   const stdout = result.stdout ?? "";
   const stderr = result.stderr ?? "";
   if (!flags.verbose) {
-    if (stdout) console.log(stdout);
-    if (stderr) console.error(stderr);
+    if (stdout) process.stdout.write(stdout);
+    if (stderr) process.stderr.write(stderr);
   }
 
   if (result.error && result.error.code === "ETIMEDOUT") {
-    console.error(`Layer ${label} timed out after ${timeoutMs}ms`);
+    process.stderr.write(`Layer ${label} timed out after ${timeoutMs}ms\n`);
     record({ layer: label, status: "fail", reason: `timeout after ${timeoutMs}ms` });
     return true;
   }
@@ -156,11 +165,11 @@ function runCommands(label, commands, timeoutMs = LAYER_TIMEOUT_MS) {
     const cmdLabel = `${label}: ${cmd} ${cmdArgs.join(" ")}`;
 
     if (flags.dryRun) {
-      console.log(`WOULD RUN ${cmdLabel} (cwd: ${join(repoRoot, cwd)})`);
+      process.stdout.write(`WOULD RUN ${cmdLabel} (cwd: ${join(repoRoot, cwd)})\n`);
       continue;
     }
 
-    console.log(`\nRunning ${cmdLabel}...`);
+    process.stdout.write(`\nRunning ${cmdLabel}...\n`);
     const result = spawnSync(cmd, cmdArgs, {
       cwd: join(repoRoot, cwd),
       stdio: flags.verbose ? "inherit" : "pipe",
@@ -172,12 +181,12 @@ function runCommands(label, commands, timeoutMs = LAYER_TIMEOUT_MS) {
     const stdout = result.stdout ?? "";
     const stderr = result.stderr ?? "";
     if (!flags.verbose) {
-      if (stdout) console.log(stdout);
-      if (stderr) console.error(stderr);
+      if (stdout) process.stdout.write(stdout);
+      if (stderr) process.stderr.write(stderr);
     }
 
     if (result.error && result.error.code === "ETIMEDOUT") {
-      console.error(`${cmdLabel} timed out after ${timeoutMs}ms`);
+      process.stderr.write(`${cmdLabel} timed out after ${timeoutMs}ms\n`);
       record({ layer: cmdLabel, status: "fail", reason: `timeout after ${timeoutMs}ms` });
       failed = true;
       if (flags.bail) return true;
@@ -197,8 +206,8 @@ function runCommands(label, commands, timeoutMs = LAYER_TIMEOUT_MS) {
 
 if (flags.files.length > 0) {
   if (flags.dryRun) {
-    console.log("WOULD RUN positional files:");
-    for (const file of positionalFiles) console.log(`  ${file}`);
+    process.stdout.write("WOULD RUN positional files:\n");
+    for (const file of positionalFiles) process.stdout.write(`  ${file}\n`);
   } else {
     anyFailed = runNodeTest("positional files", positionalFiles);
   }
@@ -207,7 +216,7 @@ if (flags.files.length > 0) {
   try {
     selectedLayers = flags.layer ? resolveLayers(flags.layer) : LAYERS;
   } catch (err) {
-    console.error(err.message);
+    process.stderr.write(`${err.message}\n`);
     process.exit(2);
   }
 
@@ -216,7 +225,7 @@ if (flags.files.length > 0) {
       typeof layer.id === "number" ? `Layer ${layer.id} (${layer.name})` : layer.name;
 
     if (!flags.layer && layer.optIn) {
-      console.log(`SKIP ${layerLabel}: opt-in layer (run with --layer ${layer.id})`);
+      process.stdout.write(`SKIP ${layerLabel}: opt-in layer (run with --layer ${layer.id})\n`);
       record({ layer: layerLabel, status: "skip", reason: "opt-in" });
       continue;
     }
@@ -224,7 +233,7 @@ if (flags.files.length > 0) {
     if (layer.requires?.length) {
       const missing = layer.requires.find((tool) => !commandExists(tool));
       if (missing) {
-        console.error(`MISSING TOOL ${missing} (required by layer ${layer.id})`);
+        process.stderr.write(`MISSING TOOL ${missing} (required by layer ${layer.id})\n`);
         process.exit(3);
       }
     }
@@ -233,14 +242,14 @@ if (flags.files.length > 0) {
       const files = layerFiles(layer, repoRoot);
 
       if (files.length === 0) {
-        console.log(`SKIP ${layerLabel}: no test files in ${layer.dir}`);
+        process.stdout.write(`SKIP ${layerLabel}: no test files in ${layer.dir}\n`);
         record({ layer: layerLabel, status: "skip", reason: "no test files" });
         continue;
       }
 
       if (flags.dryRun) {
-        console.log(`WOULD RUN ${layerLabel}:`);
-        for (const file of files) console.log(`  ${file}`);
+        process.stdout.write(`WOULD RUN ${layerLabel}:\n`);
+        for (const file of files) process.stdout.write(`  ${file}\n`);
         continue;
       }
 
@@ -262,7 +271,7 @@ if (flags.files.length > 0) {
 }
 
 if (!flags.dryRun) {
-  console.log("\n=== Test Summary ===");
+  process.stdout.write("\n=== Test Summary ===\n");
   for (const result of results) {
     const status = result.status === "pass" ? "✓" : result.status === "fail" ? "✗" : "⊘";
     const detail = result.files
@@ -270,15 +279,15 @@ if (!flags.dryRun) {
       : result.reason
         ? ` (${result.reason})`
         : "";
-    console.log(`${status} ${result.layer}${detail}`);
+    process.stdout.write(`${status} ${result.layer}${detail}\n`);
   }
 
   const failing = results.filter((r) => r.status === "fail");
   const failingFilesList = [...new Set(failing.flatMap((r) => r.failing ?? []))];
   if (failingFilesList.length > 0) {
-    console.log("\nFailing files:");
+    process.stdout.write("\nFailing files:\n");
     for (const file of failingFilesList) {
-      console.log(`  ${file}`);
+      process.stdout.write(`  ${file}\n`);
     }
   }
 }

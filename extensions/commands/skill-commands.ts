@@ -53,11 +53,11 @@ export interface SkillCommand {
 }
 
 function parseFoldedScalar(bodyLines: string[], startIndex: number): { value: string; nextIndex: number } {
-  const parts: string[] = [];
+  let parts: string[] = [];
   let i = startIndex;
   while (i < bodyLines.length && /^\s+\S/.test(bodyLines[i])) {
-    parts.push(bodyLines[i].trim());
-    i++;
+    parts = [...parts, bodyLines[i].trim()];
+    i = i + 1;
   }
   return { value: parts.join(" "), nextIndex: i };
 }
@@ -82,27 +82,32 @@ function parseFrontmatter(text: string): Record<string, string> {
   const lines = text.split("\n");
   if (lines[0]?.trim() !== "---") return {};
   let end = -1;
-  for (let i = 1; i < lines.length; i++) {
-    if (lines[i].trim() === "---") {
-      end = i;
+  for (const [i, line] of lines.slice(1).entries()) {
+    if (line.trim() === "---") {
+      end = i + 1;
       break;
     }
   }
   if (end === -1) return {};
   const body = lines.slice(1, end);
   const out: Record<string, string> = {};
-  for (let i = 0; i < body.length; i++) {
+  let i = 0;
+  while (i < body.length) {
     const m = /^([a-zA-Z0-9_-]+):\s?(.*)$/.exec(body[i]);
-    if (!m) continue;
+    if (!m) {
+      i = i + 1;
+      continue;
+    }
     const key = m[1];
     const rest = m[2].trim();
     if (rest === ">-" || rest === ">" || rest === "|-" || rest === "|") {
       const folded = parseFoldedScalar(body, i + 1);
       out[key] = folded.value;
-      i = folded.nextIndex - 1;
+      i = folded.nextIndex;
       continue;
     }
     out[key] = unquote(rest);
+    i = i + 1;
   }
   return out;
 }
@@ -115,18 +120,21 @@ export function readSkillCommands(skillsDir: string = DEFAULT_SKILLS_DIR): Skill
   } catch {
     return [];
   }
-  const byName = new Map<string, SkillCommand>();
-  for (const dirent of dirents) {
-    if (!dirent.isDirectory()) continue;
-    const skillPath = join(skillsDir, dirent.name, "SKILL.md");
-    if (!existsSync(skillPath)) continue;
-    const frontmatter = parseFrontmatter(readFileSync(skillPath, "utf8"));
-    if (!frontmatter.name) continue;
-    if (!byName.has(frontmatter.name)) {
-      byName.set(frontmatter.name, { name: frontmatter.name, description: frontmatter.description ?? "" });
-    }
-  }
-  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const byName = dirents
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => {
+      const skillPath = join(skillsDir, dirent.name, "SKILL.md");
+      if (!existsSync(skillPath)) return null;
+      const frontmatter = parseFrontmatter(readFileSync(skillPath, "utf8"));
+      if (!frontmatter.name) return null;
+      return { name: frontmatter.name, description: frontmatter.description ?? "" };
+    })
+    .filter((cmd): cmd is SkillCommand => cmd !== null)
+    .reduce((map, cmd) => {
+      if (!map.has(cmd.name)) map.set(cmd.name, cmd);
+      return map;
+    }, new Map<string, SkillCommand>());
+  return [...byName.values()].toSorted((a, b) => a.name.localeCompare(b.name));
 }
 
 /**

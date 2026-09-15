@@ -181,6 +181,38 @@ function arrowName(text, equalsIndex) {
   return i >= 0 ? wordBefore(text, i) : "";
 }
 
+function calleeName(text, head) {
+  if (head < 0) return "";
+  if (text[head] === ">") {
+    const open = matchingOpen(text, head, "<", ">");
+    if (open >= 0) return wordBefore(text, previousSignificant(text, open - 1));
+    return "";
+  }
+  return wordBefore(text, head);
+}
+
+function signatureBrace(text, braceIndex) {
+  let i = braceIndex - 1;
+  while (i >= 0) {
+    const c = text[i];
+    if (c === ")") {
+      const open = matchingOpen(text, i, "(", ")");
+      const head = open > 0 ? previousSignificant(text, open - 1) : -1;
+      const word = calleeName(text, head);
+      if (CONTROL.has(word)) return { kind: "control", name: word };
+      if (word === "function") return { kind: "function", name: open >= 0 ? wordAt(text, open + 1) : "" };
+      return { kind: "callable", name: word };
+    }
+    if (c === "\n") return null;
+    if (/[\w$.<>,[\]|&?'"`*:=\s]/.test(c)) {
+      i -= 1;
+      continue;
+    }
+    return null;
+  }
+  return null;
+}
+
 function classifyBrace(text, braceIndex) {
   const prev = previousSignificant(text, braceIndex - 1);
   if (prev < 0) return { kind: "block", name: "" };
@@ -190,19 +222,19 @@ function classifyBrace(text, braceIndex) {
     if (before >= 0 && text[before] === "=") {
       return { kind: "function", name: arrowName(text, before) };
     }
-    return { kind: "block", name: "" };
+    return signatureBrace(text, braceIndex) ?? { kind: "block", name: "" };
   }
   if (c === ")") {
     const open = matchingOpen(text, prev, "(", ")");
     const head = open > 0 ? previousSignificant(text, open - 1) : -1;
-    const word = head >= 0 ? wordBefore(text, head) : "";
+    const word = calleeName(text, head);
     if (CONTROL.has(word)) return { kind: "control", name: word };
     if (word === "function") return { kind: "function", name: open >= 0 ? wordAt(text, open + 1) : "" };
     return { kind: "callable", name: word };
   }
   const word = wordBefore(text, prev);
   if (CONTROL.has(word)) return { kind: "control", name: word };
-  return { kind: "block", name: word };
+  return signatureBrace(text, braceIndex) ?? { kind: "block", name: word };
 }
 
 function controlDepthOf(frame, frames) {

@@ -1,10 +1,12 @@
 # Tests
 
 One entry point. `node tests/runner.mjs` runs every layer in order, bootstraps peer resolution
-first, and prints a per-layer summary.
+first, and prints a per-layer summary. `npm test` also runs `node spec/spec-check.mjs` first, the
+structural gate over `spec/`.
 
 ```
-npm test                  # same as: node tests/runner.mjs
+npm test                  # layers 0-6 + legacy
+npm run test:conformance  # layer 0 only: AGENTS.md rules over project-owned code
 npm run test:unit         # one layer
 npm run test:bootstrap    # create the peer symlink farm only
 ```
@@ -13,6 +15,7 @@ npm run test:bootstrap    # create the peer symlink farm only
 
 | # | Name | Dir | What it proves | Needs |
 | - | ---- | --- | -------------- | ----- |
+| 0 | conformance | `tests/conformance.mjs` | AGENTS.md rules over `extensions/`, `tests/`, `port/`: file/function size, nesting, console.log, in-place mutation, empty catch, secrets. The parity-pinned ported tree reports warn-only (`--all`) | node |
 | 1 | unit | `tests/layers/01-unit` | Pure functions with no Pi dependency | node |
 | 2 | integration | `tests/layers/02-integration` | Extension registration, lifecycle, tools, session behavior in-process | node |
 | 3 | smoke | `tests/layers/03-smoke` | `pi --no-extensions -e ./extensions/index.ts` loads and exits 0 | `pi` |

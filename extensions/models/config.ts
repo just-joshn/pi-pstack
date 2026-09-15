@@ -69,7 +69,8 @@ export function loadModelsConfig(cwd?: string): PstackModelsConfig | null {
       const raw = JSON.parse(readFileSync(path, "utf8")) as PstackModelsConfig;
       if (raw?.version === 1 && raw.roles && typeof raw.roles === "object") return raw;
     } catch {
-      /* ignore */
+      /* ignore malformed config */
+      continue;
     }
   }
   return null;
@@ -173,7 +174,8 @@ export function detectPreferredModel(): string | undefined {
         if (typeof v === "string" && MARKETING_SLUG_MAP[v]) return MARKETING_SLUG_MAP[v];
       }
     } catch {
-      /* ignore */
+      /* ignore malformed settings */
+      continue;
     }
   }
   return undefined;

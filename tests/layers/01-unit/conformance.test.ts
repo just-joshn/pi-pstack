@@ -37,6 +37,46 @@ test("scanFrames reports declaration, arrow, and method spans", () => {
   );
 });
 
+test("scanFrames spans typed and generic signatures", () => {
+  const source = [
+    "function typed(): string {",
+    "  return \"a\";",
+    "}",
+    "",
+    "async function generic<T>(value: T): Promise<T> {",
+    "  return value;",
+    "}",
+    "",
+    "const obj = {",
+    "  async run(input: string): Promise<number> {",
+    "    return input.length;",
+    "  },",
+    "};",
+    "",
+    "function bad(): void {",
+    "  const filler = 1;",
+    "}",
+  ].join("\n");
+  const named = scanFrames(source).frames.filter((frame) => frame.kind !== "block");
+  assert.deepEqual(
+    named.map((frame) => [frame.name, frame.startLine, frame.endLine]),
+    [
+      ["typed", 1, 3],
+      ["generic", 5, 7],
+      ["run", 10, 12],
+      ["bad", 15, 17],
+    ],
+  );
+});
+
+test("auditSource flags a typed function body longer than 50 lines", () => {
+  const body = "  const x = 1;\n".repeat(51);
+  const hits = auditSource(`function big(): Promise<void> {\n${body}}\n`).filter(
+    (violation) => violation.rule === "function>50",
+  );
+  assert.deepEqual(hits.map((hit) => hit.detail), ["big spans 53 lines"]);
+});
+
 test("sanitize masks strings, templates, comments, and regex without shifting lines", () => {
   const source = ['const a = "push(" + `splice(`;', "// console.log(x)", "const b = /delete\\s+/;", "const c = 1;"].join(
     "\n",
@@ -48,6 +88,23 @@ test("sanitize masks strings, templates, comments, and regex without shifting li
   assert.equal(clean.includes("console.log"), false);
   assert.equal(clean.includes("delete"), false);
   assert.equal(clean.includes("const c = 1;"), true);
+});
+
+test("auditSource flags secrets inside string and template literals", () => {
+  const key = ["sk", "a".repeat(24)].join("-");
+  const source = [`const fromString = "${key}";`, `const fromTemplate = \`${key}\`;`].join("\n");
+  assert.deepEqual(
+    auditSource(source).map((violation) => `${violation.rule}:${violation.line}`),
+    ["secret:1", "secret:2"],
+  );
+});
+
+test("auditSource flags scoped OpenAI key formats", () => {
+  const key = ["sk", "proj", "b".repeat(40)].join("-");
+  assert.deepEqual(
+    auditSource(`const apiKey = "${key}";`).map((violation) => `${violation.rule}:${violation.line}`),
+    ["secret:1"],
+  );
 });
 
 test("auditSource flags each banned construct with its line number", () => {

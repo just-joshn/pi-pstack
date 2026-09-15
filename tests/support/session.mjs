@@ -3,9 +3,19 @@ import { join } from "node:path";
 import { registerFauxProvider, fauxAssistantMessage as assistant, fauxToolCall as toolCall, streamSimple } from "@earendil-works/pi-ai/compat";
 import { createAgentSession, SessionManager, SettingsManager, DefaultResourceLoader, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { makeTempRoot } from "./temp-env.mjs";
+import { bestEffort } from "./best-effort.mjs";
 
-function inertUiContext() {
+function createLiveList() {
+  let items = [];
   return {
+    add: (item) => {
+      items = [...items, item];
+    },
+    all: () => items,
+  };
+}
+
+function inertUiContext() {  return {
     onTerminalInput: () => () => {},
     setWorkingMessage: () => {},
     setWorkingVisible: () => {},
@@ -31,59 +41,72 @@ function inertUiContext() {
 }
 
 function recordingUi(options) {
-  const notifications = [];
-  const statuses = [];
-  const dialogs = [];
+  let notifications = [];
+  let statuses = [];
+  let dialogs = [];
   const confirmResult = options.confirm ?? true;
   const selectResult = options.select;
 
   const context = {
     ...inertUiContext(),
     select: async (title) => {
-      dialogs.push({ method: "select", title });
+      dialogs = [...dialogs, { method: "select", title }];
       return selectResult;
     },
     confirm: async (title, message) => {
-      dialogs.push({ method: "confirm", title, message });
+      dialogs = [...dialogs, { method: "confirm", title, message }];
       return confirmResult;
     },
     input: async (title) => {
-      dialogs.push({ method: "input", title });
+      dialogs = [...dialogs, { method: "input", title }];
       return undefined;
     },
     editor: async (title) => {
-      dialogs.push({ method: "editor", title });
+      dialogs = [...dialogs, { method: "editor", title }];
       return undefined;
     },
     notify: (message, type = "info") => {
-      notifications.push([type, message]);
+      notifications = [...notifications, [type, message]];
     },
     setStatus: (key, text) => {
-      statuses.push([key, text]);
+      statuses = [...statuses, [key, text]];
     },
   };
 
-  return { context, notifications, statuses, dialogs, confirmResult, selectResult };
+  return {
+    context,
+    get notifications() {
+      return notifications;
+    },
+    get statuses() {
+      return statuses;
+    },
+    get dialogs() {
+      return dialogs;
+    },
+    confirmResult,
+    selectResult,
+  };
 }
 
-function buildExtensionProbe(extensionEvents) {
+function buildExtensionProbe(container) {
   return (pi) => {
     pi.on("session_start", (event) => {
-      extensionEvents.push(event);
+      container.add(event);
     });
     pi.on("session_shutdown", (event) => {
-      extensionEvents.push(event);
+      container.add(event);
     });
   };
 }
 
-function createLoader(options, tmp, extensionEvents, settingsManager) {
+function createLoader(options, tmp, extensionEventsContainer, settingsManager) {
   return new DefaultResourceLoader({
     cwd: tmp.cwd,
     agentDir: tmp.agentDir,
     settingsManager,
     additionalExtensionPaths: options.extensionPaths,
-    extensionFactories: [buildExtensionProbe(extensionEvents), ...options.extensionFactories],
+    extensionFactories: [buildExtensionProbe(extensionEventsContainer), ...options.extensionFactories],
     noSkills: true,
     noPromptTemplates: true,
     noThemes: true,
@@ -112,9 +135,9 @@ function registerFauxOnRuntime(modelRuntime, model, faux) {
 }
 
 async function createResources(options, tmp) {
-  const events = [];
-  const extensionEvents = [];
-  const handlerErrors = [];
+  const events = createLiveList();
+  const extensionEvents = createLiveList();
+  const handlerErrors = createLiveList();
   const ui = recordingUi(options.ui ?? {});
 
   for (const [rel, data] of Object.entries(options.initialFiles)) {
@@ -133,8 +156,6 @@ async function createResources(options, tmp) {
 
   const modelRuntime = await ModelRuntime.create({
     authPath: join(tmp.agentDir, "auth.json"),
-    // Null keeps the model store in memory; a file-backed store flushes on a
-    // detached lock and recreates the temp root after cleanup.
     modelsPath: null,
     refreshOnCreate: false,
   });
@@ -151,19 +172,33 @@ async function createResources(options, tmp) {
     tools: options.tools,
   });
   session.agent.streamFunction = streamSimple;
-  session.subscribe((event) => events.push(event));
-
-  return { session, loader, faux, events, extensionEvents, handlerErrors, ui };
-}
-
-function buildFixture(faux, resources, tmp, bind) {
-  const { session, loader, events, extensionEvents, handlerErrors, ui } = resources;
+  session.subscribe((event) => events.add(event));
 
   return {
     session,
+    loader,
+    faux,
     events,
     extensionEvents,
     handlerErrors,
+    ui,
+  };
+}
+
+function buildFixture(faux, resources, tmp, bind) {
+  const { session, loader, ui } = resources;
+
+  return {
+    session,
+    get events() {
+      return resources.events.all();
+    },
+    get extensionEvents() {
+      return resources.extensionEvents.all();
+    },
+    get handlerErrors() {
+      return resources.handlerErrors.all();
+    },
     ui,
     tmp,
     faux: {
@@ -214,17 +249,13 @@ export async function withSession(fn, options = {}) {
     if (opts.bind) {
       await resources.session.bindExtensions({
         uiContext: resources.ui.context,
-        onError: (error) => resources.handlerErrors.push(error),
+        onError: (error) => { resources.handlerErrors.add(error); },
       });
     }
     return await fn(buildFixture(resources.faux, resources, tmp, opts.bind));
   } finally {
-    try {
-      resources.session.dispose();
-    } catch {}
-    try {
-      resources.faux.unregister();
-    } catch {}
+    bestEffort("session dispose", () => resources.session.dispose());
+    bestEffort("faux unregister", () => resources.faux.unregister());
     tmp.cleanup();
   }
 }

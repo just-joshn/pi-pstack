@@ -11,6 +11,9 @@ const execFileAsync = promisify(execFile);
 /** Soft cap on pstack-managed worktrees under .pstack-worktrees (create refuses past this). */
 export const MAX_PSTACK_WORKTREES = 12;
 
+/** A child session file touched within this window keeps its worktree out of cleanup. */
+const CHILD_ACTIVITY_WINDOW_MS = 30 * 60 * 1000;
+
 export class WorktreeSanitizeError extends Error {
   constructor(message: string) {
     super(message);
@@ -107,14 +110,12 @@ export async function ensureWriterIsolation(
   }
 
   const parentResolved = resolve(parentCwd);
-  const assigned: string[] = [];
   const seen = new Map<string, string>();
+  let assigned: string[] = [];
 
-  for (let i = 0; i < writers.length; i++) {
-    const w = writers[i];
+  for (const [i, w] of writers.entries()) {
     let cwd = w.cwd?.trim() || "";
-    const needsAuto =
-      !cwd || resolve(cwd) === parentResolved;
+    const needsAuto = !cwd || resolve(cwd) === parentResolved;
 
     if (needsAuto) {
       const created = await createIsolatedWorktree(
@@ -132,7 +133,7 @@ export async function ensureWriterIsolation(
       );
     }
     seen.set(resolved, w.label);
-    assigned.push(cwd);
+    assigned = [...assigned, cwd];
   }
   return assigned;
 }
@@ -143,6 +144,7 @@ export async function removeWorktree(cwd: string, name: string): Promise<string>
   try {
     await execFileAsync("git", ["worktree", "remove", "--force", path], { cwd });
   } catch {
+    /* retry without force */
     await execFileAsync("git", ["worktree", "remove", path], { cwd });
   }
   return path;
@@ -164,11 +166,46 @@ export interface CleanupResult {
   skipped: Array<{ name: string; reason: string }>;
 }
 
+function anyRecentFile(dir: string, cutoff: number): boolean {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  return entries.some((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return anyRecentFile(path, cutoff);
+    if (!entry.name.endsWith(".jsonl")) return false;
+    try {
+      return statSync(path).mtimeMs >= cutoff;
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * True when a pstack child session wrote to this worktree recently. An empty or
+ * merged worktree can still have a live child inside it, and removing that
+ * mid-run deletes the child's files and transcript.
+ */
+export function hasRecentChildActivity(wtPath: string, now: number = Date.now()): boolean {
+  return anyRecentFile(
+    join(wtPath, ".pi", "pstack-child-sessions"),
+    now - CHILD_ACTIVITY_WINDOW_MS,
+  );
+}
+
 async function isSafeToRemovePstackWorktree(
   repoCwd: string,
   wtPath: string,
   branchName: string,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (hasRecentChildActivity(wtPath)) {
+    return { ok: false, reason: "child session active in the last 30 minutes" };
+  }
+
   try {
     const status = await execFileAsync("git", ["-C", wtPath, "status", "--porcelain"], {
       cwd: repoCwd,
@@ -206,7 +243,8 @@ async function isSafeToRemovePstackWorktree(
     );
     if ((merged.stdout || "").includes(branchName)) return { ok: true };
   } catch {
-    /* ignore */
+    /* ignore branch check failure */
+    return { ok: false, reason: "has commits not merged into HEAD" };
   }
   return { ok: false, reason: "has commits not merged into HEAD" };
 }
@@ -215,10 +253,8 @@ export async function cleanupPstackWorktreesOnShutdown(
   cwd: string,
 ): Promise<CleanupResult> {
   const root = worktreeRoot(cwd);
-  const removed: string[] = [];
-  const skipped: Array<{ name: string; reason: string }> = [];
   if (!existsSync(root)) {
-    return { removed, pruned: await pruneWorktrees(cwd).catch(() => "n/a"), skipped };
+    return { removed: [], pruned: await pruneWorktrees(cwd).catch(() => "n/a"), skipped: [] };
   }
   let names: string[] = [];
   try {
@@ -233,25 +269,30 @@ export async function cleanupPstackWorktreesOnShutdown(
     names = [];
   }
 
+  let results: Array<{ name: string; removed: boolean; reason?: string }> = [];
   for (const name of names) {
     const path = join(root, name);
     const branch = `pstack/${name}`;
     const verdict = await isSafeToRemovePstackWorktree(cwd, path, branch);
     if (!verdict.ok) {
-      skipped.push({ name, reason: verdict.reason });
+      results = [...results, { name, removed: false, reason: verdict.reason }];
       continue;
     }
     try {
       await removeWorktree(cwd, name);
-      removed.push(name);
+      results = [...results, { name, removed: true }];
     } catch (err) {
-      skipped.push({
-        name,
-        reason: err instanceof Error ? err.message : String(err),
-      });
+      results = [
+        ...results,
+        { name, removed: false, reason: err instanceof Error ? err.message : String(err) },
+      ];
     }
   }
 
+  const removed = results.filter((r) => r.removed).map((r) => r.name);
+  const skipped = results
+    .filter((r) => !r.removed)
+    .map((r) => ({ name: r.name, reason: r.reason ?? "unknown" }));
   const pruned = await pruneWorktrees(cwd).catch((e) =>
     e instanceof Error ? e.message : String(e),
   );
@@ -269,11 +310,10 @@ export async function ensureAlwaysIsolated(
 ): Promise<string[]> {
   if (writers.length === 0) return [];
   const parentResolved = resolve(parentCwd);
-  const assigned: string[] = [];
   const seen = new Map<string, string>();
+  let assigned: string[] = [];
 
-  for (let i = 0; i < writers.length; i++) {
-    const w = writers[i];
+  for (const [i, w] of writers.entries()) {
     let cwd = w.cwd?.trim() || "";
     const needsAuto = !cwd || resolve(cwd) === parentResolved;
     if (needsAuto) {
@@ -291,7 +331,7 @@ export async function ensureAlwaysIsolated(
       );
     }
     seen.set(resolvedPath, w.label);
-    assigned.push(cwd);
+    assigned = [...assigned, cwd];
   }
   return assigned;
 }
