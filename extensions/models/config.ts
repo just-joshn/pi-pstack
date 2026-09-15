@@ -137,8 +137,9 @@ export function resolveRoleModel(
   role: string,
   parentModel: string,
   index = 0,
+  cwd?: string,
 ): string | undefined {
-  const cfg = loadModelsConfig();
+  const cfg = loadModelsConfig(cwd);
   if (!cfg) return undefined;
   const key = ROLE_ALIASES[role] ?? role;
   const value = cfg.roles[key] ?? cfg.roles[role];

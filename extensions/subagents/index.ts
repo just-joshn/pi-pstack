@@ -69,7 +69,7 @@ function prepareChildInputFromParams(
   const role = params.role ?? "general";
   const rawModel =
     params.model ??
-    resolveRoleModel(role, parentModel) ??
+    resolveRoleModel(role, parentModel, 0, ctx.cwd) ??
     parentModel;
   const modelNorm = params.model
     ? normalizeModelSelector(rawModel, parentModel, { allowFallbackToParent: false })
