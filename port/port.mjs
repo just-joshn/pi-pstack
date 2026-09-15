@@ -47,7 +47,7 @@ function resolveUpstream() {
 
 function walk(dir, base = dir, out = []) {
   for (const name of readdirSync(dir)) {
-    if (name === ".DS_Store") continue;
+    if (name === ".DS_Store" || name === "node_modules") continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) walk(p, base, out);
     else out.push(relative(base, p));
