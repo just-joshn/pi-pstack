@@ -24,7 +24,7 @@ interface LoopState {
   maxFires: number;
   fires: number;
   timer?: ReturnType<typeof setTimeout>;
-  child?: { kill: (sig?: string) => void };
+  controller?: AbortController;
   armed: boolean;
   watchArgv?: string[];
   watcherRunning?: boolean;
@@ -66,11 +66,7 @@ function clearTimer(state: LoopState): void {
 function clearLoop(loops: Map<string, LoopState>, state: LoopState): void {
   state.armed = false;
   clearTimer(state);
-  try {
-    state.child?.kill("SIGTERM");
-  } catch (_err) {
-    void _err;
-  }
+  state.controller?.abort();
   loops.delete(state.id);
 }
 
@@ -114,27 +110,39 @@ function fire(run: HeartbeatRun, state: LoopState, reason: string): void {
   }
 }
 
+/** A watcher that exits nonzero is an error wake, not a success wake. */
+export function watcherFireReason(code: number): "watcher" | "watcher-error" {
+  return code === 0 ? "watcher" : "watcher-error";
+}
+
 function startWatcher(run: HeartbeatRun, state: LoopState, signal?: AbortSignal): void {
   if (!state.armed || !state.watchArgv?.length || state.watcherRunning) return;
   const argv = state.watchArgv;
   const [command, ...args] = argv;
   if (!command || command.startsWith("-")) return;
+  const controller = new AbortController();
   state.watcherRunning = true;
+  state.controller = controller;
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener("abort", () => controller.abort(), { once: true });
   void (async () => {
     try {
       const result = await run.pi.exec(command, args, {
-        signal,
+        signal: controller.signal,
         timeout: 24 * 60 * 60 * 1000,
       });
       if (!state.armed) return;
+      const reason = watcherFireReason(result.code);
       const out = (result.stdout || result.stderr || "").slice(0, 8000);
-      state.prompt = `${state.basePrompt}\n\n--- watcher output ---\n${out}`;
-      fire(run, state, "watcher");
+      const label = reason === "watcher" ? "watcher output" : `watcher output (exit ${result.code})`;
+      state.prompt = `${state.basePrompt}\n\n--- ${label} ---\n${out}`;
+      fire(run, state, reason);
     } catch {
       if (!state.armed) return;
       fire(run, state, "watcher-error");
     } finally {
       state.watcherRunning = false;
+      state.controller = undefined;
       // dynamic: re-arm watcher after fire while still armed and under max
       if (state.armed && state.mode === "dynamic" && state.fires < state.maxFires) {
         startWatcher(run, state, signal);
