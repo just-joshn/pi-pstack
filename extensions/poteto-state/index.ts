@@ -111,64 +111,72 @@ export interface PotetoRuntime {
   setEnabled: (enabled: boolean, ctx: EffectContext, match?: { id: string; score: number } | null) => void;
 }
 
-export function createPotetoRuntime(
-  pi: ExtensionAPI,
-  options: {
-    armReadonly: (ctx: EffectContext, reason: string) => void;
-  },
-): PotetoRuntime {
-  let state = createInitialPotetoState();
+interface PotetoRuntimeOptions {
+  armReadonly: (ctx: EffectContext, reason: string) => void;
+}
 
-  const setEnabledImpl = (
-    enabled: boolean,
-    ctx: EffectContext,
-    match?: { id: string; score: number } | null,
-  ) => {
-    const result = reduceSetEnabled(state, enabled, match);
-    state = result.state;
+interface PotetoStateRef {
+  state: PotetoState;
+}
+
+type PotetoSetEnabled = PotetoRuntime["setEnabled"];
+
+function makeSetEnabled(pi: ExtensionAPI, stateRef: PotetoStateRef): PotetoSetEnabled {
+  return (enabled, ctx, match) => {
+    const result = reduceSetEnabled(stateRef.state, enabled, match);
+    stateRef.state = result.state;
     applyEffects(pi, ctx, result.effects);
   };
+}
 
+function registerPotetoSessionStart(pi: ExtensionAPI, stateRef: PotetoStateRef): void {
   pi.on("session_start", (_event, ctx) => {
     const entries = ctx.sessionManager
       .getBranch()
       .filter((e) => e.type === "custom" && e.customType === STICKY_ENTRY_TYPE)
       .map((e) => e.data);
-    state = reduceRestore(entries);
-    if (state.enabled) {
+    stateRef.state = reduceRestore(entries);
+    if (stateRef.state.enabled) {
       ctx.ui.setStatus(
         "pstack",
-        state.matchedPlaybookId ? `poteto:${state.matchedPlaybookId}` : "poteto",
+        stateRef.state.matchedPlaybookId ? `poteto:${stateRef.state.matchedPlaybookId}` : "poteto",
       );
     }
   });
+}
 
+function registerPotetoInput(
+  pi: ExtensionAPI,
+  stateRef: PotetoStateRef,
+  options: PotetoRuntimeOptions,
+  setEnabled: PotetoSetEnabled,
+): void {
   pi.on("input", (event, ctx) => {
     if (!shouldMatchStickyInput(event.source)) return;
-    state = reduceRecordText(state, event.text ?? "");
+    stateRef.state = reduceRecordText(stateRef.state, event.text ?? "");
     if (event.text.startsWith("/skill:poteto-mode") || event.text.startsWith("/poteto-mode")) {
-      setEnabledImpl(true, ctx);
+      setEnabled(true, ctx);
     }
     let transformText: string | undefined;
     const matched = matchStickyPlaybook(event.text);
     if (matched && matched.score >= 2) {
-      if (!state.enabled && matched.score >= 5) {
-        setEnabledImpl(true, ctx, { id: matched.id, score: matched.score });
+      if (!stateRef.state.enabled && matched.score >= 5) {
+        setEnabled(true, ctx, { id: matched.id, score: matched.score });
         ctx.ui.notify?.(`Poteto sticky armed via playbook match: ${matched.id}`, "info");
-      } else if (state.enabled) {
-        const result = reducePersistMatch(state, { id: matched.id, score: matched.score });
-        state = result.state;
+      } else if (stateRef.state.enabled) {
+        const result = reducePersistMatch(stateRef.state, { id: matched.id, score: matched.score });
+        stateRef.state = result.state;
         applyEffects(pi, ctx, result.effects);
         ctx.ui.setStatus("pstack", `poteto:${matched.id}`);
       }
-      if ((state.enabled || matched.score >= 5) && !event.text.startsWith("/skill:poteto-mode")) {
+      if ((stateRef.state.enabled || matched.score >= 5) && !event.text.startsWith("/skill:poteto-mode")) {
         transformText = forcePotetoSkillMessage(event.text, matched.id);
       }
       if (
         !process.env.PSTACK_CHILD_ROLE &&
         shouldAutoArmFromPlaybookMatch(
           matched.id,
-          state.enabled,
+          stateRef.state.enabled,
           matched.score,
           event.text,
         )
@@ -183,27 +191,47 @@ export function createPotetoRuntime(
       return { action: "transform", text: transformText };
     }
   });
+}
 
+function registerPotetoPrompt(pi: ExtensionAPI, stateRef: PotetoStateRef): void {
   pi.on("before_agent_start", (event) => {
     let prompt = event.systemPrompt;
-    if (state.enabled) {
-      const live = state.lastUserText ? matchStickyPlaybook(state.lastUserText) : undefined;
+    if (stateRef.state.enabled) {
+      const live = stateRef.state.lastUserText ? matchStickyPlaybook(stateRef.state.lastUserText) : undefined;
       prompt = buildPotetoStickyPrompt(prompt, {
-        userText: state.lastUserText,
+        userText: stateRef.state.lastUserText,
         match: live ?? null,
-        restoredPlaybookId: live ? null : state.matchedPlaybookId,
+        restoredPlaybookId: live ? null : stateRef.state.matchedPlaybookId,
       });
     }
     if (prompt === event.systemPrompt) return;
     return { systemPrompt: prompt };
   });
+}
 
+function registerPotetoHooks(
+  pi: ExtensionAPI,
+  stateRef: PotetoStateRef,
+  options: PotetoRuntimeOptions,
+  setEnabled: PotetoSetEnabled,
+): void {
+  registerPotetoSessionStart(pi, stateRef);
+  registerPotetoInput(pi, stateRef, options, setEnabled);
+  registerPotetoPrompt(pi, stateRef);
+}
+
+function registerPotetoModeCommand(
+  pi: ExtensionAPI,
+  stateRef: PotetoStateRef,
+  options: PotetoRuntimeOptions,
+  setEnabled: PotetoSetEnabled,
+): void {
   pi.registerCommand("poteto-mode", {
     description: "Enable sticky poteto-mode and force skill invocation (optional task / playbook)",
     handler: async (args, ctx) => {
       const task = args.trim();
       const matched = task ? matchStickyPlaybook(task) : undefined;
-      setEnabledImpl(true, ctx, matched ? { id: matched.id, score: matched.score } : undefined);
+      setEnabled(true, ctx, matched ? { id: matched.id, score: matched.score } : undefined);
       if (matched && shouldAutoArmReadonly(matched.id)) {
         options.armReadonly(ctx, `playbook:${matched.id}`);
       }
@@ -214,27 +242,35 @@ export function createPotetoRuntime(
         );
         return;
       }
-      state = reduceRecordText(state, task);
+      stateRef.state = reduceRecordText(stateRef.state, task);
       pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
         expandPromptTemplates: true,
       });
     },
   });
+}
 
+function registerPotetoModeOffCommand(pi: ExtensionAPI, setEnabled: PotetoSetEnabled): void {
   pi.registerCommand("poteto-mode-off", {
     description: "Disable sticky poteto-mode",
     handler: async (_args, ctx) => {
-      setEnabledImpl(false, ctx);
+      setEnabled(false, ctx);
       ctx.ui.notify("Poteto mode off.", "info");
     },
   });
+}
 
+function registerPstackCommand(
+  pi: ExtensionAPI,
+  stateRef: PotetoStateRef,
+  setEnabled: PotetoSetEnabled,
+): void {
   pi.registerCommand("pstack", {
     description: "Alias for /poteto-mode",
     handler: async (args, ctx) => {
       const task = args.trim();
       const matched = task ? matchStickyPlaybook(task) : undefined;
-      setEnabledImpl(true, ctx, matched ? { id: matched.id, score: matched.score } : undefined);
+      setEnabled(true, ctx, matched ? { id: matched.id, score: matched.score } : undefined);
       if (!task) {
         ctx.ui.notify(
           `pi-pstack tools: pstack_spawn, pstack_jobs, pstack_swarm, pstack_arena, pstack_loop, pstack_deslop, pstack_ship, pstack_babysit, pstack_benny_wake. Readonly: /pstack-readonly. Package: ${PACKAGE_ROOT}`,
@@ -242,15 +278,32 @@ export function createPotetoRuntime(
         );
         return;
       }
-      state = reduceRecordText(state, task);
+      stateRef.state = reduceRecordText(stateRef.state, task);
       pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
         expandPromptTemplates: true,
       });
     },
   });
+}
 
-  return {
-    getState: () => state,
-    setEnabled: setEnabledImpl,
-  };
+function registerPotetoCommands(
+  pi: ExtensionAPI,
+  stateRef: PotetoStateRef,
+  options: PotetoRuntimeOptions,
+  setEnabled: PotetoSetEnabled,
+): void {
+  registerPotetoModeCommand(pi, stateRef, options, setEnabled);
+  registerPotetoModeOffCommand(pi, setEnabled);
+  registerPstackCommand(pi, stateRef, setEnabled);
+}
+
+export function createPotetoRuntime(
+  pi: ExtensionAPI,
+  options: PotetoRuntimeOptions,
+): PotetoRuntime {
+  const stateRef: PotetoStateRef = { state: createInitialPotetoState() };
+  const setEnabled = makeSetEnabled(pi, stateRef);
+  registerPotetoHooks(pi, stateRef, options, setEnabled);
+  registerPotetoCommands(pi, stateRef, options, setEnabled);
+  return { getState: () => stateRef.state, setEnabled };
 }

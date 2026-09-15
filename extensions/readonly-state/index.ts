@@ -2,7 +2,7 @@
  * Session-level readonly state: immutable state + pure transitions + runtime wiring.
  * Owns tool-strip/restore, tool_call blocking, and readonly entry persistence.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ToolCallEvent } from "@earendil-works/pi-coding-agent";
 import { READONLY_ENTRY_TYPE, parseReadonlyEntry } from "../sticky-session.ts";
 import { READONLY_TOOLS } from "../subagents/child-runner.ts";
 import { applyEffects, type Effect, type EffectContext } from "../effects.ts";
@@ -104,12 +104,18 @@ export interface ReadonlyRuntime {
   setEnabled: (enabled: boolean, ctx: EffectContext, reason?: string) => void;
 }
 
-export function createReadonlyRuntime(pi: ExtensionAPI): ReadonlyRuntime {
-  let state = createInitialReadonlyState();
+interface ReadonlyStateRef {
+  state: ReadonlyState;
+}
 
-  const setEnabledImpl = (enabled: boolean, ctx: EffectContext, reason?: string) => {
+type ReadonlySetEnabled = ReadonlyRuntime["setEnabled"];
+
+type ToolCallDecision = { block: true; reason: string } | { coerceReadonly: true } | undefined;
+
+function makeSetEnabled(pi: ExtensionAPI, stateRef: ReadonlyStateRef): ReadonlySetEnabled {
+  return (enabled, ctx, reason) => {
     const result = reduceSetEnabled(
-      state,
+      stateRef.state,
       enabled,
       {
         allTools: pi.getAllTools().map((t) => t.name),
@@ -117,101 +123,128 @@ export function createReadonlyRuntime(pi: ExtensionAPI): ReadonlyRuntime {
       },
       reason,
     );
-    state = result.state;
+    stateRef.state = result.state;
     applyEffects(pi, ctx, result.effects);
   };
+}
 
+function restoreReadonlyState(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  stateRef: ReadonlyStateRef,
+): void {
+  const entries = ctx.sessionManager
+    .getBranch()
+    .filter((e) => e.type === "custom" && e.customType === READONLY_ENTRY_TYPE)
+    .map((e) => e.data);
+  const restored = restoreFromEntries(entries);
+  stateRef.state = createInitialReadonlyState();
+  if (restored.enabled) {
+    const computed = computeReadonlyTools(
+      pi.getAllTools().map((t) => t.name),
+      pi.getActiveTools(),
+      SESSION_WRITE_TOOLS,
+    );
+    stateRef.state = { enabled: true, toolsBefore: computed.toolsBefore };
+    ctx.ui.setStatus("pstack-ro", "readonly");
+    pi.setActiveTools(computed.nextActive);
+  }
+}
+
+function writeToolBlock(name: string): ToolCallDecision {
+  return {
+    block: true,
+    reason: `pstack session readonly: blocked ${name}. Use /pstack-readonly-off to re-enable writes.`,
+  };
+}
+
+function worktreeBlock(input: unknown): ToolCallDecision {
+  const action = (input as { action?: string } | undefined)?.action;
+  if (action && action !== "list") {
+    return {
+      block: true,
+      reason: "pstack session readonly: blocked mutating pstack_worktree.",
+    };
+  }
+  return undefined;
+}
+
+function deslopBlock(input: unknown): ToolCallDecision {
+  const value = input as { applySafe?: boolean; autoApply?: boolean };
+  if (value.applySafe || value.autoApply) {
+    return {
+      block: true,
+      reason: "pstack session readonly: blocked deslop applySafe/autoApply.",
+    };
+  }
+  return undefined;
+}
+
+function spawnCoercion(input: unknown): ToolCallDecision {
+  const value = input as { readonly?: boolean; role?: string };
+  const role = value.role ?? "general";
+  const ok = value.readonly === true || role === "investigator" || role === "comment-sicko";
+  if (!ok) return { coerceReadonly: true };
+  return undefined;
+}
+
+function decideToolCall(state: ReadonlyState, event: ToolCallEvent): ToolCallDecision {
+  if (!state.enabled) return undefined;
+  const name = event.toolName;
+  if (SESSION_WRITE_TOOLS.has(name)) return writeToolBlock(name);
+  if (name === "pstack_worktree") return worktreeBlock(event.input);
+  if (name === "pstack_ship" || name === "pstack_babysit") {
+    return { block: true, reason: `pstack session readonly: blocked ${name}.` };
+  }
+  if (name === "pstack_deslop") return deslopBlock(event.input);
+  if (name === "pstack_spawn" || name === "pstack_swarm" || name === "pstack_arena") {
+    if (name === "pstack_spawn") return spawnCoercion(event.input);
+  }
+  return undefined;
+}
+
+function registerReadonlyHooks(pi: ExtensionAPI, stateRef: ReadonlyStateRef): void {
   pi.on("session_start", (_event, ctx) => {
-    const entries = ctx.sessionManager
-      .getBranch()
-      .filter((e) => e.type === "custom" && e.customType === READONLY_ENTRY_TYPE)
-      .map((e) => e.data);
-    const restored = restoreFromEntries(entries);
-    state = createInitialReadonlyState();
-    if (restored.enabled) {
-      const computed = computeReadonlyTools(
-        pi.getAllTools().map((t) => t.name),
-        pi.getActiveTools(),
-        SESSION_WRITE_TOOLS,
-      );
-      state = { enabled: true, toolsBefore: computed.toolsBefore };
-      ctx.ui.setStatus("pstack-ro", "readonly");
-      pi.setActiveTools(computed.nextActive);
-    }
+    restoreReadonlyState(pi, ctx, stateRef);
   });
 
   pi.on("before_agent_start", (event) => {
-    if (!state.enabled) return;
+    if (!stateRef.state.enabled) return;
     const prompt = `${event.systemPrompt}\n\n## pstack session readonly\nThis session is read-only. Do not write, edit, or run bash. Use read/grep/find/ls (and read-safe pstack_* tools). Spawn children with readonly:true or role investigator/comment-sicko. Deliver citations and recommendations only.`;
     return { systemPrompt: prompt };
   });
 
   pi.on("tool_call", (event) => {
-    if (!state.enabled) return;
-    const name = event.toolName;
-    if (SESSION_WRITE_TOOLS.has(name)) {
-      return {
-        block: true,
-        reason: `pstack session readonly: blocked ${name}. Use /pstack-readonly-off to re-enable writes.`,
-      };
+    const decision = decideToolCall(stateRef.state, event);
+    if (!decision) return;
+    if ("coerceReadonly" in decision) {
+      (event.input as { readonly?: boolean }).readonly = true;
+      return;
     }
-    if (name === "pstack_worktree") {
-      const action = (event.input as { action?: string } | undefined)?.action;
-      if (action && action !== "list") {
-        return {
-          block: true,
-          reason: "pstack session readonly: blocked mutating pstack_worktree.",
-        };
-      }
-    }
-    if (name === "pstack_ship" || name === "pstack_babysit") {
-      return {
-        block: true,
-        reason: `pstack session readonly: blocked ${name}.`,
-      };
-    }
-    if (name === "pstack_deslop") {
-      const input = event.input as { applySafe?: boolean; autoApply?: boolean };
-      if (input.applySafe || input.autoApply) {
-        return {
-          block: true,
-          reason: "pstack session readonly: blocked deslop applySafe/autoApply.",
-        };
-      }
-    }
-    if (name === "pstack_spawn" || name === "pstack_swarm" || name === "pstack_arena") {
-      const input = event.input as {
-        readonly?: boolean;
-        role?: string;
-      };
-      if (name === "pstack_spawn") {
-        const role = input.role ?? "general";
-        const ok =
-          input.readonly === true || role === "investigator" || role === "comment-sicko";
-        if (!ok) {
-          (event.input as { readonly?: boolean }).readonly = true;
-        }
-      }
-    }
-    return;
+    return decision;
   });
+}
 
+function registerReadonlyCommands(pi: ExtensionAPI, setEnabled: ReadonlySetEnabled): void {
   pi.registerCommand("pstack-readonly", {
     description: "Enable session-level read-only (strip write/edit/bash)",
     handler: async (_args, ctx) => {
-      setEnabledImpl(true, ctx, "command");
+      setEnabled(true, ctx, "command");
     },
   });
 
   pi.registerCommand("pstack-readonly-off", {
     description: "Disable session-level read-only",
     handler: async (_args, ctx) => {
-      setEnabledImpl(false, ctx);
+      setEnabled(false, ctx);
     },
   });
+}
 
-  return {
-    getState: () => state,
-    setEnabled: setEnabledImpl,
-  };
+export function createReadonlyRuntime(pi: ExtensionAPI): ReadonlyRuntime {
+  const stateRef: ReadonlyStateRef = { state: createInitialReadonlyState() };
+  const setEnabled = makeSetEnabled(pi, stateRef);
+  registerReadonlyHooks(pi, stateRef);
+  registerReadonlyCommands(pi, setEnabled);
+  return { getState: () => stateRef.state, setEnabled };
 }
