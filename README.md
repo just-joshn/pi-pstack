@@ -45,6 +45,29 @@ npm run parity:sync    # regenerate the ported tree after an upstream bump
 
 The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported file: a legitimate platform difference belongs in `port/bindings.mjs`, and everything else belongs upstream.
 
+## Testing
+
+One entry point runs seven layers plus the pre-existing suites:
+
+```bash
+npm test                          # layers 1-6 + legacy; layer 7 is opt-in
+node tests/runner.mjs --layer 2   # one layer
+node tests/runner.mjs --list      # layers, files, requirements
+```
+
+| Layer | Proves |
+|-------|--------|
+| 1 unit | pure extension functions with no Pi dependency |
+| 2 integration | extension registration, lifecycle events, tool interception, and session behavior through the public SDK + faux provider |
+| 3 smoke | the real `pi --no-extensions -e ./extensions/index.ts` load, with a broken-extension negative control |
+| 4 reload | `.pi/extensions/` + `/reload` in a real tmux TUI re-reads an edited extension |
+| 5 rpc | dialogs, notifications, and status over the RPC protocol (`/setup-pstack` select → confirm → notify) |
+| 6 tui | rendered TUI output and key-driven commands in a tmux pane |
+| 7 third-party | opt-in `pi-test-harness` compatibility gate; skipped by default, never on the network |
+| legacy | `npm run test:extensions` and the upstream bun:test suite, wrapped verbatim |
+
+Tests are hermetic (temp `HOME` and agent dirs, `PI_OFFLINE=1`, no ports) and need `pi` on PATH, plus `tmux` for layers 4 and 6. `npm run parity:check` stays a separate gate because its first run clones upstream. Full matrix, flags, and exit codes: [`tests/README.md`](./tests/README.md).
+
 ## Quick start
 
 1. `pi install` this package.
