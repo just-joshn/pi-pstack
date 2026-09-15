@@ -126,6 +126,20 @@ export const SLOP_PATTERNS: SlopPattern[] = [
     suggestion: "delete-line",
     safeDelete: true,
   },
+  {
+    re: /^\+\s*\/\/\s*(?:Helper|Utility|Wrapper|Hack|Temporary|WIP)\b/gim,
+    label: "redundant helper/WIP comment",
+    severity: "medium",
+    lineAnchored: true,
+    suggestion: "delete-line",
+    safeDelete: true,
+  },
+  {
+    re: /\b(?:basically|literally|actually|essentially)\b/gi,
+    label: "filler intensifier",
+    severity: "low",
+    suggestion: "rewrite-prose",
+  },
 ];
 
 export interface FixSuggestion {

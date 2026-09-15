@@ -33,11 +33,16 @@ const AUTO_READONLY_ROLES = new Set(["comment-sicko", "investigator"]);
 
 function resolveTools(
   role: string,
-  params: { tools?: string[]; readonly?: boolean },
+  params: { tools?: string[]; readonly?: boolean; inheritParentTools?: boolean },
+  parentTools?: string[],
 ): string[] | undefined {
   if (params.tools?.length) return params.tools;
   if (params.readonly === true || AUTO_READONLY_ROLES.has(role)) {
     return [...READONLY_TOOLS];
+  }
+  // Passthrough parent allowlist when API exposes getActiveTools and caller opts in
+  if (params.inheritParentTools === true && parentTools?.length) {
+    return [...parentTools];
   }
   return undefined;
 }
@@ -53,7 +58,7 @@ export function registerSpawn(pi: ExtensionAPI): void {
     name: "pstack_spawn",
     label: "Pstack Spawn",
     description:
-      `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review (auto-readonly), investigator for read-only investigation, general for independent workers/reviewers. background:true detaches and posts a follow-up on completion. Global child concurrency cap: ${MAX_CONCURRENCY} (env PSTACK_MAX_CONCURRENCY; shared with swarm/arena). Output cap ${MAX_OUTPUT_BYTES} bytes (env PSTACK_MAX_OUTPUT_BYTES; persistOutput or PSTACK_PERSIST_OUTPUT=1 writes full text under .pi/pstack-child-output/). Default sessionMode=isolated (--session-dir; extensions/skills discover, no --no-extensions). ephemeral uses --no-session. Pi cannot inherit parent MCP/history — documented flags only. persistOutput defaults on for long children (timeout>=5m) and background.`,
+      `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review (auto-readonly), investigator for read-only investigation, general for independent workers/reviewers. background:true detaches and posts a follow-up on completion. Global child concurrency cap: ${MAX_CONCURRENCY} (env PSTACK_MAX_CONCURRENCY; shared with swarm/arena). Output cap ${MAX_OUTPUT_BYTES} bytes (env PSTACK_MAX_OUTPUT_BYTES; persistOutput or PSTACK_PERSIST_OUTPUT=1 writes full text under .pi/pstack-child-output/). Default sessionMode=isolated (--session-dir; extensions/skills discover, no --no-extensions). ephemeral uses --no-session. Optional inheritParentTools:true passes parent getActiveTools() allowlist when the ExtensionAPI exposes it. Pi cannot inherit parent MCP/history — documented flags only. persistOutput defaults on for long children (timeout>=5m) and background.`,
     promptSnippet: "Spawn an isolated Pi child agent (pstack delegate)",
     promptGuidelines: [
       "Use pstack_spawn for local child agents (Pi has no Cursor Task).",
@@ -78,7 +83,13 @@ export function registerSpawn(pi: ExtensionAPI): void {
       ),
       cwd: Type.Optional(Type.String({ description: "Child working directory" })),
       poteto: Type.Optional(Type.Boolean({ description: "Force poteto-mode in child" })),
-      tools: Type.Optional(Type.Array(Type.String(), { description: "Child tool allowlist" })),
+      tools: Type.Optional(Type.Array(Type.String(), { description: "Child tool allowlist (overrides inheritParentTools)" })),
+      inheritParentTools: Type.Optional(
+        Type.Boolean({
+          description:
+            "If true and tools unset, pass parent session active tool allowlist via ExtensionAPI getActiveTools() (Pi-local Task tools passthrough twin).",
+        }),
+      ),
       readonly: Type.Optional(
         Type.Boolean({
           description: `If true, restrict child to Pi read-only builtins: ${READONLY_TOOLS.join(",")}. Auto-true for comment-sicko and investigator.`,
@@ -114,12 +125,22 @@ export function registerSpawn(pi: ExtensionAPI): void {
         params.model ??
         resolveRoleModel(role, parentModel) ??
         parentModel;
-      const modelNorm = normalizeModelSelector(rawModel, parentModel);
+      // Explicit caller model: refuse invalid bare slugs (no silent parent fallback).
+      // Role-resolved / default paths may map or fall back.
+      const modelNorm = params.model
+        ? normalizeModelSelector(rawModel, parentModel, { allowFallbackToParent: false })
+        : normalizeModelSelector(rawModel, parentModel);
       if (!modelNorm.ok) {
         throw new Error(modelNorm.error);
       }
       const model = modelNorm.model;
-      const tools = resolveTools(role, params);
+      let parentTools: string[] | undefined;
+      try {
+        parentTools = pi.getActiveTools?.() ?? undefined;
+      } catch {
+        parentTools = undefined;
+      }
+      const tools = resolveTools(role, params, parentTools);
       const poteto = params.poteto === true || role === "poteto-agent";
       const readonlyApplied = Boolean(tools && tools.every((t) => (READONLY_TOOLS as readonly string[]).includes(t)));
       const sessionMode =

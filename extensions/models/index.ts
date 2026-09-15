@@ -79,7 +79,7 @@ export function registerModels(pi: ExtensionAPI): void {
     },
   });
 
-  // Always-applied-like sticky: inject role map every parent turn (even inherit lines).
+  // Always-applied-like sticky: inject validated role map every parent turn (sticky/session).
   pi.on("before_agent_start", (event, ctx) => {
     const cfg = loadModelsConfig(ctx.cwd) ?? defaultModelsConfig(detectPreferredModel());
     const lines = Object.entries(cfg.roles).map(([k, v]) => {
@@ -96,7 +96,7 @@ export function registerModels(pi: ExtensionAPI): void {
       return `- ${k}: ${shown}`;
     });
     return {
-      systemPrompt: `${event.systemPrompt}\n\n## pstack model roles (always-applied twin)\n${lines.join("\n")}\nPass provider/id (or inherit-parent/auto) to pstack_spawn / pstack_swarm / pstack_arena. Bare marketing slugs are refused or mapped. Every child resolves via resolveRoleModel.`,
+      systemPrompt: `${event.systemPrompt}\n\n## pstack model roles (validated always-applied twin)\n${lines.join("\n")}\nPass provider/id (or inherit-parent/auto) to pstack_spawn / pstack_swarm / pstack_arena. Bare marketing slugs are refused at spawn when passed explicitly; known maps applied. Invalid selectors fail closed. Every child resolves via resolveRoleModel.`,
     };
   });
 }

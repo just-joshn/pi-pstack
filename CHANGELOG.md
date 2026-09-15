@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.15.2-pi.0 (close-local-v3 Stage 2)
+
+- Sticky: force `sendUserMessage(/skill:poteto-mode playbooks/<id>)` on match; persist sticky+matched playbook; restore on session_start → **EQUIVALENT (local-Pi-sticky)**
+- Loop: `/pstack-loop status|list|stop`; zero double-fire coalesce E2E; babysit recipes → **EQUIVALENT (local-loop-composite)**
+- Shipping: babysit defaults to concrete watchArgv+dynamic arm; `evaluateMergeGates` fixture matrix → **EQUIVALENT (local-gh)**
+- Models: validated always-applied role inject; refuse invalid selectors at spawn → **EQUIVALENT (local-role-routing)**
+- Recall: ranked merge of sessions+git+gh → **EQUIVALENT (local-recall)**
+- Readonly: auto-arm `/pstack-readonly` on investigation sticky match; spawn readonly defaults → **EQUIVALENT (local-readonly)**
+- Spawn: `inheritParentTools` passthrough; jobs polish (PARTIAL residuals: MCP/history/session-scoped jobs)
+- Deslop: expanded patterns + `dryRun` (PARTIAL residuals: team-kit depth / HTTP-only UI / unslop pair)
+- Extension tests: expanded `extensions/test/verify-local-partials.mjs`
+
 ## 0.15.2-pi.0 (close-local-v2 Stage 2)
 
 - Sticky: playbook auto-match + inject matched steps / forced poteto routing (`sticky-playbook.ts` + `sticky-poteto.ts`)

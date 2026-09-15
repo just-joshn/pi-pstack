@@ -1,6 +1,6 @@
 /**
- * pstack_sessions — list/search Pi sessions + broader local recall corpus
- * (git log, gh PRs when available) for /skill:recall topic rebuild.
+ * pstack_sessions — list/search Pi sessions + ranked local recall corpus
+ * (sessions + git log + gh PRs) for /skill:recall topic rebuild.
  */
 import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -8,8 +8,14 @@ import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { recallGitLog, recallGhPrs } from "./recall-corpus.ts";
+import { buildRankedRecallCorpus, formatRankedRecallBody } from "./recall-rank.ts";
 
 export { recallGitLog, recallGhPrs } from "./recall-corpus.ts";
+export {
+  buildRankedRecallCorpus,
+  formatRankedRecallBody,
+  rankRecallHits,
+} from "./recall-rank.ts";
 
 function candidateSessionDirs(cwd: string): string[] {
   const home = homedir();
@@ -57,11 +63,11 @@ export function registerSessions(pi: ExtensionAPI): void {
     name: "pstack_sessions",
     label: "Pstack Sessions",
     description:
-      "List/grep Pi session transcripts, or rebuild a local recall corpus (sessions + git log + gh PRs when available). Prefer for /skill:recall topic rebuild.",
-    promptSnippet: "Find recent Pi sessions / recall corpus for a topic",
+      "List/grep Pi session transcripts, or rebuild a ranked local recall corpus (sessions + git log + gh PRs merged by topic relevance). Prefer for /skill:recall topic rebuild.",
+    promptSnippet: "Find recent Pi sessions / ranked recall corpus for a topic",
     promptGuidelines: [
       "Use pstack_sessions for recall fan-out instead of Cursor ~/.cursor/projects/*/agent-transcripts.",
-      "action=recall fans out across sessions + git log + gh PRs (local workflow twin of rebuild-context-for-topic).",
+      "action=recall fans out across sessions + git log + gh PRs and returns a ranked merge (local workflow twin of rebuild-context-for-topic).",
     ],
     parameters: Type.Object({
       action: Type.String({ description: "list | grep | current | recall" }),
@@ -122,24 +128,26 @@ export function registerSessions(pi: ExtensionAPI): void {
         }
         const gitLog = await recallGitLog(ctx.cwd, q, limit);
         const prs = await recallGhPrs(ctx.cwd, q, Math.min(limit, 15));
-        const body = [
-          "## Recall corpus (local)",
-          `query=${q || "(none)"} days=${days}`,
-          "",
-          "### Pi sessions",
-          sessionHits.join("\n\n") || "(no session hits)",
-          "",
-          "### git log",
+        const corpus = buildRankedRecallCorpus({
+          query: q,
+          days,
+          sessionSnippets: sessionHits,
           gitLog,
-          "",
-          "### gh PRs",
-          prs,
-        ].join("\n");
+          ghPrs: prs,
+          limit,
+        });
+        const body = formatRankedRecallBody(corpus, days);
         return {
           content: [{ type: "text", text: body }],
           details: {
             sessionHits: sessionHits.length,
-            corpus: ["sessions", "git-log", "gh-prs"],
+            rankedHits: corpus.hits.length,
+            corpus: ["sessions", "git-log", "gh-prs", "ranked-merge"],
+            top: corpus.hits.slice(0, 5).map((h) => ({
+              source: h.source,
+              score: h.score,
+              title: h.title,
+            })),
           },
         };
       }

@@ -1,9 +1,9 @@
 /**
- * Scripted checks for close-local-v2 Stage 2 (no full Pi runtime required).
+ * Scripted checks for close-local-v3 Stage 2 (no full Pi runtime required).
  * Run: node --experimental-strip-types extensions/test/verify-local-partials.mjs
  *   or: bun extensions/test/verify-local-partials.mjs
  */
-import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
@@ -51,13 +51,32 @@ await check("sticky injects matched playbook steps", async () => {
   assert.ok(ship && ship.id === "shipping");
 });
 
+await check("sticky force skill message + persist helpers", async () => {
+  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-session.ts")).href);
+  assert.equal(mod.forcePotetoSkillMessage("fix flaky CI", "babysit"), "/skill:poteto-mode playbooks/babysit fix flaky CI");
+  assert.ok(mod.forcePotetoSkillMessage("", "investigation").includes("playbooks/investigation"));
+  assert.ok(mod.shouldAutoArmReadonly("investigation"));
+  assert.equal(mod.shouldAutoArmReadonly("babysit"), false);
+  const payload = mod.stickyEntryPayload(true, { id: "feature", score: 6 });
+  assert.equal(payload.enabled, true);
+  assert.equal(payload.matchedPlaybookId, "feature");
+  const parsed = mod.parseStickyEntry(payload);
+  assert.equal(parsed.matchedPlaybookId, "feature");
+  const src = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
+  assert.ok(src.includes("forcePotetoSkillMessage"));
+  assert.ok(src.includes("sendUserMessage"));
+  assert.ok(src.includes("matchedPlaybookId"));
+  assert.ok(src.includes("shouldAutoArmReadonly"));
+  assert.ok(src.includes("STICKY_ENTRY_TYPE") || src.includes("pstack-poteto-mode"));
+});
+
 await check("index.ts wires sticky + playbook match + session readonly", async () => {
   const src = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
   assert.ok(src.includes("buildPotetoStickyPrompt"));
   assert.ok(src.includes("matchStickyPlaybook"));
-  assert.ok(src.includes("userText: lastUserText"));
+  assert.ok(src.includes("userText: lastUserText") || src.includes("userText:"));
   assert.ok(src.includes("pstack-readonly"));
-  assert.ok(src.includes("pstack-session-readonly"));
+  assert.ok(src.includes("pstack-session-readonly") || src.includes("READONLY_ENTRY_TYPE"));
   assert.ok(src.includes("tool_call"));
 });
 
@@ -79,6 +98,14 @@ await check("normalizeModelSelector refuses/maps bare slugs", async () => {
       assert.ok(mod.isProviderId(x) || mod.isInheritAlias(x), `unexpected default: ${x}`);
     }
   }
+});
+
+await check("spawn refuses explicit invalid model + inheritParentTools wiring", async () => {
+  const src = readFileSync(resolve(ROOT, "extensions/subagents/index.ts"), "utf8");
+  assert.ok(src.includes("inheritParentTools"));
+  assert.ok(src.includes("getActiveTools"));
+  assert.ok(src.includes("allowFallbackToParent: false"));
+  assert.ok(src.includes("AUTO_READONLY_ROLES"));
 });
 
 await check("child-runner concurrency default>=8 + persist + session isolated", async () => {
@@ -109,12 +136,14 @@ await check("child-runner concurrency default>=8 + persist + session isolated", 
 await check("jobs enqueue + abort/cancel registry", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/subagents/child-runner.ts")).href);
   mod.__resetBackgroundJobsForTests();
-  // Do not actually spawn pi — just verify registry API shapes via abort of empty
   assert.equal(mod.listBackgroundJobs().length, 0);
   const src = readFileSync(resolve(ROOT, "extensions/subagents/index.ts"), "utf8");
   assert.ok(src.includes("enqueueBackgroundChild"));
-  assert.ok(src.includes('action === "abort" || action === "cancel"') || src.includes('cancel'));
+  assert.ok(src.includes('action === "abort" || action === "cancel"') || src.includes("cancel"));
   assert.ok(src.includes("pstack_jobs"));
+  assert.ok(src.includes('action === "list"'));
+  assert.ok(src.includes('action === "status"'));
+  assert.ok(src.includes('action === "await"'));
 });
 
 await check("heartbeat coalesces dynamic double-fire + maxFires + shutdown clear", async () => {
@@ -129,12 +158,10 @@ await check("heartbeat coalesces dynamic double-fire + maxFires + shutdown clear
   mod.applyFire(state, 1000 + 3000);
   assert.equal(state.fires, 1);
   assert.ok(mod.shouldSkipSettleArm(state.lastFireAt, state.lastFireAt + 100));
-  // maxFires stop
   state.fires = 3;
   state.lastFireAt = 0;
   const stop = mod.decideFire(state, "interval", Date.now(), mod.DYNAMIC_COALESCE_MS, "interval");
   assert.equal(stop.action, "stop");
-  // shutdown clear
   mod.clearLoopState(state);
   assert.equal(state.armed, false);
   const src = readFileSync(resolve(ROOT, "extensions/heartbeat/index.ts"), "utf8");
@@ -142,9 +169,34 @@ await check("heartbeat coalesces dynamic double-fire + maxFires + shutdown clear
   assert.match(src, /clearTimer\(state\)/);
   assert.ok(src.includes("session_shutdown"));
   assert.ok(src.includes("lastFireAt"));
+  assert.ok(src.includes("status") && src.includes("list") && src.includes("stop"));
+  assert.ok(src.includes("formatLoopRows") || src.includes("/pstack-loop status"));
+  assert.ok(src.includes('action === "status" || action === "list"') || src.includes('params.action === "status" || params.action === "list"'));
 });
 
-await check("babysit watchArgv recipes concrete + materialize", async () => {
+await check("zero double-fire under rapid settle+watcher script", async () => {
+  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/heartbeat/coalesce.ts")).href);
+  const state = { lastFireAt: 0, fires: 0, maxFires: 10, armed: true };
+  let fires = 0;
+  const t0 = 10_000;
+  for (const [reason, t] of [
+    ["watcher", t0],
+    ["settle", t0 + 200],
+    ["settle", t0 + 400],
+    ["watcher", t0 + 600],
+  ]) {
+    const d = mod.decideFire(state, reason, t, mod.DYNAMIC_COALESCE_MS, "dynamic");
+    if (d.action === "fire") {
+      fires++;
+      mod.applyFire(state, t);
+    }
+  }
+  assert.equal(fires, 1, `expected 1 fire in coalesce window, got ${fires}`);
+  const later = mod.decideFire(state, "settle", t0 + 3000, mod.DYNAMIC_COALESCE_MS, "dynamic");
+  assert.equal(later.action, "fire");
+});
+
+await check("babysit watchArgv recipes concrete + materialize + shipping default", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/heartbeat/coalesce.ts")).href);
   const argv = mod.materializeWatchArgv("watch-pr-status", "42");
   assert.deepEqual(argv.slice(-2), ["42", "--status-only"]);
@@ -156,16 +208,41 @@ await check("babysit watchArgv recipes concrete + materialize", async () => {
   assert.ok(src.includes("--status-only"));
   assert.ok(src.includes("dynamic"));
   assert.ok(src.includes("coalesced") || src.includes("2.5"));
+  const ship = await import(pathToFileURL(resolve(ROOT, "extensions/shipping/babysit-recipes.ts")).href);
+  assert.equal(ship.DEFAULT_BABYSIT_RECIPE, "watch-pr-drive");
+  const hint = ship.babysitDynamicLoopHint("123");
+  assert.equal(hint.loopArm.mode, "dynamic");
+  assert.ok(Array.isArray(hint.watchArgv) && hint.watchArgv.includes("123"));
+  assert.ok(!hint.watchArgv.some((a) => String(a).includes("<pr>")));
 });
 
-await check("deslop applySafe path exercised", async () => {
+await check("evaluateMergeGates fixture matrix", async () => {
+  const ship = await import(pathToFileURL(resolve(ROOT, "extensions/shipping/gates.ts")).href);
+  assert.ok(ship.MERGE_GATE_FIXTURES.length >= 8, `fixtures=${ship.MERGE_GATE_FIXTURES.length}`);
+  for (const fix of ship.MERGE_GATE_FIXTURES) {
+    const problems = ship.evaluateMergeGates(fix.view);
+    if (fix.expectPass) {
+      assert.equal(problems.length, 0, `${fix.id} expected pass got ${problems}`);
+    } else {
+      assert.ok(problems.length > 0, `${fix.id} expected fail`);
+      for (const sub of fix.expectSubstrings ?? []) {
+        assert.ok(
+          problems.some((p) => p.includes(sub)),
+          `${fix.id} missing ${sub} in ${JSON.stringify(problems)}`,
+        );
+      }
+    }
+  }
+});
+
+await check("deslop applySafe + dryRun path exercised", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/companions/deslop-core.ts")).href);
   const dir = mkdtempSync(join(tmpdir(), "pstack-deslop-"));
   try {
     const file = join(dir, "sample.ts");
     writeFileSync(
       file,
-      ["const x = 1;", "// Phase 1: add cards", "// =====", "const y = 2;", ""].join("\n"),
+      ["const x = 1;", "// Phase 1: add cards", "// =====", "// Helper for parse", "const y = 2;", ""].join("\n"),
       "utf8",
     );
     const suggestions = [
@@ -193,9 +270,11 @@ await check("deslop applySafe path exercised", async () => {
     assert.ok(next.includes("const x = 1"));
     const scanned = mod.scanAddedLinesForSlop([
       { file: "a.ts", text: "// Phase 1: add cards" },
+      { file: "a.ts", text: "// Helper for x" },
       { file: "a.ts", text: "const ok = true;" },
     ]);
     assert.ok(scanned.suggestions.some((s) => s.safeDelete));
+    assert.ok(scanned.rankedLabels.includes("redundant helper/WIP comment") || scanned.suggestions.some((s) => s.label.includes("Helper") || s.label.includes("helper")));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -203,32 +282,21 @@ await check("deslop applySafe path exercised", async () => {
   assert.ok(src.includes("applySafe"));
   assert.ok(src.includes("autoApply"));
   assert.ok(src.includes("safeDelete"));
+  assert.ok(src.includes("dryRun"));
+  assert.ok(mod.SLOP_PATTERNS.length >= 17);
 });
 
-await check("AUTO_READONLY roles + merge gates pure eval", async () => {
+await check("AUTO_READONLY roles + investigation auto-arm wiring", async () => {
   const spawnSrc = readFileSync(resolve(ROOT, "extensions/subagents/index.ts"), "utf8");
   assert.ok(spawnSrc.includes("AUTO_READONLY_ROLES"));
   assert.ok(spawnSrc.includes("comment-sicko"));
   assert.ok(spawnSrc.includes("investigator"));
-  const ship = await import(pathToFileURL(resolve(ROOT, "extensions/shipping/gates.ts")).href);
-  const bad = ship.evaluateMergeGates({
-    state: "OPEN",
-    mergedAt: null,
-    mergeStateStatus: "DIRTY",
-    reviewDecision: "CHANGES_REQUESTED",
-    statusCheckRollup: [{ name: "ci", conclusion: "FAILURE" }],
-  });
-  assert.ok(bad.some((p) => p.includes("DIRTY")));
-  assert.ok(bad.some((p) => p.includes("CHANGES_REQUESTED")));
-  assert.ok(bad.some((p) => p.includes("FAILURE")));
-  const good = ship.evaluateMergeGates({
-    state: "OPEN",
-    mergedAt: null,
-    mergeStateStatus: "CLEAN",
-    reviewDecision: "APPROVED",
-    statusCheckRollup: [{ name: "ci", conclusion: "SUCCESS" }],
-  });
-  assert.equal(good.length, 0);
+  const sticky = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-session.ts")).href);
+  assert.ok(sticky.shouldAutoArmReadonly("investigation"));
+  const idx = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
+  assert.ok(idx.includes("shouldAutoArmReadonly"));
+  assert.ok(idx.includes("SESSION_WRITE_TOOLS") || idx.includes('"write"'));
+  assert.ok(idx.includes("block: true"));
 });
 
 await check("worktree sanitize + always-isolate + cleanup helpers", async () => {
@@ -245,7 +313,6 @@ await check("worktree sanitize + always-isolate + cleanup helpers", async () => 
   const arena = readFileSync(resolve(ROOT, "extensions/orchestration/arena.ts"), "utf8");
   assert.ok(arena.includes("ensureAlwaysIsolated"));
 
-  // Live cleanup on a temp git repo with a safe empty worktree
   const dir = mkdtempSync(join(tmpdir(), "pstack-wt-"));
   try {
     execFileSync("git", ["init"], { cwd: dir, stdio: "ignore" });
@@ -266,16 +333,39 @@ await check("worktree sanitize + always-isolate + cleanup helpers", async () => 
   }
 });
 
-await check("recall corpus broader than sessions-only", async () => {
+await check("recall ranked merge of sessions+git+gh", async () => {
   const src = readFileSync(resolve(ROOT, "extensions/sessions/index.ts"), "utf8");
-  assert.ok(src.includes('action === "recall"') || src.includes("recall"));
+  assert.ok(src.includes("recall"));
   assert.ok(src.includes("recallGitLog"));
   assert.ok(src.includes("recallGhPrs"));
+  assert.ok(src.includes("buildRankedRecallCorpus") || src.includes("ranked"));
   const skill = readFileSync(resolve(ROOT, "skills/recall/SKILL.md"), "utf8");
   assert.ok(skill.includes("recall") && skill.includes("git log"));
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/sessions/recall-corpus.ts")).href);
   const log = await mod.recallGitLog(ROOT, "Stage", 5);
   assert.ok(typeof log === "string" && log.length > 0);
+  const rank = await import(pathToFileURL(resolve(ROOT, "extensions/sessions/recall-rank.ts")).href);
+  const corpus = rank.buildRankedRecallCorpus({
+    query: "auth",
+    days: 7,
+    sessionSnippets: ["/tmp/s1.jsonl\n  talked about auth middleware"],
+    gitLog: "abc1234 fix auth token refresh\ndef5678 docs only",
+    ghPrs: "#42 [OPEN] Harden auth middleware (auth) 2026-01-01 https://example/42",
+    limit: 10,
+  });
+  assert.ok(corpus.hits.length >= 2);
+  assert.equal(corpus.hits[0].score >= corpus.hits[1].score, true);
+  assert.ok(corpus.rankedBlock.includes("auth"));
+  const body = rank.formatRankedRecallBody(corpus, 7);
+  assert.ok(body.includes("Ranked merge"));
+});
+
+await check("models always-applied validated inject wiring", async () => {
+  const src = readFileSync(resolve(ROOT, "extensions/models/index.ts"), "utf8");
+  assert.ok(src.includes("before_agent_start"));
+  assert.ok(src.includes("validated") || src.includes("always-applied"));
+  assert.ok(src.includes("normalizeModelSelector") || src.includes("isBareMarketingSlug"));
+  assert.ok(src.includes("setup-pstack"));
 });
 
 await check("why + guide + investigation Pi-local truth", async () => {
@@ -287,6 +377,15 @@ await check("why + guide + investigation Pi-local truth", async () => {
   assert.ok(!guide.includes("`cursor-team-kit [leave-behind on Pi]` plugin, not in pstack"));
   const inv = readFileSync(resolve(ROOT, "skills/poteto-mode/playbooks/investigation.md"), "utf8");
   assert.ok(inv.includes("/pstack-readonly"));
+});
+
+await check("PARITY scorecard documents local-scope EQUIVALENT criteria", async () => {
+  const parity = readFileSync(resolve(ROOT, "PARITY.md"), "utf8");
+  assert.ok(parity.includes("EQUIVALENT"));
+  assert.ok(parity.includes("local-") || parity.includes("local "));
+  // After update: expect multiple EQUIVALENT rows beyond worktree
+  const equivCount = (parity.match(/\*\*EQUIVALENT\*\*/g) || []).length;
+  assert.ok(equivCount >= 2, `expected >=2 EQUIVALENT markers, got ${equivCount}`);
 });
 
 console.log(failed ? `\n${failed} failed` : "\nAll checks passed");

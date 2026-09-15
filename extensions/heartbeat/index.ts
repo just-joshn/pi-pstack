@@ -147,18 +147,43 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
     }
   });
 
+  const formatLoopRows = () =>
+    [...loops.values()].map(
+      (s) =>
+        `${s.id} mode=${s.mode} fires=${s.fires}/${s.maxFires} armed=${s.armed} lastReason=${s.lastFireReason ?? "-"}`,
+    );
+
   pi.registerCommand("pstack-loop", {
-    description: "Arm a heartbeat/settle loop (Cursor /loop twin). Args: <seconds> <prompt…>",
+    description:
+      "Arm/status/stop/list heartbeat loops (Cursor /loop twin). Args: <seconds> <prompt…> | status | list | stop [id] | off",
     handler: async (args, ctx) => {
       const trimmed = args.trim();
-      if (!trimmed || trimmed === "off" || trimmed === "stop") {
+      const lower = trimmed.toLowerCase();
+      if (!trimmed || lower === "off" || lower === "stop") {
         for (const state of [...loops.values()]) clearLoop(state);
+        ctx.ui.setStatus("pstack-loop", undefined);
         ctx.ui.notify("All pstack loops stopped.", "info");
+        return;
+      }
+      if (lower === "status" || lower === "list") {
+        const rows = formatLoopRows();
+        ctx.ui.notify(rows.length ? rows.join("\n") : "(no active loops)", "info");
+        return;
+      }
+      const stopOne = trimmed.match(/^stop\s+(\S+)$/i);
+      if (stopOne) {
+        const s = loops.get(stopOne[1]);
+        if (s) clearLoop(s);
+        if (!loops.size) ctx.ui.setStatus("pstack-loop", undefined);
+        ctx.ui.notify(s ? `Stopped ${stopOne[1]}` : `No loop ${stopOne[1]}`, "info");
         return;
       }
       const m = trimmed.match(/^(\d+)\s+([\s\S]+)$/);
       if (!m) {
-        ctx.ui.notify("Usage: /pstack-loop <seconds> <prompt>  |  /pstack-loop off", "error");
+        ctx.ui.notify(
+          "Usage: /pstack-loop <seconds> <prompt>  |  /pstack-loop status|list  |  /pstack-loop stop [id]  |  /pstack-loop off",
+          "error",
+        );
         return;
       }
       const seconds = Number(m[1]);
@@ -197,7 +222,7 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       "mode=watcher fires once when watchArgv exits; mode=dynamic re-arms the watcher after each fire.",
     ],
     parameters: Type.Object({
-      action: Type.String({ description: "arm | stop | status" }),
+      action: Type.String({ description: "arm | stop | status | list" }),
       mode: Type.Optional(
         Type.String({
           description:
@@ -221,14 +246,11 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       id: Type.Optional(Type.String({ description: "Loop id for stop" })),
     }),
     async execute(_id, params, signal, _onUpdate, ctx) {
-      if (params.action === "status") {
-        const rows = [...loops.values()].map(
-          (s) =>
-            `${s.id} mode=${s.mode} fires=${s.fires}/${s.maxFires} armed=${s.armed} lastReason=${s.lastFireReason ?? "-"}`,
-        );
+      if (params.action === "status" || params.action === "list") {
+        const rows = formatLoopRows();
         return {
           content: [{ type: "text", text: rows.length ? rows.join("\n") : "(no active loops)" }],
-          details: { loops: [...loops.keys()] },
+          details: { loops: [...loops.keys()], action: params.action },
         };
       }
       if (params.action === "stop") {
@@ -241,7 +263,7 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
         ctx.ui.setStatus("pstack-loop", undefined);
         return { content: [{ type: "text", text: "stopped" }], details: {} };
       }
-      if (params.action !== "arm") throw new Error("action must be arm|stop|status");
+      if (params.action !== "arm") throw new Error("action must be arm|stop|status|list");
       if (!params.prompt) throw new Error("prompt required to arm");
       if (params.watchCommand) {
         throw new Error("watchCommand is rejected (no bash -lc of model strings); pass watchArgv as an argv array");

@@ -33,23 +33,24 @@ Status legend:
 ## Behavioral scorecard (12 capabilities)
 
 Honest runtime parity vs Cursor pstack host behavior (not artifact presence). Legend: **EQUIVALENT** | **PARTIAL** | **NOT**.
+Bar: **Cursor CLI / local agent** semantics on Pi — not cloud VMs, marketplace, Automations/Slack, or Grok Bot cards.
 
-| # | Capability | Behavioral | Notes (Stage 2 close-local-v2) |
+| # | Capability | Behavioral | Notes (Stage 2 close-local-v3) |
 |---|---|---|---|
-| 1 | poteto-mode sticky + playbook routing | PARTIAL→↑ | Sticky re-injects skill body **and auto-matches user text → injects matched playbook steps / forced routing** (`sticky-playbook.ts`). Still **not** Cursor sticky-host bit-identical (no host `mode:true` primitive). |
-| 2 | Task / subagent → spawn / swarm / arena | PARTIAL→↑ | Default **MAX_CONCURRENCY=8** (`PSTACK_MAX_CONCURRENCY`); default **sessionMode=isolated** (`--session-dir`; never `--no-extensions`; Pi has **no** parent MCP/history inheritance API); **persistOutput default-on** for long/background children; `pstack_jobs` abort/cancel. No cloud VMs. |
-| 3 | /loop → pstack_loop | PARTIAL→↑ | Dynamic coalesce unit-tested (`heartbeat/coalesce.ts`); maxFires + session_shutdown clear covered; babysit **concrete watchArgv recipes** tested. Still ExtensionAPI twin ≠ native `/loop` UX. |
+| 1 | poteto-mode sticky + playbook routing | **EQUIVALENT** (local-Pi-sticky) | **Local-scope criteria:** (a) sticky stays armed across turns via `appendEntry` + `session_start` restore; (b) matched playbook id persisted with sticky and restored; (c) on match, `sendUserMessage(/skill:poteto-mode playbooks/<id> …)` force-invokes skill (not inject-only); (d) `before_agent_start` re-injects skill body + matched playbook steps. **Not** Cursor host `mode:true` bit-identical. |
+| 2 | Task / subagent → spawn / swarm / arena | PARTIAL | Default **MAX_CONCURRENCY≥8**; `sessionMode=isolated`; `persistOutput` long/bg; `pstack_jobs` list/status/await/cancel; `inheritParentTools` passthrough via `getActiveTools` when opted in. **Residuals (≤3):** (1) Pi has no parent MCP inheritance API; (2) no parent conversation-history inheritance into children; (3) background jobs die on `session_shutdown` (session-scoped, not a durable daemon). |
+| 3 | /loop → pstack_loop | **EQUIVALENT** (local-loop-composite) | **Local-scope criteria:** modes `interval|settle|watcher|dynamic` cover Cursor-local `/loop` babysit/shipping use cases; dynamic coalesce prevents double-fire (unit-tested); `/pstack-loop status|list|stop [id]|off|stop [id]|off`; babysit concrete `watchArgv` recipes + E2E coalesce script. ExtensionAPI twin ≠ native slash UX chrome — scored only as local-loop-composite. |
 | 4 | worktrees isolation | **EQUIVALENT** (local-git) | Criteria met for **local git isolation**: real `git worktree` create/list/remove/prune; name/base sanitize; cap 12; **swarm/arena always isolate** (even N=1); **session_shutdown safe cleanup** of empty/merged `.pstack-worktrees` (dirty/unmerged skipped). Not cloud/IDE UX — scored only as local-git twin. |
-| 5 | shipping / babysit (gh) | PARTIAL→↑ | Real tools + fail-closed merge gates (`evaluateMergeGates`); babysit documents concrete `watchArgv` recipes for dynamic loop. |
-| 6 | deslop / control companions | PARTIAL→↑ | `applySafe` path **unit-exercised**; optional `autoApply` gated on Stage-2 `ui.confirm`; still thinner than cursor-team-kit. |
-| 7 | model role routing | PARTIAL→↑ | Bare marketing slugs **refused/mapped**; setup writes **provider/id** when detectable; parent **always-applied-like** role inject; children `resolveRoleModel` |
-| 8 | recall | PARTIAL→↑ | `pstack_sessions` action=`recall` fans out **sessions + git log + gh PRs** (when `gh` available). Closer to local “rebuild context for topic”; still not Cursor transcript machinery. |
+| 5 | shipping / babysit (gh) | **EQUIVALENT** (local-gh) | **Local-scope criteria:** `pstack_babysit` + `pstack_ship` with fail-closed `evaluateMergeGates` (fixture matrix ≥8 cases); babysit defaults to concrete `watchArgv` recipe + `pstack_loop mode=dynamic` arm payload; gate-check before merge. Not Origin-first / cloud-verifier luxuries. |
+| 6 | deslop / control companions | PARTIAL | `applySafe` + **`dryRun`** + expanded pattern set; optional `autoApply` via `ui.confirm`. **Residuals (≤3):** (1) pattern depth still thinner than cursor-team-kit `/deslop`; (2) `pstack_control_ui` is HTTP probe only (no Electron/IDE drive); (3) prose cleanup still pairs with `/skill:unslop` rather than a full team-kit workflow. |
+| 7 | model role routing | **EQUIVALENT** (local-role-routing) | **Local-scope criteria:** `/setup-pstack` writes provider/id when detectable; sticky/session `before_agent_start` always injects **validated** role map; explicit invalid bare selectors **refused** at `pstack_spawn` (`allowFallbackToParent:false`); children resolve via `resolveRoleModel`. Storage is JSON (not Cursor `.mdc` rule file) — scored as local-role-routing only. |
+| 8 | recall | **EQUIVALENT** (local-recall) | **Local-scope criteria:** `pstack_sessions` action=`recall` rebuilds topic context via **ranked merge** of Pi sessions + `git log` + `gh` PRs (when available) without Cursor transcripts. Completes local “rebuild topic context” workflow under Pi corpus. |
 | 9 | make-bot-ui | NOT | Wake file/webhook twin only; no Grok Bot `update_state`/secret cards |
 | 10 | Benny | NOT | Manual skills + `pstack_benny_wake`; no Automations Slack bus |
-| 11 | Ask-mode / readonly semantics | PARTIAL→↑ | Spawn auto-readonly roles + **`/pstack-readonly` session strip** (blocks write/edit/bash); why/investigation Pi-local (no Ask/MCP-strip prose) |
+| 11 | Ask-mode / readonly semantics | **EQUIVALENT** (local-readonly) | **Local-scope criteria:** `/pstack-readonly` strips write/edit/bash; sticky investigation playbook **auto-arms** readonly; spawn `investigator`/`comment-sicko` auto-readonly allowlist; `tool_call` blocks writes (and mutating ship/worktree/deslop-apply). **Not** Cursor Ask-mode MCP-strip — scored as local-readonly only. |
 | 12 | Automations / cloud agents / marketplace | NOT | Local spawn+worktree twin only; marketplace/Automations/cloud VMs absent |
 
-**EQUIVALENT promotions (honest, local-only):** row **4** (local-git worktree isolation). Remaining in-scope PARTIAL→↑: 1, 2, 3, 5, 6, 7, 8, 11. Out-of-scope NOT: 9, 10, 12. Never claim Cursor sticky-host bit-identical.
+**EQUIVALENT promotions (honest, local-only):** rows **1** (local-Pi-sticky), **3** (local-loop-composite), **4** (local-git), **5** (local-gh), **7** (local-role-routing), **8** (local-recall), **11** (local-readonly). Remaining in-scope PARTIAL: **2**, **6** (each ≤3 residual bullets). Out-of-scope NOT: 9, 10, 12. Never claim Cursor sticky-host / Ask-MCP / native `/loop` chrome bit-identical.
 
 Artifact matrix below counts files on disk. Do not read “ported” as EQUIVALENT.
 
@@ -186,17 +187,17 @@ Artifact matrix below counts files on disk. Do not read “ported” as EQUIVALE
 
 | Module | Tools / commands | Status |
 |---|---|---|
-| extensions/index.ts | /poteto-mode sticky skill+playbook match inject, /pstack-readonly, /pstack | rewritten |
-| extensions/subagents | pstack_spawn (default concurrency 8, sessionMode isolated, persistOutput long/bg), pstack_jobs cancel | rewritten |
+| extensions/index.ts | /poteto-mode sticky force-invoke+persist playbook, /pstack-readonly auto-arm investigation, /pstack | rewritten |
+| extensions/subagents | pstack_spawn (concurrency≥8, isolated, persistOutput, inheritParentTools), pstack_jobs list/status/await/cancel | rewritten |
 | extensions/orchestration | pstack_swarm, pstack_arena (always isolate) | rewritten |
-| extensions/models | /setup-pstack (provider/id; refuse bare slugs), always-applied-like role inject | rewritten |
+| extensions/models | /setup-pstack (provider/id), validated always-applied role inject, spawn refuse invalid | rewritten |
 | extensions/decision-log | pstack_decision_log | rewritten |
 | extensions/worktree | pstack_worktree + session_shutdown safe cleanup | rewritten |
 | extensions/gates | /pstack-gates | rewritten |
-| extensions/heartbeat | pstack_loop (coalesce unit-tested), /pstack-loop | rewritten |
-| extensions/companions | pstack_deslop (applySafe tested + autoApply confirm), pstack_control_cli, pstack_control_ui, /deslop | rewritten |
-| extensions/sessions | pstack_sessions (list/grep/recall: sessions+git+gh) | rewritten |
-| extensions/shipping | pstack_babysit, pstack_ship | rewritten |
+| extensions/heartbeat | pstack_loop (interval/settle/watcher/dynamic+coalesce), /pstack-loop status|list|stop | rewritten |
+| extensions/companions | pstack_deslop (applySafe+dryRun+expanded patterns), pstack_control_cli, pstack_control_ui, /deslop | rewritten |
+| extensions/sessions | pstack_sessions (list/grep/recall ranked merge: sessions+git+gh) | rewritten |
+| extensions/shipping | pstack_babysit (default watchArgv+dynamic), pstack_ship (gate matrix) | rewritten |
 | extensions/benny | pstack_benny_wake, /setup-benny, /benny-triage, /benny-repro | rewritten |
 
 ## Remaining physical impossibilities (twins shipped)

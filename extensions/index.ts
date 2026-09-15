@@ -1,5 +1,7 @@
 /**
  * pi-pstack extension entry — poteto-mode sticky + thin subagent/orchestration tools.
+ * Stage 2 close-local-v3: force skill invoke on match, persist sticky+playbook,
+ * restore on session_start, auto-arm readonly for investigation.
  * No Cursor SDKs. No pi-subagents / tintinweb deps.
  */
 import { dirname, resolve } from "node:path";
@@ -18,6 +20,15 @@ import { registerShipping } from "./shipping/index.ts";
 import { registerBenny } from "./benny/index.ts";
 import { buildPotetoStickyPrompt, matchStickyPlaybook } from "./sticky-poteto.ts";
 import { READONLY_TOOLS } from "./subagents/child-runner.ts";
+import {
+  STICKY_ENTRY_TYPE,
+  READONLY_ENTRY_TYPE,
+  forcePotetoSkillMessage,
+  parseReadonlyEntry,
+  parseStickyEntry,
+  shouldAutoArmReadonly,
+  stickyEntryPayload,
+} from "./sticky-session.ts";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -34,14 +45,48 @@ export default function piPstack(pi: ExtensionAPI) {
   let sessionReadonly = false;
   /** Latest user text for sticky playbook auto-match. */
   let lastUserText = "";
+  /** Persisted matched playbook id (restored on session_start). */
+  let matchedPlaybookId: string | null = null;
   /** Tools active before readonly was applied (restored on off). */
   let toolsBeforeReadonly: string[] | undefined;
+  /** Dedupe force-invoke within a turn. */
+  let lastForcedSkillKey = "";
 
-  const setPoteto = (enabled: boolean, ctx?: { ui: { setStatus: (id: string, v: string | undefined) => void } }) => {
-    if (potetoEnabled === enabled) return;
+  const setPoteto = (
+    enabled: boolean,
+    ctx?: { ui: { setStatus: (id: string, v: string | undefined) => void } },
+    match?: { id: string; score: number } | null,
+  ) => {
+    const nextPlaybook =
+      match === null
+        ? null
+        : match?.id
+          ? match.id
+          : enabled
+            ? matchedPlaybookId
+            : null;
+    const playbookChanged = nextPlaybook !== matchedPlaybookId;
+    if (potetoEnabled === enabled && !playbookChanged && match === undefined) {
+      return;
+    }
     potetoEnabled = enabled;
-    pi.appendEntry("pstack-poteto-mode", { enabled });
-    ctx?.ui.setStatus("pstack", enabled ? "poteto" : undefined);
+    matchedPlaybookId = enabled ? nextPlaybook : null;
+    pi.appendEntry(
+      STICKY_ENTRY_TYPE,
+      stickyEntryPayload(
+        enabled,
+        match ?? (matchedPlaybookId ? { id: matchedPlaybookId, score: 0 } : null),
+      ),
+    );
+    ctx?.ui.setStatus(
+      "pstack",
+      enabled ? (matchedPlaybookId ? `poteto:${matchedPlaybookId}` : "poteto") : undefined,
+    );
+  };
+
+  const persistStickyMatch = (match: { id: string; score: number }) => {
+    matchedPlaybookId = match.id;
+    pi.appendEntry(STICKY_ENTRY_TYPE, stickyEntryPayload(true, match));
   };
 
   const applySessionReadonlyTools = () => {
@@ -49,10 +94,8 @@ export default function piPstack(pi: ExtensionAPI) {
     const active = pi.getActiveTools();
     toolsBeforeReadonly = active.length ? [...active] : [...all];
     const keep = new Set<string>([...READONLY_TOOLS]);
-    // Keep read-safe pstack companions; block mutating spawn/worktree/ship/deslop-apply paths at tool_call.
     for (const name of toolsBeforeReadonly) {
       if (name.startsWith("pstack_") && !SESSION_WRITE_TOOLS.has(name)) {
-        // Allow list/status tools; mutating ones still gated in tool_call below.
         keep.add(name);
       }
       if (name === "read" || name === "grep" || name === "find" || name === "ls") keep.add(name);
@@ -74,14 +117,24 @@ export default function piPstack(pi: ExtensionAPI) {
   const setSessionReadonly = (
     enabled: boolean,
     ctx?: { ui: { setStatus: (id: string, v: string | undefined) => void; notify: (m: string, l: string) => void } },
+    reason?: string,
   ) => {
     if (sessionReadonly === enabled) return;
     sessionReadonly = enabled;
-    pi.appendEntry("pstack-session-readonly", { enabled });
+    pi.appendEntry(READONLY_ENTRY_TYPE, {
+      enabled,
+      reason,
+      updatedAt: Date.now(),
+    });
     if (enabled) {
       applySessionReadonlyTools();
       ctx?.ui.setStatus("pstack-ro", "readonly");
-      ctx?.ui.notify?.("Session readonly on: write/edit/bash blocked.", "info");
+      ctx?.ui.notify?.(
+        reason
+          ? `Session readonly on (${reason}): write/edit/bash blocked.`
+          : "Session readonly on: write/edit/bash blocked.",
+        "info",
+      );
     } else {
       clearSessionReadonlyTools();
       ctx?.ui.setStatus("pstack-ro", undefined);
@@ -93,19 +146,24 @@ export default function piPstack(pi: ExtensionAPI) {
     potetoEnabled = false;
     sessionReadonly = false;
     lastUserText = "";
+    matchedPlaybookId = null;
     toolsBeforeReadonly = undefined;
+    lastForcedSkillKey = "";
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "custom") continue;
-      if (entry.customType === "pstack-poteto-mode") {
-        const data = entry.data as { enabled?: boolean } | undefined;
-        potetoEnabled = data?.enabled === true;
+      if (entry.customType === STICKY_ENTRY_TYPE) {
+        const data = parseStickyEntry(entry.data);
+        potetoEnabled = data.enabled === true;
+        if (data.matchedPlaybookId) matchedPlaybookId = data.matchedPlaybookId;
       }
-      if (entry.customType === "pstack-session-readonly") {
-        const data = entry.data as { enabled?: boolean } | undefined;
-        sessionReadonly = data?.enabled === true;
+      if (entry.customType === READONLY_ENTRY_TYPE) {
+        const data = parseReadonlyEntry(entry.data);
+        sessionReadonly = data.enabled === true;
       }
     }
-    if (potetoEnabled) ctx.ui.setStatus("pstack", "poteto");
+    if (potetoEnabled) {
+      ctx.ui.setStatus("pstack", matchedPlaybookId ? `poteto:${matchedPlaybookId}` : "poteto");
+    }
     if (sessionReadonly) {
       ctx.ui.setStatus("pstack-ro", "readonly");
       applySessionReadonlyTools();
@@ -117,32 +175,60 @@ export default function piPstack(pi: ExtensionAPI) {
     if (event.text.startsWith("/skill:poteto-mode") || event.text.startsWith("/poteto-mode")) {
       setPoteto(true, ctx);
     }
-    // Strong playbook match can arm sticky (force poteto-mode routing). Weak matches
-    // only inject when sticky is already on (handled in before_agent_start).
     const matched = matchStickyPlaybook(event.text);
-    if (matched && !potetoEnabled && matched.score >= 5) {
-      setPoteto(true, ctx);
-      ctx.ui.notify?.(`Poteto sticky armed via playbook match: ${matched.id}`, "info");
+    if (matched && matched.score >= 2) {
+      // Persist match whenever sticky is on or strong match arms sticky
+      if (!potetoEnabled && matched.score >= 5) {
+        setPoteto(true, ctx, { id: matched.id, score: matched.score });
+        ctx.ui.notify?.(`Poteto sticky armed via playbook match: ${matched.id}`, "info");
+      } else if (potetoEnabled) {
+        persistStickyMatch({ id: matched.id, score: matched.score });
+        ctx.ui.setStatus("pstack", `poteto:${matched.id}`);
+      }
+
+      // Force skill invocation (not inject-only) once per match key
+      if (potetoEnabled || matched.score >= 5) {
+        const forceKey = `${matched.id}::${event.text.slice(0, 120)}`;
+        if (forceKey !== lastForcedSkillKey && !event.text.startsWith("/skill:poteto-mode")) {
+          lastForcedSkillKey = forceKey;
+          const msg = forcePotetoSkillMessage(event.text, matched.id);
+          // Deliver as follow-up so the turn routes through skill expand (Cursor sticky twin)
+          try {
+            pi.sendUserMessage(msg, { deliverAs: "followUp", expandPromptTemplates: true });
+          } catch {
+            // Some hosts may reject followUp mid-input; inject path still covers sticky body
+          }
+        }
+      }
+
+      // Investigation playbook → auto-arm session readonly
+      if (shouldAutoArmReadonly(matched.id) && (potetoEnabled || matched.score >= 5)) {
+        setSessionReadonly(true, ctx, `playbook:${matched.id}`);
+      }
     }
-    // Investigation playbook / explicit ask → arm session readonly
-    if (
-      /\b\/skill:poteto-mode\b.*\b(investigat|read-?only|ask mode)\b/i.test(event.text) ||
-      /^\/pstack-readonly\b/i.test(event.text.trim())
-    ) {
-      /* command handler owns /pstack-readonly; skill path arms below */
-    }
+
     if (
       event.text.startsWith("/skill:poteto-mode") &&
       /\binvestigat/i.test(event.text)
     ) {
-      setSessionReadonly(true, ctx);
+      setSessionReadonly(true, ctx, "skill:investigation");
     }
   });
 
   pi.on("before_agent_start", (event) => {
     let prompt = event.systemPrompt;
     if (potetoEnabled) {
-      prompt = buildPotetoStickyPrompt(prompt, { userText: lastUserText });
+      prompt = buildPotetoStickyPrompt(prompt, {
+        userText: lastUserText,
+        // Prefer live match; fall back to restored playbook id for routing note
+        match: undefined,
+      });
+      // If no live userText match but we restored a playbook, hint it
+      if (matchedPlaybookId && lastUserText && !matchStickyPlaybook(lastUserText)) {
+        prompt = `${prompt}\n\n## Restored sticky playbook\nPreviously matched **${matchedPlaybookId}** (session restore). Prefer that playbook unless the user clearly changed intent.`;
+      } else if (matchedPlaybookId && !lastUserText) {
+        prompt = `${prompt}\n\n## Restored sticky playbook\nSession restored with matched playbook **${matchedPlaybookId}**.`;
+      }
     }
     if (sessionReadonly) {
       prompt = `${prompt}\n\n## pstack session readonly\nThis session is read-only. Do not write, edit, or run bash. Use read/grep/find/ls (and read-safe pstack_* tools). Spawn children with readonly:true or role investigator/comment-sicko. Deliver citations and recommendations only.`;
@@ -175,11 +261,19 @@ export default function piPstack(pi: ExtensionAPI) {
         reason: `pstack session readonly: blocked ${name}.`,
       };
     }
+    if (name === "pstack_deslop") {
+      const input = event.input as { applySafe?: boolean; autoApply?: boolean };
+      if (input.applySafe || input.autoApply) {
+        return {
+          block: true,
+          reason: "pstack session readonly: blocked deslop applySafe/autoApply.",
+        };
+      }
+    }
     if (name === "pstack_spawn" || name === "pstack_swarm" || name === "pstack_arena") {
       const input = event.input as {
         readonly?: boolean;
         role?: string;
-        tasks?: unknown[];
       };
       if (name === "pstack_spawn") {
         const role = input.role ?? "general";
@@ -188,7 +282,6 @@ export default function piPstack(pi: ExtensionAPI) {
           role === "investigator" ||
           role === "comment-sicko";
         if (!ok) {
-          // Force readonly by mutating input in place (ExtensionAPI contract).
           (event.input as { readonly?: boolean }).readonly = true;
         }
       }
@@ -197,15 +290,24 @@ export default function piPstack(pi: ExtensionAPI) {
   });
 
   pi.registerCommand("poteto-mode", {
-    description: "Enable sticky poteto-mode and optionally run a task",
+    description: "Enable sticky poteto-mode and force skill invocation (optional task / playbook)",
     handler: async (args, ctx) => {
-      setPoteto(true, ctx);
       const task = args.trim();
+      const matched = task ? matchStickyPlaybook(task) : undefined;
+      setPoteto(true, ctx, matched ? { id: matched.id, score: matched.score } : undefined);
+      if (matched && shouldAutoArmReadonly(matched.id)) {
+        setSessionReadonly(true, ctx, `playbook:${matched.id}`);
+      }
       if (!task) {
-        ctx.ui.notify("Poteto mode on (sticky skill + playbook auto-match each turn). Use /skill:poteto-mode <task> or /poteto-mode <task>.", "info");
+        ctx.ui.notify(
+          "Poteto mode on (sticky skill + playbook auto-match; force skill invoke on match). Use /skill:poteto-mode <task> or /poteto-mode <task>.",
+          "info",
+        );
         return;
       }
-      pi.sendUserMessage(`/skill:poteto-mode ${task}`, { expandPromptTemplates: true });
+      pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
+        expandPromptTemplates: true,
+      });
     },
   });
 
@@ -220,7 +322,7 @@ export default function piPstack(pi: ExtensionAPI) {
   pi.registerCommand("pstack-readonly", {
     description: "Enable session-level read-only (strip write/edit/bash)",
     handler: async (_args, ctx) => {
-      setSessionReadonly(true, ctx);
+      setSessionReadonly(true, ctx, "command");
     },
   });
 
@@ -234,8 +336,9 @@ export default function piPstack(pi: ExtensionAPI) {
   pi.registerCommand("pstack", {
     description: "Alias for /poteto-mode",
     handler: async (args, ctx) => {
-      setPoteto(true, ctx);
       const task = args.trim();
+      const matched = task ? matchStickyPlaybook(task) : undefined;
+      setPoteto(true, ctx, matched ? { id: matched.id, score: matched.score } : undefined);
       if (!task) {
         ctx.ui.notify(
           `pi-pstack tools: pstack_spawn, pstack_jobs, pstack_swarm, pstack_arena, pstack_loop, pstack_deslop, pstack_ship, pstack_babysit, pstack_benny_wake. Readonly: /pstack-readonly. Package: ${PACKAGE_ROOT}`,
@@ -243,7 +346,9 @@ export default function piPstack(pi: ExtensionAPI) {
         );
         return;
       }
-      pi.sendUserMessage(`/skill:poteto-mode ${task}`, { expandPromptTemplates: true });
+      pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
+        expandPromptTemplates: true,
+      });
     },
   });
 

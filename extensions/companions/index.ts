@@ -64,6 +64,12 @@ export function registerCompanions(pi: ExtensionAPI): void {
             "Stage-2 optional: if true and UI confirm is available, prompt once then applySafe. Ignored without confirm UI.",
         }),
       ),
+      dryRun: Type.Optional(
+        Type.Boolean({
+          description:
+            "If true, report which safeDelete lines would be removed without writing files (overrides applySafe/autoApply).",
+        }),
+      ),
     }),
     async execute(_id, params, signal, _onUpdate, ctx) {
       const base = params.base ?? "main";
@@ -146,8 +152,13 @@ export function registerCompanions(pi: ExtensionAPI): void {
       });
 
       let applyReport = "";
-      let applyDetails: { applied: number; files: string[] } | undefined;
-      let doApply = params.applySafe === true;
+      let applyDetails: { applied: number; files: string[]; dryRun?: boolean } | undefined;
+      if (params.dryRun === true) {
+        const would = suggestions.filter((s) => s.safeDelete && s.action === "delete-line");
+        applyReport = `\n\ndryRun: would remove ${would.length} safeDelete line(s) across ${new Set(would.map((s) => s.file)).size} file(s) (no writes)`;
+        applyDetails = { applied: 0, files: [...new Set(would.map((s) => s.file))], dryRun: true };
+      }
+      let doApply = params.dryRun === true ? false : params.applySafe === true;
       if (!doApply && params.autoApply === true && suggestions.some((s) => s.safeDelete)) {
         const confirm = ctx.ui?.confirm;
         if (typeof confirm === "function") {
