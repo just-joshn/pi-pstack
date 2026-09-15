@@ -90,6 +90,13 @@ export function shouldAutoArmReadonly(playbookId: string | undefined | null): bo
   return Boolean(playbookId && AUTO_READONLY_PLAYBOOKS.has(playbookId));
 }
 
+/** A short user request may auto-arm readonly; long briefs and pasted documents must not. */
+export function shouldAutoArmFromPlaybookMatch(playbookId: string, potetoArmed: boolean, score: number, text: string): boolean {
+  if (!AUTO_READONLY_PLAYBOOKS.has(playbookId)) return false;
+  if (text.length > 400) return false;
+  return potetoArmed || score >= 5;
+}
+
 /** Explicit read-only-playbook invocation is the only skill text that arms readonly. */
 export function shouldAutoArmFromSkillText(text: string): boolean {
   return /^\/skill:poteto-mode\s+playbooks\/investigation(?:\s|$)/.test(text.trim());
