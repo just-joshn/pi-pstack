@@ -118,6 +118,21 @@ await check("interactive input matches bug-fix and does not arm readonly", async
   assert.equal(readonly, undefined, `expected no readonly entry for bug-fix, got: ${JSON.stringify(readonly)}`);
 });
 
+await check("interactive matching input returns transform action (no queued follow-up)", async () => {
+  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/index.ts")).href);
+  const { api, handlers, calls } = makeFakeApi();
+  mod.default(api);
+  const result = await handlers.input(
+    { type: "input", text: "playbooks/bug-fix please deep audit", source: "interactive" },
+    fakeCtx(),
+  );
+  assert.deepEqual(result, {
+    action: "transform",
+    text: "/skill:poteto-mode playbooks/bug-fix please deep audit",
+  });
+  assert.equal(calls.sendUserMessage.length, 0, "must not call sendUserMessage; transform replaces the queued follow-up");
+});
+
 await check("extension-injected input does not match, persist, force-invoke, or arm readonly", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/index.ts")).href);
   const { api, handlers, appended, calls } = makeFakeApi();
