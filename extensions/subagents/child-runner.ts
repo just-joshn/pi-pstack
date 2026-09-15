@@ -2,7 +2,7 @@
  * Thin Pi child-agent runner (official Pi ExtensionAPI child-process pattern).
  * Spawns `pi --mode json -p` subprocesses. No pi-subagents dependency.
  *
- * Global child concurrency is capped via withChildSlot (default 4; override
+ * Global child concurrency is capped via withChildSlot (default 8; override
  * with PSTACK_MAX_CONCURRENCY). Output cap default 50KiB (PSTACK_MAX_OUTPUT_BYTES);
  * oversized output can be summarized to disk under .pi/pstack-child-output/.
  */
@@ -21,7 +21,7 @@ function parsePositiveInt(raw: string | undefined, fallback: number, min: number
 }
 
 /** Shared cap for all pstack child agents (spawn + swarm + arena). Env: PSTACK_MAX_CONCURRENCY (1–32). */
-export const MAX_CONCURRENCY = parsePositiveInt(process.env.PSTACK_MAX_CONCURRENCY, 4, 1, 32);
+export const MAX_CONCURRENCY = parsePositiveInt(process.env.PSTACK_MAX_CONCURRENCY, 8, 1, 32);
 
 /** Default output cap. Env: PSTACK_MAX_OUTPUT_BYTES (4KiB–2MiB). */
 export const MAX_OUTPUT_BYTES = parsePositiveInt(
@@ -49,9 +49,11 @@ export interface ChildTaskInput {
   /** When true, write full output to disk if truncated and return path in trailer. */
   persistOutput?: boolean;
   /**
-   * Session inheritance mode for the child process:
-   * - ephemeral (default): `--no-session` (no transcript save; extensions/skills still discover)
-   * - isolated: dedicated `--session-dir` under cwd/.pi/pstack-child-sessions (survives for inspect; no parent transcript)
+   * Session mode for the child process (Pi CLI flags — exact):
+   * - isolated (default): `--session-dir` under cwd/.pi/pstack-child-sessions
+   *   (dedicated transcript; extensions/skills still discover — Pi has no
+   *   parent MCP/session-history inheritance API; we never pass --no-extensions)
+   * - ephemeral: `--no-session` (no transcript save; still discovers extensions/skills)
    * Env default override: PSTACK_CHILD_SESSION=ephemeral|isolated
    */
   sessionMode?: "ephemeral" | "isolated";
@@ -111,7 +113,10 @@ function resolveSessionMode(input: ChildTaskInput): "ephemeral" | "isolated" {
   if (input.sessionMode === "ephemeral" || input.sessionMode === "isolated") return input.sessionMode;
   const env = process.env.PSTACK_CHILD_SESSION;
   if (env === "isolated" || env === "ephemeral") return env;
-  return "ephemeral";
+  // Prefer isolated: preserves tools/MCP discovery via normal Pi package load
+  // (no --no-extensions) + dedicated --session-dir. Pi CLI cannot inherit parent
+  // MCP bindings or conversation history into children.
+  return "isolated";
 }
 
 /** Persist full text under outDir; return path. */
@@ -167,6 +172,18 @@ export async function mapConcurrent<T, U>(
   });
   await Promise.all(workers);
   return results;
+}
+
+
+/** Persist full output when explicitly requested, env on, or long-running child (timeout >= 5m). Default-on for long children. */
+export function shouldPersistOutput(input: ChildTaskInput): boolean {
+  if (input.persistOutput === true) return true;
+  if (input.persistOutput === false) return false;
+  const env = process.env.PSTACK_PERSIST_OUTPUT;
+  if (env === "0" || env === "false") return false;
+  if (env === "1" || env === "true") return true;
+  const timeout = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  return timeout >= 5 * 60 * 1000;
 }
 
 export async function runChildTask(
@@ -314,10 +331,7 @@ async function runChildTaskUnlocked(
   signal?.removeEventListener("abort", abort);
   if (buffer.trim()) processLine(buffer);
 
-  const persist =
-    input.persistOutput === true ||
-    process.env.PSTACK_PERSIST_OUTPUT === "1" ||
-    process.env.PSTACK_PERSIST_OUTPUT === "true";
+  const persist = shouldPersistOutput(input);
   const persistDir = persist ? join(cwd, ".pi", "pstack-child-output") : undefined;
 
   const fullOut = finalText(messages) || stderr || (timedOut ? "(timed out)" : "(no output)");

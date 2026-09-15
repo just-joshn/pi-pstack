@@ -8,22 +8,12 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { evaluateMergeGates, type PrGateView } from "./gates.ts";
+
+export { evaluateMergeGates, type PrGateView } from "./gates.ts";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WATCH_PR = resolve(PACKAGE_ROOT, "skills/poteto-mode/scripts/watch-pr/watch-pr");
-
-interface PrGateView {
-  state?: string;
-  mergedAt?: string | null;
-  mergeStateStatus?: string;
-  reviewDecision?: string | null;
-  statusCheckRollup?: Array<{
-    name?: string;
-    state?: string;
-    conclusion?: string | null;
-    status?: string;
-  }>;
-}
 
 async function assertMergeGates(
   pi: ExtensionAPI,
@@ -50,27 +40,9 @@ async function assertMergeGates(
   } catch {
     throw new Error("merge gate check failed (fail closed): invalid gh JSON");
   }
-  if (data.mergedAt) {
-    throw new Error("merge gate check failed (fail closed): PR already merged");
-  }
-  if (data.state && data.state !== "OPEN") {
-    throw new Error(`merge gate check failed (fail closed): PR state is ${data.state}`);
-  }
-  const status = data.mergeStateStatus ?? "";
-  if (["UNSTABLE", "DIRTY", "DRAFT"].includes(status)) {
-    throw new Error(`merge gate check failed (fail closed): mergeStateStatus=${status}`);
-  }
-  const rollup = data.statusCheckRollup ?? [];
-  const failed = rollup.filter((c) => {
-    const conclusion = (c.conclusion ?? c.state ?? "").toUpperCase();
-    return conclusion === "FAILURE" || conclusion === "CANCELLED" || conclusion === "TIMED_OUT";
-  });
-  if (failed.length > 0) {
-    const names = failed.map((c) => c.name ?? c.state ?? "check").join(", ");
-    throw new Error(`merge gate check failed (fail closed): failing checks: ${names}`);
-  }
-  if (data.reviewDecision === "CHANGES_REQUESTED") {
-    throw new Error("merge gate check failed (fail closed): reviewDecision=CHANGES_REQUESTED");
+  const problems = evaluateMergeGates(data);
+  if (problems.length) {
+    throw new Error(`merge gate check failed (fail closed): ${problems.join("; ")}`);
   }
   return data;
 }

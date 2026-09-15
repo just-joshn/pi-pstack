@@ -12,19 +12,19 @@ import {
   runChildTask,
 } from "../subagents/child-runner.ts";
 import { resolveRoleModel } from "../models/config.ts";
-import { ensureWriterIsolation } from "../worktree/helpers.ts";
+import { ensureAlwaysIsolated } from "../worktree/helpers.ts";
 
 export function registerSwarm(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_swarm",
     label: "Pstack Swarm",
     description:
-      `Fan out N parallel Pi child workers (coverage / race / best-of). Multi-writer runs auto-allocate unique worktrees (or require unique cwd). Global child concurrency cap: ${MAX_CONCURRENCY}. Max ${MAX_TASKS} tasks.`,
+      `Fan out N parallel Pi child workers (coverage / race / best-of). Always isolates each worker in a unique worktree (even N=1); omit cwd for auto-alloc. Global child concurrency cap: ${MAX_CONCURRENCY}. Max ${MAX_TASKS} tasks.`,
     promptSnippet: "Parallel pstack workers with aggregated report",
     promptGuidelines: [
       "Use pstack_swarm for coverage matrices, races, and gauntlets instead of multiple Cursor Task calls.",
       "Each worker brief must stand alone with goal, scope, verify steps, and PASS/ISSUES/BLOCKED reporting.",
-      `Omit cwd to auto-isolate each writer in a worktree; never share the parent dirty cwd across writers. Cap ${MAX_CONCURRENCY} concurrent children globally.`,
+      `Always auto-isolates (even a single worker). Never share the parent dirty cwd. Cap ${MAX_CONCURRENCY} concurrent children globally.`,
     ],
     parameters: Type.Object({
       workers: Type.Array(
@@ -44,7 +44,7 @@ export function registerSwarm(pi: ExtensionAPI): void {
     async execute(_id, params, signal, onUpdate, ctx) {
       if (!ctx.model) throw new Error("pstack_swarm requires an active parent model");
       const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
-      const cwds = await ensureWriterIsolation(
+      const cwds = await ensureAlwaysIsolated(
         ctx.cwd,
         params.workers.map((w, i) => ({ cwd: w.cwd, label: `worker-${i + 1}` })),
       );

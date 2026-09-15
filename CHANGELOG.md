@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.2-pi.0 (close-local-v2 Stage 2)
+
+- Sticky: playbook auto-match + inject matched steps / forced poteto routing (`sticky-playbook.ts` + `sticky-poteto.ts`)
+- Spawn: default concurrency **8**; default `sessionMode=isolated` (`--session-dir`; document no parent MCP/history inheritance); persistOutput default-on for long/background; `pstack_jobs` cancel alias
+- Loop: coalesce/maxFires/shutdown helpers unit-tested; babysit concrete `watchArgv` recipes
+- Worktrees: swarm/arena **always isolate**; session_shutdown safe cleanup of empty/merged pstack trees; PARITY row 4 **EQUIVALENT (local-git)**
+- Recall: `pstack_sessions` action=`recall` (sessions + git log + gh PRs)
+- Deslop: `applySafe` exercised in verify; optional `autoApply` via `ui.confirm`
+- Extension tests: expanded `extensions/test/verify-local-partials.mjs` (must PASS)
+
 ## 0.15.2-pi.0 (close-local-partials Stage 2)
 
 - Sticky poteto: re-inject full poteto-mode skill body each turn (`extensions/sticky-poteto.ts`)

@@ -1,12 +1,15 @@
 /**
- * pstack_sessions — list/search Pi session files for /skill:recall.
- * Official SessionManager.list when available; falls back to ~/.pi session dirs.
+ * pstack_sessions — list/search Pi sessions + broader local recall corpus
+ * (git log, gh PRs when available) for /skill:recall topic rebuild.
  */
 import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { recallGitLog, recallGhPrs } from "./recall-corpus.ts";
+
+export { recallGitLog, recallGhPrs } from "./recall-corpus.ts";
 
 function candidateSessionDirs(cwd: string): string[] {
   const home = homedir();
@@ -54,13 +57,14 @@ export function registerSessions(pi: ExtensionAPI): void {
     name: "pstack_sessions",
     label: "Pstack Sessions",
     description:
-      "List or grep recent Pi session transcripts for recall. Prefer PI_SESSION_FILE / SessionManager; never read unrelated private sessions outside scope.",
-    promptSnippet: "Find recent Pi sessions for recall",
+      "List/grep Pi session transcripts, or rebuild a local recall corpus (sessions + git log + gh PRs when available). Prefer for /skill:recall topic rebuild.",
+    promptSnippet: "Find recent Pi sessions / recall corpus for a topic",
     promptGuidelines: [
       "Use pstack_sessions for recall fan-out instead of Cursor ~/.cursor/projects/*/agent-transcripts.",
+      "action=recall fans out across sessions + git log + gh PRs (local workflow twin of rebuild-context-for-topic).",
     ],
     parameters: Type.Object({
-      action: Type.String({ description: "list | grep | current" }),
+      action: Type.String({ description: "list | grep | current | recall" }),
       query: Type.Optional(Type.String()),
       limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
       days: Type.Optional(Type.Integer({ minimum: 1, maximum: 365 })),
@@ -77,6 +81,7 @@ export function registerSessions(pi: ExtensionAPI): void {
       const days = params.days ?? 7;
       const cutoff = Date.now() - days * 86400000;
       let files = listSessionFiles(ctx.cwd, 200).filter((f) => f.mtimeMs >= cutoff);
+
       if (params.action === "list") {
         files = files.slice(0, limit);
         const lines = files.map(
@@ -87,7 +92,59 @@ export function registerSessions(pi: ExtensionAPI): void {
           details: { files },
         };
       }
-      if (params.action !== "grep") throw new Error("action must be list|grep|current");
+
+      if (params.action === "recall") {
+        const q = params.query ?? "";
+        const sessionHits: string[] = [];
+        if (q) {
+          for (const f of files.slice(0, 80)) {
+            try {
+              const text = readFileSync(f.path, "utf8");
+              if (!text.toLowerCase().includes(q.toLowerCase())) continue;
+              const snip = text
+                .split(/\r?\n/)
+                .filter((l) => l.toLowerCase().includes(q.toLowerCase()))
+                .slice(0, 2)
+                .join(" | ")
+                .slice(0, 300);
+              sessionHits.push(`${f.path}\n  ${snip}`);
+              if (sessionHits.length >= limit) break;
+            } catch {
+              /* skip */
+            }
+          }
+        } else {
+          sessionHits.push(
+            ...files
+              .slice(0, limit)
+              .map((f) => `${new Date(f.mtimeMs).toISOString()}  ${f.path}`),
+          );
+        }
+        const gitLog = await recallGitLog(ctx.cwd, q, limit);
+        const prs = await recallGhPrs(ctx.cwd, q, Math.min(limit, 15));
+        const body = [
+          "## Recall corpus (local)",
+          `query=${q || "(none)"} days=${days}`,
+          "",
+          "### Pi sessions",
+          sessionHits.join("\n\n") || "(no session hits)",
+          "",
+          "### git log",
+          gitLog,
+          "",
+          "### gh PRs",
+          prs,
+        ].join("\n");
+        return {
+          content: [{ type: "text", text: body }],
+          details: {
+            sessionHits: sessionHits.length,
+            corpus: ["sessions", "git-log", "gh-prs"],
+          },
+        };
+      }
+
+      if (params.action !== "grep") throw new Error("action must be list|grep|current|recall");
       const q = (params.query ?? "").toLowerCase();
       if (!q) throw new Error("query required for grep");
       const hits: string[] = [];

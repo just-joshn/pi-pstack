@@ -14,18 +14,18 @@ import {
   runChildTask,
 } from "../subagents/child-runner.ts";
 import { resolveRoleModel } from "../models/config.ts";
-import { ensureWriterIsolation } from "../worktree/helpers.ts";
+import { ensureAlwaysIsolated } from "../worktree/helpers.ts";
 
 export function registerArena(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_arena",
     label: "Pstack Arena",
     description:
-      `Run N parallel candidates at the same task (optional cross-judge). Multi-writer runs auto-allocate unique worktrees. Global child concurrency cap: ${MAX_CONCURRENCY}. Parent skill picks base and grafts.`,
+      `Run N parallel candidates at the same task (optional cross-judge). Always isolates each candidate in a unique worktree (even N=1). Global child concurrency cap: ${MAX_CONCURRENCY}. Parent skill picks base and grafts.`,
     promptSnippet: "Parallel design/code candidates for arena synthesis",
     promptGuidelines: [
       "Use pstack_arena for arena Phase B fan-out; then pick/graft per the arena skill.",
-      "Give each candidate its own output path (worktree or /tmp/arena-...). Omit cwd to auto-isolate writers.",
+      "Always auto-isolates candidates (even N=1). Omit cwd for auto worktree; never share parent dirty cwd.",
       `Cap ${MAX_CONCURRENCY} concurrent children globally. Cross-judge is read-only (no bash).`,
     ],
     parameters: Type.Object({
@@ -47,7 +47,7 @@ export function registerArena(pi: ExtensionAPI): void {
     async execute(_id, params, signal, onUpdate, ctx) {
       if (!ctx.model) throw new Error("pstack_arena requires an active parent model");
       const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
-      const cwds = await ensureWriterIsolation(
+      const cwds = await ensureAlwaysIsolated(
         ctx.cwd,
         params.candidates.map((c, i) => ({
           cwd: c.cwd,

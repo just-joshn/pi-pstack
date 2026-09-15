@@ -53,7 +53,7 @@ export function registerSpawn(pi: ExtensionAPI): void {
     name: "pstack_spawn",
     label: "Pstack Spawn",
     description:
-      `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review (auto-readonly), investigator for read-only investigation, general for independent workers/reviewers. background:true detaches and posts a follow-up on completion. Global child concurrency cap: ${MAX_CONCURRENCY} (env PSTACK_MAX_CONCURRENCY; shared with swarm/arena). Output cap ${MAX_OUTPUT_BYTES} bytes (env PSTACK_MAX_OUTPUT_BYTES; persistOutput or PSTACK_PERSIST_OUTPUT=1 writes full text under .pi/pstack-child-output/). sessionMode isolated uses --session-dir instead of --no-session.`,
+      `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review (auto-readonly), investigator for read-only investigation, general for independent workers/reviewers. background:true detaches and posts a follow-up on completion. Global child concurrency cap: ${MAX_CONCURRENCY} (env PSTACK_MAX_CONCURRENCY; shared with swarm/arena). Output cap ${MAX_OUTPUT_BYTES} bytes (env PSTACK_MAX_OUTPUT_BYTES; persistOutput or PSTACK_PERSIST_OUTPUT=1 writes full text under .pi/pstack-child-output/). Default sessionMode=isolated (--session-dir; extensions/skills discover, no --no-extensions). ephemeral uses --no-session. Pi cannot inherit parent MCP/history — documented flags only. persistOutput defaults on for long children (timeout>=5m) and background.`,
     promptSnippet: "Spawn an isolated Pi child agent (pstack delegate)",
     promptGuidelines: [
       "Use pstack_spawn for local child agents (Pi has no Cursor Task).",
@@ -93,13 +93,13 @@ export function registerSpawn(pi: ExtensionAPI): void {
       persistOutput: Type.Optional(
         Type.Boolean({
           description:
-            "If true (or PSTACK_PERSIST_OUTPUT=1), write full child output under cwd/.pi/pstack-child-output/ when truncated.",
+            "If true, always persist truncated output to disk. Default: on for background and timeout>=5m (override with false or PSTACK_PERSIST_OUTPUT=0).",
         }),
       ),
       sessionMode: Type.Optional(
         Type.String({
           description:
-            "ephemeral (default, --no-session) | isolated (--session-dir under .pi/pstack-child-sessions). Env PSTACK_CHILD_SESSION overrides default.",
+            "isolated (default, --session-dir) | ephemeral (--no-session). Env PSTACK_CHILD_SESSION overrides. Pi has no parent MCP/history inheritance; children still load package extensions/skills.",
         }),
       ),
       timeoutMs: Type.Optional(
@@ -136,7 +136,14 @@ export function registerSpawn(pi: ExtensionAPI): void {
         tools,
         timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         skillPath: poteto ? POTETO_SKILL : undefined,
-        persistOutput: params.persistOutput === true,
+        persistOutput:
+          params.persistOutput === true
+            ? true
+            : params.persistOutput === false
+              ? false
+              : params.background
+                ? true
+                : undefined,
         sessionMode,
       };
 
@@ -208,14 +215,14 @@ export function registerSpawn(pi: ExtensionAPI): void {
     name: "pstack_jobs",
     label: "Pstack Jobs",
     description:
-      "List, status, await, or abort detached pstack_spawn background jobs (session-scoped; survives follow-ups until session ends). Honest: jobs die on session_shutdown — not a durable daemon.",
+      "List, status, await, abort/cancel detached pstack_spawn background jobs (session-scoped; survives follow-ups until session ends). Honest: jobs die on session_shutdown — not a durable daemon.",
     promptSnippet: "Poll or await background pstack_spawn jobs",
     promptGuidelines: [
       "After pstack_spawn with background:true, use pstack_jobs to check status or await completion if you need the result inline.",
       "Jobs persist across follow-ups within the same Pi session; they do not survive process exit.",
     ],
     parameters: Type.Object({
-      action: Type.String({ description: "list | status | await | abort" }),
+      action: Type.String({ description: "list | status | await | abort | cancel" }),
       id: Type.Optional(Type.String({ description: "Job id for status|await|abort" })),
       timeoutMs: Type.Optional(
         Type.Integer({ minimum: 1_000, maximum: MAX_TIMEOUT_MS }),
@@ -240,7 +247,7 @@ export function registerSpawn(pi: ExtensionAPI): void {
           details: { jobs: listBackgroundJobs().map((j) => j.id), concurrency: stats },
         };
       }
-      if (action === "abort") {
+      if (action === "abort" || action === "cancel") {
         if (!params.id) throw new Error("id required for abort");
         const job = abortBackgroundJob(params.id);
         if (!job) throw new Error(`unknown job: ${params.id}`);
@@ -287,7 +294,7 @@ export function registerSpawn(pi: ExtensionAPI): void {
           details: { job },
         };
       }
-      throw new Error("action must be list|status|await|abort");
+      throw new Error("action must be list|status|await|abort|cancel");
     },
   });
 }

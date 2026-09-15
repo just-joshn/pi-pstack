@@ -12,9 +12,14 @@ Keep it tight and on-topic. Read only what the in-scope threads need, then stop.
 
 Your context lives in two records. Your own chat history holds what you did and decided. The shared record holds everything that happened around the same code under other names: the symptoms users keep reporting, the fixes that shipped and got reverted, the errors still firing in prod. That second record is what the **why** skill searches, across source control, the issue tracker, chat and issue channels, long-form docs, and error tracking. A feature with a long bug tail keeps most of its story there, so don't reconstruct it from your transcripts alone.
 
-## Pi session locations
+## Local recall corpus
 
-Use `pstack_sessions` (action `current` / `list` / `grep`) first. Session files also appear via:
+Use `pstack_sessions` action `recall` with a topic query to rebuild context across:
+- Pi session transcripts (list/grep)
+- `git log` (message grep on recent commits)
+- `gh pr list --search` when `gh` is available
+
+Fall back to `current` / `list` / `grep` for session-only slices. Session files also appear via:
 
 - `PI_SESSION_FILE` for the active session
 - `ctx.sessionManager.getSessionFile()` when in an extension context
@@ -24,7 +29,7 @@ Never glob unrelated private sessions outside the scoped workspace. Never read a
 
 1. Classify, then route. One specific prior chat to resume is the `session-pickup` playbook, not this. Turning habits into a durable skill is `automate-me`. A human-readable summary of your work is a different task. Recall loads working context across recent chats before you act. If the user already gave you a full state capsule (paths, branch, the change), use it and skip the mining.
 2. Lock the scope before searching. Pin the window ("recent" is a real range, default the last 7 days), the topic if named, and the workspace (default the active one). State the scope back. Never quietly turn "all" into "recent N".
-3. Fan out across your chat history. Call `pstack_sessions` with `action=list` (days=7) then `pstack_swarm` or N× `pstack_spawn` on a fast model, each taking a slice of session paths. Tell every child to order by mtime, grep the topic first, read only matching regions, and skip the current session plus obvious noise. Each returns the same schema, one block per session: topic, the user's goal, decisions, open threads, struggles and corrections, and artifacts (PRs, tickets, branches), each citing the session path. For one or two sessions, skip the fan-out and search directly with `pstack_sessions` `grep`.
+3. Fan out across your chat history and the local corpus. Call `pstack_sessions` with `action=recall` (query=topic, days=7) first; then `pstack_swarm` or N× `pstack_spawn` on a fast model, each taking a slice of session paths. Tell every child to order by mtime, grep the topic first, read only matching regions, and skip the current session plus obvious noise. Each returns the same schema, one block per session: topic, the user's goal, decisions, open threads, struggles and corrections, and artifacts (PRs, tickets, branches), each citing the session path. For one or two sessions, skip the fan-out and search directly with `pstack_sessions` `grep`.
 4. Sweep the shared record whenever the topic names a feature, file, subsystem, area, or bug. Hand it to the **why** skill's source investigators, steered to current state / failed fixes / open user reports. Run in parallel with chat-history mining via `pstack_swarm`.
 5. Verify against live state. Check surfaced PRs/branches/tickets with `git` and `gh` (and `pstack_babysit` / `pstack_ship` view when useful). When the answer hinges on what an agent actually did, read the full session file, not a trimmed summary.
 6. Write the brief to the contract below. Group by thread. Stay on the named topic.

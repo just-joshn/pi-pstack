@@ -1,10 +1,16 @@
 /**
  * Durable poteto sticky: re-inject poteto-mode skill body each turn when armed.
- * Stronger than a one-line systemPrompt nudge (Cursor sticky-skill twin).
+ * Stage 2 close-local-v2: also auto-match user text to a poteto playbook and
+ * inject matched steps / forced poteto-mode routing (not skill-body append only).
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  buildPlaybookInjectBlock,
+  matchPlaybook,
+  type PlaybookMatch,
+} from "./sticky-playbook.ts";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const POTETO_SKILL = resolve(PACKAGE_ROOT, "skills", "poteto-mode", "SKILL.md");
@@ -50,9 +56,56 @@ export function clearPotetoStickyCache(): void {
   cachedBody = undefined;
 }
 
-export function buildPotetoStickyPrompt(baseSystemPrompt: string): string {
-  const body = loadPotetoStickyBody();
-  return `${baseSystemPrompt}\n\n## Poteto mode (sticky — re-injected each turn)\n${body}\n\n(End sticky. Casual turns: stay concise. Opt out: /poteto-mode-off.)`;
+export interface StickyPromptOptions {
+  /** Latest user turn text for playbook auto-match. */
+  userText?: string;
+  /** Precomputed match (tests / callers that already matched). */
+  match?: PlaybookMatch | null;
+  /** Min matcher score (default 2). */
+  minScore?: number;
 }
 
-export { POTETO_SKILL };
+/**
+ * Build sticky system prompt: skill body + optional matched playbook steps.
+ * When a playbook matches, forces poteto-mode routing for this turn.
+ */
+export function buildPotetoStickyPrompt(
+  baseSystemPrompt: string,
+  opts?: StickyPromptOptions,
+): string {
+  const body = loadPotetoStickyBody();
+  const match =
+    opts?.match === null
+      ? undefined
+      : opts?.match ??
+        (opts?.userText ? matchPlaybook(opts.userText, opts.minScore ?? 2) : undefined);
+
+  const parts = [
+    baseSystemPrompt,
+    "",
+    "## Poteto mode (sticky — re-injected each turn)",
+    body,
+    "",
+    "(End sticky skill body. Casual turns: stay concise. Opt out: /poteto-mode-off.)",
+  ];
+
+  if (match) {
+    parts.push("", buildPlaybookInjectBlock(match));
+  } else {
+    parts.push(
+      "",
+      "## Sticky playbook routing",
+      "No high-confidence playbook match this turn. If the task clearly maps to a poteto playbook, open `skills/poteto-mode/playbooks/<id>.md` and copy steps into the todolist before acting.",
+    );
+  }
+
+  return parts.join("\n");
+}
+
+/** Match-only helper for extension input hook. */
+export function matchStickyPlaybook(userText: string): PlaybookMatch | undefined {
+  return matchPlaybook(userText);
+}
+
+export { POTETO_SKILL, matchPlaybook };
+export type { PlaybookMatch };

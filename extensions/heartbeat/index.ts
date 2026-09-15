@@ -11,9 +11,9 @@
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { DYNAMIC_COALESCE_MS } from "./coalesce.ts";
 
-/** Coalesce window: ignore a second fire reason inside this window (dynamic twin). */
-export const DYNAMIC_COALESCE_MS = 2_500;
+export { DYNAMIC_COALESCE_MS, decideFire, shouldSkipSettleArm, materializeWatchArgv, BABYSIT_WATCH_RECIPES } from "./coalesce.ts";
 
 interface LoopState {
   id: string;

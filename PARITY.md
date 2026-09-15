@@ -34,22 +34,22 @@ Status legend:
 
 Honest runtime parity vs Cursor pstack host behavior (not artifact presence). Legend: **EQUIVALENT** | **PARTIAL** | **NOT**.
 
-| # | Capability | Behavioral | Notes (Stage 2 close-local-partials) |
+| # | Capability | Behavioral | Notes (Stage 2 close-local-v2) |
 |---|---|---|---|
-| 1 | poteto-mode sticky + playbook routing | PARTIAL→↑ | **Sticky re-injects poteto-mode skill body** each turn (not soft nudge only); playbooks use Pi recipes |
-| 2 | Task / subagent → spawn / swarm / arena | PARTIAL→↑ | Background + `pstack_jobs` (session-scoped); **PSTACK_MAX_CONCURRENCY**; `sessionMode` isolated/`--append-system-prompt`; **persistOutput** for truncate-to-disk; still no cloud VMs |
-| 3 | /loop → pstack_loop | PARTIAL→↑ | `dynamic` = settle+watcher **coalesced** (no double-fire within 2.5s); babysit documents modes |
-| 4 | worktrees isolation | PARTIAL | Real `pstack_worktree` + swarm/arena auto-isolation; not cloud/IDE UX |
-| 5 | shipping / babysit (gh) | PARTIAL→↑ | Real tools; babysit UX aligned to implemented `dynamic` coalesce behavior |
-| 6 | deslop / control companions | PARTIAL→↑ | Deslop: severity + samples + **structured fixes** + **applySafe**; guides require `pstack_deslop`/`unslop` only |
+| 1 | poteto-mode sticky + playbook routing | PARTIAL→↑ | Sticky re-injects skill body **and auto-matches user text → injects matched playbook steps / forced routing** (`sticky-playbook.ts`). Still **not** Cursor sticky-host bit-identical (no host `mode:true` primitive). |
+| 2 | Task / subagent → spawn / swarm / arena | PARTIAL→↑ | Default **MAX_CONCURRENCY=8** (`PSTACK_MAX_CONCURRENCY`); default **sessionMode=isolated** (`--session-dir`; never `--no-extensions`; Pi has **no** parent MCP/history inheritance API); **persistOutput default-on** for long/background children; `pstack_jobs` abort/cancel. No cloud VMs. |
+| 3 | /loop → pstack_loop | PARTIAL→↑ | Dynamic coalesce unit-tested (`heartbeat/coalesce.ts`); maxFires + session_shutdown clear covered; babysit **concrete watchArgv recipes** tested. Still ExtensionAPI twin ≠ native `/loop` UX. |
+| 4 | worktrees isolation | **EQUIVALENT** (local-git) | Criteria met for **local git isolation**: real `git worktree` create/list/remove/prune; name/base sanitize; cap 12; **swarm/arena always isolate** (even N=1); **session_shutdown safe cleanup** of empty/merged `.pstack-worktrees` (dirty/unmerged skipped). Not cloud/IDE UX — scored only as local-git twin. |
+| 5 | shipping / babysit (gh) | PARTIAL→↑ | Real tools + fail-closed merge gates (`evaluateMergeGates`); babysit documents concrete `watchArgv` recipes for dynamic loop. |
+| 6 | deslop / control companions | PARTIAL→↑ | `applySafe` path **unit-exercised**; optional `autoApply` gated on Stage-2 `ui.confirm`; still thinner than cursor-team-kit. |
 | 7 | model role routing | PARTIAL→↑ | Bare marketing slugs **refused/mapped**; setup writes **provider/id** when detectable; parent **always-applied-like** role inject; children `resolveRoleModel` |
-| 8 | recall | PARTIAL | `pstack_sessions` over Pi session corpus (not Cursor transcripts) |
+| 8 | recall | PARTIAL→↑ | `pstack_sessions` action=`recall` fans out **sessions + git log + gh PRs** (when `gh` available). Closer to local “rebuild context for topic”; still not Cursor transcript machinery. |
 | 9 | make-bot-ui | NOT | Wake file/webhook twin only; no Grok Bot `update_state`/secret cards |
 | 10 | Benny | NOT | Manual skills + `pstack_benny_wake`; no Automations Slack bus |
 | 11 | Ask-mode / readonly semantics | PARTIAL→↑ | Spawn auto-readonly roles + **`/pstack-readonly` session strip** (blocks write/edit/bash); why/investigation Pi-local (no Ask/MCP-strip prose) |
 | 12 | Automations / cloud agents / marketplace | NOT | Local spawn+worktree twin only; marketplace/Automations/cloud VMs absent |
 
-Local in-scope rows moved **toward EQUIVALENT** (still PARTIAL vs Cursor sticky-skill / Task / native `/loop` hosts): 1, 2, 3, 5, 6, 7, 11. Unchanged PARTIAL: 4, 8. Out-of-scope NOT: 9, 10, 12.
+**EQUIVALENT promotions (honest, local-only):** row **4** (local-git worktree isolation). Remaining in-scope PARTIAL→↑: 1, 2, 3, 5, 6, 7, 8, 11. Out-of-scope NOT: 9, 10, 12. Never claim Cursor sticky-host bit-identical.
 
 Artifact matrix below counts files on disk. Do not read “ported” as EQUIVALENT.
 
@@ -186,16 +186,16 @@ Artifact matrix below counts files on disk. Do not read “ported” as EQUIVALE
 
 | Module | Tools / commands | Status |
 |---|---|---|
-| extensions/index.ts | /poteto-mode sticky skill inject, /pstack-readonly, /pstack | rewritten |
-| extensions/subagents | pstack_spawn (concurrency/sessionMode/persistOutput), pstack_jobs | rewritten |
-| extensions/orchestration | pstack_swarm, pstack_arena | rewritten |
+| extensions/index.ts | /poteto-mode sticky skill+playbook match inject, /pstack-readonly, /pstack | rewritten |
+| extensions/subagents | pstack_spawn (default concurrency 8, sessionMode isolated, persistOutput long/bg), pstack_jobs cancel | rewritten |
+| extensions/orchestration | pstack_swarm, pstack_arena (always isolate) | rewritten |
 | extensions/models | /setup-pstack (provider/id; refuse bare slugs), always-applied-like role inject | rewritten |
 | extensions/decision-log | pstack_decision_log | rewritten |
-| extensions/worktree | pstack_worktree | rewritten |
+| extensions/worktree | pstack_worktree + session_shutdown safe cleanup | rewritten |
 | extensions/gates | /pstack-gates | rewritten |
-| extensions/heartbeat | pstack_loop (interval|settle|watcher|dynamic coalesced), /pstack-loop | rewritten |
-| extensions/companions | pstack_deslop (severity+samples+fixes+applySafe), pstack_control_cli, pstack_control_ui, /deslop | rewritten |
-| extensions/sessions | pstack_sessions | rewritten |
+| extensions/heartbeat | pstack_loop (coalesce unit-tested), /pstack-loop | rewritten |
+| extensions/companions | pstack_deslop (applySafe tested + autoApply confirm), pstack_control_cli, pstack_control_ui, /deslop | rewritten |
+| extensions/sessions | pstack_sessions (list/grep/recall: sessions+git+gh) | rewritten |
 | extensions/shipping | pstack_babysit, pstack_ship | rewritten |
 | extensions/benny | pstack_benny_wake, /setup-benny, /benny-triage, /benny-repro | rewritten |
 
