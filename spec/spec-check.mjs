@@ -184,6 +184,23 @@ function parseLedgerRow(r) {
   return { id, surface, status, kind, name, obligation, verification, upstream, reference, finding, cls, file: r.file, line: r.line };
 }
 
+function validateReference(reference) {
+  const m = String(reference).match(/^([^:\s]+)(?::(\d+)(?:-(\d+))?)?$/);
+  if (!m) return `bad reference form: ${reference}`;
+  const abs = toAbsMaybe(m[1]);
+  if (!existsSync(abs)) return `reference file missing: ${m[1]}`;
+  const lines = lineCountOf(abs);
+  if (lines == null) return `reference file unreadable: ${m[1]}`;
+  if (m[2] && Number(m[2]) > lines) return `reference line out of range: ${reference}`;
+  if (m[3] && Number(m[3]) > lines) return `reference range out of range: ${reference}`;
+  return null;
+}
+
+function lineCountOf(path) {
+  const text = readUtf8(path);
+  return text == null ? null : splitLines(text).length;
+}
+
 function validateRowForm(rows) {
   const errs = [];
   const issues = rows.map(parseLedgerRow).flatMap((row) => {
@@ -206,6 +223,10 @@ function validateRowForm(rows) {
     if (!obl.trim()) return [{ row, msg: "empty obligation" }];
     if (/\t/.test(obl)) return [{ row, msg: "obligation contains tab" }];
     if (/\r|\n/.test(obl)) return [{ row, msg: "obligation must be single line" }];
+    if (row.reference !== "-") {
+      const refErr = validateReference(row.reference);
+      if (refErr) return [{ row, msg: refErr }];
+    }
     return [];
   });
   const msgs = issues.map((i) => `${toRel(i.row.file)}:${i.row.line} ${i.msg}`);
