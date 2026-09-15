@@ -10,7 +10,17 @@ import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const problems = [];
+
+function out(line) {
+  process.stdout.write(String(line) + "\n");
+}
+
+const mod = await import(pathToFileURL(resolve(ROOT, "extensions/commands/skill-commands.ts")).href);
+const { RESERVED_COMMAND_NAMES, PI_ONLY_COMMANDS, readSkillCommands } = mod;
+const reserved = new Set(RESERVED_COMMAND_NAMES);
+
+const indexSrc = readFileSync(join(ROOT, "extensions/index.ts"), "utf8");
+const skillCommandsSrc = readFileSync(join(ROOT, "extensions/commands/skill-commands.ts"), "utf8");
 
 // Commands may be registered by any module in the extension, not only the root.
 function readExtensionSources(dir) {
@@ -23,13 +33,7 @@ function readExtensionSources(dir) {
   return sources;
 }
 
-const mod = await import(pathToFileURL(resolve(ROOT, "extensions/commands/skill-commands.ts")).href);
-const { RESERVED_COMMAND_NAMES, PI_ONLY_COMMANDS, readSkillCommands } = mod;
-const reserved = new Set(RESERVED_COMMAND_NAMES);
-
-const indexSrc = readFileSync(join(ROOT, "extensions/index.ts"), "utf8");
 const extensionSrc = readExtensionSources(join(ROOT, "extensions"));
-const skillCommandsSrc = readFileSync(join(ROOT, "extensions/commands/skill-commands.ts"), "utf8");
 
 /**
  * Extracts a top-level function body (brace-balanced) by its declaration prefix. Skips
@@ -43,10 +47,10 @@ function extractFunctionBody(src, declPrefix) {
   if (parenStart === -1) return null;
   let parenDepth = 0;
   let afterParams = -1;
-  for (let i = parenStart; i < src.length; i++) {
-    if (src[i] === "(") parenDepth++;
+  for (let i = parenStart; i < src.length; i = i + 1) {
+    if (src[i] === "(") parenDepth = parenDepth + 1;
     else if (src[i] === ")") {
-      parenDepth--;
+      parenDepth = parenDepth + -1;
       if (parenDepth === 0) {
         afterParams = i + 1;
         break;
@@ -57,10 +61,10 @@ function extractFunctionBody(src, declPrefix) {
   const bodyOpen = src.indexOf("{", afterParams);
   if (bodyOpen === -1) return null;
   let braceDepth = 0;
-  for (let i = bodyOpen; i < src.length; i++) {
-    if (src[i] === "{") braceDepth++;
+  for (let i = bodyOpen; i < src.length; i = i + 1) {
+    if (src[i] === "{") braceDepth = braceDepth + 1;
     else if (src[i] === "}") {
-      braceDepth--;
+      braceDepth = braceDepth + -1;
       if (braceDepth === 0) return src.slice(bodyOpen, i + 1);
     }
   }
@@ -70,30 +74,31 @@ function extractFunctionBody(src, declPrefix) {
 // --- every skill (minus reserved) has a registered command ---
 const skills = readSkillCommands();
 const skillNames = skills.map((s) => s.name).filter((n) => !reserved.has(n));
+let problems = [];
 if (!indexSrc.includes("registerSkillCommands(pi)")) {
-  problems.push("extensions/index.ts does not call registerSkillCommands(pi)");
+  problems = [...problems, "extensions/index.ts does not call registerSkillCommands(pi)"];
 }
 if (!indexSrc.includes("registerPiOnlyCommands(pi)")) {
-  problems.push("extensions/index.ts does not call registerPiOnlyCommands(pi)");
+  problems = [...problems, "extensions/index.ts does not call registerPiOnlyCommands(pi)"];
 }
 
 // --- no name claimed twice across skills / reserved / Pi-only buckets ---
 const claims = new Map(); // name -> [source, ...]
-const claim = (name, source) => {
-  if (!claims.has(name)) claims.set(name, []);
-  claims.get(name).push(source);
+const addClaim = (name, source) => {
+  const prev = claims.get(name) ?? [];
+  claims.set(name, [...prev, source]);
 };
-for (const name of skillNames) claim(name, "skill");
-for (const name of reserved) claim(name, "reserved");
-for (const cmd of PI_ONLY_COMMANDS) claim(cmd.name, "pi-only");
+for (const name of skillNames) addClaim(name, "skill");
+for (const name of reserved) addClaim(name, "reserved");
+for (const cmd of PI_ONLY_COMMANDS) addClaim(cmd.name, "pi-only");
 for (const [name, sources] of claims) {
-  if (sources.length > 1) problems.push(`name claimed twice: ${name} (${sources.join(", ")})`);
+  if (sources.length > 1) problems = [...problems, `name claimed twice: ${name} (${sources.join(", ")})`];
 }
 
 // --- reserved names registered anywhere in the extension ---
 for (const name of reserved) {
   if (!extensionSrc.includes(`registerCommand("${name}"`)) {
-    problems.push(`reserved name missing from extension registrations: ${name}`);
+    problems = [...problems, `reserved name missing from extension registrations: ${name}`];
   }
 }
 
@@ -104,26 +109,24 @@ if (existsSync(promptsDir)) {
   for (const file of readdirSync(promptsDir)) {
     if (extname(file) !== ".md") continue;
     const name = file.slice(0, -3);
-    if (registeredNames.has(name)) problems.push(`prompts/${file} shadows registered command /${name}`);
+    if (registeredNames.has(name)) problems = [...problems, `prompts/${file} shadows registered command /${name}`];
   }
 }
 
 // --- registered skill / Pi-only command handlers forward args ---
 const skillBody = extractFunctionBody(skillCommandsSrc, "export function registerSkillCommands");
 if (!skillBody) {
-  problems.push("registerSkillCommands body not found in skill-commands.ts");
+  problems = [...problems, "registerSkillCommands body not found in skill-commands.ts"];
 } else if (!/args\.trim\(\)/.test(skillBody) || !/sendUserMessage/.test(skillBody) || !/\$\{trimmed\}/.test(skillBody)) {
-  problems.push("registerSkillCommands handler does not forward trimmed args into the outgoing message");
+  problems = [...problems, "registerSkillCommands handler does not forward trimmed args into the outgoing message"];
 }
 const piOnlyBody = extractFunctionBody(skillCommandsSrc, "export function registerPiOnlyCommands");
 if (!piOnlyBody) {
-  problems.push("registerPiOnlyCommands body not found in skill-commands.ts");
+  problems = [...problems, "registerPiOnlyCommands body not found in skill-commands.ts"];
 } else if (!/args\.trim\(\)/.test(piOnlyBody) || !/sendUserMessage/.test(piOnlyBody) || !/\$\{trimmed\}/.test(piOnlyBody)) {
-  problems.push("registerPiOnlyCommands handler does not forward trimmed args into the outgoing message");
+  problems = [...problems, "registerPiOnlyCommands handler does not forward trimmed args into the outgoing message"];
 }
 
-for (const p of problems) console.log(`ALIAS FAIL  ${p}`);
-console.log(
-  `${skillNames.length} skill commands, ${reserved.size} reserved, ${PI_ONLY_COMMANDS.length} pi-only; ${problems.length} problem(s)`,
-);
+for (const p of problems) out(`ALIAS FAIL  ${p}`);
+out(`${skillNames.length} skill commands, ${reserved.size} reserved, ${PI_ONLY_COMMANDS.length} pi-only; ${problems.length} problem(s)`);
 if (problems.length) process.exitCode = 1;

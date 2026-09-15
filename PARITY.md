@@ -13,7 +13,7 @@ Status legend:
 The ported tree is a pure function of upstream plus the declared bindings:
 
 ```
-local file == apply(port/bindings.mjs, upstream file)
+local file == apply(port/bindings/, upstream file)
 ```
 
 `npm run parity:check` enforces it over all 153 upstream files under `skills/`, `agents/`, `automations/`, and `docs/`:
