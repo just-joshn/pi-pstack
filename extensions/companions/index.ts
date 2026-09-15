@@ -1,8 +1,13 @@
 /**
- * Thin Pi-native twins for cursor-team-kit deslop / control-cli / control-ui.
+ * Thin Pi-native twins for deslop / control-cli / control-ui.
  * Skills remain the philosophy; these tools give callable verification surfaces.
  * No bash -lc of raw model strings — argv arrays only.
+ *
+ * pstack_deslop: severity + samples + structured fix suggestions; optional
+ * applySafe deletes high-confidence safe comment/slop lines in the working tree.
  */
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
@@ -33,39 +38,189 @@ interface SlopPattern {
   severity: Severity;
   /** If true, match against "+"-prefixed unified-diff line form. */
   lineAnchored?: boolean;
+  /** Safe to auto-delete the whole added line when applySafe. */
+  safeDelete?: boolean;
+  /** Structured suggestion verb. */
+  suggestion: "delete-line" | "rewrite-prose" | "remove-emoji" | "tighten-type";
 }
 
 const SLOP_PATTERNS: SlopPattern[] = [
-  { re: /\b(?:Just|Simply|Easily|Basically|Clearly|Obviously)\b/g, label: "hedge/filler adverb", severity: "medium" },
-  { re: /—/g, label: "long-dash character (unslop)", severity: "medium" },
-  { re: /\/\/\s*(?:Phase|Step|NOTE|TODO|IMPORTANT|FIXME|do not remove)/gi, label: "narration / alibi comment", severity: "high" },
-  { re: /\b(?:in order to|due to the fact|it should be noted|it is worth noting)\b/gi, label: "inflated prose", severity: "medium" },
-  { re: /\b(?:leverage|utilize|facilitate|robust|seamless|comprehensive|delve|tapestry)\b/gi, label: "AI filler lexicon", severity: "high" },
-  { re: /\b(?:Note that|This ensures that|This allows us to|In this section)\b/g, label: "throat-clearing prose", severity: "medium" },
-  { re: /console\.(?:log|debug|info)\(/g, label: "debug console in diff", severity: "high" },
-  { re: /^\+\s*\/\/\s*[=-]{3,}/gm, label: "banner/separator comment", severity: "high", lineAnchored: true },
-  { re: /^\+\s*\/\*\s*=+/gm, label: "banner block comment", severity: "high", lineAnchored: true },
-  { re: /^\+\s*#\s*(?:TODO|FIXME|XXX|HACK)\b/gim, label: "hash alibi comment", severity: "medium", lineAnchored: true },
-  { re: /\b(?:as an AI|I hope this helps|Let me know if)\b/gi, label: "assistant leftovers", severity: "high" },
-  { re: /(?:✅|❌|🚀|✨|💡|🎉)/g, label: "emoji noise in code/prose", severity: "low" },
-  { re: /^\+\s*\/\/\s*$/gm, label: "empty comment line", severity: "low", lineAnchored: true },
-  { re: /\/\*\s*eslint-disable\s*\*\//g, label: "blanket eslint-disable", severity: "medium" },
-  { re: /:\s*any\b/g, label: "TypeScript any in added lines", severity: "medium" },
+  {
+    re: /\b(?:Just|Simply|Easily|Basically|Clearly|Obviously)\b/g,
+    label: "hedge/filler adverb",
+    severity: "medium",
+    suggestion: "rewrite-prose",
+  },
+  { re: /—/g, label: "long-dash character (unslop)", severity: "medium", suggestion: "rewrite-prose" },
+  {
+    re: /\/\/\s*(?:Phase|Step|NOTE|TODO|IMPORTANT|FIXME|do not remove)/gi,
+    label: "narration / alibi comment",
+    severity: "high",
+    suggestion: "delete-line",
+    safeDelete: true,
+  },
+  {
+    re: /\b(?:in order to|due to the fact|it should be noted|it is worth noting)\b/gi,
+    label: "inflated prose",
+    severity: "medium",
+    suggestion: "rewrite-prose",
+  },
+  {
+    re: /\b(?:leverage|utilize|facilitate|robust|seamless|comprehensive|delve|tapestry)\b/gi,
+    label: "AI filler lexicon",
+    severity: "high",
+    suggestion: "rewrite-prose",
+  },
+  {
+    re: /\b(?:Note that|This ensures that|This allows us to|In this section)\b/g,
+    label: "throat-clearing prose",
+    severity: "medium",
+    suggestion: "rewrite-prose",
+  },
+  {
+    re: /console\.(?:log|debug|info)\(/g,
+    label: "debug console in diff",
+    severity: "high",
+    suggestion: "delete-line",
+  },
+  {
+    re: /^\+\s*\/\/\s*[=-]{3,}/gm,
+    label: "banner/separator comment",
+    severity: "high",
+    lineAnchored: true,
+    suggestion: "delete-line",
+    safeDelete: true,
+  },
+  {
+    re: /^\+\s*\/\*\s*=+/gm,
+    label: "banner block comment",
+    severity: "high",
+    lineAnchored: true,
+    suggestion: "delete-line",
+    safeDelete: true,
+  },
+  {
+    re: /^\+\s*#\s*(?:TODO|FIXME|XXX|HACK)\b/gim,
+    label: "hash alibi comment",
+    severity: "medium",
+    lineAnchored: true,
+    suggestion: "delete-line",
+    safeDelete: true,
+  },
+  {
+    re: /\b(?:as an AI|I hope this helps|Let me know if)\b/gi,
+    label: "assistant leftovers",
+    severity: "high",
+    suggestion: "rewrite-prose",
+  },
+  {
+    re: /(?:✅|❌|🚀|✨|💡|🎉)/g,
+    label: "emoji noise in code/prose",
+    severity: "low",
+    suggestion: "remove-emoji",
+    safeDelete: false,
+  },
+  {
+    re: /^\+\s*\/\/\s*$/gm,
+    label: "empty comment line",
+    severity: "low",
+    lineAnchored: true,
+    suggestion: "delete-line",
+    safeDelete: true,
+  },
+  {
+    re: /\/\*\s*eslint-disable\s*\*\//g,
+    label: "blanket eslint-disable",
+    severity: "medium",
+    suggestion: "delete-line",
+  },
+  { re: /:\s*any\b/g, label: "TypeScript any in added lines", severity: "medium", suggestion: "tighten-type" },
+  // Extra depth beyond Stage-2 counts
+  {
+    re: /^\+\s*\/\/\s*(?:Import|Export|Define|Create|Return|Handle|Check|Update|Get|Set)\b/gim,
+    label: "narrating verb comment",
+    severity: "high",
+    lineAnchored: true,
+    suggestion: "delete-line",
+    safeDelete: true,
+  },
+  {
+    re: /^\+\s*\/\/\s*[A-Z][^.]{0,60}\.\s*$/gm,
+    label: "full-sentence comment",
+    severity: "medium",
+    lineAnchored: true,
+    suggestion: "delete-line",
+    safeDelete: true,
+  },
 ];
+
+export interface FixSuggestion {
+  file: string;
+  line: string;
+  label: string;
+  severity: Severity;
+  action: SlopPattern["suggestion"];
+  safeDelete: boolean;
+}
+
+function applySafeDeletes(cwd: string, suggestions: FixSuggestion[]): { applied: number; files: string[] } {
+  const byFile = new Map<string, FixSuggestion[]>();
+  for (const s of suggestions) {
+    if (!s.safeDelete || s.action !== "delete-line") continue;
+    if (!s.file || s.file === "(unknown)") continue;
+    const list = byFile.get(s.file) ?? [];
+    list.push(s);
+    byFile.set(s.file, list);
+  }
+  let applied = 0;
+  const touched: string[] = [];
+  for (const [file, hits] of byFile) {
+    const path = resolve(cwd, file);
+    if (!existsSync(path)) continue;
+    let text: string;
+    try {
+      text = readFileSync(path, "utf8");
+    } catch {
+      continue;
+    }
+    const lines = text.split("\n");
+    const remove = new Set(hits.map((h) => h.line.trimEnd()));
+    const next = lines.filter((ln) => !remove.has(ln.trimEnd()) && !remove.has(ln));
+    // Also match exact content without requiring trim identity on whitespace-only
+    const next2 = next.filter((ln) => {
+      for (const h of hits) {
+        if (ln === h.line || ln.trim() === h.line.trim()) return false;
+      }
+      return true;
+    });
+    if (next2.length === lines.length) continue;
+    writeFileSync(path, next2.join("\n"), "utf8");
+    applied += lines.length - next2.length;
+    touched.push(file);
+  }
+  return { applied, files: touched };
+}
 
 export function registerCompanions(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_deslop",
     label: "Pstack Deslop",
     description:
-      "Closest Pi twin to cursor-team-kit /deslop: scan added diff lines for slop patterns, sample offenders by file, return a severity-ranked deletion checklist. Does not edit; parent applies via edit/unslop skill.",
+      "Pi-local deslop twin: scan added diff lines for slop patterns, sample offenders, return severity-ranked checklist plus structured fix suggestions. Optional applySafe deletes high-confidence safe comment/slop lines. Pair with /skill:unslop for prose. Does not require cursor-team-kit.",
     promptSnippet: "Scan diff for prose/code slop before commit",
     promptGuidelines: [
-      "Use pstack_deslop before commit instead of cursor-team-kit /deslop; then apply fixes with edit and /skill:unslop.",
+      "Use pstack_deslop before commit; then applySafe for safe comment deletes and /skill:unslop for prose.",
+      "Never require cursor-team-kit — pstack_deslop + unslop are the Pi path.",
     ],
     parameters: Type.Object({
       base: Type.Optional(Type.String({ description: "git diff base (default main)" })),
       paths: Type.Optional(Type.Array(Type.String())),
+      applySafe: Type.Optional(
+        Type.Boolean({
+          description:
+            "If true, delete high-confidence safe comment/slop lines (banner/empty/narration comments) from the working tree.",
+        }),
+      ),
     }),
     async execute(_id, params, signal, _onUpdate, ctx) {
       const base = params.base ?? "main";
@@ -95,8 +250,16 @@ export function registerCompanions(pi: ExtensionAPI): void {
         }
       }
 
-      type Hit = { label: string; severity: Severity; count: number; samples: string[] };
+      type Hit = {
+        label: string;
+        severity: Severity;
+        count: number;
+        samples: string[];
+        suggestion: SlopPattern["suggestion"];
+        safeDelete: boolean;
+      };
       const buckets = new Map<string, Hit>();
+      const suggestions: FixSuggestion[] = [];
 
       for (const row of addedLines) {
         const plusLine = `+${row.text}`;
@@ -106,13 +269,30 @@ export function registerCompanions(pi: ExtensionAPI): void {
           if (!pat.re.test(target)) continue;
           let hit = buckets.get(pat.label);
           if (!hit) {
-            hit = { label: pat.label, severity: pat.severity, count: 0, samples: [] };
+            hit = {
+              label: pat.label,
+              severity: pat.severity,
+              count: 0,
+              samples: [],
+              suggestion: pat.suggestion,
+              safeDelete: Boolean(pat.safeDelete),
+            };
             buckets.set(pat.label, hit);
           }
           hit.count++;
           if (hit.samples.length < 5) {
             const sample = `${row.file}: ${row.text.trim().slice(0, 140)}`;
             if (!hit.samples.includes(sample)) hit.samples.push(sample);
+          }
+          if (suggestions.length < 80) {
+            suggestions.push({
+              file: row.file,
+              line: row.text,
+              label: pat.label,
+              severity: pat.severity,
+              action: pat.suggestion,
+              safeDelete: Boolean(pat.safeDelete),
+            });
           }
         }
       }
@@ -122,6 +302,13 @@ export function registerCompanions(pi: ExtensionAPI): void {
         return order[a.severity] - order[b.severity] || b.count - a.count;
       });
 
+      let applyReport = "";
+      let applyDetails: { applied: number; files: string[] } | undefined;
+      if (params.applySafe === true && suggestions.some((s) => s.safeDelete)) {
+        applyDetails = applySafeDeletes(ctx.cwd, suggestions);
+        applyReport = `\n\napplySafe: removed ${applyDetails.applied} line(s) in ${applyDetails.files.length} file(s): ${applyDetails.files.join(", ") || "(none)"}`;
+      }
+
       if (ranked.length === 0) {
         return {
           content: [
@@ -130,22 +317,35 @@ export function registerCompanions(pi: ExtensionAPI): void {
               text: "pstack_deslop: no common slop patterns in added lines (still run /skill:unslop on prose surfaces).",
             },
           ],
-          details: { findings: [], cwd: ctx.cwd },
+          details: { findings: [], suggestions: [], cwd: ctx.cwd },
         };
       }
 
-      const summary = ranked.map((h) => `- [${h.severity}] ${h.label}: ${h.count} hit(s)`).join("\n");
+      const summary = ranked
+        .map(
+          (h) =>
+            `- [${h.severity}] ${h.label}: ${h.count} hit(s) → ${h.suggestion}${h.safeDelete ? " (safeDelete)" : ""}`,
+        )
+        .join("\n");
       const samples = ranked
         .map((h) => `  ${h.label}:\n${h.samples.map((s) => `    - ${s}`).join("\n")}`)
         .join("\n");
+      const fixBlock = suggestions
+        .slice(0, 25)
+        .map(
+          (s) =>
+            `- ${s.action}${s.safeDelete ? "/safe" : ""} [${s.severity}] ${s.file}: ${s.line.trim().slice(0, 100)} (${s.label})`,
+        )
+        .join("\n");
+
       return {
         content: [
           {
             type: "text",
-            text: `pstack_deslop findings:\n${summary}\n\nSamples:\n${samples}\n\nApply via edit + /skill:unslop. Added lines scanned: ${addedLines.length}.`,
+            text: `pstack_deslop findings:\n${summary}\n\nSamples:\n${samples}\n\nStructured fixes (apply via edit, or re-run with applySafe:true for safeDelete lines):\n${fixBlock}\n\nThen /skill:unslop on prose. Added lines scanned: ${addedLines.length}.${applyReport}`,
           },
         ],
-        details: { findings: ranked, cwd: ctx.cwd },
+        details: { findings: ranked, suggestions, apply: applyDetails, cwd: ctx.cwd },
       };
     },
   });
@@ -154,7 +354,7 @@ export function registerCompanions(pi: ExtensionAPI): void {
     name: "pstack_control_cli",
     label: "Pstack Control CLI",
     description:
-      "Closest Pi twin to cursor-team-kit control-cli: run a CLI/TUI verification via argv array (no shell), capture stdout/stderr/exit, truncate for the model.",
+      "Pi-local control-cli twin: run a CLI/TUI verification via argv array (no shell), capture stdout/stderr/exit, truncate for the model.",
     promptSnippet: "Drive a CLI/TUI and capture proof output",
     promptGuidelines: [
       "Use pstack_control_cli with argv=[cmd,...args] — never a raw shell string.",
@@ -200,7 +400,7 @@ export function registerCompanions(pi: ExtensionAPI): void {
     name: "pstack_control_ui",
     label: "Pstack Control UI",
     description:
-      "Closest Pi twin to cursor-team-kit control-ui: probe a URL (HTTP) or run a browser MCP hint. Returns status + body snippet. Full browser automation depends on available MCP/browser tools — HTTP-only unless a browser MCP is present.",
+      "Pi-local control-ui twin: probe a URL (HTTP) or run a browser MCP hint. Returns status + body snippet. Full browser automation depends on available MCP/browser tools — HTTP-only unless a browser MCP is present.",
     promptSnippet: "HTTP-probe a UI surface for proof",
     parameters: Type.Object({
       url: Type.String(),
@@ -241,7 +441,7 @@ export function registerCompanions(pi: ExtensionAPI): void {
     description: "Run pstack_deslop twin then remind /skill:unslop",
     handler: async (_args, ctx) => {
       pi.sendUserMessage(
-        "Run pstack_deslop on the current diff against main, then apply /skill:unslop to any prose surfaces and fix findings with edit.",
+        "Run pstack_deslop on the current diff against main (consider applySafe:true for safe comment deletes), then apply /skill:unslop to any prose surfaces and fix remaining findings with edit.",
         { expandPromptTemplates: true },
       );
       ctx.ui.notify("Queued deslop twin", "info");

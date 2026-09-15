@@ -2,16 +2,35 @@
  * Thin Pi child-agent runner (official Pi ExtensionAPI child-process pattern).
  * Spawns `pi --mode json -p` subprocesses. No pi-subagents dependency.
  *
- * Global child concurrency is capped at MAX_CONCURRENCY (4) across
- * pstack_spawn / pstack_swarm / pstack_arena via withChildSlot.
+ * Global child concurrency is capped via withChildSlot (default 4; override
+ * with PSTACK_MAX_CONCURRENCY). Output cap default 50KiB (PSTACK_MAX_OUTPUT_BYTES);
+ * oversized output can be summarized to disk under .pi/pstack-child-output/.
  */
 import { spawn } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Message } from "@earendil-works/pi-ai";
 
 export const MAX_TASKS = 8;
-/** Shared cap for all pstack child agents (spawn + swarm + arena). */
-export const MAX_CONCURRENCY = 4;
-export const MAX_OUTPUT_BYTES = 50 * 1024;
+
+function parsePositiveInt(raw: string | undefined, fallback: number, min: number, max: number): number {
+  if (!raw) return fallback;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/** Shared cap for all pstack child agents (spawn + swarm + arena). Env: PSTACK_MAX_CONCURRENCY (1–32). */
+export const MAX_CONCURRENCY = parsePositiveInt(process.env.PSTACK_MAX_CONCURRENCY, 4, 1, 32);
+
+/** Default output cap. Env: PSTACK_MAX_OUTPUT_BYTES (4KiB–2MiB). */
+export const MAX_OUTPUT_BYTES = parsePositiveInt(
+  process.env.PSTACK_MAX_OUTPUT_BYTES,
+  50 * 1024,
+  4 * 1024,
+  2 * 1024 * 1024,
+);
+
 export const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 export const MAX_TIMEOUT_MS = 30 * 60 * 1000;
 
@@ -27,6 +46,15 @@ export interface ChildTaskInput {
   tools?: string[];
   timeoutMs?: number;
   skillPath?: string;
+  /** When true, write full output to disk if truncated and return path in trailer. */
+  persistOutput?: boolean;
+  /**
+   * Session inheritance mode for the child process:
+   * - ephemeral (default): `--no-session` (no transcript save; extensions/skills still discover)
+   * - isolated: dedicated `--session-dir` under cwd/.pi/pstack-child-sessions (survives for inspect; no parent transcript)
+   * Env default override: PSTACK_CHILD_SESSION=ephemeral|isolated
+   */
+  sessionMode?: "ephemeral" | "isolated";
 }
 
 export interface ChildTaskResult {
@@ -37,6 +65,7 @@ export interface ChildTaskResult {
   output: string;
   stderr: string;
   stopReason?: string;
+  outputPath?: string;
 }
 
 let activeChildren = 0;
@@ -78,18 +107,49 @@ function finalText(messages: Message[]): string {
   return "";
 }
 
-export function truncate(text: string): string {
-  if (Buffer.byteLength(text, "utf8") <= MAX_OUTPUT_BYTES) return text;
-  let content = text.slice(0, MAX_OUTPUT_BYTES);
-  while (Buffer.byteLength(content, "utf8") > MAX_OUTPUT_BYTES) content = content.slice(0, -1);
-  return `${content}\n\n[Output truncated to ${MAX_OUTPUT_BYTES} bytes.]`;
+function resolveSessionMode(input: ChildTaskInput): "ephemeral" | "isolated" {
+  if (input.sessionMode === "ephemeral" || input.sessionMode === "isolated") return input.sessionMode;
+  const env = process.env.PSTACK_CHILD_SESSION;
+  if (env === "isolated" || env === "ephemeral") return env;
+  return "ephemeral";
 }
 
-function appendCapped(current: string, chunk: string): string {
-  if (Buffer.byteLength(current, "utf8") >= MAX_OUTPUT_BYTES) return current;
+/** Persist full text under outDir; return path. */
+export function persistOutputSummary(fullText: string, outDir: string, tag: string): string {
+  mkdirSync(outDir, { recursive: true });
+  const safe = tag.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "child";
+  const path = join(outDir, `${safe}-${Date.now().toString(36)}.txt`);
+  writeFileSync(path, fullText, "utf8");
+  return path;
+}
+
+export function truncate(
+  text: string,
+  opts?: { maxBytes?: number; persistDir?: string; tag?: string },
+): { text: string; outputPath?: string } {
+  const max = opts?.maxBytes ?? MAX_OUTPUT_BYTES;
+  if (Buffer.byteLength(text, "utf8") <= max) return { text };
+  let outputPath: string | undefined;
+  if (opts?.persistDir) {
+    try {
+      outputPath = persistOutputSummary(text, opts.persistDir, opts.tag ?? "out");
+    } catch {
+      /* ignore disk errors; still truncate */
+    }
+  }
+  let content = text.slice(0, max);
+  while (Buffer.byteLength(content, "utf8") > max) content = content.slice(0, -1);
+  const trailer = outputPath
+    ? `\n\n[Output truncated to ${max} bytes. Full output: ${outputPath}]`
+    : `\n\n[Output truncated to ${max} bytes. Set persistOutput:true or PSTACK_PERSIST_OUTPUT=1 to save full text under .pi/pstack-child-output/.]`;
+  return { text: `${content}${trailer}`, outputPath };
+}
+
+function appendCapped(current: string, chunk: string, max = MAX_OUTPUT_BYTES): string {
+  if (Buffer.byteLength(current, "utf8") >= max) return current;
   const next = current + chunk;
-  if (Buffer.byteLength(next, "utf8") <= MAX_OUTPUT_BYTES) return next;
-  return truncate(next);
+  if (Buffer.byteLength(next, "utf8") <= max) return next;
+  return truncate(next, { maxBytes: max }).text;
 }
 
 export async function mapConcurrent<T, U>(
@@ -129,7 +189,29 @@ async function runChildTaskUnlocked(
       ? parentModel
       : input.model;
 
-  const args = ["--mode", "json", "-p", "--no-session", "--model", selectedModel];
+  const cwd = input.cwd ?? defaultCwd;
+  const sessionMode = resolveSessionMode(input);
+  const args = ["--mode", "json", "-p", "--model", selectedModel];
+
+  if (sessionMode === "ephemeral") {
+    args.push("--no-session");
+  } else {
+    const sessionDir = join(cwd, ".pi", "pstack-child-sessions", `c-${Date.now().toString(36)}`);
+    mkdirSync(sessionDir, { recursive: true });
+    args.push("--session-dir", sessionDir);
+  }
+
+  // Children still discover extensions/skills from package + project (not --no-extensions).
+  // Append a short inheritance note so the child knows parent role expectations.
+  const inheritNote = [
+    `pstack child: role=${input.role ?? "general"} sessionMode=${sessionMode}.`,
+    "Extensions/skills discover from Pi defaults; conversation history is not inherited.",
+    input.tools?.length ? `Tool allowlist: ${input.tools.join(",")}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  args.push("--append-system-prompt", inheritNote);
+
   if (input.skillPath) args.push("--skill", input.skillPath);
   if (input.tools?.length) args.push("--tools", input.tools.join(","));
 
@@ -163,9 +245,14 @@ async function runChildTaskUnlocked(
   let midStreamCapped = false;
   const invocation = piInvocation(args);
   const child = spawn(invocation.command, invocation.args, {
-    cwd: input.cwd ?? defaultCwd,
+    cwd,
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      PSTACK_PARENT_MODEL: parentModel,
+      PSTACK_CHILD_ROLE: input.role ?? "general",
+    },
   });
 
   const processLine = (line: string) => {
@@ -187,7 +274,6 @@ async function runChildTaskUnlocked(
     const text = chunk.toString();
     if (Buffer.byteLength(buffer, "utf8") >= MAX_OUTPUT_BYTES * 2) {
       midStreamCapped = true;
-      // Keep draining so the child does not block on a full pipe, but stop retaining.
       const nl = text.lastIndexOf("\n");
       if (nl >= 0) {
         for (const line of text.slice(0, nl).split("\n")) processLine(line);
@@ -228,10 +314,23 @@ async function runChildTaskUnlocked(
   signal?.removeEventListener("abort", abort);
   if (buffer.trim()) processLine(buffer);
 
-  let output = truncate(finalText(messages) || stderr || (timedOut ? "(timed out)" : "(no output)"));
+  const persist =
+    input.persistOutput === true ||
+    process.env.PSTACK_PERSIST_OUTPUT === "1" ||
+    process.env.PSTACK_PERSIST_OUTPUT === "true";
+  const persistDir = persist ? join(cwd, ".pi", "pstack-child-output") : undefined;
+
+  const fullOut = finalText(messages) || stderr || (timedOut ? "(timed out)" : "(no output)");
+  const truncated = truncate(fullOut, {
+    persistDir,
+    tag: `${input.role ?? "general"}-${selectedModel.replace(/\//g, "_")}`,
+  });
+  let output = truncated.text;
   if (midStreamCapped && !output.includes("[Output truncated")) {
     output = `${output}\n\n[Mid-stream output capped at ${MAX_OUTPUT_BYTES} bytes.]`;
   }
+
+  const stderrTrunc = truncate(stderr, { persistDir: undefined });
 
   return {
     task: input.task,
@@ -239,12 +338,13 @@ async function runChildTaskUnlocked(
     role: input.role,
     exitCode: timedOut ? 124 : aborted ? 130 : exitCode,
     output,
-    stderr: truncate(stderr),
+    stderr: stderrTrunc.text,
     stopReason: timedOut ? "timeout" : aborted ? "aborted" : stopReason,
+    outputPath: truncated.outputPath,
   };
 }
 
-/** In-process background job registry (session-scoped). */
+/** In-process background job registry (session-scoped; survives follow-ups until session_shutdown). */
 export type BackgroundJobStatus = "queued" | "running" | "done" | "failed" | "aborted";
 
 export interface BackgroundJob {
@@ -295,6 +395,8 @@ export function abortAllBackgroundJobs(): void {
  * Detach a child: returns immediately with a job id; completion is async.
  * Uses an independent AbortController (not the parent tool signal) so the
  * child survives the spawn tool returning. Still respects MAX_CONCURRENCY.
+ * Job records remain queryable via pstack_jobs for the rest of the session
+ * (including after follow-up completion messages).
  */
 export function enqueueBackgroundChild(
   input: ChildTaskInput,
@@ -352,3 +454,14 @@ export async function awaitBackgroundJob(
     await new Promise((r) => setTimeout(r, 250));
   }
 }
+
+/** Test helper: reset in-process job registry. */
+export function __resetBackgroundJobsForTests(): void {
+  abortAllBackgroundJobs();
+  backgroundJobs.clear();
+  backgroundControllers.clear();
+  backgroundSeq = 0;
+  activeChildren = 0;
+  childWaiters.length = 0;
+}
+

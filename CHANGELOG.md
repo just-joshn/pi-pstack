@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.15.2-pi.0 (close-local-partials Stage 2)
+
+- Sticky poteto: re-inject full poteto-mode skill body each turn (`extensions/sticky-poteto.ts`)
+- Spawn: `PSTACK_MAX_CONCURRENCY` / `PSTACK_MAX_OUTPUT_BYTES`; `sessionMode` ephemeral|isolated; `persistOutput` truncate-to-disk; inheritance via `--append-system-prompt` + env
+- `pstack_jobs`: honest session-scoped persistence across follow-ups (dies on session_shutdown)
+- `pstack_loop` dynamic: coalesce settle+watcher (~2.5s) to prevent double-fire; babysit docs aligned
+- Session readonly: `/pstack-readonly` strips write/edit/bash; investigation playbook arms it
+- Models: refuse/map bare marketing slugs; setup writes provider/id when detectable; always-applied-like role inject
+- Deslop: structured fix suggestions + `applySafe`; guides require pstack_deslop/unslop only
+- why/reflect/investigation: Pi-local MCP/readonly truth (no Cursor Ask/mcps/ requirements)
+- PARITY local scorecard updated (PARTIAL→↑ on sticky, spawn, loop, deslop, models, readonly)
+
 ## 0.15.2-pi.0 (close-partials Stage 2)
 
 - Background children: `pstack_spawn` `background: true` detaches via job queue + completion follow-up; `pstack_jobs` list/status/await/abort

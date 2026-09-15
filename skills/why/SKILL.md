@@ -59,7 +59,7 @@ Capture this as seed context (file paths, symbols, commits, PR numbers, linked t
 
 ### Discovery
 
-Before spawning investigators, list the available MCPs from the Cursor environment. Use the available-tools map when present. Otherwise inspect the `mcps/` directory Cursor exposes for enabled MCP servers.
+Before spawning investigators, list MCPs available in this **Pi** session (active tools / MCP servers the parent agent can call). There is no Cursor `mcps/` directory on Pi — discover from the live tool list and any MCP descriptors Pi exposes. If none are present, document the gap and still run the source-control investigator.
 
 Map each available MCP to one evidence category:
 
@@ -80,7 +80,7 @@ Launch all matching investigators in a single message so they run concurrently. 
 Subagent config (each):
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured why-investigators model (default `grok-4.6-fast-xhigh`)
-- `readonly`: `false` so the child keeps full tools (including any MCP the parent session exposes to children). **Pi has no Cursor Ask mode** — `readonly: true` only clips builtins to `read,grep,find,ls` and does not "strip MCP" the Cursor way. Prefer `readonly: false` for MCP-backed investigators; instruct them not to write. For pure code/git investigation without MCP, `role: "investigator"` auto-applies readonly.
+- Prefer `role: "investigator"` (auto-readonly: builtins clipped to `read,grep,find,ls`) for code/git investigation. For MCP-backed investigators that need non-builtin tools, spawn `role: "general"` with an explicit brief "do not write/edit/bash" — Pi `readonly` only allowlists builtins and does not strip MCP servers. Parent investigation turns: enable `/pstack-readonly` (session-level write/edit/bash block). Never require Cursor Ask mode.
 
 Each investigator gets:
 1. The base prompt from `references/investigator-prompt.md`
@@ -124,7 +124,7 @@ Spawn one synthesizer subagent:
 
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured why-synthesizer model (default `claude-fable-5-1-thinking-max`)
-- `readonly`: `false`. The synthesizer's quality check spot-verifies citations and may need MCP/tools. Pi `readonly` only limits builtins — still prefer `false` here so citation checks are not blocked.
+- Use `role: "general"` with brief "read-only synthesizer; do not write/edit". Prefer not setting `readonly: true` when citation spot-checks need MCP tools; Pi readonly only clips builtins.
 
 The synthesizer gets:
 1. The investigator findings, including any null results and any categories skipped with justification

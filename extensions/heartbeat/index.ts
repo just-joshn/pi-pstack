@@ -6,10 +6,14 @@
  *
  * mode=dynamic is a settle+watcher composite: fires on agent_settled (after
  * intervalSeconds) and/or when watchArgv exits; watcher re-arms after each fire
- * while the loop remains armed (Cursor /loop dynamic twin).
+ * while the loop remains armed. Settle+watcher fires are coalesced so they do
+ * not double-fire within COALESCE_MS.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+
+/** Coalesce window: ignore a second fire reason inside this window (dynamic twin). */
+export const DYNAMIC_COALESCE_MS = 2_500;
 
 interface LoopState {
   id: string;
@@ -24,6 +28,8 @@ interface LoopState {
   armed: boolean;
   watchArgv?: string[];
   watcherRunning?: boolean;
+  lastFireAt: number;
+  lastFireReason?: string;
 }
 
 export function registerHeartbeat(pi: ExtensionAPI): void {
@@ -46,6 +52,46 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       /* ignore */
     }
     loops.delete(state.id);
+  };
+
+  const fire = (state: LoopState, reason: string) => {
+    if (!state.armed) return;
+    // Always clear pending settle timer so a watcher fire cannot be followed by a stacked settle.
+    clearTimer(state);
+
+    const now = Date.now();
+    if (
+      state.mode === "dynamic" &&
+      state.lastFireAt > 0 &&
+      now - state.lastFireAt < DYNAMIC_COALESCE_MS
+    ) {
+      // Coalesce: e.g. watcher just fired and settle timer also matured.
+      return;
+    }
+
+    state.fires++;
+    state.lastFireAt = now;
+    state.lastFireReason = reason;
+    if (state.fires > state.maxFires) {
+      clearLoop(state);
+      pi.sendMessage({
+        customType: "pstack-loop",
+        content: `pstack_loop ${state.id} stopped after ${state.maxFires} fires.`,
+        display: true,
+      });
+      return;
+    }
+    pi.sendUserMessage(
+      `[pstack_loop ${state.id} fire ${state.fires}/${state.maxFires} reason=${reason}]\n${state.prompt}`,
+      { deliverAs: "followUp" },
+    );
+    // Reset prompt to base after injecting watcher output once
+    state.prompt = state.basePrompt;
+    if (state.mode === "interval" && state.armed) {
+      clearTimer(state);
+      state.timer = setTimeout(() => fire(state, "interval"), state.intervalMs);
+      state.timer.unref?.();
+    }
   };
 
   const startWatcher = (state: LoopState, signal?: AbortSignal) => {
@@ -77,31 +123,6 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
     })();
   };
 
-  const fire = (state: LoopState, reason: string) => {
-    if (!state.armed) return;
-    state.fires++;
-    if (state.fires > state.maxFires) {
-      clearLoop(state);
-      pi.sendMessage({
-        customType: "pstack-loop",
-        content: `pstack_loop ${state.id} stopped after ${state.maxFires} fires.`,
-        display: true,
-      });
-      return;
-    }
-    pi.sendUserMessage(
-      `[pstack_loop ${state.id} fire ${state.fires}/${state.maxFires} reason=${reason}]\n${state.prompt}`,
-      { deliverAs: "followUp" },
-    );
-    // Reset prompt to base after injecting watcher output once
-    state.prompt = state.basePrompt;
-    if (state.mode === "interval" && state.armed) {
-      clearTimer(state);
-      state.timer = setTimeout(() => fire(state, "interval"), state.intervalMs);
-      state.timer.unref?.();
-    }
-  };
-
   pi.on("session_shutdown", () => {
     for (const state of loops.values()) clearLoop(state);
     loops = new Map();
@@ -112,6 +133,14 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       if ((state.mode === "settle" || state.mode === "dynamic") && state.armed) {
         // Clear before re-arm so settle events do not stack uncleared timers.
         clearTimer(state);
+        // If we just fired (e.g. watcher), skip arming settle inside coalesce window.
+        if (
+          state.mode === "dynamic" &&
+          state.lastFireAt > 0 &&
+          Date.now() - state.lastFireAt < DYNAMIC_COALESCE_MS
+        ) {
+          continue;
+        }
         state.timer = setTimeout(() => fire(state, "settle"), state.intervalMs);
         state.timer.unref?.();
       }
@@ -144,6 +173,7 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
         maxFires: 100,
         fires: 0,
         armed: true,
+        lastFireAt: 0,
       };
       loops.set(id, state);
       ctx.ui.setStatus("pstack-loop", id);
@@ -158,12 +188,12 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
     name: "pstack_loop",
     label: "Pstack Loop",
     description:
-      "Arm, status, or stop a heartbeat / settle-retry / watcher / dynamic loop (closest Pi twin to Cursor /loop). Modes: interval | settle | watcher | dynamic (settle+watcher composite).",
+      "Arm, status, or stop a heartbeat / settle-retry / watcher / dynamic loop (closest Pi twin to Cursor /loop). Modes: interval | settle | watcher | dynamic (settle+watcher composite; coalesced to prevent double-fire).",
     promptSnippet: "Arm a repeating wake prompt after interval, settle, watcher, or dynamic",
     promptGuidelines: [
-      "Use pstack_loop instead of Cursor /loop for autonomous-run and babysit wake chains.",
+      "Use pstack_loop for autonomous-run and babysit wake chains (Pi has no Cursor /loop).",
       "Prefer mode=dynamic (settle+watcher) for babysit/shipping frontiers; pass watchArgv when an event (CI, merge) should wake the agent.",
-      "mode=settle / dynamic clears any prior timer before re-arming on agent_settled.",
+      "mode=settle / dynamic clears any prior timer before re-arming on agent_settled; dynamic coalesces settle+watcher within 2.5s so they do not double-fire.",
       "mode=watcher fires once when watchArgv exits; mode=dynamic re-arms the watcher after each fire.",
     ],
     parameters: Type.Object({
@@ -171,7 +201,7 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
       mode: Type.Optional(
         Type.String({
           description:
-            "interval | settle | watcher | dynamic (default interval). dynamic = settle + optional watcher re-arm.",
+            "interval | settle | watcher | dynamic (default interval). dynamic = settle + optional watcher re-arm (coalesced).",
         }),
       ),
       prompt: Type.Optional(Type.String({ description: "Prompt to inject on each fire" })),
@@ -193,7 +223,8 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
     async execute(_id, params, signal, _onUpdate, ctx) {
       if (params.action === "status") {
         const rows = [...loops.values()].map(
-          (s) => `${s.id} mode=${s.mode} fires=${s.fires}/${s.maxFires} armed=${s.armed}`,
+          (s) =>
+            `${s.id} mode=${s.mode} fires=${s.fires}/${s.maxFires} armed=${s.armed} lastReason=${s.lastFireReason ?? "-"}`,
         );
         return {
           content: [{ type: "text", text: rows.length ? rows.join("\n") : "(no active loops)" }],
@@ -232,6 +263,7 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
         fires: 0,
         armed: true,
         watchArgv: params.watchArgv,
+        lastFireAt: 0,
       };
       loops.set(id, state);
       ctx.ui.setStatus("pstack-loop", id);
@@ -263,11 +295,16 @@ export function registerHeartbeat(pi: ExtensionAPI): void {
         content: [
           {
             type: "text",
-            text: `Armed ${id} mode=${mode} intervalSeconds=${params.intervalSeconds ?? 1800} maxFires=${state.maxFires}${params.watchArgv?.length ? " watcher=on" : ""}`,
+            text: `Armed ${id} mode=${mode} intervalSeconds=${params.intervalSeconds ?? 1800} maxFires=${state.maxFires}${params.watchArgv?.length ? " watcher=on" : ""} coalesceMs=${DYNAMIC_COALESCE_MS}`,
           },
         ],
-        details: { id, mode },
+        details: { id, mode, coalesceMs: DYNAMIC_COALESCE_MS },
       };
     },
   });
+}
+
+/** Test-only: exported coalesce constant for scripted checks. */
+export function __testCoalesceMs(): number {
+  return DYNAMIC_COALESCE_MS;
 }

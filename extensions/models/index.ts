@@ -4,28 +4,52 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   defaultModelsConfig,
   detectPreferredModel,
+  isBareMarketingSlug,
+  isInheritAlias,
+  isProviderId,
   loadModelsConfig,
+  MARKETING_SLUG_MAP,
   modelsConfigPath,
+  sanitizeRoleValueForWrite,
   type PstackModelsConfig,
+  type RoleValue,
 } from "./config.ts";
 
-export { loadModelsConfig, resolveRoleModel, modelsConfigPath } from "./config.ts";
+export {
+  loadModelsConfig,
+  resolveRoleModel,
+  modelsConfigPath,
+  normalizeModelSelector,
+  MARKETING_SLUG_MAP,
+} from "./config.ts";
+
+function sanitizeConfig(cfg: PstackModelsConfig, preferred?: string): PstackModelsConfig {
+  const roles: Record<string, RoleValue> = {};
+  for (const [k, v] of Object.entries(cfg.roles)) {
+    roles[k] = sanitizeRoleValueForWrite(v, preferred);
+  }
+  return { ...cfg, roles };
+}
 
 export function registerModels(pi: ExtensionAPI): void {
   pi.registerCommand("setup-pstack", {
-    description: "Write ~/.pi/agent/pstack-models.json role→model map (concrete skill defaults when detectable)",
+    description:
+      "Write ~/.pi/agent/pstack-models.json role→model map (provider/id when detectable; refuses bare marketing slugs)",
     handler: async (_args, ctx) => {
       const detected = detectPreferredModel();
-      const existing = loadModelsConfig(ctx.cwd) ?? defaultModelsConfig(detected);
-      // If an old inherit-parent-only file exists and we have a preferred slug, upgrade blanks.
-      if (detected) {
+      let existing = loadModelsConfig(ctx.cwd) ?? defaultModelsConfig(detected);
+      // Upgrade inherit blanks when we have a concrete provider/id.
+      if (detected && isProviderId(detected)) {
         for (const [k, v] of Object.entries(existing.roles)) {
-          if (v === "inherit-parent" || v === "auto") existing.roles[k] = detected;
-          if (Array.isArray(v) && v.every((x) => x === "inherit-parent" || x === "auto")) {
+          if (typeof v === "string" && (isInheritAlias(v) || isBareMarketingSlug(v))) {
+            existing.roles[k] = detected;
+          }
+          if (Array.isArray(v) && v.every((x) => isInheritAlias(x) || isBareMarketingSlug(x))) {
             existing.roles[k] = v.map(() => detected!);
           }
         }
       }
+      existing = sanitizeConfig(existing, detected);
       const path = modelsConfigPath();
       mkdirSync(dirname(path), { recursive: true });
 
@@ -39,7 +63,7 @@ export function registerModels(pi: ExtensionAPI): void {
         if (budget) existing.budget = budget;
         const accept = await ctx.ui.confirm(
           "Write defaults?",
-          `Write concrete role defaults${detected ? ` (detected ${detected} for code roles)` : " (skill default slugs)"} (budget: ${existing.budget ?? "unlimited"}) to ${path}? Edit the JSON afterward for real provider/id slugs your account has.`,
+          `Write role defaults${detected ? ` (detected ${detected})` : " (inherit-parent / mapped provider ids — no bare marketing slugs)"} (budget: ${existing.budget ?? "unlimited"}) to ${path}?`,
         );
         if (!accept) {
           ctx.ui.notify("setup-pstack cancelled", "info");
@@ -48,22 +72,31 @@ export function registerModels(pi: ExtensionAPI): void {
       }
 
       writeFileSync(path, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
-      ctx.ui.notify(`Wrote ${path}`, "info");
+      ctx.ui.notify(
+        `Wrote ${path}${detected ? ` (provider/id ${detected})` : " (edit to set real provider/id)"}. Bare Cursor marketing slugs are mapped or refused.`,
+        "info",
+      );
     },
   });
 
+  // Always-applied-like sticky: inject role map every parent turn (even inherit lines).
   pi.on("before_agent_start", (event, ctx) => {
-    const cfg = loadModelsConfig(ctx.cwd);
-    if (!cfg) return;
-    const lines = Object.entries(cfg.roles)
-      .filter(([, v]) => {
-        const vals = Array.isArray(v) ? v : [v];
-        return vals.some((x) => x && x !== "inherit-parent" && x !== "auto");
-      })
-      .map(([k, v]) => `- ${k}: ${Array.isArray(v) ? v.join(", ") : v}`);
-    if (lines.length === 0) return;
+    const cfg = loadModelsConfig(ctx.cwd) ?? defaultModelsConfig(detectPreferredModel());
+    const lines = Object.entries(cfg.roles).map(([k, v]) => {
+      const vals = Array.isArray(v) ? v : [v];
+      const shown = vals
+        .map((x) => {
+          if (isBareMarketingSlug(x) && MARKETING_SLUG_MAP[x]) {
+            return `${MARKETING_SLUG_MAP[x]} (mapped from ${x})`;
+          }
+          if (isBareMarketingSlug(x)) return `${x} [INVALID bare slug — use provider/id]`;
+          return x;
+        })
+        .join(", ");
+      return `- ${k}: ${shown}`;
+    });
     return {
-      systemPrompt: `${event.systemPrompt}\n\n## pstack model roles\n${lines.join("\n")}\nUse these when calling pstack_spawn / pstack_swarm / pstack_arena unless overridden.`,
+      systemPrompt: `${event.systemPrompt}\n\n## pstack model roles (always-applied twin)\n${lines.join("\n")}\nPass provider/id (or inherit-parent/auto) to pstack_spawn / pstack_swarm / pstack_arena. Bare marketing slugs are refused or mapped. Every child resolves via resolveRoleModel.`,
     };
   });
 }

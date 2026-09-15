@@ -10,18 +10,20 @@ import { Type } from "typebox";
 import {
   DEFAULT_TIMEOUT_MS,
   MAX_CONCURRENCY,
+  MAX_OUTPUT_BYTES,
   MAX_TIMEOUT_MS,
   READONLY_TOOLS,
   abortAllBackgroundJobs,
   abortBackgroundJob,
   awaitBackgroundJob,
+  childConcurrencyStats,
   enqueueBackgroundChild,
   getBackgroundJob,
   listBackgroundJobs,
   runChildTask,
   type ChildTaskResult,
 } from "./child-runner.ts";
-import { resolveRoleModel } from "../models/config.ts";
+import { normalizeModelSelector, resolveRoleModel } from "../models/config.ts";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const POTETO_SKILL = resolve(PACKAGE_ROOT, "skills", "poteto-mode", "SKILL.md");
@@ -42,6 +44,8 @@ function resolveTools(
 
 export function registerSpawn(pi: ExtensionAPI): void {
   pi.on("session_shutdown", () => {
+    // Abort in-flight children; finished job records are discarded with the process.
+    // Within a live session, jobs remain listable via pstack_jobs across follow-ups.
     abortAllBackgroundJobs();
   });
 
@@ -49,14 +53,15 @@ export function registerSpawn(pi: ExtensionAPI): void {
     name: "pstack_spawn",
     label: "Pstack Spawn",
     description:
-      `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review (auto-readonly), investigator for read-only investigation, general for independent workers/reviewers. background:true detaches and posts a follow-up on completion. Global child concurrency cap: ${MAX_CONCURRENCY} (shared with swarm/arena). Replaces Cursor Task/subagent_type.`,
+      `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review (auto-readonly), investigator for read-only investigation, general for independent workers/reviewers. background:true detaches and posts a follow-up on completion. Global child concurrency cap: ${MAX_CONCURRENCY} (env PSTACK_MAX_CONCURRENCY; shared with swarm/arena). Output cap ${MAX_OUTPUT_BYTES} bytes (env PSTACK_MAX_OUTPUT_BYTES; persistOutput or PSTACK_PERSIST_OUTPUT=1 writes full text under .pi/pstack-child-output/). sessionMode isolated uses --session-dir instead of --no-session.`,
     promptSnippet: "Spawn an isolated Pi child agent (pstack delegate)",
     promptGuidelines: [
-      "Use pstack_spawn instead of Cursor Task / subagent_type.",
+      "Use pstack_spawn for local child agents (Pi has no Cursor Task).",
       "Use role poteto-agent for code-writing playbook delegates; comment-sicko for /no-comments (auto-readonly); investigator for investigation playbook children (auto-readonly); general for reviewers.",
-      "background:true returns a job id immediately; completion arrives as a follow-up message. Use pstack_jobs to list/await. Prefer pstack_swarm / pstack_arena for parallel fan-out.",
+      "background:true returns a job id immediately; completion arrives as a follow-up message. Use pstack_jobs to list/await across follow-ups in this session. Prefer pstack_swarm / pstack_arena for parallel fan-out.",
+      "Pass model as provider/id (or inherit-parent/auto). Bare marketing slugs are refused/mapped.",
       "Review child output and diffs yourself before accepting work.",
-      `Cap ${MAX_CONCURRENCY} concurrent children globally (foreground + background).`,
+      `Cap ${MAX_CONCURRENCY} concurrent children globally (foreground + background). Raise via PSTACK_MAX_CONCURRENCY.`,
     ],
     parameters: Type.Object({
       task: Type.String({ description: "Complete self-contained brief for the child" }),
@@ -68,7 +73,7 @@ export function registerSpawn(pi: ExtensionAPI): void {
       ),
       model: Type.Optional(
         Type.String({
-          description: "provider/model, or inherit-parent / auto. Else role config applies.",
+          description: "provider/model, or inherit-parent / auto. Else role config applies. Bare marketing slugs refused.",
         }),
       ),
       cwd: Type.Optional(Type.String({ description: "Child working directory" })),
@@ -82,7 +87,19 @@ export function registerSpawn(pi: ExtensionAPI): void {
       background: Type.Optional(
         Type.Boolean({
           description:
-            "If true, detach: return job id immediately; child runs under concurrency cap; completion posts a follow-up. Use pstack_jobs to poll/await.",
+            "If true, detach: return job id immediately; child runs under concurrency cap; completion posts a follow-up. Use pstack_jobs to poll/await within this session.",
+        }),
+      ),
+      persistOutput: Type.Optional(
+        Type.Boolean({
+          description:
+            "If true (or PSTACK_PERSIST_OUTPUT=1), write full child output under cwd/.pi/pstack-child-output/ when truncated.",
+        }),
+      ),
+      sessionMode: Type.Optional(
+        Type.String({
+          description:
+            "ephemeral (default, --no-session) | isolated (--session-dir under .pi/pstack-child-sessions). Env PSTACK_CHILD_SESSION overrides default.",
         }),
       ),
       timeoutMs: Type.Optional(
@@ -93,13 +110,22 @@ export function registerSpawn(pi: ExtensionAPI): void {
       if (!ctx.model) throw new Error("pstack_spawn requires an active parent model");
       const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
       const role = params.role ?? "general";
-      const model =
+      const rawModel =
         params.model ??
         resolveRoleModel(role, parentModel) ??
         parentModel;
+      const modelNorm = normalizeModelSelector(rawModel, parentModel);
+      if (!modelNorm.ok) {
+        throw new Error(modelNorm.error);
+      }
+      const model = modelNorm.model;
       const tools = resolveTools(role, params);
       const poteto = params.poteto === true || role === "poteto-agent";
       const readonlyApplied = Boolean(tools && tools.every((t) => (READONLY_TOOLS as readonly string[]).includes(t)));
+      const sessionMode =
+        params.sessionMode === "isolated" || params.sessionMode === "ephemeral"
+          ? params.sessionMode
+          : undefined;
 
       const childInput = {
         task: params.task,
@@ -110,6 +136,8 @@ export function registerSpawn(pi: ExtensionAPI): void {
         tools,
         timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         skillPath: poteto ? POTETO_SKILL : undefined,
+        persistOutput: params.persistOutput === true,
+        sessionMode,
       };
 
       if (params.background) {
@@ -125,18 +153,25 @@ export function registerSpawn(pi: ExtensionAPI): void {
         const job = enqueueBackgroundChild(childInput, ctx.cwd, parentModel, (done) => {
           const body =
             done.result != null
-              ? `### pstack_spawn background complete (${done.id}, ${done.result.role ?? role}, ${done.result.model}, exit ${done.result.exitCode}, status=${done.status})\n\n${done.result.output}`
+              ? `### pstack_spawn background complete (${done.id}, ${done.result.role ?? role}, ${done.result.model}, exit ${done.result.exitCode}, status=${done.status}${done.result.outputPath ? `, full=${done.result.outputPath}` : ""})\n\n${done.result.output}`
               : `### pstack_spawn background ${done.status} (${done.id}): ${done.error ?? "(no result)"}`;
           pi.sendUserMessage(body, { deliverAs: "followUp" });
         });
+        const stats = childConcurrencyStats();
         return {
           content: [
             {
               type: "text",
-              text: `Background job ${job.id} started (role=${role}, model=${model}${readonlyApplied ? ", readonly" : ""}). Completion will arrive as a follow-up. Poll with pstack_jobs action=status|await id=${job.id}.`,
+              text: `Background job ${job.id} started (role=${role}, model=${model}${readonlyApplied ? ", readonly" : ""}). Completion will arrive as a follow-up. Poll with pstack_jobs action=status|await id=${job.id}. Concurrency ${stats.active}/${stats.cap} (waiting ${stats.waiting}). Jobs remain queryable for this session.`,
             },
           ],
-          details: { jobId: job.id, status: job.status, background: true, readonly: readonlyApplied },
+          details: {
+            jobId: job.id,
+            status: job.status,
+            background: true,
+            readonly: readonlyApplied,
+            concurrency: stats,
+          },
         };
       }
 
@@ -161,7 +196,7 @@ export function registerSpawn(pi: ExtensionAPI): void {
         content: [
           {
             type: "text",
-            text: `### pstack_spawn (${result.role ?? role}, ${result.model}, exit ${result.exitCode})\n\n${result.output}`,
+            text: `### pstack_spawn (${result.role ?? role}, ${result.model}, exit ${result.exitCode}${result.outputPath ? `, full=${result.outputPath}` : ""})\n\n${result.output}`,
           },
         ],
         details: { result, readonly: readonlyApplied },
@@ -173,10 +208,11 @@ export function registerSpawn(pi: ExtensionAPI): void {
     name: "pstack_jobs",
     label: "Pstack Jobs",
     description:
-      "List, status, await, or abort detached pstack_spawn background jobs (session-scoped).",
+      "List, status, await, or abort detached pstack_spawn background jobs (session-scoped; survives follow-ups until session ends). Honest: jobs die on session_shutdown — not a durable daemon.",
     promptSnippet: "Poll or await background pstack_spawn jobs",
     promptGuidelines: [
       "After pstack_spawn with background:true, use pstack_jobs to check status or await completion if you need the result inline.",
+      "Jobs persist across follow-ups within the same Pi session; they do not survive process exit.",
     ],
     parameters: Type.Object({
       action: Type.String({ description: "list | status | await | abort" }),
@@ -192,9 +228,16 @@ export function registerSpawn(pi: ExtensionAPI): void {
           (j) =>
             `${j.id} status=${j.status} role=${j.role ?? "?"} model=${j.model} started=${new Date(j.startedAt).toISOString()}${j.finishedAt ? ` finished=${new Date(j.finishedAt).toISOString()}` : ""}`,
         );
+        const stats = childConcurrencyStats();
+        const header = `concurrency ${stats.active}/${stats.cap} waiting=${stats.waiting}`;
         return {
-          content: [{ type: "text", text: rows.length ? rows.join("\n") : "(no background jobs)" }],
-          details: { jobs: listBackgroundJobs().map((j) => j.id) },
+          content: [
+            {
+              type: "text",
+              text: rows.length ? `${header}\n${rows.join("\n")}` : `${header}\n(no background jobs)`,
+            },
+          ],
+          details: { jobs: listBackgroundJobs().map((j) => j.id), concurrency: stats },
         };
       }
       if (action === "abort") {
@@ -217,7 +260,7 @@ export function registerSpawn(pi: ExtensionAPI): void {
         if (!job) throw new Error(`unknown job: ${params.id}`);
         const tail =
           job.result != null
-            ? `\n\nexit ${job.result.exitCode}\n${job.result.output.slice(0, 8000)}`
+            ? `\n\nexit ${job.result.exitCode}${job.result.outputPath ? ` full=${job.result.outputPath}` : ""}\n${job.result.output.slice(0, 8000)}`
             : job.error
               ? `\n\nerror: ${job.error}`
               : "";

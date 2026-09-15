@@ -29,7 +29,7 @@ For each candidate, read the first JSONL line and check that `message.content[0]
 
 ### 2. Spawn three reviewers in parallel
 
-One message, three `pstack_spawn` calls, `role: general via pstack_spawn`, explicit `model:` on each, agent mode (`readonly: false`). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Readonly strips MCPs.
+One message, three `pstack_spawn` calls, `role: general via pstack_spawn`, explicit `model:` on each, agent mode (`readonly: false`). Reviewers may need MCP tools for context lookups. Pi `readonly` only clips builtins (`read,grep,find,ls`) — it does not strip MCP. Prefer readonly false with an explicit no-write brief when MCP is required.
 
 | Lens | `model` | Prompt template |
 |---|---|---|
@@ -41,7 +41,7 @@ Pass each template verbatim, substituting the transcript path or digest where ma
 
 ### 3. Synthesize
 
-One `pstack_spawn` call, `role: general via pstack_spawn`, using your configured reflect-judgment model (default `claude-fable-5-1-thinking-max`), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP access. Readonly strips MCPs. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+One `pstack_spawn` call, `role: general via pstack_spawn`, using your configured reflect-judgment model (default `claude-fable-5-1-thinking-max`), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP tools. Pi `readonly` only clips builtins. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
 
 ### 4. Structural enforcement check
 
