@@ -2,6 +2,12 @@ import { readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 export const LAYERS = [
+  {
+    id: 0,
+    name: "conformance",
+    runner: "commands",
+    commands: [["npm", ["run", "conformance"], "."]],
+  },
   { id: 1, name: "unit", dir: "tests/layers/01-unit", runner: "node-test" },
   { id: 2, name: "integration", dir: "tests/layers/02-integration", runner: "node-test" },
   { id: 3, name: "smoke", dir: "tests/layers/03-smoke", runner: "node-test", requires: ["pi"] },
