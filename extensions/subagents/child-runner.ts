@@ -6,7 +6,7 @@
  * with PSTACK_MAX_CONCURRENCY). Output cap default 50KiB (PSTACK_MAX_OUTPUT_BYTES);
  * oversized output can be summarized to disk under .pi/pstack-child-output/.
  */
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
@@ -352,83 +352,59 @@ export async function runChildTask(
   return withChildSlot(() => runChildTaskUnlocked(input, defaultCwd, parentModel, signal));
 }
 
-async function runChildTaskUnlocked(
-  input: ChildTaskInput,
-  defaultCwd: string,
-  parentModel: string,
-  signal: AbortSignal | undefined,
-): Promise<ChildTaskResult> {
-  const selectedModel =
-    !input.model || input.model === "auto" || input.model === "inherit-parent"
-      ? parentModel
-      : input.model;
+interface ChildRunOutcome {
+  messages: Message[];
+  stderr: string;
+  stopReason?: string;
+  midStreamCapped: boolean;
+  aborted: boolean;
+  timedOut: boolean;
+  exitCode: number;
+}
 
-  const cwd = input.cwd ?? defaultCwd;
-  const prepared = resolveChildSessionDir(input, cwd);
-  const sessionMode = prepared.sessionMode;
-  const sessionDir = prepared.sessionDir;
-  const continueSession = prepared.continueSession;
+type ChildStreamSnapshot = Pick<ChildRunOutcome, "messages" | "stderr" | "stopReason" | "midStreamCapped">;
+type ChildLifecycleOutcome = Pick<ChildRunOutcome, "aborted" | "timedOut">;
 
-  // Children still discover extensions/skills from package + project (not --no-extensions).
-  // Append a short inheritance note so the child knows parent role expectations.
-  const inheritNote = [
-    `pstack child: role=${input.role ?? "general"} sessionMode=${sessionMode}.`,
-    "Extensions/skills discover from Pi defaults; conversation history is not inherited.",
-    input.tools?.length ? `Tool allowlist: ${input.tools.join(",")}.` : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  let prompt = input.task;
-  if (input.role === "poteto-agent" || input.poteto) {
-    prompt = `/skill:poteto-mode ${input.task}`;
-  } else if (input.role === "comment-sicko") {
-    prompt = [
+function buildChildPrompt(input: ChildTaskInput): string {
+  if (input.role === "poteto-agent" || input.poteto) return `/skill:poteto-mode ${input.task}`;
+  if (input.role === "comment-sicko") {
+    return [
       "You are Comment Sicko. Follow agents/comment-sicko.md rules.",
       "First output exactly: Yes... Ha ha ha... Yes!",
       "You are readonly: report only; do not write, edit, or run bash.",
       input.task,
     ].join("\n\n");
-  } else if (input.role === "investigator") {
-    prompt = [
+  }
+  if (input.role === "investigator") {
+    return [
       "You are a read-only investigator. Do not write, edit, or mutate the tree.",
       "Cite files and evidence. Return findings only.",
       input.task,
     ].join("\n\n");
   }
+  return input.task;
+}
 
-  const args = buildChildPiArgs({
-    selectedModel,
-    sessionMode,
-    sessionDir,
-    continueSession,
-    inheritNote,
-    skillPath: input.skillPath,
-    tools: input.tools,
-    prompt,
-  });
-
-  let messages: Message[] = [];
-  let stderr = "";
-  let stopReason: string | undefined;
-  let buffer = "";
-  let aborted = false;
-  let timedOut = false;
-  let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
-  let midStreamCapped = false;
+function spawnChildProcess(args: string[], cwd: string, parentModel: string, role: string | undefined): ChildProcessWithoutNullStreams {
   const invocation = piInvocation(args);
-  const child = spawn(invocation.command, invocation.args, {
+  return spawn(invocation.command, invocation.args, {
     cwd,
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
     env: {
       ...process.env,
       PSTACK_PARENT_MODEL: parentModel,
-      PSTACK_CHILD_ROLE: input.role ?? "general",
+      PSTACK_CHILD_ROLE: role ?? "general",
     },
   });
-  let childErrored = false;
+}
 
+function consumeChildStream(child: ChildProcessWithoutNullStreams): () => ChildStreamSnapshot {
+  let messages: Message[] = [];
+  let stderr = "";
+  let stopReason: string | undefined;
+  let buffer = "";
+  let midStreamCapped = false;
   const processLine = (line: string) => {
     if (!line.trim()) return;
     try {
@@ -440,11 +416,9 @@ async function runChildTaskUnlocked(
         }
       }
     } catch {
-      /* ignore non-JSON diagnostics; child may emit plain text */
       return;
     }
   };
-
   child.stdout.on("data", (chunk: Buffer) => {
     const text = chunk.toString();
     if (Buffer.byteLength(buffer, "utf8") >= MAX_OUTPUT_BYTES * 2) {
@@ -466,59 +440,114 @@ async function runChildTaskUnlocked(
     stderr = appendCapped(stderr, chunk.toString());
     if (stderr.length === before && chunk.length > 0) midStreamCapped = true;
   });
+  return () => {
+    if (buffer.trim()) processLine(buffer);
+    return { messages, stderr, stopReason, midStreamCapped };
+  };
+}
 
+function armChildLifecycle(
+  child: ChildProcessWithoutNullStreams,
+  timeoutMs: number,
+  signal: AbortSignal | undefined,
+): () => ChildLifecycleOutcome {
+  let aborted = false;
+  let timedOut = false;
+  let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
   const stopChild = (reason: "aborted" | "timeout") => {
-    const updates = reason === "aborted" ? { aborted: true } : { timedOut: true };
-    aborted = updates.aborted ?? aborted;
-    timedOut = updates.timedOut ?? timedOut;
+    if (reason === "aborted") aborted = true;
+    else timedOut = true;
     child.kill("SIGTERM");
     forceKillTimer = setTimeout(() => child.kill("SIGKILL"), 5_000);
     forceKillTimer.unref();
   };
   const abort = () => stopChild("aborted");
-  const timeoutId = setTimeout(() => stopChild("timeout"), input.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => stopChild("timeout"), timeoutMs);
   timeoutId.unref();
   if (signal?.aborted) abort();
   else signal?.addEventListener("abort", abort, { once: true });
+  return () => {
+    clearTimeout(timeoutId);
+    if (forceKillTimer) clearTimeout(forceKillTimer);
+    signal?.removeEventListener("abort", abort);
+    return { aborted, timedOut };
+  };
+}
 
-  const exitCode = await new Promise<number>((complete) => {
-    child.on("error", () => {
-      childErrored = true;
-      complete(1);
-    });
-    child.on("close", (code) => complete(code ?? 1));
-  });
-  clearTimeout(timeoutId);
-  if (forceKillTimer) clearTimeout(forceKillTimer);
-  signal?.removeEventListener("abort", abort);
-  if (buffer.trim()) processLine(buffer);
-
+function finalizeChildResult(
+  input: ChildTaskInput,
+  selectedModel: string,
+  sessionDir: string | undefined,
+  outcome: ChildRunOutcome,
+  cwd: string,
+): ChildTaskResult {
   const persist = shouldPersistOutput(input);
   const persistDir = persist ? join(cwd, ".pi", "pstack-child-output") : undefined;
-
-  const fullOut = finalText(messages) || stderr || (timedOut ? "(timed out)" : "(no output)");
+  const fullOut = finalText(outcome.messages) || outcome.stderr || (outcome.timedOut ? "(timed out)" : "(no output)");
   const truncated = truncate(fullOut, {
     persistDir,
     tag: `${input.role ?? "general"}-${selectedModel.replace(/\//g, "_")}`,
   });
-  let output = truncated.text;
-  if (midStreamCapped && !output.includes("[Output truncated")) {
-    output = `${output}\n\n[Mid-stream output capped at ${MAX_OUTPUT_BYTES} bytes.]`;
-  }
-
-  const stderrTrunc = truncate(stderr, { persistDir: undefined });
-
+  const output =
+    outcome.midStreamCapped && !truncated.text.includes("[Output truncated")
+      ? `${truncated.text}\n\n[Mid-stream output capped at ${MAX_OUTPUT_BYTES} bytes.]`
+      : truncated.text;
+  const stderrTrunc = truncate(outcome.stderr, { persistDir: undefined });
   return {
     task: input.task,
     model: selectedModel,
     role: input.role,
-    exitCode: timedOut ? 124 : aborted ? 130 : exitCode,
+    exitCode: outcome.timedOut ? 124 : outcome.aborted ? 130 : outcome.exitCode,
     output,
     stderr: stderrTrunc.text,
-    stopReason: timedOut ? "timeout" : aborted ? "aborted" : stopReason,
+    stopReason: outcome.timedOut ? "timeout" : outcome.aborted ? "aborted" : outcome.stopReason,
     outputPath: truncated.outputPath,
     sessionDir,
   };
+}
+
+async function runChildTaskUnlocked(
+  input: ChildTaskInput,
+  defaultCwd: string,
+  parentModel: string,
+  signal: AbortSignal | undefined,
+): Promise<ChildTaskResult> {
+  const selectedModel =
+    !input.model || input.model === "auto" || input.model === "inherit-parent"
+      ? parentModel
+      : input.model;
+  const cwd = input.cwd ?? defaultCwd;
+  const prepared = resolveChildSessionDir(input, cwd);
+  // Children still discover extensions/skills from package + project (not --no-extensions).
+  // Append a short inheritance note so the child knows parent role expectations.
+  const inheritNote = [
+    `pstack child: role=${input.role ?? "general"} sessionMode=${prepared.sessionMode}.`,
+    "Extensions/skills discover from Pi defaults; conversation history is not inherited.",
+    input.tools?.length ? `Tool allowlist: ${input.tools.join(",")}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const args = buildChildPiArgs({
+    selectedModel,
+    sessionMode: prepared.sessionMode,
+    sessionDir: prepared.sessionDir,
+    continueSession: prepared.continueSession,
+    inheritNote,
+    skillPath: input.skillPath,
+    tools: input.tools,
+    prompt: buildChildPrompt(input),
+  });
+  const child = spawnChildProcess(args, cwd, parentModel, input.role);
+  const finishStream = consumeChildStream(child);
+  const disposeLifecycle = armChildLifecycle(child, input.timeoutMs ?? DEFAULT_TIMEOUT_MS, signal);
+  const exitCode = await new Promise<number>((complete) => {
+    child.on("error", () => complete(1));
+    child.on("close", (code) => complete(code ?? 1));
+  });
+  const lifecycle = disposeLifecycle();
+  const stream = finishStream();
+  const outcome: ChildRunOutcome = { ...stream, ...lifecycle, exitCode };
+  return finalizeChildResult(input, selectedModel, prepared.sessionDir, outcome, cwd);
 }
 
 /** Roles that always get the readonly tool allowlist (no bash/write/edit). */
@@ -630,6 +659,69 @@ export function abortAllBackgroundJobs(): void {
   }
 }
 
+function createBackgroundJob(
+  input: ChildTaskInput,
+  defaultCwd: string,
+  parentModel: string,
+): { job: BackgroundJob; controller: AbortController; resolvedInput: ChildTaskInput } {
+  backgroundSeq = backgroundSeq + 1;
+  const id = `bg-${backgroundSeq}-${Date.now().toString(36)}`;
+  const controller = new AbortController();
+  const cwd = input.cwd ?? defaultCwd;
+  // Resolve session dir synchronously so resumeJobId can see it while the job runs.
+  // Fresh mint → pass sessionDir (no continue). True resume → keep resumeSessionDir (adds -c).
+  const prepared = resolveChildSessionDir(input, cwd);
+  const resolvedInput: ChildTaskInput = prepared.continueSession
+    ? { ...input, sessionMode: prepared.sessionMode, resumeSessionDir: prepared.sessionDir, sessionDir: undefined }
+    : { ...input, sessionMode: prepared.sessionMode, resumeSessionDir: undefined, sessionDir: prepared.sessionDir };
+  const job: BackgroundJob = {
+    id,
+    status: "queued",
+    role: input.role,
+    model:
+      !input.model || input.model === "auto" || input.model === "inherit-parent"
+        ? parentModel
+        : input.model,
+    taskPreview: input.task.slice(0, 200),
+    startedAt: Date.now(),
+    sessionDir: prepared.sessionDir,
+  };
+  return { job, controller, resolvedInput };
+}
+
+async function runBackgroundJob(
+  job: BackgroundJob,
+  controller: AbortController,
+  resolvedInput: ChildTaskInput,
+  defaultCwd: string,
+  parentModel: string,
+): Promise<BackgroundJob> {
+  const runningJob = { ...job, status: "running" as const };
+  backgroundJobs.set(job.id, runningJob);
+  try {
+    const result = await runChildTask(resolvedInput, defaultCwd, parentModel, controller.signal);
+    const finalStatus = controller.signal.aborted
+      ? "aborted"
+      : result.exitCode === 0
+        ? "done"
+        : "failed";
+    return {
+      ...runningJob,
+      result,
+      sessionDir: result.sessionDir ?? runningJob.sessionDir,
+      status: finalStatus as BackgroundJobStatus,
+      finishedAt: Date.now(),
+    };
+  } catch (err) {
+    return {
+      ...runningJob,
+      status: (controller.signal.aborted ? "aborted" : "failed") as BackgroundJobStatus,
+      error: err instanceof Error ? err.message : String(err),
+      finishedAt: Date.now(),
+    };
+  }
+}
+
 /**
  * Detach a child: returns immediately with a job id; completion is async.
  * Uses an independent AbortController (not the parent tool signal) so the
@@ -643,73 +735,15 @@ export function enqueueBackgroundChild(
   parentModel: string,
   onComplete?: (job: BackgroundJob) => void,
 ): BackgroundJob {
-  backgroundSeq = backgroundSeq + 1;
-  const id = `bg-${backgroundSeq}-${Date.now().toString(36)}`;
-  const controller = new AbortController();
-  const cwd = input.cwd ?? defaultCwd;
-  // Resolve session dir synchronously so resumeJobId can see it while the job runs.
-  // Fresh mint → pass sessionDir (no continue). True resume → keep resumeSessionDir (adds -c).
-  const prepared = resolveChildSessionDir(input, cwd);
-  const resolvedInput: ChildTaskInput = prepared.continueSession
-    ? {
-        ...input,
-        sessionMode: prepared.sessionMode,
-        resumeSessionDir: prepared.sessionDir,
-        sessionDir: undefined,
-      }
-    : {
-        ...input,
-        sessionMode: prepared.sessionMode,
-        resumeSessionDir: undefined,
-        sessionDir: prepared.sessionDir,
-      };
-  const job: BackgroundJob = {
-    id,
-    status: "queued",
-    role: input.role,
-    model:
-      !input.model || input.model === "auto" || input.model === "inherit-parent"
-        ? parentModel
-        : input.model,
-    taskPreview: input.task.slice(0, 200),
-    startedAt: Date.now(),
-    sessionDir: prepared.sessionDir,
-  };
-  backgroundJobs.set(id, job);
-  backgroundControllers.set(id, controller);
-
-  void (async () => {
-    const runningJob = { ...job, status: "running" as const };
-    backgroundJobs.set(id, runningJob);
-    let finalJob: BackgroundJob;
-    try {
-      const result = await runChildTask(resolvedInput, defaultCwd, parentModel, controller.signal);
-      const finalStatus = controller.signal.aborted
-        ? "aborted"
-        : result.exitCode === 0
-          ? "done"
-          : "failed";
-      finalJob = {
-        ...runningJob,
-        result,
-        sessionDir: result.sessionDir ?? runningJob.sessionDir,
-        status: finalStatus as BackgroundJobStatus,
-        finishedAt: Date.now(),
-      };
-    } catch (err) {
-      finalJob = {
-        ...runningJob,
-        status: (controller.signal.aborted ? "aborted" : "failed") as BackgroundJobStatus,
-        error: err instanceof Error ? err.message : String(err),
-        finishedAt: Date.now(),
-      };
-    }
-    backgroundJobs.set(id, finalJob);
-    backgroundControllers.delete(id);
+  const { job, controller, resolvedInput } = createBackgroundJob(input, defaultCwd, parentModel);
+  backgroundJobs.set(job.id, job);
+  backgroundControllers.set(job.id, controller);
+  void runBackgroundJob(job, controller, resolvedInput, defaultCwd, parentModel).then((finalJob) => {
+    backgroundJobs.set(job.id, finalJob);
+    backgroundControllers.delete(job.id);
     // A throwing onComplete must not reclassify a finished job or fire twice.
     onComplete?.(finalJob);
-  })();
-
+  });
   return job;
 }
 

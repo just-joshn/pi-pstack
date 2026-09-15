@@ -282,20 +282,10 @@ async function handleForegroundSpawn(
   };
 }
 
-export function registerSpawn(pi: ExtensionAPI): void {
-  pi.on("session_shutdown", () => {
-    // Abort in-flight children; finished job records are discarded with the process.
-    // Within a live session, jobs remain listable via pstack_jobs across follow-ups.
-    abortAllBackgroundJobs();
-  });
+const SPAWN_DESCRIPTION =
+  `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review (auto-readonly), investigator for read-only investigation, general for independent workers/reviewers. Default background (omit or true) detaches and posts a follow-up on completion; pass background:false for sync-await. resumeSessionDir / resumeJobId continue a prior child via --session-dir + --continue/-c (fail closed if missing; no parent-history dump). Replies include sessionDir for Orchestrate reattach. Global child concurrency cap: ${MAX_CONCURRENCY} (env PSTACK_MAX_CONCURRENCY; shared with swarm/arena). Output cap ${MAX_OUTPUT_BYTES} bytes (env PSTACK_MAX_OUTPUT_BYTES; persistOutput or PSTACK_PERSIST_OUTPUT=1 writes full text under .pi/pstack-child-output/). Default sessionMode=isolated (--session-dir; extensions/skills discover, no --no-extensions). ephemeral uses --no-session. inheritParentTools defaults on when tools unset and getActiveTools() is non-empty (pass false to disable; explicit tools[] always wins). Readonly roles still force READONLY_TOOLS. Pi cannot inherit parent MCP/history — documented flags only. persistOutput defaults on for long children (timeout>=5m) and background.`;
 
-  pi.registerTool({
-    name: "pstack_spawn",
-    label: "Pstack Spawn",
-    description:
-      `Spawn one isolated Pi child agent. Use role poteto-agent for playbook delegates, comment-sicko for comment review (auto-readonly), investigator for read-only investigation, general for independent workers/reviewers. Default background (omit or true) detaches and posts a follow-up on completion; pass background:false for sync-await. resumeSessionDir / resumeJobId continue a prior child via --session-dir + --continue/-c (fail closed if missing; no parent-history dump). Replies include sessionDir for Orchestrate reattach. Global child concurrency cap: ${MAX_CONCURRENCY} (env PSTACK_MAX_CONCURRENCY; shared with swarm/arena). Output cap ${MAX_OUTPUT_BYTES} bytes (env PSTACK_MAX_OUTPUT_BYTES; persistOutput or PSTACK_PERSIST_OUTPUT=1 writes full text under .pi/pstack-child-output/). Default sessionMode=isolated (--session-dir; extensions/skills discover, no --no-extensions). ephemeral uses --no-session. inheritParentTools defaults on when tools unset and getActiveTools() is non-empty (pass false to disable; explicit tools[] always wins). Readonly roles still force READONLY_TOOLS. Pi cannot inherit parent MCP/history — documented flags only. persistOutput defaults on for long children (timeout>=5m) and background.`,
-    promptSnippet: "Spawn an isolated Pi child agent (pstack delegate)",
-    promptGuidelines: [
+const SPAWN_PROMPT_GUIDELINES = [
       "Use pstack_spawn for local child agents (Pi has no Cursor Task).",
       "Use role poteto-agent for code-writing playbook delegates; comment-sicko for /no-comments (auto-readonly); investigator for investigation playbook children (auto-readonly); general for reviewers.",
       "Prefer / default background: omit background or pass true to detach (job id + completion follow-up). Sync-await requires explicit background:false. Use pstack_jobs to list/await across follow-ups in this session.",
@@ -305,8 +295,9 @@ export function registerSpawn(pi: ExtensionAPI): void {
       "Pass model as provider/id (or inherit-parent/auto). Bare marketing slugs are refused/mapped.",
       "Review child output and diffs yourself before accepting work.",
       `Cap ${MAX_CONCURRENCY} concurrent children globally (foreground + background). Raise via PSTACK_MAX_CONCURRENCY.`,
-    ],
-    parameters: Type.Object({
+];
+
+const SPAWN_PARAMETERS = Type.Object({
       task: Type.String({ description: "Complete self-contained brief for the child" }),
       role: Type.Optional(
         Type.String({
@@ -366,7 +357,16 @@ export function registerSpawn(pi: ExtensionAPI): void {
       timeoutMs: Type.Optional(
         Type.Integer({ minimum: 1_000, maximum: MAX_TIMEOUT_MS }),
       ),
-    }),
+});
+
+function registerSpawnTool(pi: ExtensionAPI): void {
+  pi.registerTool({
+    name: "pstack_spawn",
+    label: "Pstack Spawn",
+    description: SPAWN_DESCRIPTION,
+    promptSnippet: "Spawn an isolated Pi child agent (pstack delegate)",
+    promptGuidelines: SPAWN_PROMPT_GUIDELINES,
+    parameters: SPAWN_PARAMETERS,
     async execute(_id, params, signal, onUpdate, ctx) {
       if (!ctx.model) throw new Error("pstack_spawn requires an active parent model");
       const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
@@ -379,7 +379,9 @@ export function registerSpawn(pi: ExtensionAPI): void {
       return handleForegroundSpawn(childInput, ctx, parentModel, role, model, readonlyApplied, signal, onUpdate);
     },
   });
+}
 
+function registerJobsTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_jobs",
     label: "Pstack Jobs",
@@ -410,4 +412,14 @@ export function registerSpawn(pi: ExtensionAPI): void {
       throw new Error("action must be list|status|await|abort|cancel");
     },
   });
+}
+
+export function registerSpawn(pi: ExtensionAPI): void {
+  pi.on("session_shutdown", () => {
+    // Abort in-flight children; finished job records are discarded with the process.
+    // Within a live session, jobs remain listable via pstack_jobs across follow-ups.
+    abortAllBackgroundJobs();
+  });
+  registerSpawnTool(pi);
+  registerJobsTool(pi);
 }
