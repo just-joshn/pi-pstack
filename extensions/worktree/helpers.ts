@@ -11,6 +11,9 @@ const execFileAsync = promisify(execFile);
 /** Soft cap on pstack-managed worktrees under .pstack-worktrees (create refuses past this). */
 export const MAX_PSTACK_WORKTREES = 12;
 
+/** A child session file touched within this window keeps its worktree out of cleanup. */
+const CHILD_ACTIVITY_WINDOW_MS = 30 * 60 * 1000;
+
 export class WorktreeSanitizeError extends Error {
   constructor(message: string) {
     super(message);
@@ -164,11 +167,46 @@ export interface CleanupResult {
   skipped: Array<{ name: string; reason: string }>;
 }
 
+function anyRecentFile(dir: string, cutoff: number): boolean {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  return entries.some((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return anyRecentFile(path, cutoff);
+    if (!entry.name.endsWith(".jsonl")) return false;
+    try {
+      return statSync(path).mtimeMs >= cutoff;
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * True when a pstack child session wrote to this worktree recently. An empty or
+ * merged worktree can still have a live child inside it, and removing that
+ * mid-run deletes the child's files and transcript.
+ */
+export function hasRecentChildActivity(wtPath: string, now: number = Date.now()): boolean {
+  return anyRecentFile(
+    join(wtPath, ".pi", "pstack-child-sessions"),
+    now - CHILD_ACTIVITY_WINDOW_MS,
+  );
+}
+
 async function isSafeToRemovePstackWorktree(
   repoCwd: string,
   wtPath: string,
   branchName: string,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (hasRecentChildActivity(wtPath)) {
+    return { ok: false, reason: "child session active in the last 30 minutes" };
+  }
+
   try {
     const status = await execFileAsync("git", ["-C", wtPath, "status", "--porcelain"], {
       cwd: repoCwd,
