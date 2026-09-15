@@ -17,10 +17,12 @@ const SESSION_WRITE_TOOLS = new Set([
 export interface ReadonlyState {
   readonly enabled: boolean;
   readonly toolsBefore: string[] | undefined;
+  /** Why the arm happened (e.g. "playbook:investigation" or "command"). */
+  readonly reason?: string;
 }
 
 export function createInitialReadonlyState(): ReadonlyState {
-  return { enabled: false, toolsBefore: undefined };
+  return { enabled: false, toolsBefore: undefined, reason: undefined };
 }
 
 export function computeReadonlyTools(
@@ -65,7 +67,7 @@ export function reduceSetEnabled(
   if (enabled) {
     const computed = computeReadonlyTools(ctx.allTools, ctx.activeTools, SESSION_WRITE_TOOLS);
     return {
-      state: { enabled: true, toolsBefore: computed.toolsBefore },
+      state: { enabled: true, toolsBefore: computed.toolsBefore, reason },
       effects: [
         baseEffect,
         { type: "setActiveTools", tools: computed.nextActive },
@@ -88,21 +90,25 @@ export function reduceSetEnabled(
     { type: "setStatus" as const, statusId: "pstack-ro", value: undefined },
     { type: "notify" as const, message: "Session readonly off.", level: "info" as const },
   ];
-  return { state: { enabled: false, toolsBefore: undefined }, effects: offEffects };
+  return { state: { enabled: false, toolsBefore: undefined, reason: undefined }, effects: offEffects };
 }
 
-function restoreFromEntries(entries: readonly unknown[]): { enabled: boolean } {
+function restoreFromEntries(entries: readonly unknown[]): { enabled: boolean; reason?: string } {
   let enabled = false;
+  let reason: string | undefined;
   for (const entry of entries) {
     const data = parseReadonlyEntry(entry);
     enabled = data.enabled;
+    reason = data.reason;
   }
-  return { enabled };
+  return { enabled, reason };
 }
 
 export interface ReadonlyRuntime {
   getState: () => ReadonlyState;
   setEnabled: (enabled: boolean, ctx: EffectContext, reason?: string) => void;
+  /** Release an arm that came from a playbook auto-arm (new task boundary). */
+  releasePlaybookArm: (ctx: EffectContext) => void;
 }
 
 interface ReadonlyStateRef {
@@ -146,7 +152,7 @@ function restoreReadonlyState(
       pi.getActiveTools(),
       SESSION_WRITE_TOOLS,
     );
-    stateRef.state = { enabled: true, toolsBefore: computed.toolsBefore };
+    stateRef.state = { enabled: true, toolsBefore: computed.toolsBefore, reason: restored.reason };
     ctx.ui.setStatus("pstack-ro", "readonly");
     pi.setActiveTools(computed.nextActive);
   }
@@ -250,6 +256,18 @@ function decideToolCall(state: ReadonlyState, event: ToolCallEvent): ToolCallDec
   };
 }
 
+function makeReleasePlaybookArm(
+  stateRef: ReadonlyStateRef,
+  setEnabled: ReadonlySetEnabled,
+): (ctx: EffectContext) => void {
+  return (ctx) => {
+    const state = stateRef.state;
+    if (state.enabled && state.reason?.startsWith("playbook:")) {
+      setEnabled(false, ctx);
+    }
+  };
+}
+
 function registerReadonlyHooks(pi: ExtensionAPI, stateRef: ReadonlyStateRef): void {
   pi.on("session_start", (_event, ctx) => {
     restoreReadonlyState(pi, ctx, stateRef);
@@ -293,5 +311,9 @@ export function createReadonlyRuntime(pi: ExtensionAPI): ReadonlyRuntime {
   const setEnabled = makeSetEnabled(pi, stateRef);
   registerReadonlyHooks(pi, stateRef);
   registerReadonlyCommands(pi, setEnabled);
-  return { getState: () => stateRef.state, setEnabled };
+  return {
+    getState: () => stateRef.state,
+    setEnabled,
+    releasePlaybookArm: makeReleasePlaybookArm(stateRef, setEnabled),
+  };
 }
