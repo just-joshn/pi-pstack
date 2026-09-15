@@ -51,6 +51,39 @@ await check("sticky injects matched playbook steps", async () => {
   assert.ok(ship && ship.id === "shipping");
 });
 
+await check("sticky restore reinjects playbook steps (not routing note only)", async () => {
+  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-poteto.ts")).href);
+  const pb = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-playbook.ts")).href);
+  assert.ok(typeof pb.buildPlaybookInjectFromId === "function");
+  const block = pb.buildPlaybookInjectFromId("babysit", { restored: true });
+  assert.ok(block && block.includes("Restored sticky playbook"));
+  assert.ok(block.includes("Open a todolist"));
+  assert.ok(block.length > 200, "expected full playbook body, not a short note");
+  const prompt = mod.buildPotetoStickyPrompt("BASE", {
+    userText: "",
+    restoredPlaybookId: "investigation",
+  });
+  assert.ok(prompt.includes("Restored sticky playbook") || prompt.includes("investigation"));
+  assert.ok(!prompt.includes("Previously matched") || prompt.includes("Open a todolist"));
+  assert.ok(prompt.includes("Open a todolist"), "restore path must reinject steps");
+  const fb = mod.buildPotetoStickyPrompt("BASE", {
+    userText: "hello casual",
+    restoredPlaybookId: null,
+    forceInvokeFallbackId: "babysit",
+  });
+  assert.ok(fb.includes("Force-invoke fallback") || fb.includes("babysit"));
+  assert.ok(fb.includes("Open a todolist"));
+});
+
+await check("force-invoke path is not silent empty-catch", async () => {
+  const src = readFileSync(resolve(ROOT, "extensions/index.ts"), "utf8");
+  assert.ok(src.includes("forceInvokeFallbackId"));
+  assert.ok(src.includes("Poteto force-invoke failed"));
+  assert.ok(src.includes("restoredPlaybookId"));
+  // Must not keep a bare empty catch around sendUserMessage force-invoke
+  assert.ok(!/sendUserMessage\([\s\S]*?\)\s*;\s*\}\s*catch\s*\{\s*\}/.test(src));
+});
+
 await check("sticky force skill message + persist helpers", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-session.ts")).href);
   assert.equal(mod.forcePotetoSkillMessage("fix flaky CI", "babysit"), "/skill:poteto-mode playbooks/babysit fix flaky CI");

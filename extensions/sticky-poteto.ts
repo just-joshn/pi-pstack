@@ -8,6 +8,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildPlaybookInjectBlock,
+  buildPlaybookInjectFromId,
   matchPlaybook,
   type PlaybookMatch,
 } from "./sticky-playbook.ts";
@@ -63,6 +64,10 @@ export interface StickyPromptOptions {
   match?: PlaybookMatch | null;
   /** Min matcher score (default 2). */
   minScore?: number;
+  /** Persisted playbook id from session restore — reinject full steps when no live match. */
+  restoredPlaybookId?: string | null;
+  /** Force-invoke failed: still route by injecting full playbook steps. */
+  forceInvokeFallbackId?: string | null;
 }
 
 /**
@@ -92,11 +97,26 @@ export function buildPotetoStickyPrompt(
   if (match) {
     parts.push("", buildPlaybookInjectBlock(match));
   } else {
-    parts.push(
-      "",
-      "## Sticky playbook routing",
-      "No high-confidence playbook match this turn. If the task clearly maps to a poteto playbook, open `skills/poteto-mode/playbooks/<id>.md` and copy steps into the todolist before acting.",
-    );
+    const fallbackId = opts?.forceInvokeFallbackId || opts?.restoredPlaybookId || undefined;
+    const restoredBlock = fallbackId
+      ? buildPlaybookInjectFromId(fallbackId, { restored: true, score: 0 })
+      : undefined;
+    if (restoredBlock) {
+      parts.push("", restoredBlock);
+      if (opts?.forceInvokeFallbackId) {
+        parts.push(
+          "",
+          "## Force-invoke fallback",
+          "sendUserMessage skill force-invoke failed or was unavailable; playbook steps above are the reliable routing path for this turn.",
+        );
+      }
+    } else {
+      parts.push(
+        "",
+        "## Sticky playbook routing",
+        "No high-confidence playbook match this turn. If the task clearly maps to a poteto playbook, open `skills/poteto-mode/playbooks/<id>.md` and copy steps into the todolist before acting.",
+      );
+    }
   }
 
   return parts.join("\n");

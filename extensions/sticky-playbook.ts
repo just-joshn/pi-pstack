@@ -273,6 +273,44 @@ export function listPlaybookIds(): string[] {
  * Build sticky injection block: skill body already provided; append matched playbook
  * steps and forced routing instruction.
  */
+/** Resolve a PlaybookMatch from a persisted playbook id (session restore). */
+export function playbookMatchFromId(id: string, score = 0): PlaybookMatch | undefined {
+  const rule = PLAYBOOK_RULES.find((r) => r.id === id);
+  if (!rule) {
+    const file = `${id}.md`;
+    const path = join(PLAYBOOKS_DIR, file);
+    if (!existsSync(path)) return undefined;
+    return { id, file, score, priority: 0 };
+  }
+  return { id: rule.id, file: rule.file, score, priority: rule.priority };
+}
+
+/** Inject block for a restored/forced playbook id (full steps, not a routing note). */
+export function buildPlaybookInjectFromId(
+  id: string,
+  opts?: { score?: number; restored?: boolean },
+): string | undefined {
+  const match = playbookMatchFromId(id, opts?.score ?? 0);
+  if (!match) return undefined;
+  const body = loadPlaybookBody(match.file);
+  const header = opts?.restored
+    ? `## Restored sticky playbook (steps reinjected)`
+    : `## Matched playbook (sticky routing — forced)`;
+  const why = opts?.restored
+    ? `Session restore / force-invoke fallback → **${match.id}** (\`playbooks/${match.file}\`).`
+    : `Matched **${match.id}** (score=${match.score}) → \`playbooks/${match.file}\`.`;
+  return [
+    header,
+    why,
+    `Open a todolist whose first items are this playbook's steps, copied in verbatim.`,
+    `Do not soft-ignore: this turn is poteto-mode + ${match.id}.`,
+    "",
+    body,
+    "",
+    `(End matched playbook ${match.id}.)`,
+  ].join("\n");
+}
+
 export function buildPlaybookInjectBlock(match: PlaybookMatch): string {
   const body = loadPlaybookBody(match.file);
   return [

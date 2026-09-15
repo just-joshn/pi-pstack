@@ -47,6 +47,8 @@ export default function piPstack(pi: ExtensionAPI) {
   let lastUserText = "";
   /** Persisted matched playbook id (restored on session_start). */
   let matchedPlaybookId: string | null = null;
+  /** When sendUserMessage force-invoke fails, inject full playbook steps instead of silent catch. */
+  let forceInvokeFallbackId: string | null = null;
   /** Tools active before readonly was applied (restored on off). */
   let toolsBeforeReadonly: string[] | undefined;
   /** Dedupe force-invoke within a turn. */
@@ -147,6 +149,7 @@ export default function piPstack(pi: ExtensionAPI) {
     sessionReadonly = false;
     lastUserText = "";
     matchedPlaybookId = null;
+    forceInvokeFallbackId = null;
     toolsBeforeReadonly = undefined;
     lastForcedSkillKey = "";
     for (const entry of ctx.sessionManager.getBranch()) {
@@ -192,11 +195,26 @@ export default function piPstack(pi: ExtensionAPI) {
         if (forceKey !== lastForcedSkillKey && !event.text.startsWith("/skill:poteto-mode")) {
           lastForcedSkillKey = forceKey;
           const msg = forcePotetoSkillMessage(event.text, matched.id);
-          // Deliver as follow-up so the turn routes through skill expand (Cursor sticky twin)
+          // Deliver as follow-up so the turn routes through skill expand (Cursor sticky twin).
+          // Never silent-catch: surface failure and arm inject fallback that still routes.
+          let forced = false;
           try {
             pi.sendUserMessage(msg, { deliverAs: "followUp", expandPromptTemplates: true });
-          } catch {
-            // Some hosts may reject followUp mid-input; inject path still covers sticky body
+            forced = true;
+            forceInvokeFallbackId = null;
+          } catch (err1) {
+            try {
+              pi.sendUserMessage(msg, { expandPromptTemplates: true });
+              forced = true;
+              forceInvokeFallbackId = null;
+            } catch (err2) {
+              forceInvokeFallbackId = matched.id;
+              const detail = err2 instanceof Error ? err2.message : String(err2 ?? err1);
+              ctx.ui.notify?.(
+                `Poteto force-invoke failed (${detail}); injecting playbook ${matched.id} steps as fallback.`,
+                "warning",
+              );
+            }
           }
         }
       }
@@ -218,17 +236,16 @@ export default function piPstack(pi: ExtensionAPI) {
   pi.on("before_agent_start", (event) => {
     let prompt = event.systemPrompt;
     if (potetoEnabled) {
+      const live = lastUserText ? matchStickyPlaybook(lastUserText) : undefined;
       prompt = buildPotetoStickyPrompt(prompt, {
         userText: lastUserText,
-        // Prefer live match; fall back to restored playbook id for routing note
-        match: undefined,
+        match: live ?? null,
+        // Reinject full playbook steps on restore (not a routing note only)
+        restoredPlaybookId: live ? null : matchedPlaybookId,
+        forceInvokeFallbackId,
       });
-      // If no live userText match but we restored a playbook, hint it
-      if (matchedPlaybookId && lastUserText && !matchStickyPlaybook(lastUserText)) {
-        prompt = `${prompt}\n\n## Restored sticky playbook\nPreviously matched **${matchedPlaybookId}** (session restore). Prefer that playbook unless the user clearly changed intent.`;
-      } else if (matchedPlaybookId && !lastUserText) {
-        prompt = `${prompt}\n\n## Restored sticky playbook\nSession restored with matched playbook **${matchedPlaybookId}**.`;
-      }
+      // Clear one-shot force-invoke fallback after it has been injected into the prompt
+      if (forceInvokeFallbackId) forceInvokeFallbackId = null;
     }
     if (sessionReadonly) {
       prompt = `${prompt}\n\n## pstack session readonly\nThis session is read-only. Do not write, edit, or run bash. Use read/grep/find/ls (and read-safe pstack_* tools). Spawn children with readonly:true or role investigator/comment-sicko. Deliver citations and recommendations only.`;
