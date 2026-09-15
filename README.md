@@ -50,13 +50,14 @@ The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported 
 One entry point runs seven layers plus the pre-existing suites:
 
 ```bash
-npm test                          # layers 1-6 + legacy; layer 7 is opt-in
+npm test                          # layers 0-6 + legacy; layer 7 is opt-in
 node tests/runner.mjs --layer 2   # one layer
 node tests/runner.mjs --list      # layers, files, requirements
 ```
 
 | Layer | Proves |
 |-------|--------|
+| 0 conformance | AGENTS.md rules over project-owned code (`extensions/`, `tests/`, `port/`): file and function size, nesting depth, no `console.log`, no in-place mutation, no empty catch, no secret patterns. The byte-pinned ported tree reports warn-only via `npm run conformance -- --all` |
 | 1 unit | pure extension functions with no Pi dependency |
 | 2 integration | extension registration, lifecycle events, tool interception, and session behavior through the public SDK + faux provider |
 | 3 smoke | the real `pi --no-extensions -e ./extensions/index.ts` load, with a broken-extension negative control |

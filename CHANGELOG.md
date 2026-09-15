@@ -3,10 +3,15 @@
 ## Unreleased
 
 ### Added
+- Layer 0 of `npm test` enforces the AGENTS.md style rules over project-owned code: `npm run conformance` fails on files over 800 lines, functions over 50 lines, control nesting deeper than four, `console.log`, in-place mutating calls (`.push`/`.sort`/`splice`/`++`/`delete`), empty catch blocks, and hardcoded secret patterns. The byte-pinned ported tree is reported warn-only (`npm run conformance -- --all`) because `port/port.mjs` owns those bytes. Rule implementation lives in `tests/support/conformance/` with its own unit tests.
 - Seven-layer test setup with a single runner: `npm test` runs pure unit tests, an in-process SDK + faux-provider integration harness, the real CLI load smoke test (with a broken-extension negative control), a tmux `/reload` dev-loop test, RPC UI tests, tmux TUI tests, and an opt-in `pi-test-harness` compatibility gate. Layer 7 is skipped by default and never touches the network. [`tests/README.md`](./tests/README.md) documents the matrix, flags, and exit codes.
 - Strict content parity is now machine-checked: the ported tree (`skills/`, `agents/`, `automations/`, `docs/`) is `apply(declared Cursor→Pi bindings, upstream pstack@v0.15.2)`. `npm run parity:check` fails on drift, an unmigrated Cursor mechanism, a missing override section, an unknown `pstack_*` tool, or a dead `scripts/...` path. See [`port/README.md`](./port/README.md).
 
 ### Changed
+- The extension composition root is split by feature: `extensions/poteto-state/` owns sticky state, `extensions/readonly-state/` owns session readonly and the tool policy, and `extensions/effects.ts` applies recorded effects. State records are immutable, transitions are pure functions, and `extensions/index.ts` is a 47-line composition root.
+- `port/bindings.mjs` is split into `port/bindings/` (`rules-a`, `rules-benny`, `overrides`, `leftovers`, `index`); the four exported tables are deep-equal to the original in order and content, and the port CLIs no longer mutate or use `console.log`.
+- Every remaining in-place mutation, `console.log`, empty catch, over-long function, and secret-pattern hit in `extensions/`, `tests/`, and `port/` is removed. `npm run conformance` reports zero violations.
+- `pstack_worktree` cleanup skips a worktree whose `.pi/pstack-child-sessions` has a `.jsonl` touched in the last 30 minutes, so a shutdown in the main repo can no longer delete a worktree while a child runs inside it.
 - Every ported file was regenerated from upstream through the binding table. Surplus Pi commentary, duplicated mechanics, and hand-rewritten prose are gone; 103 of 153 upstream files are byte-identical, 48 are binding-only, and 2 are declared whole-mechanism overrides (`make-bot-ui`, `setup-pstack`) whose `must` list pins named upstream sections and whose leftover scan rejects Cursor mechanisms.
 - Fixed bindings the previous hand port missed: `reflect/references/synthesizer.md` `create-skill` rows, `reflect` `Task` response wording, and the `worktree-audit.sh` transcript path.
 
