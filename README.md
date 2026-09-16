@@ -67,7 +67,7 @@ npm run parity:check   # ported tree == upstream + declared bindings; tools/scri
 npm run parity:sync    # regenerate the ported tree after an upstream bump
 npm run test:differential  # execute the pinned reference and the ported twin on identical fixtures
 npm run test:acceptance    # drive the representative workflows through the real handlers
-npm run test:coverage      # merged coverage over extensions/ and services/; fails under 80 percent branch or function
+npm run test:coverage      # per-tier and full-run branch floors; see tests/README.md
 ```
 
 The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported file: a legitimate platform difference belongs in `port/bindings/`, and everything else belongs upstream.

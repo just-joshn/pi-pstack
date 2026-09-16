@@ -62,8 +62,29 @@ npm run test:hosted
 npm run test:acceptance
 npm run test:extensions
 npm run test:scripts
-npm run test:coverage      # vitest run --coverage (v8, 80% branch and function thresholds)
+npm run test:coverage:unit         # unit floor over extensions/**
+npm run test:coverage:integration  # integration floor over the extension entry points
+npm run test:coverage:e2e          # e2e floor over services/**
+npm run test:coverage:all          # full run: aggregate and per-file floors
+npm run test:coverage              # all four floors in sequence
 ```
+
+## Coverage floors
+
+`npm run test:coverage` enforces four floors, each scoped to the code its tier owns.
+
+| Gate | Scope | Floor |
+| ---- | ----- | ----- |
+| unit | `extensions/**` | 80% branches |
+| integration | `extensions/index.ts`, `extensions/*/index.ts`, `extensions/commands/skill-commands.ts` | 80% branches |
+| e2e | `services/**` | 80% branches |
+| full run | `extensions/**` and `services/**` | aggregate 80% branches and functions, plus 80% branches and functions per file |
+
+Every project imports `extensions/index.ts`, so an unscoped per-tier run scores each tier against the whole tree. Under that denominator the integration and e2e tiers would have to reproduce the unit suite's branch matrix, including internal error paths their surfaces cannot reach, so each tier is scoped to the code it owns instead. The unit and integration scopes overlap on the extension entry points on purpose. That code is verified at two levels, first as a unit and then through the extension boundary. The integration floor measures those entry-point files, not every file an integration test touches.
+
+The smoke, reload, rpc, and tui projects run `pi` in a child process, and Vitest's v8 provider instruments only the worker process, so those projects contribute no in-process coverage. They stay in the e2e tier run and remain functional gates.
+
+One measurement caveat. A test that loads an extension through `withSession` exercises it through Pi's own TypeScript loader, while a test that imports the same file directly exercises Vitest's transform. Both copies map to one source path, and the merged V8 branch counts can under-report when both run in the same tier. The clearest case is `extensions/companions/index.ts`, which reads 81.13% in a single-file run and 46.22% in the merged integration tier. The floors are set below the merged readings, so the artifact lowers the number rather than hiding a gap. Treat a per-file jump or drop that only appears in the merged run as this artifact before chasing it as a regression.
 
 Or call Vitest directly. `--project` accepts a name, a glob, or a `!name` exclusion.
 
