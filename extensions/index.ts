@@ -3,6 +3,7 @@
  * No Cursor SDKs. No pi-subagents / tintinweb deps.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { registerAgents } from "./agents/index.ts";
 import { registerDecisionLog } from "./decision-log/index.ts";
 import { registerGates } from "./gates/index.ts";
 import { registerModels } from "./models/index.ts";
@@ -10,6 +11,7 @@ import { registerOrchestration } from "./orchestration/index.ts";
 import { registerSpawn } from "./subagents/index.ts";
 import { registerWorktree } from "./worktree/index.ts";
 import { registerHeartbeat } from "./heartbeat/index.ts";
+import { registerLoopController } from "./loop/controller.ts";
 import { registerCompanions } from "./companions/index.ts";
 import { registerSessions } from "./sessions/index.ts";
 import { registerShipping } from "./shipping/index.ts";
@@ -32,12 +34,14 @@ export default function piPstack(pi: ExtensionAPI) {
   registerSkillCommands(pi);
   registerPiOnlyCommands(pi);
   registerSpawn(pi);
+  registerAgents(pi);
   registerOrchestration(pi);
   registerModels(pi);
   registerDecisionLog(pi);
   registerGates(pi);
   registerWorktree(pi);
   registerHeartbeat(pi);
+  registerLoopController(pi);
   registerCompanions(pi);
   registerSessions(pi);
   registerShipping(pi);

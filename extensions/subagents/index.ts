@@ -41,50 +41,68 @@ import { normalizeModelSelector, resolveRoleModel } from "../models/config.ts";
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const POTETO_SKILL = resolve(PACKAGE_ROOT, "skills", "poteto-mode", "SKILL.md");
 
-function prepareChildInputFromParams(
-  params: {
-    task: string;
-    model?: string;
-    cwd?: string;
-    role?: string;
-    poteto?: boolean;
-    tools?: string[];
-    timeoutMs?: number;
-    persistOutput?: boolean;
-    background?: boolean;
-    sessionMode?: string;
-    resumeSessionDir?: string;
-    resumeJobId?: string;
-  },
-  ctx: { model: { provider: string; id: string }; cwd: string },
-  pi: ExtensionAPI,
-): {
+/** Inputs shared by pstack_spawn and pstack_task; the task tool adds policy on top. */
+export interface SpawnParams {
+  task: string;
+  model?: string;
+  /** Config role for model resolution. pstack_task splits this from the behavior role. */
+  modelRole?: string;
+  cwd?: string;
+  role?: string;
+  poteto?: boolean;
+  tools?: string[];
+  readonly?: boolean;
+  inheritParentTools?: boolean;
+  timeoutMs?: number;
+  persistOutput?: boolean;
+  background?: boolean;
+  sessionMode?: string;
+  resumeSessionDir?: string;
+  resumeJobId?: string;
+}
+
+export interface PreparedChild {
   childInput: ChildTaskInput;
   model: string;
   role: string;
   readonlyApplied: boolean;
   background: boolean;
-} {
-  const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
-  const role = params.role ?? "general";
-  const rawModel =
-    params.model ??
-    resolveRoleModel(role, parentModel, 0, ctx.cwd) ??
-    parentModel;
+}
+
+function resolveChildModel(params: SpawnParams, role: string, parentModel: string, cwd: string): string {
+  const modelRole = params.modelRole ?? role;
+  const rawModel = params.model ?? resolveRoleModel(modelRole, parentModel, 0, cwd) ?? parentModel;
   const modelNorm = params.model
     ? normalizeModelSelector(rawModel, parentModel, { allowFallbackToParent: false })
     : normalizeModelSelector(rawModel, parentModel);
-  if (!modelNorm.ok) {
-    throw new Error(modelNorm.error);
-  }
-  const model = modelNorm.model;
+  if (!modelNorm.ok) throw new Error(modelNorm.error);
+  return modelNorm.model;
+}
+
+function resolveChildToolList(params: SpawnParams, role: string, pi: ExtensionAPI): string[] | undefined {
   let parentTools: string[] | undefined;
   try {
     parentTools = pi.getActiveTools?.() ?? undefined;
   } catch {
     parentTools = undefined;
   }
-  const tools = resolveTools(role, params, parentTools);
+  return resolveTools(role, params, parentTools);
+}
+
+/**
+ * Shared prepare step for pstack_spawn and pstack_task. Refactored from
+ * prepareChildInputFromParams so both tools call one implementation; observable
+ * pstack_spawn behavior (model resolution, tools, session, background) is unchanged.
+ */
+export function prepareChildInput(
+  params: SpawnParams,
+  ctx: { model: { provider: string; id: string }; cwd: string },
+  pi: ExtensionAPI,
+): PreparedChild {
+  const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
+  const role = params.role ?? "general";
+  const model = resolveChildModel(params, role, parentModel, ctx.cwd);
+  const tools = resolveChildToolList(params, role, pi);
   const poteto = params.poteto === true || role === "poteto-agent";
   const readonlyApplied = Boolean(tools && tools.every((t) => (READONLY_TOOLS as readonly string[]).includes(t)));
   const sessionMode =
@@ -122,12 +140,12 @@ function prepareChildInputFromParams(
   return { childInput, model, role, readonlyApplied, background };
 }
 
-function formatBackgroundJobResult(done: BackgroundJob, role: string): string {
+function formatBackgroundJobResult(done: BackgroundJob, role: string, label: string): string {
   const sessDir = done.result?.sessionDir ?? done.sessionDir;
   const sess = sessDir ? `, sessionDir=${sessDir}` : "";
   return done.result != null
-    ? `### pstack_spawn background complete (${done.id}, ${done.result.role ?? role}, ${done.result.model}, exit ${done.result.exitCode}, status=${done.status}${done.result.outputPath ? `, full=${done.result.outputPath}` : ""}${sess})\n\n${done.result.output}`
-    : `### pstack_spawn background ${done.status} (${done.id}${sess}): ${done.error ?? "(no result)"}`;
+    ? `### ${label} background complete (${done.id}, ${done.result.role ?? role}, ${done.result.model}, exit ${done.result.exitCode}, status=${done.status}${done.result.outputPath ? `, full=${done.result.outputPath}` : ""}${sess})\n\n${done.result.output}`
+    : `### ${label} background ${done.status} (${done.id}${sess}): ${done.error ?? "(no result)"}`;
 }
 
 function handleListAction() {
@@ -209,8 +227,9 @@ function handleBackgroundSpawn(
   role: string,
   model: string,
   readonlyApplied: boolean,
-  onUpdate: ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void) | undefined,
+  onUpdate: SpawnOnUpdate,
   pi: ExtensionAPI,
+  label = "pstack_spawn",
 ) {
   onUpdate?.({
     content: [
@@ -222,7 +241,7 @@ function handleBackgroundSpawn(
     details: {},
   });
   const job = enqueueBackgroundChild(childInput, ctx.cwd, parentModel, (done) => {
-    pi.sendUserMessage(formatBackgroundJobResult(done, role), { deliverAs: "followUp" });
+    pi.sendUserMessage(formatBackgroundJobResult(done, role, label), { deliverAs: "followUp" });
   });
   const stats = childConcurrencyStats();
   const sessionDirNote = job.sessionDir ? ` sessionDir=${job.sessionDir}` : "";
@@ -252,7 +271,8 @@ async function handleForegroundSpawn(
   model: string,
   readonlyApplied: boolean,
   signal: AbortSignal | undefined,
-  onUpdate: ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void) | undefined,
+  onUpdate: SpawnOnUpdate,
+  label = "pstack_spawn",
 ) {
   onUpdate?.({
     content: [
@@ -276,11 +296,62 @@ async function handleForegroundSpawn(
     content: [
       {
         type: "text",
-        text: `### pstack_spawn (${result.role ?? role}, ${result.model}, exit ${result.exitCode}${result.outputPath ? `, full=${result.outputPath}` : ""}${sessionDirNote})\n\n${result.output}`,
+        text: `### ${label} (${result.role ?? role}, ${result.model}, exit ${result.exitCode}${result.outputPath ? `, full=${result.outputPath}` : ""}${sessionDirNote})\n\n${result.output}`,
       },
     ],
     details: { result, readonly: readonlyApplied, sessionDir: result.sessionDir },
   };
+}
+
+/** Structured reply shared by the spawn and task tools. */
+export interface ChildToolReply {
+  content: Array<{ type: string; text: string }>;
+  details: Record<string, unknown>;
+}
+
+export type SpawnOnUpdate =
+  | ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void)
+  | undefined;
+
+export interface PreparedChildRun {
+  prepared: PreparedChild;
+  ctx: { cwd: string };
+  parentModel: string;
+  /** Reply header label; pstack_spawn keeps its default so its output is unchanged. */
+  label?: string;
+  signal?: AbortSignal;
+  onUpdate?: SpawnOnUpdate;
+  pi: ExtensionAPI;
+}
+
+/** Run one prepared child as either a detached job or an inline synchronous call. */
+export async function runPreparedChild(run: PreparedChildRun): Promise<ChildToolReply> {
+  const { childInput, model, role, readonlyApplied, background } = run.prepared;
+  const label = run.label ?? "pstack_spawn";
+  if (background) {
+    return handleBackgroundSpawn(
+      childInput,
+      run.ctx,
+      run.parentModel,
+      role,
+      model,
+      readonlyApplied,
+      run.onUpdate,
+      run.pi,
+      label,
+    );
+  }
+  return handleForegroundSpawn(
+    childInput,
+    run.ctx,
+    run.parentModel,
+    role,
+    model,
+    readonlyApplied,
+    run.signal,
+    run.onUpdate,
+    label,
+  );
 }
 
 const SPAWN_DESCRIPTION =
@@ -371,13 +442,8 @@ function registerSpawnTool(pi: ExtensionAPI): void {
     async execute(_id, params, signal, onUpdate, ctx) {
       if (!ctx.model) throw new Error("pstack_spawn requires an active parent model");
       const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
-      const { childInput, model, role, readonlyApplied, background } = prepareChildInputFromParams(params, ctx, pi);
-
-      if (background) {
-        return handleBackgroundSpawn(childInput, ctx, parentModel, role, model, readonlyApplied, onUpdate, pi);
-      }
-
-      return handleForegroundSpawn(childInput, ctx, parentModel, role, model, readonlyApplied, signal, onUpdate);
+      const prepared = prepareChildInput(params, ctx, pi);
+      return runPreparedChild({ prepared, ctx, parentModel, signal, onUpdate, pi });
     },
   });
 }

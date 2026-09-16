@@ -8,9 +8,14 @@
  */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Message } from "@earendil-works/pi-ai";
+import { READONLY_TOOLS, type PstackTaskPolicy } from "../agents/policy.ts";
+import { resolveChildSessionDir } from "./session-dir.ts";
+
+export { READONLY_TOOLS };
+export { resolveChildSessionDir } from "./session-dir.ts";
 
 export const MAX_TASKS = 8;
 
@@ -35,9 +40,7 @@ export const MAX_OUTPUT_BYTES = parsePositiveInt(
 export const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 export const MAX_TIMEOUT_MS = 30 * 60 * 1000;
 
-/** Pi builtins that cannot mutate the tree (no bash / write / edit). */
-export const READONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
-
+/** Pi builtins that cannot mutate the tree (no bash / write / edit). Owned by policy.ts. */
 export interface ChildTaskInput {
   task: string;
   model?: string;
@@ -69,6 +72,10 @@ export interface ChildTaskInput {
    * Uses `--session-dir` without `--continue` (fresh create). Not a resume signal.
    */
   sessionDir?: string;
+  /** Compiled multidimensional policy; forwarded to the child as PSTACK_CHILD_POLICY. */
+  policy?: PstackTaskPolicy;
+  /** Explicit Pi thinking level; forwarded as `--thinking <level>`. */
+  thinkingLevel?: string;
 }
 
 export interface ChildTaskResult {
@@ -126,89 +133,6 @@ function finalText(messages: Message[]): string {
   return "";
 }
 
-function resolveSessionMode(input: ChildTaskInput): "ephemeral" | "isolated" {
-  if (input.sessionMode === "ephemeral" || input.sessionMode === "isolated") return input.sessionMode;
-  const env = process.env.PSTACK_CHILD_SESSION;
-  if (env === "isolated" || env === "ephemeral") return env;
-  // Prefer isolated: preserves tools/MCP discovery via normal Pi package load
-  // (no --no-extensions) + dedicated --session-dir. Pi CLI cannot inherit parent
-  // MCP bindings or conversation history into children.
-  return "isolated";
-}
-
-/**
- * Resolve child session dir for isolated/resume paths.
- * Resume fails closed if path missing; resume+ephemeral is rejected.
- * Mint creates under cwd/.pi/pstack-child-sessions when not resuming.
- * `continueSession` is true only for true resume (resumeSessionDir) — argv must add -c/--continue.
- */
-export function resolveChildSessionDir(
-  input: ChildTaskInput,
-  cwd: string,
-): { sessionMode: "ephemeral" | "isolated"; sessionDir?: string; continueSession: boolean } {
-  const sessionMode = resolveSessionMode(input);
-  if (input.resumeSessionDir) {
-    if (sessionMode === "ephemeral") {
-      throw new Error(
-        "resumeSessionDir conflicts with sessionMode=ephemeral; omit ephemeral to resume, or spawn fresh without resume",
-      );
-    }
-    const sessionDir = isAbsolute(input.resumeSessionDir)
-      ? input.resumeSessionDir
-      : resolve(cwd, input.resumeSessionDir);
-    if (!existsSync(sessionDir)) {
-      throw new Error(`resumeSessionDir missing or unreadable: ${sessionDir}`);
-    }
-    try {
-      if (!statSync(sessionDir).isDirectory()) {
-        throw new Error(`resumeSessionDir is not a directory: ${sessionDir}`);
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message.startsWith("resumeSessionDir")) throw err;
-      throw new Error(`resumeSessionDir missing or unreadable: ${sessionDir}`);
-    }
-    return { sessionMode: "isolated", sessionDir, continueSession: true };
-  }
-  if (sessionMode === "ephemeral") return { sessionMode, continueSession: false };
-  // Pre-resolved mint (enqueue): reuse dir without continue semantics.
-  if (input.sessionDir) {
-    const sessionDir = isAbsolute(input.sessionDir) ? input.sessionDir : resolve(cwd, input.sessionDir);
-    return { sessionMode, sessionDir, continueSession: false };
-  }
-  const sessionDir = mintChildSessionDir(join(cwd, ".pi", "pstack-child-sessions"));
-  return { sessionMode, sessionDir, continueSession: false };
-}
-
-/**
- * Mint a fresh, collision-free directory under `parentDir`. Date.now() alone
- * has millisecond resolution, so two spawns in one tick (a common case: a
- * parallel pstack_spawn batch mints all children synchronously before any
- * await) would otherwise share one directory. That breaks resume: Pi's
- * continueRecent picks the newest session file in --session-dir, so a shared
- * directory can attach the wrong child's transcript. A random suffix alone
- * only makes collision astronomically unlikely; mkdirSync without `recursive`
- * turns "unlikely" into "detected and retried", including across two Pi
- * processes racing on the same repo's .pi/pstack-child-sessions.
- */
-function mintChildSessionDir(parentDir: string): string {
-  mkdirSync(parentDir, { recursive: true });
-  let attempt = 0;
-  while (attempt < 20) {
-    const dir = join(parentDir, `c-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`);
-    try {
-      mkdirSync(dir);
-      return dir;
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "EEXIST") {
-        attempt = attempt + 1;
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error(`failed to mint a unique child session dir under ${parentDir} after 20 attempts`);
-}
-
 /**
  * Build pi child argv. Resume MUST include --continue|-c with --session-dir.
  * Fresh isolated: --session-dir only (create OK). Never -r/--resume for -p children.
@@ -221,6 +145,7 @@ export function buildChildPiArgs(opts: {
   inheritNote: string;
   skillPath?: string;
   tools?: string[];
+  thinkingLevel?: string;
   prompt: string;
 }): string[] {
   const base = ["--mode", "json", "-p", "--model", opts.selectedModel];
@@ -238,7 +163,8 @@ export function buildChildPiArgs(opts: {
   const systemPromptArgs = ["--append-system-prompt", opts.inheritNote];
   const skillArgs = opts.skillPath ? ["--skill", opts.skillPath] : [];
   const toolsArgs = opts.tools?.length ? ["--tools", opts.tools.join(",")] : [];
-  return [...base, ...sessionArgs, ...systemPromptArgs, ...skillArgs, ...toolsArgs, opts.prompt];
+  const thinkingArgs = opts.thinkingLevel ? ["--thinking", opts.thinkingLevel] : [];
+  return [...base, ...sessionArgs, ...systemPromptArgs, ...skillArgs, ...toolsArgs, ...thinkingArgs, opts.prompt];
 }
 
 /** True if argv has continue semantics (not dir-only / not interactive -r). */
@@ -385,7 +311,13 @@ function buildChildPrompt(input: ChildTaskInput): string {
   return input.task;
 }
 
-function spawnChildProcess(args: string[], cwd: string, parentModel: string, role: string | undefined): ChildProcessWithoutNullStreams {
+function spawnChildProcess(
+  args: string[],
+  cwd: string,
+  parentModel: string,
+  role: string | undefined,
+  policy: PstackTaskPolicy | undefined,
+): ChildProcessWithoutNullStreams {
   const invocation = piInvocation(args);
   return spawn(invocation.command, invocation.args, {
     cwd,
@@ -395,6 +327,7 @@ function spawnChildProcess(args: string[], cwd: string, parentModel: string, rol
       ...process.env,
       PSTACK_PARENT_MODEL: parentModel,
       PSTACK_CHILD_ROLE: role ?? "general",
+      ...(policy ? { PSTACK_CHILD_POLICY: JSON.stringify(policy) } : {}),
     },
   });
 }
@@ -535,9 +468,10 @@ async function runChildTaskUnlocked(
     inheritNote,
     skillPath: input.skillPath,
     tools: input.tools,
+    thinkingLevel: input.thinkingLevel,
     prompt: buildChildPrompt(input),
   });
-  const child = spawnChildProcess(args, cwd, parentModel, input.role);
+  const child = spawnChildProcess(args, cwd, parentModel, input.role, input.policy);
   const finishStream = consumeChildStream(child);
   const disposeLifecycle = armChildLifecycle(child, input.timeoutMs ?? DEFAULT_TIMEOUT_MS, signal);
   const exitCode = await new Promise<number>((complete) => {

@@ -397,11 +397,56 @@ function registerLoopTool(run: HeartbeatRun): void {
   });
 }
 
+interface ProgrammaticLoopParams {
+  id: string;
+  prompt: string;
+  mode?: string;
+  intervalSeconds?: number;
+  maxFires?: number;
+  watchArgv?: string[];
+}
+
+let activeRun: HeartbeatRun | undefined;
+
 export function registerHeartbeat(pi: ExtensionAPI): void {
   const run: HeartbeatRun = { pi, loops: new Map(), seq: 0 };
+  activeRun = run;
   registerLoopLifecycle(run);
   registerLoopCommand(run);
   registerLoopTool(run);
+}
+
+/**
+ * Arm a loop from extension code through the same validate/start path as the
+ * pstack_loop tool, so the heartbeat runtime stays the only timer owner.
+ */
+export function armProgrammaticLoop(params: ProgrammaticLoopParams): string {
+  const run = activeRun;
+  if (!run) {
+    throw new Error(
+      "armProgrammaticLoop requires a registered heartbeat runtime; call registerHeartbeat first",
+    );
+  }
+  const state = validateAndInitLoopState(run, {
+    action: "arm",
+    id: params.id,
+    mode: params.mode,
+    prompt: params.prompt,
+    intervalSeconds: params.intervalSeconds,
+    maxFires: params.maxFires,
+    watchArgv: params.watchArgv,
+  });
+  startLoopByMode(run, state);
+  return state.id;
+}
+
+export function stopProgrammaticLoop(id: string): boolean {
+  const run = activeRun;
+  if (!run) return false;
+  const state = run.loops.get(id);
+  if (!state) return false;
+  clearLoop(run.loops, state);
+  return true;
 }
 
 /** Test-only: exported coalesce constant for scripted checks. */

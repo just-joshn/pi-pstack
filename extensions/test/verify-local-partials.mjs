@@ -153,11 +153,12 @@ await check("child-runner concurrency default>=8 + persist + session isolated", 
     rmSync(dir, { recursive: true, force: true });
   }
   const src = readFileSync(resolve(ROOT, "extensions/subagents/child-runner.ts"), "utf8");
+  const sessionSrc = readFileSync(resolve(ROOT, "extensions/subagents/session-dir.ts"), "utf8");
   assert.ok(src.includes("PSTACK_MAX_CONCURRENCY"));
-  assert.ok(src.includes("sessionMode") || src.includes("PSTACK_CHILD_SESSION"));
+  assert.ok(src.includes("sessionMode") || sessionSrc.includes("PSTACK_CHILD_SESSION"));
   assert.ok(src.includes("--append-system-prompt"));
   assert.ok(src.includes("--session-dir"));
-  assert.ok(src.includes("return \"isolated\"") || src.includes('return "isolated"'));
+  assert.ok(sessionSrc.includes('return "isolated"'));
   assert.equal(mod.shouldPersistOutput({ task: "x", timeoutMs: 10 * 60 * 1000 }), true);
   assert.equal(mod.shouldPersistOutput({ task: "x", persistOutput: false, timeoutMs: 10 * 60 * 1000 }), false);
 });

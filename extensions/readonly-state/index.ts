@@ -206,10 +206,24 @@ function spawnPolicy(input: unknown): ReadonlyPolicyDecision {
   return { action: ok ? "allow" : "coerceReadonly" };
 }
 
-function loopPolicy(input: unknown): ReadonlyPolicyDecision {
-  const action = actionOf(input);
-  if (action === "status" || action === "list" || action === "stop") return { action: "allow" };
-  return { action: "block", reason: "pstack session readonly: blocked pstack_loop arm (subprocess watcher)." };
+/** pstack_task carries a policy; force the read-only axes rather than rewriting the policy here. */
+function taskPolicy(input: unknown): ReadonlyPolicyDecision {
+  const value = input as { readonly?: boolean; subagent_type?: string };
+  const role = value.subagent_type ?? "general";
+  const ok = value.readonly === true || role === "investigator" || role === "comment-sicko";
+  return { action: ok ? "allow" : "coerceReadonly" };
+}
+
+/** Loop-style tools arm a watcher subprocess and a run record; only inspection is read-safe. */
+function loopLikePolicy(toolName: string): ReadonlyToolPolicy {
+  return (input: unknown) => {
+    const action = actionOf(input);
+    if (action === "status" || action === "list" || action === "stop") return { action: "allow" };
+    return {
+      action: "block",
+      reason: `pstack session readonly: blocked ${toolName} arm (subprocess watcher).`,
+    };
+  };
 }
 
 function bennyWakePolicy(input: unknown): ReadonlyPolicyDecision {
@@ -232,9 +246,11 @@ export const READONLY_TOOL_POLICIES: Record<string, ReadonlyToolPolicy> = {
   pstack_babysit: blockPolicy("pstack session readonly: blocked pstack_babysit."),
   pstack_deslop: deslopPolicy,
   pstack_spawn: spawnPolicy,
+  pstack_task: taskPolicy,
+  pstack_loop: loopLikePolicy("pstack_loop"),
+  pstack_run: loopLikePolicy("pstack_run"),
   pstack_swarm: blockPolicy("pstack session readonly: blocked pstack_swarm."),
   pstack_arena: blockPolicy("pstack session readonly: blocked pstack_arena."),
-  pstack_loop: loopPolicy,
   pstack_decision_log: blockPolicy("pstack session readonly: blocked pstack_decision_log."),
   pstack_benny_wake: bennyWakePolicy,
   pstack_control_cli: blockPolicy("pstack session readonly: blocked pstack_control_cli."),
