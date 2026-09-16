@@ -5,3 +5,4 @@ node_modules/
 !.pi/decisions.tsv
 .port-upstream/
 .pstack-worktrees/
+coverage-*/
