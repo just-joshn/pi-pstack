@@ -39,16 +39,13 @@ journeys. A failed journey fails limb B but not limb A; a journey that never ran
 The one-line report is stable and machine-checkable:
 
 ```
-user-journeys: journeys=1/1 behavior=1/92 (1.1%) threshold=80% limbA=FAIL limbB=PASS verdict=PASS
-uncovered: command:/architect, tool:pstack_ship#merge
+user-journeys: journeys=16/16 behavior=92/92 (100.0%) threshold=80% limbA=PASS limbB=PASS verdict=PASS
 ```
 
 ## The bench
 
 `createJourneyBench({ entry })` builds the inventory once from a probe host, then runs each journey
-against a fresh host. `installHarnessHome()` must run before the extension entry is imported,
-because `extensions/benny/index.ts` resolves its wake path from `homedir()` at import time; the
-bench wipes and recreates that directory per journey.
+against a fresh host with its own temp HOME and cwd.
 
 `bench.runJourney(journey)` makes a fresh temp root, emits `session_start`, asserts the fresh host
 registered the same tools and commands as the probe host (duplicate registration throws), builds
@@ -88,12 +85,13 @@ the default fake only creates the worktree directory.
 
 ## Adding a journey
 
-1. Pick the workstream file in `journeys/` (`routing` J2-J5, `orchestrate` J6-J8, `tooling` J9-J13,
+1. Pick the workstream file in `journeys/` (`routing` J2-J5, `orchestrate` J6-J9, `tooling` J10-J13,
    `knowledge` J14-J16) and append to its `JOURNEYS` array.
 2. Write `{ id, title, critical: true, surfaces, run }`. `id` is kebab-case and unique; `title` is
    a user-voice sentence; `surfaces` are slugs from `spec/surfaces.tsv`.
-3. Use only the facade. Assert user-visible outcomes with `node:assert/strict`.
-4. Record at least one unit. Exercise at least one behavior per assertion where it is cheap.
+3. Use only the facade. Assert user-visible outcomes with `node:assert/strict` against literal
+   expected values.
+4. Record at least one unit so the coverage contract sees the journey exercised the surface.
 5. Keep `run` under 50 lines by extracting private step helpers in the same file; conformance
    counts every function.
 6. Verify with a name-pattern run plus `npm run conformance`. The full suite and the coverage

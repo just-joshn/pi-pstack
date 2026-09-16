@@ -4,20 +4,16 @@
  * One node:test per journey, then a coverage-contract test over the whole run. The contract passes
  * when all critical journeys passed or at least 80% of the runtime behavior inventory was observed,
  * and every anti-vacuum guard holds. The machine-checked line is printed to stdout.
- *
- * The peer-deps preload comes first so `npm run test:journeys` resolves the Pi peers without the
- * runner's symlink bootstrap. `installHarnessHome()` runs before the extension import because
- * `extensions/benny/index.ts` resolves its wake path from `homedir()` at import time.
  */
-import "../../../extensions/test/peer-deps.mjs";
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createJourneyBench, installHarnessHome } from "../../user-journeys/harness.mjs";
+import { createJourneyBench } from "../../user-journeys/harness.mjs";
 import { formatCoverage, summarizeCoverage } from "../../user-journeys/coverage.mjs";
 import { JOURNEYS } from "../../user-journeys/registry.mjs";
+import piPstack from "../../../extensions/index.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -26,8 +22,6 @@ function ledgerSurfaces() {
   return new Set(rows.map((row) => row.split("\t")[0]));
 }
 
-installHarnessHome();
-const piPstack = (await import("../../../extensions/index.ts")).default;
 const bench = await createJourneyBench({ entry: piPstack });
 
 for (const journey of JOURNEYS) {

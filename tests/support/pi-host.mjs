@@ -1,14 +1,10 @@
 /**
  * Shared fake Pi host.
  *
- * Extracted from tests/acceptance/run.mjs so the acceptance run and the user-journey suite drive
- * the real extension entry through the same facade: real command handlers, real event handlers,
- * real tools. Child agents are stubbed at the process.argv[1] seam, and forge/worktree calls go
- * through tests/support/fake-forge.mjs.
- *
  * `createHost(cwd, { entry, exec, confirm })` calls `entry(host.pi)`, which registers the
- * extension under test, then returns the recording facade. Nothing here touches the network or a
- * real Pi session.
+ * extension under test, then returns the recording facade. Child agents are stubbed at the
+ * process.argv[1] seam, and forge/worktree calls go through tests/support/fake-forge.mjs. Nothing
+ * here touches the network or a real Pi session.
  */
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -249,6 +245,25 @@ export function createHost(cwd, options = {}) {
   const state = makeHostState(cwd, options);
   if (typeof options.entry === "function") options.entry(state.pi);
   return { pi: state.pi, ...makeHostApi(state) };
+}
+
+export function processExec(command, args, opts = {}) {
+  try {
+    const stdout = execFileSync(command, args, {
+      encoding: "utf8",
+      cwd: opts.cwd,
+      timeout: opts.timeout,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return { code: 0, stdout, stderr: "", killed: false };
+  } catch (error) {
+    return {
+      code: typeof error.status === "number" ? error.status : 1,
+      stdout: String(error.stdout ?? ""),
+      stderr: String(error.stderr ?? ""),
+      killed: false,
+    };
+  }
 }
 
 export function writeStubChild(root, source = STUB_CHILD_SOURCE) {

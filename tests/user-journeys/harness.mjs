@@ -5,13 +5,8 @@
  * each journey against a fresh fake host: fresh temp root for cwd and PATH stubs, a wiped HOME,
  * `session_start` already emitted, and the user facade as the only invocation surface.
  *
- * HOME is process-level because `extensions/benny/index.ts` resolves its wake path from
- * `homedir()` at import time. `installHarnessHome()` must therefore run before the extension is
- * imported; the bench wipes and recreates that directory for every journey so no journey inherits
- * another's files.
- *
- * Teardown always runs: `session_shutdown` (clears loops and background jobs), env and argv
- * restores, and temp-root removal. A failed journey still contributes whatever it observed.
+ * Teardown always runs: `session_shutdown`, env and argv restores, and temp-root removal. A failed
+ * journey still contributes whatever it observed.
  */
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -34,7 +29,7 @@ import { buildInventory } from "./inventory.mjs";
 const HARNESS_HOME_PREFIX = "pstack-journeys-home-";
 const harnessHomeState = { home: undefined, savedHome: undefined };
 
-export function installHarnessHome(prefix = HARNESS_HOME_PREFIX) {
+function installHarnessHome(prefix = HARNESS_HOME_PREFIX) {
   if (harnessHomeState.home !== undefined) return harnessHomeState.home;
   const home = mkdtempSync(join(tmpdir(), prefix));
   harnessHomeState.savedHome = process.env.HOME;
@@ -239,8 +234,6 @@ async function shutdownHost(host) {
   } catch (error) {
     process.stderr.write(`user-journeys: session_shutdown failed: ${messageOf(error)}\n`);
   }
-  // session_shutdown aborts in-flight children but keeps finished job rows; clear the registry so
-  // the next journey starts from an empty `pstack_jobs list`.
   __resetBackgroundJobsForTests();
 }
 

@@ -1,15 +1,8 @@
-/**
- * J14-J16 knowledge journeys. Owned by W5.
- *
- * Recall corpus (sessions + real git log + gh PRs, degraded and populated), worktree isolation
- * against a real temporary repo, and the Benny wake file plus its slash commands. J14 and J15
- * deliberately run real git: neither journey installs a fake git on PATH.
- */
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { processExec } from "../../support/pi-host.mjs";
 
 const SESSION_REL = ".pi/sessions/recall-kumquat.jsonl";
 const SESSION_BODY = '{"type": "user", "text": "kumquat marker session"}\n';
@@ -48,7 +41,6 @@ function textOf(result) {
   return result.content[0].text;
 }
 
-/** HOME is process-level and resolved by the extension at import time, so read it per journey. */
 function wakePath() {
   return resolve(process.env.HOME ?? "", ".pi/agent/pstack-benny-wakes.jsonl");
 }
@@ -157,14 +149,12 @@ const J14 = {
   },
 };
 
-/** `list` goes through pi.exec; the default host exec is canned, so shell out to real git. */
 function installRealGitList(user) {
   user.setExec((command, args) => {
     if (command !== "git" || args.join(" ") !== "worktree list --porcelain") {
       return { code: 0, stdout: "", stderr: "", killed: false };
     }
-    const run = spawnSync("git", args, { cwd: process.cwd(), encoding: "utf8" });
-    return { code: run.status ?? 1, stdout: run.stdout ?? "", stderr: run.stderr ?? "", killed: false };
+    return processExec(command, args);
   });
 }
 

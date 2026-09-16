@@ -1,13 +1,5 @@
-/**
- * J10-J13 tooling journeys. Owned by W4.
- *
- * Shipping gates (pstack_ship + /pstack-gates fail closed), pre-commit hygiene (pstack_deslop
- * dry-run then applySafe), real-surface proof (pstack_control_cli + pstack_control_ui), and the
- * decision trail (pstack_decision_log). Fake gh fixtures are keyed by joined argv, so the exact
- * command a tool runs is both the routing key and the assertion surface.
- */
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { processExec } from "../../support/pi-host.mjs";
 
 const SLOP_SOURCE = "// NOTE: keep this marker\n\nexport const a = 1;\n";
 const SLOP_MARKER = "// NOTE: keep this marker";
@@ -29,27 +21,6 @@ const GATE_VIEW_JSON = "number,title,state,mergedAt,mergeStateStatus,statusCheck
 const STACK_VIEW_JSON = "number,state,mergedAt,mergeStateStatus,title,statusCheckRollup,reviewDecision";
 const SHIP_VIEW_JSON = "number,title,state,mergedAt,mergeStateStatus,url,statusCheckRollup";
 const EMPTY_EXEC = () => ({ code: 0, stdout: "", stderr: "", killed: false });
-
-// The bench host's default exec is a canned result and never touches PATH, so the fake `gh` that
-// `user.installFakeGh` writes cannot be reached through the default. Spawn it for real instead.
-function spawnStub(command, args, opts = {}) {
-  try {
-    const stdout = execFileSync(command, args, {
-      encoding: "utf8",
-      cwd: opts.cwd,
-      timeout: opts.timeout,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return { code: 0, stdout, stderr: "", killed: false };
-  } catch (error) {
-    return {
-      code: typeof error.status === "number" ? error.status : 1,
-      stdout: String(error.stdout ?? ""),
-      stderr: String(error.stderr ?? ""),
-      killed: false,
-    };
-  }
-}
 
 function textOf(result) {
   return result.content[0].text;
@@ -188,7 +159,7 @@ const J10 = {
       44: { number: 44, state: "MERGED", mergedAt: "2026-01-02T00:00:00Z", mergeStateStatus: "CLEAN" },
     };
     user.installFakeGh(fixtureGithub({ ...merged, "42": cleanPr() }, { "pr merge 42 --squash": { code: 0 } }));
-    user.setExec(spawnStub);
+    user.setExec(processExec);
     await runGreenShip(user);
     await runGateCommand(user);
     user.installFakeGh(fixtureGithub({ "42": dirtyPr() }));
@@ -339,18 +310,11 @@ const J12 = {
 
 function decisionRows(user) {
   const lines = user.read(".pi/decisions.tsv").split("\n").filter((line) => line.length > 0);
-  return lines.slice(1).map((line) => padColumns(line, 6));
+  return lines.slice(1).map((line) => line.split("\t"));
 }
 
 function decisionHeader(user) {
   return user.read(".pi/decisions.tsv").split("\n")[0];
-}
-
-// Trailing empty columns (evidence/result) are trimmed by split, so pad back to the TSV width.
-function padColumns(line, width) {
-  const fields = line.split("\t");
-  const padding = Array.from({ length: Math.max(0, width - fields.length) }, () => "");
-  return [...fields, ...padding];
 }
 
 async function assertDecisionEscaping(user) {

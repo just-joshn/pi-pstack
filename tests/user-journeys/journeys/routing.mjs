@@ -1,11 +1,3 @@
-/**
- * J2-J5 routing journeys: the full command surface, per-role model configuration, sticky
- * playbook routing, and session readonly. Owned by W2.
- *
- * Only the `user` facade drives the product. Every assertion is a user-visible outcome
- * (message, notification, status, session entry, active tool set) checked against a literal
- * from `.pi/user-journeys/INTERFACE.md`, the recipe sheets, or the extension source.
- */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

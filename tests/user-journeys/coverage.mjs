@@ -6,9 +6,6 @@
  *
  * Guards exist so the contract cannot pass against a hollow surface: too few behavior units, a
  * journey that never ran, or a journey that observed nothing all sink the verdict.
- *
- * `expectedJourneyIds` is the registry id list. When omitted the ran set is trusted as the
- * registry, which cannot detect a journey that never ran.
  */
 
 function countKind(units, kind) {
@@ -19,13 +16,16 @@ function passWord(ok) {
   return ok ? "PASS" : "FAIL";
 }
 
-export function summarizeCoverage({ inventory, observed, results, expectedJourneyIds = [], threshold = 0.8 }) {
+export function summarizeCoverage({ inventory, observed, results, expectedJourneyIds, threshold = 0.8 }) {
+  if (!Array.isArray(expectedJourneyIds) || expectedJourneyIds.length === 0) {
+    throw new Error("summarizeCoverage requires expectedJourneyIds from the journey registry");
+  }
   const observedIds = new Set(observed);
   const covered = inventory.units.filter((unit) => observedIds.has(unit.id)).length;
   const total = inventory.total;
   const pct = total === 0 ? 0 : (covered / total) * 100;
 
-  const expected = expectedJourneyIds.length > 0 ? [...expectedJourneyIds] : [...new Set(results.map((r) => r.id))];
+  const expected = [...expectedJourneyIds];
   const resultsById = new Map(results.map((result) => [result.id, result]));
   const runIds = results.map((result) => result.id);
   const uniqueRan = new Set(runIds);
@@ -41,12 +41,12 @@ export function summarizeCoverage({ inventory, observed, results, expectedJourne
     inventoryFloor: total >= 50,
     commandFloor: countKind(inventory.units, "command") >= 40,
     toolFloor: countKind(inventory.units, "tool") >= 12,
-    allJourneysRanOnce: ranOnce && expected.length > 0,
+    allJourneysRanOnce: ranOnce,
     everyJourneyObserved,
     noOrphanJourneys: orphanJourneys.length === 0,
   };
   const behaviorLimb = total > 0 && covered / total >= threshold;
-  const journeyLimb = ranOnce && expected.length > 0 && allPassed && everyJourneyObserved;
+  const journeyLimb = ranOnce && allPassed && everyJourneyObserved;
   const verdict = Object.values(guards).every(Boolean) && (behaviorLimb || journeyLimb);
 
   return {

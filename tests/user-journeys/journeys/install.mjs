@@ -1,13 +1,3 @@
-/**
- * J1 install-and-orient. Owned by W1.
- *
- * A user installs the package and sees the pstack surface: every command registered exactly once,
- * the pstack tools present, and `/pstack` with no task reporting the tool census.
- *
- * Cross-host duplicate tool registration is asserted by the bench before `run`: the probe host
- * and this journey's host must register identical tool names, and `pi.registerTool` throws on a
- * duplicate within either host.
- */
 import assert from "node:assert/strict";
 
 const CENSUS_PREFIX = "pi-pstack tools: ";

@@ -2,12 +2,12 @@
  * Programmable forge stubs for the acceptance run and the user-journey suite.
  *
  * `installFakeGh(root, fixtures)` puts an executable `gh` on PATH. With no fixtures it exits 1
- * with empty stdout (the acceptance behavior). With fixtures it matches the longest fixture key
+ * with empty stdout. With fixtures it matches the longest fixture key
  * that is a prefix of the joined argv, so `pr view 42` serves `pr view 42 --json ...` calls when
  * the key was registered that way.
  *
  * `installFakeGit(root, mode)` puts an executable `git` on PATH. The default fake only creates
- * the target directory for `worktree add` (the acceptance behavior). Mode `"real"` (also
+ * the target directory for `worktree add`. Mode `"real"` (also
  * `"passthrough"` / `"pass-through"`) writes a shim that execs the real git instead.
  *
  * Both installers prepend a bin directory to PATH and return a restore function.

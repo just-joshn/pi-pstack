@@ -1,12 +1,3 @@
-/**
- * J6-J9 orchestration journeys. Owned by W3: delegate-one-child, fan-out-swarm-arena,
- * loop-modes, babysit-a-pr.
- *
- * Every call goes through the `user` facade and every assertion reads a user-visible outcome: tool
- * result text, the stubbed child's argv lines, loop fire messages, recorded exec argv, status, and
- * notifications. Dynamic watchers get a per-argv exec stub so the fires are deterministic; interval
- * and settle modes are asserted at the arm level only.
- */
 import assert from "node:assert/strict";
 import { realpathSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -30,7 +21,6 @@ const WATCH_PR_SCRIPT_ABS = resolve(dirname(fileURLToPath(import.meta.url)), "..
 const WATCH_OUTPUT = "watch-pr: PR 42 checks pending";
 const GH_OUTPUT = "checks pending";
 
-/** The acceptance stub plus one argv line so resume flags are observable in the child output. */
 const RICH_CHILD_SOURCE = STUB_CHILD_SOURCE.replace(
   '"stub-child prompt=" + (argv.at(-1) ?? ""),',
   [
@@ -434,6 +424,26 @@ async function intervalAndSettleArms(user) {
   await stopLoop(user, "s1");
 }
 
+async function expectTimerFire(user, opts) {
+  const expected = `[pstack_loop ${opts.id} fire ${opts.fires}/${opts.maxFires} reason=${opts.reason}]\n${opts.prompt}`;
+  await user.waitFor(() => user.message() === expected, 8000, `loop ${opts.id} timer fire`);
+  assert.equal(user.message(), expected);
+  assert.equal(user.messages().at(-1)?.options?.deliverAs, "followUp");
+}
+
+async function settleFire(user) {
+  await armLoop(user, { id: "s2", mode: "settle", prompt: "retry after settling", intervalSeconds: 5, maxFires: 1 });
+  await user.emitAgentSettled();
+  await expectTimerFire(user, { id: "s2", fires: 1, maxFires: 1, reason: "settle", prompt: "retry after settling" });
+  await stopLoop(user, "s2");
+}
+
+async function intervalFire(user) {
+  await armLoop(user, { id: "i2", mode: "interval", prompt: "keep the tests green", intervalSeconds: 5, maxFires: 1 });
+  await expectTimerFire(user, { id: "i2", fires: 1, maxFires: 1, reason: "interval", prompt: "keep the tests green" });
+  await stopLoop(user, "i2");
+}
+
 async function loopCommand(user) {
   await user.command("pstack-loop", "status");
   assert.deepEqual(user.notifications().at(-1), ["info", "(no active loops)"]);
@@ -482,6 +492,8 @@ async function runLoopModes(user) {
   await watcherErrorWake(user);
   await dynamicReArm(user);
   await intervalAndSettleArms(user);
+  await settleFire(user);
+  await intervalFire(user);
   await loopCommand(user);
   await loopRefusals(user);
 }
