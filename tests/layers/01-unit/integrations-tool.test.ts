@@ -154,7 +154,7 @@ test("integrations-tool-02 lists all nine categories with availability and tool 
       true,
     );
     assert.equal(rows[0].includes("unavailable"), true);
-    assert.equal(rows[0].includes("pstack_source_control"), true);
+    assert.equal(rows[0].includes("pstack_integrations"), true);
     assert.equal(rows[1].includes(join(dir, "integrations.json")), true);
     assert.equal(list.details.total, 9);
     assert.equal(list.details.available, 2);

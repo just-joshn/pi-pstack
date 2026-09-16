@@ -3,8 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { registerSwarm } from "../../../extensions/orchestration/swarm.ts";
-import { MAX_TASKS } from "../../../extensions/subagents/child-runner.ts";
+import { registerSwarm, MAX_SWARM_WORKERS } from "../../../extensions/orchestration/swarm.ts";
 
 const WORKTREE_DIR = ".pstack-worktrees";
 const ROOT = resolve(import.meta.dirname, "../../..");
@@ -130,8 +129,8 @@ test("swarm-01 registers pstack_swarm with a worker array and an aggregate repor
   assert.equal(tool.promptSnippet, "Parallel pstack workers with aggregated report");
   assert.deepEqual(tool.parameters.required, ["workers"]);
   assert.equal(tool.parameters.properties.workers.minItems, 1);
-  assert.equal(tool.parameters.properties.workers.maxItems, MAX_TASKS);
-  assert.equal(tool.parameters.properties.workers.maxItems, 8);
+  assert.equal(tool.parameters.properties.workers.maxItems, MAX_SWARM_WORKERS);
+  assert.ok(MAX_SWARM_WORKERS > 8, "N is the total worker count; the schema must accept more than the concurrency cap");
   assert.equal(typeof tool.execute, "function");
 
   const source = readFileSync(join(ROOT, "extensions/orchestration/swarm.ts"), "utf8");

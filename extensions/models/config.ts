@@ -29,18 +29,45 @@ const ROLE_ALIASES: Record<string, string> = {
   "arena cross-judge pool": "arena cross-judge pool",
 };
 
+/** Marketing slug strength tiers, weakest to strongest. */
+export const MARKETING_TIERS = Object.freeze(["fast", "medium", "high", "max"] as const);
+export type MarketingTier = (typeof MARKETING_TIERS)[number];
+
 /**
- * Known Cursor marketing slug → best-effort Pi provider/id.
- * Unmapped bare slugs are refused (fall back to parent / inherit-parent).
+ * Best-effort tier -> real Pi provider/id. The slug's brand is dropped because we
+ * only have a few concrete ids; the tier, not the brand, fixes capability order.
  */
-export const MARKETING_SLUG_MAP: Record<string, string> = {
-  "grok-4.6-fast-xhigh": "xai/grok-4",
-  "grok-4.6": "xai/grok-4",
-  "claude-fable-5-1-thinking-max": "anthropic/claude-sonnet-4-5",
-  "claude-opus-5-thinking-xhigh": "anthropic/claude-opus-4-5",
-  "gpt-5.6-sol-max": "openai/gpt-5",
-  "cursor-grok-4.6-medium-fast": "xai/grok-4",
-};
+export const TIER_PROVIDER_MAP: Readonly<Record<MarketingTier, string>> = Object.freeze({
+  fast: "xai/grok-4",
+  medium: "openai/gpt-5",
+  high: "anthropic/claude-sonnet-4-5",
+  max: "anthropic/claude-opus-4-5",
+});
+
+/** Best-effort tier for each known Cursor marketing slug. */
+export const MARKETING_SLUG_TIERS: Readonly<Record<string, MarketingTier>> = Object.freeze({
+  "grok-4.6-fast-xhigh": "fast",
+  "grok-4.6": "fast",
+  "claude-fable-5-1-thinking-max": "max",
+  "claude-opus-5-thinking-xhigh": "high",
+  "gpt-5.6-sol-max": "medium",
+  "cursor-grok-4.6-medium-fast": "medium",
+});
+
+/**
+ * Known Cursor marketing slug -> provider/id, derived from the tier table so a
+ * single tier edit cannot silently invert one pair. Unmapped bare slugs are refused.
+ */
+export const MARKETING_SLUG_MAP: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(MARKETING_SLUG_TIERS).map(([slug, tier]) => [slug, TIER_PROVIDER_MAP[tier]]),
+  ),
+);
+
+/** Weakest-to-strongest rank of a marketing tier. */
+export function marketingTierRank(tier: MarketingTier): number {
+  return MARKETING_TIERS.indexOf(tier);
+}
 
 /** Legacy skill-doc names retained for docs only — never written as config defaults. */
 export const SKILL_DEFAULT_CODE = "grok-4.6-fast-xhigh";

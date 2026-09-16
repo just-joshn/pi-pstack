@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { chromeStatusLabel, chromeThemeToken, readSkillChrome, splitFrontmatter, type SkillChrome } from "../lib/skill-chrome.ts";
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_SKILLS_DIR = resolve(MODULE_DIR, "../../skills");
@@ -47,66 +48,6 @@ export interface SkillCommand {
   description: string;
 }
 
-function parseFoldedScalar(bodyLines: string[], startIndex: number): { value: string; nextIndex: number } {
-  let parts: string[] = [];
-  let i = startIndex;
-  while (i < bodyLines.length && /^\s+\S/.test(bodyLines[i])) {
-    parts = [...parts, bodyLines[i].trim()];
-    i = i + 1;
-  }
-  return { value: parts.join(" "), nextIndex: i };
-}
-
-function unquote(raw: string): string {
-  if (raw.startsWith('"') && raw.endsWith('"') && raw.length >= 2) {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return raw.slice(1, -1);
-    }
-  }
-  return raw;
-}
-
-/**
- * Parses the `name:`/`description:` keys out of a SKILL.md frontmatter block. Handles the
- * three scalar shapes upstream skills use: plain (`bro`), double-quoted with embedded
- * escaped quotes (`how`), and `>-` folded block scalars (`make-bot-ui`).
- */
-function parseFrontmatter(text: string): Record<string, string> {
-  const lines = text.split("\n");
-  if (lines[0]?.trim() !== "---") return {};
-  let end = -1;
-  for (const [i, line] of lines.slice(1).entries()) {
-    if (line.trim() === "---") {
-      end = i + 1;
-      break;
-    }
-  }
-  if (end === -1) return {};
-  const body = lines.slice(1, end);
-  const out: Record<string, string> = {};
-  let i = 0;
-  while (i < body.length) {
-    const m = /^([a-zA-Z0-9_-]+):\s?(.*)$/.exec(body[i]);
-    if (!m) {
-      i = i + 1;
-      continue;
-    }
-    const key = m[1];
-    const rest = m[2].trim();
-    if (rest === ">-" || rest === ">" || rest === "|-" || rest === "|") {
-      const folded = parseFoldedScalar(body, i + 1);
-      out[key] = folded.value;
-      i = folded.nextIndex;
-      continue;
-    }
-    out[key] = unquote(rest);
-    i = i + 1;
-  }
-  return out;
-}
-
 /** Reads every skill's SKILL.md under skillsDir, deduped and sorted by name. */
 export function readSkillCommands(skillsDir: string = DEFAULT_SKILLS_DIR): SkillCommand[] {
   let dirents;
@@ -120,7 +61,7 @@ export function readSkillCommands(skillsDir: string = DEFAULT_SKILLS_DIR): Skill
     .map((dirent) => {
       const skillPath = join(skillsDir, dirent.name, "SKILL.md");
       if (!existsSync(skillPath)) return null;
-      const frontmatter = parseFrontmatter(readFileSync(skillPath, "utf8"));
+      const frontmatter = splitFrontmatter(readFileSync(skillPath, "utf8")).fields;
       if (!frontmatter.name) return null;
       return { name: frontmatter.name, description: frontmatter.description ?? "" };
     })
@@ -138,6 +79,30 @@ export function readSkillCommands(skillsDir: string = DEFAULT_SKILLS_DIR): Skill
  */
 export const SHADOWED_SKILL_NAMES = ["setup-pstack"];
 
+interface SkillChromeUiContext {
+  readonly ui?: {
+    setStatus: (key: string, value: string | undefined) => void;
+    theme?: { fg?: (token: string, text: string) => string };
+  };
+}
+
+/** Render declared chrome on the host status line; a partial or headless UI is a no-op. */
+function renderSkillChrome(
+  ctx: SkillChromeUiContext | undefined,
+  chrome: SkillChrome | undefined,
+  name: string,
+): void {
+  if (!ctx?.ui || typeof ctx.ui.setStatus !== "function") return;
+  if (!chrome) {
+    ctx.ui.setStatus("pstack-skill", undefined);
+    return;
+  }
+  const label = chromeStatusLabel(chrome, name);
+  const token = chromeThemeToken(chrome.color);
+  const value = token && typeof ctx.ui.theme?.fg === "function" ? ctx.ui.theme.fg(token, label) : label;
+  ctx.ui.setStatus("pstack-skill", value);
+}
+
 /**
  * Registers `/name` for every skill not in `reserved`, forwarding trimmed user args into
  * `/skill:name <args>` so Pi's native skill loader expands it (not the removed prompt
@@ -147,13 +112,15 @@ export function registerSkillCommands(
   pi: ExtensionAPI,
   opts: { skillsDir?: string; reserved?: Iterable<string>; shadowed?: Iterable<string> } = {},
 ): void {
+  const skillsDir = opts.skillsDir ?? DEFAULT_SKILLS_DIR;
   const reserved = new Set(opts.reserved ?? RESERVED_COMMAND_NAMES);
   const shadowed = new Set(opts.shadowed ?? SHADOWED_SKILL_NAMES);
   for (const skill of readSkillCommands(opts.skillsDir)) {
     if (reserved.has(skill.name) || shadowed.has(skill.name)) continue;
     pi.registerCommand(skill.name, {
       description: skill.description || `Invoke the ${skill.name} skill`,
-      handler: async (args) => {
+      handler: async (args, ctx) => {
+        renderSkillChrome(ctx, readSkillChrome(join(skillsDir, skill.name, "SKILL.md")), skill.name);
         const trimmed = args.trim();
         const msg = trimmed ? `/skill:${skill.name} ${trimmed}` : `/skill:${skill.name}`;
         pi.sendUserMessage(msg, { expandPromptTemplates: true, deliverAs: "followUp" });

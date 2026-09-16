@@ -287,43 +287,48 @@ export const INTEGRATION_CATEGORIES: readonly IntegrationCategory[] = Object.fre
 ]);
 
 /**
- * Capability to tool-name-pattern table. browser-ui and cli-tui already exist as
- * Pi tools; the rest are the extension surfaces S3 adds, so the guard and the
- * registry read one source instead of two drifting lists.
+ * Capability -> the registered tool that serves it. Seven categories are served
+ * by the single `pstack_integrations` bridge (git/gh and configured command
+ * adapters); browser-ui and cli-tui have their own control tools. The registry
+ * advertises these names and the policy grants them, so the two never drift.
  */
 export const INTEGRATION_CAPABILITIES: Readonly<Record<IntegrationCategory, readonly string[]>> =
   Object.freeze({
-    "source-control": Object.freeze(["pstack_source_control"]),
-    "issue-tracker": Object.freeze(["pstack_issue_tracker"]),
-    "long-form-docs": Object.freeze(["pstack_long_form_docs"]),
-    "team-chat": Object.freeze(["pstack_team_chat"]),
-    observability: Object.freeze(["pstack_observability"]),
-    "error-tracking": Object.freeze(["pstack_error_tracking"]),
-    analytics: Object.freeze(["pstack_analytics"]),
+    "source-control": Object.freeze(["pstack_integrations"]),
+    "issue-tracker": Object.freeze(["pstack_integrations"]),
+    "long-form-docs": Object.freeze(["pstack_integrations"]),
+    "team-chat": Object.freeze(["pstack_integrations"]),
+    observability: Object.freeze(["pstack_integrations"]),
+    "error-tracking": Object.freeze(["pstack_integrations"]),
+    analytics: Object.freeze(["pstack_integrations"]),
     "browser-ui": Object.freeze(["pstack_control_ui"]),
     "cli-tui": Object.freeze(["pstack_control_cli"]),
   });
 
 /**
- * Tool names an integrations policy grants: every known capability tool for
- * "inherit", only the granted categories for an explicit list, none for "none".
- * Unknown tool names in a `--tools` allowlist are ignored by Pi, so a capability
- * tool that ships later becomes reachable without another policy change.
+ * Tool names an integrations policy grants: every serving tool for "inherit", the
+ * granted categories' tools for an explicit list, none for "none".
  */
 export function integrationToolsFor(integrations: IntegrationsPolicy): string[] {
   if (integrations === "none") return [];
   const categories = Array.isArray(integrations) ? integrations : INTEGRATION_CATEGORIES;
-  return categories.flatMap((category) => [...INTEGRATION_CAPABILITIES[category]]);
+  return [...new Set(categories.flatMap((category) => [...INTEGRATION_CAPABILITIES[category]]))];
 }
 
 function matchesPattern(toolName: string, pattern: string): boolean {
   return toolName === pattern || toolName.startsWith(`${pattern}_`) || toolName.startsWith(`${pattern}.`);
 }
 
+/**
+ * The single capability a tool serves. A tool shared by several categories (the
+ * pstack_integrations bridge) maps to none of them: the guard cannot attribute a
+ * call to one capability, so per-category restriction needs a per-category tool.
+ */
 export function capabilityForTool(toolName: string): IntegrationCategory | undefined {
-  return INTEGRATION_CATEGORIES.find((category) =>
+  const matches = INTEGRATION_CATEGORIES.filter((category) =>
     INTEGRATION_CAPABILITIES[category].some((pattern) => matchesPattern(toolName, pattern)),
   );
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 export function describePolicy(policy: PstackTaskPolicy): string {

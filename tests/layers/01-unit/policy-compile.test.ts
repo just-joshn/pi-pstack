@@ -107,13 +107,7 @@ test("resolvePolicyTools prefers explicit tools, then read-only plus granted int
     "grep",
     "find",
     "ls",
-    "pstack_source_control",
-    "pstack_issue_tracker",
-    "pstack_long_form_docs",
-    "pstack_team_chat",
-    "pstack_observability",
-    "pstack_error_tracking",
-    "pstack_analytics",
+    "pstack_integrations",
     "pstack_control_ui",
     "pstack_control_cli",
   ]);
@@ -168,7 +162,11 @@ test("integration capabilities cover the nine mandated categories with one patte
   }
   assert.equal(capabilityForTool("pstack_control_ui"), "browser-ui");
   assert.equal(capabilityForTool("pstack_control_cli"), "cli-tui");
-  assert.equal(capabilityForTool("pstack_source_control"), "source-control");
+  assert.equal(
+    capabilityForTool("pstack_integrations"),
+    undefined,
+    "a tool serving many categories is attributed to none of them",
+  );
   assert.equal(capabilityForTool("read"), undefined);
 });
 

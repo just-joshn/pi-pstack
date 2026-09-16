@@ -207,7 +207,7 @@ test("pstack_task passes the resolved thinking level into child argv", { skip: S
     assert.equal(argAfter(args, "--thinking"), "high");
     assert.equal(
       argAfter(args, "--tools"),
-      "read,grep,find,ls,pstack_source_control,pstack_issue_tracker,pstack_long_form_docs,pstack_team_chat,pstack_observability,pstack_error_tracking,pstack_analytics,pstack_control_ui,pstack_control_cli",
+      "read,grep,find,ls,pstack_integrations,pstack_control_ui,pstack_control_cli",
     );
     const policy = reply.details.policy as Record<string, unknown>;
     assert.equal(policy.filesystem, "read-only");

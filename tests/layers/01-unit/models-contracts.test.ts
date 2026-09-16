@@ -154,15 +154,15 @@ test("models-05 defaultModelsConfig fills code, judgment, and panel roles withou
   const fallback = defaultModelsConfig();
   assert.equal(fallback.roles["feature, refactoring"], "inherit-parent");
   assert.equal(fallback.roles["swarm workers"], "inherit-parent");
-  assert.equal(fallback.roles["judgment and prose"], "anthropic/claude-sonnet-4-5");
-  assert.equal(fallback.roles["how explainer"], "anthropic/claude-sonnet-4-5");
+  assert.equal(fallback.roles["judgment and prose"], "anthropic/claude-opus-4-5");
+  assert.equal(fallback.roles["how explainer"], "anthropic/claude-opus-4-5");
   assert.deepEqual(fallback.roles["arena runners"], [
-    "anthropic/claude-sonnet-4-5",
+    "anthropic/claude-opus-4-5",
     "openai/gpt-5",
     "xai/grok-4",
-    "anthropic/claude-opus-4-5",
+    "anthropic/claude-sonnet-4-5",
   ]);
-  assert.deepEqual(fallback.roles["arena cross-judge pool"], ["anthropic/claude-sonnet-4-5"]);
+  assert.deepEqual(fallback.roles["arena cross-judge pool"], ["anthropic/claude-opus-4-5"]);
 
   const values = Object.values(fallback.roles).flat();
   for (const value of values) {
@@ -274,7 +274,7 @@ test("models-08 detectPreferredModel reads env then settings files and maps bare
     writeSettings(env.home, { defaultModel: "openai/gpt-5" });
     assert.equal(detectPreferredModel(), "openai/gpt-5", "the agent settings file is the next source");
     writeSettings(env.home, { defaultModel: "claude-fable-5-1-thinking-max" });
-    assert.equal(detectPreferredModel(), "anthropic/claude-sonnet-4-5", "a settings slug maps");
+    assert.equal(detectPreferredModel(), "anthropic/claude-opus-4-5", "a settings slug maps");
     writeSettings(env.home, { defaultModel: "unknown-slug", model: "xai/grok-4" });
     assert.equal(detectPreferredModel(), "xai/grok-4", "later model keys are tried");
     writeSettings(env.home, "{ not json");

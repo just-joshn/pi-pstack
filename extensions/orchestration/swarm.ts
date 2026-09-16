@@ -9,9 +9,7 @@ import { stripAtPrefix } from "../lib/paths.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   MAX_CONCURRENCY,
-  MAX_TASKS,
   MAX_TIMEOUT_MS,
-  mapConcurrent,
   runChildTask,
 } from "../subagents/child-runner.ts";
 import { projectConfigCwd, resolveRoleModel } from "../models/config.ts";
@@ -33,6 +31,9 @@ type WorkerResult = {
 };
 
 export type SwarmSelection = "coverage" | "first-pass" | "rank-all" | "best-of";
+
+/** Schema ceiling for one call; the concurrency cap still bounds how many run at once. */
+export const MAX_SWARM_WORKERS = 64;
 
 export type SwarmVerdict = "PASS" | "ISSUES" | "BLOCKED" | "UNKNOWN";
 
@@ -84,6 +85,26 @@ export function selectSwarmResults(
   return { ordered: byRank, winner: winner >= 0 ? winner : undefined, verdicts };
 }
 
+/**
+ * Run items in sequential waves of at most `waveSize` concurrent calls, keeping
+ * input order. N is the total worker count; the wave shape is what bounds
+ * parallelism, so a wave must finish before the next starts.
+ */
+export async function runInWaves<T, U>(
+  items: readonly T[],
+  waveSize: number,
+  run: (item: T, index: number) => Promise<U>,
+): Promise<U[]> {
+  const size = Math.max(1, Math.trunc(waveSize));
+  let results: U[] = [];
+  for (let start = 0; start < items.length; start += size) {
+    const wave = items.slice(start, start + size);
+    const completed = await Promise.all(wave.map((item, offset) => run(item, start + offset)));
+    results = [...results, ...completed];
+  }
+  return results;
+}
+
 async function runSwarmWorkers(
   workers: WorkerSpec[],
   cwds: string[],
@@ -95,7 +116,7 @@ async function runSwarmWorkers(
   onUpdate: ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void) | undefined,
 ): Promise<WorkerResult[]> {
   let doneCount = 0;
-  return await mapConcurrent(workers, MAX_CONCURRENCY, async (w, index) => {
+  return await runInWaves(workers, MAX_CONCURRENCY, async (w, index) => {
     const model =
       w.model ??
       resolveRoleModel("swarm workers", parentModel, 0, trustedConfigCwd) ??
@@ -162,7 +183,7 @@ function formatSwarmResponse(results: WorkerResult[], selection: SwarmSelection)
 }
 
 const SWARM_DESCRIPTION =
-  `Fan out N parallel Pi child workers (coverage / race / best-of). Always isolates each worker in a unique worktree (even N=1); omit cwd for auto-alloc. Global child concurrency cap: ${MAX_CONCURRENCY}. Max ${MAX_TASKS} tasks. The aggregate report caps at 50KB / 2000 lines; a truncated report's trailer names the temp file with the full text.`;
+  `Fan out N parallel Pi child workers (coverage / race / best-of). Always isolates each worker in a unique worktree (even N=1); omit cwd for auto-alloc. Global child concurrency cap: ${MAX_CONCURRENCY}, so workers run in sequential waves of at most ${MAX_CONCURRENCY}. N is the total worker count, up to ${MAX_SWARM_WORKERS} per call. The aggregate report caps at 50KB / 2000 lines; a truncated report's trailer names the temp file with the full text.`;
 
 const SWARM_PROMPT_GUIDELINES = [
   "Use pstack_swarm for coverage matrices, races, and gauntlets instead of multiple Cursor Task calls.",
@@ -178,7 +199,7 @@ const SWARM_PARAMETERS = Type.Object({
       cwd: Type.Optional(Type.String()),
       role: Type.Optional(Type.String()),
     }),
-    { minItems: 1, maxItems: MAX_TASKS },
+    { minItems: 1, maxItems: MAX_SWARM_WORKERS },
   ),
   selection: Type.Optional(
     StringEnum(["first-pass", "rank-all", "best-of", "coverage"] as const, {

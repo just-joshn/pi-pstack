@@ -8,7 +8,7 @@ import {
   selectSwarmResults,
   swarmVerdict,
 } from "../../../extensions/orchestration/swarm.ts";
-import { MAX_CONCURRENCY, MAX_TASKS } from "../../../extensions/subagents/child-runner.ts";
+import { MAX_CONCURRENCY } from "../../../extensions/subagents/child-runner.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -49,9 +49,12 @@ test("parseSwarmSelection defaults to coverage and refuses unknown rules", () =>
   assert.throws(() => parseSwarmSelection("race"), /selection must be/);
 });
 
-test("the swarm cap is 8 and the routed skill states it", () => {
-  assert.equal(MAX_TASKS, 8);
+test("the global concurrency cap is 8 and the routed skill does not restate it as a per-call cap", () => {
   assert.equal(MAX_CONCURRENCY, 8);
   const skill = readFileSync(resolve(ROOT, "skills/swarm/SKILL.md"), "utf8");
-  assert.ok(skill.includes("at most 8 per call"), "the skill must state the real per-call cap");
+  assert.equal(
+    skill.includes("at most 8 per call"),
+    false,
+    "N is the total worker count; the skill must not claim a per-call cap of 8",
+  );
 });
