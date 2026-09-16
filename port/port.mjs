@@ -114,7 +114,8 @@ const files = upstream.scoped.flatMap((d) => walk(join(root, d), root)).toSorted
 const upstreamSet = new Set(files);
 const localSet = new Set(upstream.scoped.flatMap((d) => (existsSync(join(ROOT, d)) ? walk(join(ROOT, d), ROOT) : [])));
 
-const stats = { identical: 0, bound: 0, override: 0, drift: 0, missing: 0, loose: 0, unused: 0, localOnly: 0, undeclared: 0 };
+const bump = (s, key, next = s[key] + 1) => ({ ...s, [key]: next });
+let stats = { identical: 0, bound: 0, override: 0, drift: 0, missing: 0, loose: 0, unused: 0, localOnly: 0, undeclared: 0 };
 const firedRules = new Set();
 
 for (const rel of files) {
@@ -122,7 +123,7 @@ for (const rel of files) {
   const localPath = join(ROOT, rel);
   if (!existsSync(localPath)) {
     out(`MISSING  ${rel}`);
-    stats.missing = stats.missing + 1;
+    stats = bump(stats, "missing");
     continue;
   }
   const upstreamBuf = readFileSync(join(root, rel));
@@ -130,7 +131,7 @@ for (const rel of files) {
 
   const override = overrides[rel];
   if (override) {
-    stats.override = stats.override + 1;
+    stats = bump(stats, "override");
     const localText = localBuf.toString("utf8");
     const missingMust = (override.must ?? []).filter((s) => !localText.includes(s));
     const hits = scanLeftovers(rel, localText);
@@ -138,19 +139,19 @@ for (const rel of files) {
       out(`OVERRIDE FAIL  ${rel}`);
       for (const m of missingMust) out(`  missing upstream content: ${m.slice(0, 100)}`);
       for (const h of hits) out(`  leftover ${h}`);
-      stats.drift = stats.drift + 1;
+      stats = bump(stats, "drift");
     }
     continue;
   }
 
   // Byte-identical files need no decode and no binding pass.
   if (localBuf.equals(upstreamBuf)) {
-    stats.identical = stats.identical + 1;
+    stats = bump(stats, "identical");
     continue;
   }
   if (!isText(rel, localBuf)) {
     out("BINARY DRIFT  " + rel);
-    stats.drift = stats.drift + 1;
+    stats = bump(stats, "drift");
     continue;
   }
 
@@ -162,14 +163,13 @@ for (const rel of files) {
   if (loose.length) {
     out(`LOOSE  ${rel}`);
     for (const h of loose) out(`  ${h}`);
-    stats.loose = stats.loose + 1;
+    stats = bump(stats, "loose");
   }
   if (Buffer.from(generated, "utf8").equals(localBuf)) {
-    if (applied.length) stats.bound = stats.bound + 1;
-    else stats.identical = stats.identical + 1;
+    stats = applied.length ? bump(stats, "bound") : bump(stats, "identical");
     continue;
   }
-  stats.drift = stats.drift + 1;
+  stats = bump(stats, "drift");
   const label = generated === localText ? "BYTE DRIFT" : "DRIFT";
   if (cmd === "diff" || cmd === "sync") {
     out(`${label}  ${rel} (applied: ${applied.join(", ") || "none"})`);
@@ -210,16 +210,16 @@ if (cmd === "rules") {
 
 const unusedRules = fileFlag ? [] : bindings.filter((r) => !firedRules.has(r.id));
 for (const rule of unusedRules) out(`UNUSED RULE  ${rule.id}`);
-stats.unused = unusedRules.length;
+stats = { ...stats, unused: unusedRules.length };
 
 const extrasList = [...localSet].filter((f) => !upstreamSet.has(f)).toSorted();
 for (const rel of extrasList) {
   if (extras[rel]) out(`EXTRA  ${rel} (declared local-only)`);
   else {
     out(`EXTRA  ${rel} (undeclared local-only)`);
-    stats.undeclared = stats.undeclared + 1;
+    stats = bump(stats, "undeclared");
   }
-  stats.localOnly = stats.localOnly + 1;
+  stats = bump(stats, "localOnly");
 }
 
 out(
