@@ -203,6 +203,30 @@ export function isMetadataHostname(hostname: string): boolean {
   return METADATA_HOSTNAMES.includes(host) || PRIVATE_SUFFIXES.some((suffix) => host.endsWith(suffix));
 }
 
+const LINK_LOCAL_V4_BASE = 0xa9fe0000;
+
+/**
+ * The cloud metadata service answers on the IPv4 link-local range, including
+ * through a v4-mapped v6 literal. This is checked before the allowlist rather
+ * than after it, because the allowlist exists to opt a DEVELOPMENT server in,
+ * and no development server lives at 169.254.169.254. An operator who could
+ * allowlist it would be handing out the instance credentials by accident.
+ */
+export function isMetadataAddress(hostname: string): boolean {
+  const version = isIP(hostname);
+  if (version === 4) {
+    const value = ipv4ToInt(hostname);
+    return value !== undefined && inRange(value, LINK_LOCAL_V4_BASE, 16);
+  }
+  if (version === 6) {
+    const bytes = parseIPv6(hostname);
+    if (bytes === undefined) return false;
+    const embedded = embeddedIPv4(bytes);
+    return embedded !== undefined && inRange(embedded, LINK_LOCAL_V4_BASE, 16);
+  }
+  return false;
+}
+
 export function normalizedHostname(url: URL): string {
   const host = url.hostname.toLowerCase();
   return host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
@@ -247,6 +271,39 @@ async function classifyHostname(
   return { addresses, hostClass };
 }
 
+/**
+ * An allowlist entry may name a port. `127.0.0.1:5173` is how a developer writes
+ * a dev server, so the entry is parsed rather than compared as a bare string: a
+ * textual comparison against the hostname never matches it, and the opt-in
+ * silently does nothing. An entry with no port matches any port on that host,
+ * which is what a bare `localhost` means.
+ */
+type AllowEntry = { readonly host: string; readonly port: string | undefined };
+
+function parseAllowEntry(raw: string): AllowEntry {
+  const entry = raw.trim().toLowerCase();
+  if (entry.startsWith("[")) {
+    const close = entry.indexOf("]");
+    if (close !== -1) {
+      const rest = entry.slice(close + 1);
+      return { host: entry.slice(1, close), port: rest.startsWith(":") ? rest.slice(1) : undefined };
+    }
+  }
+  const colon = entry.lastIndexOf(":");
+  const tail = colon === -1 ? "" : entry.slice(colon + 1);
+  if (colon > 0 && /^[0-9]+$/.test(tail)) return { host: entry.slice(0, colon), port: tail };
+  return { host: entry, port: undefined };
+}
+
+function allowEntryMatches(entry: AllowEntry, hostname: string, port: string): boolean {
+  if (entry.host !== hostname) return false;
+  return entry.port === undefined || entry.port === port;
+}
+
+function hostIsAllowlisted(entries: readonly AllowEntry[], hostname: string, port: string): boolean {
+  return entries.some((entry) => allowEntryMatches(entry, hostname, port));
+}
+
 export async function validateProbeTarget(
   raw: unknown,
   options: UrlPolicyOptions = {},
@@ -257,11 +314,11 @@ export async function validateProbeTarget(
   const parsed = parseHttpUrl(raw);
   if (!parsed.ok) return parsed;
   const hostname = normalizedHostname(parsed.url);
-  if (isMetadataHostname(hostname)) {
+  if (isMetadataHostname(hostname) || isMetadataAddress(hostname)) {
     return { ok: false, reason: `host '${hostname}' is a metadata or local-only host` };
   }
-  const allowHosts = (options.allowHosts ?? []).map((host) => host.toLowerCase());
-  if (allowHosts.includes(hostname)) {
+  const allowHosts = (options.allowHosts ?? []).map(parseAllowEntry);
+  if (hostIsAllowlisted(allowHosts, hostname, parsed.url.port)) {
     return {
       ok: true,
       target: { url: parsed.url, hostname, addresses: [], hostClass: "public", allowlisted: true },

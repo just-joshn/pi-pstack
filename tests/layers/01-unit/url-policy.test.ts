@@ -25,7 +25,6 @@ const PRIVATE_URLS = [
   "http://10.0.0.1/",
   "http://172.16.0.1/",
   "http://192.168.1.1/",
-  "http://169.254.169.254/latest/meta-data/",
   "http://0.0.0.0/",
   "http://100.64.0.1/",
   "http://224.0.0.1/",
@@ -53,6 +52,9 @@ const PUBLIC_URLS = [
 const METADATA_URLS = [
   "http://metadata.google.internal/",
   "http://metadata.goog/",
+  "http://169.254.169.254/latest/meta-data/",
+  "http://169.254.170.2/",
+  "http://[::ffff:169.254.169.254]/",
   "http://service.internal/",
   "http://printer.local/",
 ];
@@ -210,6 +212,26 @@ test("url-policy refuses when lookup fails or returns nothing", async () => {
 test("url-policy allows an explicitly allowlisted private host", async () => {
   await assertAllowed("http://localhost:5173/", { allowHosts: ["localhost"] });
   await assertAllowed("http://127.0.0.1:3000/", { allowHosts: ["127.0.0.1"] });
+});
+
+test("url-policy matches an allowlist entry carrying a port", async () => {
+  await assertAllowed("http://127.0.0.1:5173/", { allowHosts: ["127.0.0.1:5173"] });
+  await assertAllowed("http://[::1]:5173/", { allowHosts: ["[::1]:5173"] });
+  assert.match(
+    await refusalReason("http://127.0.0.1:9999/", { allowHosts: ["127.0.0.1:5173"] }),
+    /private, loopback, or link-local/,
+  );
+});
+
+test("url-policy refuses the metadata address range even when allowlisted", async () => {
+  assert.match(
+    await refusalReason("http://169.254.169.254/", { allowHosts: ["169.254.169.254"] }),
+    /metadata or local-only/,
+  );
+  assert.match(
+    await refusalReason("http://[::ffff:169.254.169.254]/", { allowHosts: ["::ffff:169.254.169.254"] }),
+    /metadata or local-only/,
+  );
 });
 
 test("url-policy keeps metadata hosts and local suffixes blocked even when allowlisted", async () => {
