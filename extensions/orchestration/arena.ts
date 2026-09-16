@@ -51,7 +51,7 @@ async function runArenaCandidates(
   return await mapConcurrent(params.candidates, MAX_CONCURRENCY, async (c, index) => {
     const model =
       c.model ??
-      resolveRoleModel("arena runners", parentModel, index) ??
+      resolveRoleModel("arena runners", parentModel, index, ctxCwd) ??
       parentModel;
     const label = c.label ?? `candidate-${index + 1}`;
     const task = [
@@ -92,7 +92,7 @@ async function runCrossJudge(
   if (!params.crossJudge) return "";
   const judgeModel =
     params.judgeModel ??
-    resolveRoleModel("arena cross-judge pool", parentModel) ??
+    resolveRoleModel("arena cross-judge pool", parentModel, 0, ctxCwd) ??
     parentModel;
   const summaries = results
     .map(

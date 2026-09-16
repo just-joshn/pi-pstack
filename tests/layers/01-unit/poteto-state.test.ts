@@ -25,12 +25,24 @@ const statusOf = (effects) => effects.find((effect) => effect.type === "setStatu
 const armedState = () => reduceSetEnabled(createInitialPotetoState(), true, { id: "why", score: 5 }).state;
 
 test("createInitialPotetoState starts disabled with no match and empty text", () => {
-  assert.deepEqual(createInitialPotetoState(), { enabled: false, matchedPlaybookId: null, lastUserText: "" });
+  assert.deepEqual(createInitialPotetoState(), {
+    enabled: false,
+    matchedPlaybookId: null,
+    matchedScore: 0,
+    assignedThisTurn: false,
+    lastUserText: "",
+  });
 });
 
 test("reduceSetEnabled arms on a strong match with a sticky entry and matched status", () => {
   const result = reduceSetEnabled(createInitialPotetoState(), true, { id: "babysit", score: 7 });
-  assert.deepEqual(result.state, { enabled: true, matchedPlaybookId: "babysit", lastUserText: "" });
+  assert.deepEqual(result.state, {
+    enabled: true,
+    matchedPlaybookId: "babysit",
+    matchedScore: 7,
+    assignedThisTurn: true,
+    lastUserText: "",
+  });
   assert.equal(appendOf(result.effects)?.entryType, "pstack-poteto-mode");
   assert.equal(appendOf(result.effects)?.payload.enabled, true);
   assert.equal(appendOf(result.effects)?.payload.matchedPlaybookId, "babysit");
@@ -61,7 +73,13 @@ test("reduceSetEnabled with a null match clears the persisted playbook", () => {
 
 test("reduceSetEnabled(false) clears the match and hides the status", () => {
   const result = reduceSetEnabled(armedState(), false);
-  assert.deepEqual(result.state, { enabled: false, matchedPlaybookId: null, lastUserText: "" });
+  assert.deepEqual(result.state, {
+    enabled: false,
+    matchedPlaybookId: null,
+    matchedScore: 0,
+    assignedThisTurn: false,
+    lastUserText: "",
+  });
   assert.equal(statusOf(result.effects)?.value, undefined);
 });
 
@@ -69,6 +87,8 @@ test("reducePersistMatch updates the playbook and emits one sticky entry", () =>
   const result = reducePersistMatch(armedState(), { id: "babysit", score: 3 });
   assert.equal(result.state.enabled, true);
   assert.equal(result.state.matchedPlaybookId, "babysit");
+  assert.equal(result.state.matchedScore, 3);
+  assert.equal(result.state.assignedThisTurn, true);
   assert.equal(result.effects.length, 1);
   assert.equal(appendOf(result.effects)?.payload.matchedPlaybookId, "babysit");
 });
@@ -77,6 +97,8 @@ test("reduceRecordText keeps the other fields and stores the text", () => {
   assert.deepEqual(reduceRecordText(armedState(), "babysit PR 12"), {
     enabled: true,
     matchedPlaybookId: "why",
+    matchedScore: 5,
+    assignedThisTurn: false,
     lastUserText: "babysit PR 12",
   });
 });
@@ -87,7 +109,7 @@ test("reduceRestore folds custom entry data into the last sticky state", () => {
       { enabled: true, matchedPlaybookId: "why" },
       { enabled: true, matchedPlaybookId: "babysit" },
     ]),
-    { enabled: true, matchedPlaybookId: "babysit", lastUserText: "" },
+    { enabled: true, matchedPlaybookId: "babysit", matchedScore: 0, assignedThisTurn: false, lastUserText: "" },
   );
 });
 
@@ -95,11 +117,15 @@ test("reduceRestore ignores malformed entries and keeps a match after a disabled
   assert.deepEqual(reduceRestore([null, "junk", { enabled: "yes" }]), {
     enabled: false,
     matchedPlaybookId: null,
+    matchedScore: 0,
+    assignedThisTurn: false,
     lastUserText: "",
   });
   assert.deepEqual(reduceRestore([{ enabled: true, matchedPlaybookId: "why" }, { enabled: false }]), {
     enabled: false,
     matchedPlaybookId: "why",
+    matchedScore: 0,
+    assignedThisTurn: false,
     lastUserText: "",
   });
 });

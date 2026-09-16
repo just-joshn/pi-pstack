@@ -101,7 +101,7 @@ await check("extension modules wire sticky + playbook match + session readonly",
   const readonly = readFileSync(resolve(ROOT, "extensions/readonly-state/index.ts"), "utf8");
   assert.ok(poteto.includes("buildPotetoStickyPrompt"));
   assert.ok(poteto.includes("matchStickyPlaybook"));
-  assert.ok(poteto.includes("userText: lastUserText") || poteto.includes("userText:"));
+  assert.ok(poteto.includes("assignedPlaybookId") || poteto.includes("restoredPlaybookId"));
   assert.ok(readonly.includes("pstack-readonly"));
   assert.ok(readonly.includes("pstack-session-readonly") || readonly.includes("READONLY_ENTRY_TYPE"));
   assert.ok(readonly.includes("tool_call"));
@@ -230,8 +230,24 @@ await check("babysit watchArgv recipes concrete + materialize + shipping default
   const argv = mod.materializeWatchArgv("watch-pr-status", "42");
   assert.deepEqual(argv.slice(-2), ["42", "--status-only"]);
   assert.ok(!argv.some((a) => a.includes("<pr>")));
+  assert.equal(argv[0], "bun", "watch-pr recipes must run through bun, not bash");
+  assert.ok(argv.includes("--pr"), "watch-pr recipes must pass the PR via --pr, the cli has no positional arg");
   const gh = mod.materializeWatchArgv("gh-checks-watch", "#99");
   assert.deepEqual(gh, ["gh", "pr", "checks", "99", "--watch"]);
+  const stackArgv = mod.materializeWatchArgv("watch-pr-stack", "7");
+  assert.deepEqual(stackArgv, ["bun", "skills/poteto-mode/scripts/watch-pr/watch-pr", "--stack", "--pr", "7"]);
+  const queuedArgv = mod.materializeWatchArgv("watch-pr-queued-stack", "7", { stackPrs: ["3", "5", "7"] });
+  assert.deepEqual(queuedArgv, [
+    "bun",
+    "skills/poteto-mode/scripts/watch-pr/watch-pr",
+    "--queued-stack",
+    "--stack-prs",
+    "3,5,7",
+  ]);
+  assert.throws(() => mod.materializeWatchArgv("watch-pr-queued-stack", "7"), /stackPrs/);
+  for (const recipeId of Object.keys(mod.BABYSIT_WATCH_RECIPES)) {
+    assert.ok(!mod.BABYSIT_WATCH_RECIPES[recipeId].argvTemplate.includes("bash"), `${recipeId} must not exec via bash`);
+  }
   const src = readFileSync(resolve(ROOT, "skills/poteto-mode/playbooks/babysit.md"), "utf8");
   assert.ok(src.includes("watchArgv"), "skill must bind the forge watcher to watchArgv");
   assert.ok(src.includes("dynamic"), "skill must bind the watch to pstack_loop dynamic mode");
@@ -242,6 +258,25 @@ await check("babysit watchArgv recipes concrete + materialize + shipping default
   assert.equal(hint.loopArm.mode, "dynamic");
   assert.ok(Array.isArray(hint.watchArgv) && hint.watchArgv.includes("123"));
   assert.ok(!hint.watchArgv.some((a) => String(a).includes("<pr>")));
+  const queuedHint = ship.babysitDynamicLoopHint("7", "watch-pr-queued-stack", ["3", "7"]);
+  assert.ok(queuedHint.watchArgv.includes("3,7"), "stackPrs must thread through babysitDynamicLoopHint");
+});
+
+await check("watch-pr runs via bun with an ENOENT-free failure when bun is missing", async () => {
+  const mod = await import(pathToFileURL(resolve(ROOT, "extensions/heartbeat/coalesce.ts")).href);
+  assert.deepEqual(mod.watchPrInvocation("/abs/watch-pr", ["--pr", "9"]), {
+    command: "bun",
+    args: ["/abs/watch-pr", "--pr", "9"],
+  });
+  await mod.assertBunAvailable(async () => ({ code: 0 }));
+  await assert.rejects(
+    () => mod.assertBunAvailable(async () => ({ code: 1 })),
+    /bun is required.*not found on PATH/,
+    "missing bun must fail with an actionable message, not a bare ENOENT",
+  );
+  const src = readFileSync(resolve(ROOT, "extensions/shipping/index.ts"), "utf8");
+  assert.ok(src.includes("assertBunAvailable"), "pstack_babysit must gate the watch-pr recipes on bun being resolvable");
+  assert.ok(!/pi\.exec\(\s*"bash"/.test(src), "must not exec the bundled TypeScript watcher via bash");
 });
 
 await check("evaluateMergeGates fixture matrix", async () => {
@@ -483,7 +518,7 @@ await check("close-orch-p0: PARITY row 2 EQUIVALENT (local-Task) + ceilings", as
 });
 
 
-await check("close-orch-p1: unit resume / background omit→true / inherit default-on", async () => {
+await check("close-orch-p1: unit resume / role-aware background default / inherit default-on", async () => {
   const { runSpawnOrchP1Units } = await import(pathToFileURL(resolve(ROOT, "extensions/test/spawn-orch-p1-unit.mjs")).href);
   await runSpawnOrchP1Units();
 });
@@ -493,11 +528,12 @@ await check("close-orch-p1: pstack_spawn schema + guidelines (resume, bg default
   assert.ok(src.includes("resumeSessionDir"), "must declare resumeSessionDir");
   assert.ok(src.includes("resumeJobId"), "must declare resumeJobId");
   assert.ok(src.includes("wantsBackground"), "must use wantsBackground");
-  assert.ok(src.includes("wantsBackground(params.background)"), "omit→true call site");
-  assert.ok(/Prefer \/ default background|omit background or pass true/i.test(src), "guidelines prefer/default background");
-  assert.ok(src.includes("background:false") || src.includes("background: false"), "guidelines mention sync false");
+  assert.ok(src.includes("wantsBackground(params.background, poteto)"), "role-aware call site");
+  assert.ok(/role-aware/i.test(src), "guidelines describe role-aware background default");
+  assert.ok(src.includes("background:false") || src.includes("background: false") || src.includes("background:true/false"), "guidelines mention explicit override");
   const runner = readFileSync(resolve(ROOT, "extensions/subagents/child-runner.ts"), "utf8");
-  assert.ok(runner.includes("background !== false"), "wantsBackground omit→true");
+  assert.ok(runner.includes("if (background !== undefined) return background"), "explicit background always wins");
+  assert.ok(runner.includes("return poteto === true"), "only poteto-agent detaches by default");
   assert.ok(runner.includes("inheritParentTools !== false"), "inherit default-on");
   assert.ok(runner.includes("resolveChildSessionDir"), "child-runner must resolve resume session dir");
   assert.ok(runner.includes("resumeSessionDir"), "child-runner accepts resumeSessionDir");

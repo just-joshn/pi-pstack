@@ -19,6 +19,15 @@ import {
   DEFAULT_BABYSIT_RECIPE,
   babysitDynamicLoopHint,
 } from "./babysit-recipes.ts";
+import { assertBunAvailable, watchPrInvocation } from "../heartbeat/coalesce.ts";
+import { evaluateStack, type StackPrView } from "./frontier.ts";
+
+const WATCH_PR_RECIPE_IDS = new Set([
+  "watch-pr-drive",
+  "watch-pr-status",
+  "watch-pr-stack",
+  "watch-pr-queued-stack",
+]);
 
 export {
   evaluateMergeGates,
@@ -60,11 +69,11 @@ async function executeBabysitWithWatchPr(
   includeHint: boolean,
   signal: AbortSignal | undefined,
 ): Promise<BabysitResponse> {
-  const baseArgs = [WATCH_PR, prRaw];
-  const statusArgs = params.statusOnly || recipeId === "watch-pr-status" ? ["--status-only"] : [];
-  const prettyArgs = params.pretty ? ["--pretty"] : [];
-  const args = [...baseArgs, ...statusArgs, ...prettyArgs];
-  const result = await pi.exec("bash", args, { signal, timeout: 60 * 60 * 1000 });
+  await assertBunAvailable((command, argv, opts) => pi.exec(command, argv, opts), signal);
+  const tailArgs = hint.watchArgv.slice(2); // drop ["bun", <script-path-token>]
+  const scriptArgs = params.pretty ? [...tailArgs, "--pretty"] : tailArgs;
+  const { command, args } = watchPrInvocation(WATCH_PR, scriptArgs);
+  const result = await pi.exec(command, args, { signal, timeout: 60 * 60 * 1000 });
   const hintBlock = includeHint
     ? `\n\n--- pstack_loop dynamic arm (default babysit recipe ${recipeId}) ---\n${JSON.stringify(hint.loopArm, null, 2)}\nwatchArgv=${JSON.stringify(hint.watchArgv)}`
     : "";
@@ -170,22 +179,52 @@ async function handleShipView(
   return { content: [{ type: "text", text: r.stdout || r.stderr }], details: { code: r.code } };
 }
 
+async function fetchStackView(
+  pi: ExtensionAPI,
+  pr: string,
+  signal: AbortSignal | undefined,
+): Promise<StackPrView> {
+  const clean = pr.replace(/^#/, "");
+  const r = await pi.exec(
+    "gh",
+    [
+      "pr",
+      "view",
+      clean,
+      "--json",
+      "number,state,mergedAt,mergeStateStatus,title,statusCheckRollup,reviewDecision",
+    ],
+    { signal },
+  );
+  if (r.code !== 0) return { number: clean, state: "UNKNOWN" };
+  try {
+    const view = JSON.parse(r.stdout) as StackPrView;
+    return { ...view, number: String(view.number ?? clean) };
+  } catch {
+    return { number: clean, state: "UNKNOWN" };
+  }
+}
+
 async function handleShipStackStatus(
   pi: ExtensionAPI,
   prs: string[],
   signal: AbortSignal | undefined,
 ): Promise<ShipStackResponse> {
   if (!prs.length) throw new Error("stackPrs or pr required");
-  let chunks: string[] = [];
+  let views: StackPrView[] = [];
   for (const pr of prs) {
-    const r = await pi.exec(
-      "gh",
-      ["pr", "view", pr.replace(/^#/, ""), "--json", "number,state,mergedAt,mergeStateStatus,title"],
-      { signal },
-    );
-    chunks = [...chunks, r.stdout || `PR ${pr}: ${r.stderr}`];
+    views = [...views, await fetchStackView(pi, pr, signal)];
   }
-  return { content: [{ type: "text", text: chunks.join("\n") }], details: {} };
+  const status = evaluateStack(views);
+  const lines = [
+    `stack ${status.verdict}${status.frontier ? ` frontier=#${status.frontier}` : ""}`,
+    ...status.rows,
+    ...(status.problems.length ? [`frontier blockers: ${status.problems.join("; ")}`] : []),
+  ];
+  return {
+    content: [{ type: "text", text: lines.join("\n") }],
+    details: { verdict: status.verdict, frontier: status.frontier, problems: status.problems },
+  };
 }
 
 async function handleShipGateCheck(
@@ -269,6 +308,7 @@ type BabysitParams = {
   statusOnly?: boolean;
   pretty?: boolean;
   recipeId?: string;
+  stackPrs?: string[];
   armLoopHint?: boolean;
 };
 
@@ -297,10 +337,13 @@ async function executeBabysit(
 ): Promise<BabysitResponse> {
   const prRaw = params.pr.replace(/^#/, "");
   const recipeId = resolveBabysitRecipeId(params);
-  const hint = babysitDynamicLoopHint(prRaw, recipeId);
+  if (recipeId === "watch-pr-queued-stack" && !params.stackPrs?.length) {
+    throw new Error("recipeId=watch-pr-queued-stack requires stackPrs (bottom-to-top PR numbers)");
+  }
+  const hint = babysitDynamicLoopHint(prRaw, recipeId, params.stackPrs);
   const includeHint = params.armLoopHint !== false;
 
-  if (existsSync(WATCH_PR) && (recipeId === "watch-pr-drive" || recipeId === "watch-pr-status")) {
+  if (existsSync(WATCH_PR) && WATCH_PR_RECIPE_IDS.has(recipeId)) {
     return await executeBabysitWithWatchPr(pi, prRaw, params, recipeId, hint, includeHint, signal);
   }
 
@@ -341,7 +384,9 @@ function registerBabysitTool(pi: ExtensionAPI): void {
       "Watch a GitHub PR via gh (or bundled watch-pr script) until a terminal verdict. Defaults to concrete watchArgv recipes + pstack_loop mode=dynamic guidance (Cursor local babysit twin). Closest Pi twin to Babysit playbook polling.",
     promptSnippet: "Watch PR checks/comments until ready or blocked",
     promptGuidelines: [
-      "Prefer recipeId=watch-pr-drive (default) or watch-pr-status / gh-checks-watch / gh-view-json.",
+      "Prefer recipeId=watch-pr-drive (default) or watch-pr-status / watch-pr-stack / watch-pr-queued-stack / gh-checks-watch / gh-view-json.",
+      "watch-pr-queued-stack requires stackPrs (bottom-to-top PR numbers).",
+      "The bundled watch-pr recipes run via bun (its declared runtime); bun must be on PATH.",
       "Arm pstack_loop with the returned loopArm (mode=dynamic + watchArgv) for settle+watcher composite babysit.",
       "Never merge from babysit — route land/ship to pstack_ship / shipping playbook.",
     ],
@@ -352,6 +397,11 @@ function registerBabysitTool(pi: ExtensionAPI): void {
       recipeId: Type.Optional(
         Type.String({
           description: `Concrete watchArgv recipe: ${Object.keys(BABYSIT_WATCH_RECIPES).join(" | ")} (default ${DEFAULT_BABYSIT_RECIPE}; statusOnly forces watch-pr-status)`,
+        }),
+      ),
+      stackPrs: Type.Optional(
+        Type.Array(Type.String(), {
+          description: "Bottom-to-top PR numbers, required by recipeId=watch-pr-queued-stack",
         }),
       ),
       armLoopHint: Type.Optional(

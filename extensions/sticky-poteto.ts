@@ -10,6 +10,7 @@ import {
   buildPlaybookInjectBlock,
   buildPlaybookInjectFromId,
   matchPlaybook,
+  playbookMatchFromId,
   type PlaybookMatch,
 } from "./sticky-playbook.ts";
 
@@ -66,6 +67,10 @@ export interface StickyPromptOptions {
   minScore?: number;
   /** Persisted playbook id from session restore — reinject full steps when no live match. */
   restoredPlaybookId?: string | null;
+  /** Playbook assigned by this turn's input hook; renders as a matched block. */
+  assignedPlaybookId?: string | null;
+  /** Score for assignedPlaybookId (informational in the injected header). */
+  assignedScore?: number;
 }
 
 /**
@@ -81,6 +86,9 @@ export function buildPotetoStickyPrompt(
     opts?.match === null
       ? undefined
       : opts?.match ??
+        (opts?.assignedPlaybookId
+          ? playbookMatchFromId(opts.assignedPlaybookId, opts.assignedScore ?? 0)
+          : undefined) ??
         (opts?.userText ? matchPlaybook(opts.userText, opts.minScore ?? 2) : undefined);
 
   const baseParts = [

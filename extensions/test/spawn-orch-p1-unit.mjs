@@ -1,5 +1,5 @@
 /**
- * Unit tests for close-orch-p1: resume / background omit→true / inherit default-on.
+ * Unit tests for close-orch-p1: resume / role-aware background default / inherit default-on.
  * Run via verify-local-partials.mjs or: bun extensions/test/spawn-orch-p1-unit.mjs
  */
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -11,10 +11,11 @@ import assert from "node:assert/strict";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 async function assertBackgroundAndTools(mod) {
-  // --- background omit → true ---
-  assert.equal(mod.wantsBackground(undefined), true, "omit → background");
-  assert.equal(mod.wantsBackground(true), true, "true → background");
-  assert.equal(mod.wantsBackground(false), false, "false → sync");
+  assert.equal(mod.wantsBackground(undefined, false), false, "omit + non-poteto role → sync");
+  assert.equal(mod.wantsBackground(undefined, true), true, "omit + poteto-agent → background");
+  assert.equal(mod.wantsBackground(undefined), false, "omit with no poteto flag → sync");
+  assert.equal(mod.wantsBackground(true, false), true, "explicit true wins even for non-poteto role");
+  assert.equal(mod.wantsBackground(false, true), false, "explicit false wins even for poteto-agent");
 
   // --- inheritParentTools default-on ---
   const parent = ["read", "bash", "edit"];
