@@ -56,7 +56,7 @@ await check("readSkillCommands covers every skill directory, deduped and sorted"
 await check("registerSkillCommands skips the reserved set", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/commands/skill-commands.ts")).href);
   const pi = fakePi();
-  mod.registerSkillCommands(pi);
+  mod.registerSkillCommands(pi, { shadowed: [] });
   for (const reserved of mod.RESERVED_COMMAND_NAMES) {
     assert.ok(!pi.registered.has(reserved), `must not register reserved name ${reserved}`);
   }

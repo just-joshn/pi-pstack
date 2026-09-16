@@ -1,0 +1,48 @@
+{
+  "generatedAt": "2026-09-16T00:16:18.127Z",
+  "upstreamDir": ".port-upstream/cursor-plugins-c1c0a32/pstack",
+  "upstreamCommit": "c1c0a32802223f4be824112dd83d33ad29a8b26c",
+  "cases": [
+    {
+      "id": "watch-pr-help",
+      "equal": true,
+      "upstreamRc": 0,
+      "portedRc": 0,
+      "detail": "--help -> rc 0/0, 1217/1217 bytes",
+      "bytes": "1217/1217",
+      "normalization": "upstream dependencies present"
+    },
+    {
+      "id": "watch-pr-stack-prs-without-queued-stack",
+      "equal": true,
+      "upstreamRc": 64,
+      "portedRc": 64,
+      "detail": "--stack-prs 1,2 -> rc 64/64, 42/42 bytes",
+      "bytes": "42/42",
+      "normalization": "upstream dependencies present"
+    },
+    {
+      "id": "watch-pr-invalid-interval",
+      "equal": true,
+      "upstreamRc": 64,
+      "portedRc": 64,
+      "detail": "--owner o --repo r --pr 1 --interval nope -> rc 64/64, 90/90 bytes",
+      "bytes": "90/90",
+      "normalization": "upstream dependencies present"
+    },
+    {
+      "id": "worktree-audit",
+      "equal": true,
+      "upstreamRc": 0,
+      "portedRc": 0,
+      "detail": "repo fixture with one feature worktree -> 2/2 lines",
+      "bytes": "121/121",
+      "normalization": "tree roots, HOME, and durations normalized; gh shimmed to an empty list"
+    }
+  ],
+  "summary": {
+    "cases": 4,
+    "equal": 4,
+    "differ": 0
+  }
+}

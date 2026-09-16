@@ -45,6 +45,8 @@ npm run spec:check     # structural ledger check over spec/
 npm run spec:gate      # the 100 percent completion gate
 npm run parity:check   # ported tree == upstream + declared bindings; tools/scripts resolve
 npm run parity:sync    # regenerate the ported tree after an upstream bump
+npm run test:differential  # execute the pinned reference and the ported twin on identical fixtures
+npm run test:acceptance    # drive the representative workflows through the real handlers
 ```
 
 The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported file: a legitimate platform difference belongs in `port/bindings/`, and everything else belongs upstream.

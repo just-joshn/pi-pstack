@@ -21,6 +21,11 @@ Cursor agent.
 These three gates compare Pi against the pinned Cursor *content* and against the
 Pi *contracts* it declares. They do not execute Cursor.
 
+4. **Acceptance.** `npm run test:acceptance` drives the representative workflows
+   through the real extension handlers and reports the literal playbook id, argv
+   flag, candidate count, worktree path, or TSV row it observed per scenario. It
+   is the release gate's end-to-end check.
+
 ## Executed against the pinned reference
 
 `npm run test:differential` (wired into `npm run spec:gate`) runs the pinned

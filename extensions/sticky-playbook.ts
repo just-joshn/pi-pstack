@@ -137,7 +137,7 @@ export const PLAYBOOK_RULES: PlaybookRule[] = [
     id: "autonomous-run",
     file: "autonomous-run.md",
     priority: 92,
-    cues: ["run until done", "poll until", "going to bed", "fully autonomous", "don't stop"],
+    cues: ["run until done", "poll until", "going to bed", "fully autonomous", "autonomously", "finish condition", "don't stop"],
   },
   {
     id: "orchestrate",

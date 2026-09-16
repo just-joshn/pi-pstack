@@ -133,17 +133,24 @@ export function readSkillCommands(skillsDir: string = DEFAULT_SKILLS_DIR): Skill
 }
 
 /**
+ * Skills whose slash name is owned by an extension command that does more than
+ * forward the skill body. The skill stays reachable as /skill:<name>.
+ */
+export const SHADOWED_SKILL_NAMES = ["setup-pstack"];
+
+/**
  * Registers `/name` for every skill not in `reserved`, forwarding trimmed user args into
  * `/skill:name <args>` so Pi's native skill loader expands it (not the removed prompt
  * templates, whose single-pass substitution dropped both args and the skill wrap).
  */
 export function registerSkillCommands(
   pi: ExtensionAPI,
-  opts: { skillsDir?: string; reserved?: Iterable<string> } = {},
+  opts: { skillsDir?: string; reserved?: Iterable<string>; shadowed?: Iterable<string> } = {},
 ): void {
   const reserved = new Set(opts.reserved ?? RESERVED_COMMAND_NAMES);
+  const shadowed = new Set(opts.shadowed ?? SHADOWED_SKILL_NAMES);
   for (const skill of readSkillCommands(opts.skillsDir)) {
-    if (reserved.has(skill.name)) continue;
+    if (reserved.has(skill.name) || shadowed.has(skill.name)) continue;
     pi.registerCommand(skill.name, {
       description: skill.description || `Invoke the ${skill.name} skill`,
       handler: async (args) => {
