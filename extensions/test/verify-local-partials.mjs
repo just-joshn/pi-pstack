@@ -74,7 +74,14 @@ await check("force-invoke routes via input transform, not a queued follow-up", a
   assert.ok(src.includes("restoredPlaybookId"));
   assert.ok(!src.includes("forceInvokeFallbackId"), "fallback-on-catch machinery must be gone");
   assert.ok(!src.includes("lastForcedSkillKey"), "re-entrant dedupe machinery must be gone");
-  assert.ok(!src.includes("deliverAs"), "must not queue a followUp for force-invoke");
+  const inputHandler = src.slice(
+    src.indexOf("function registerPotetoInput"),
+    src.indexOf("function registerPotetoPrompt"),
+  );
+  assert.ok(
+    !inputHandler.includes("sendUserMessage"),
+    "force-invoke must return a transform from the input handler, not queue a follow-up",
+  );
 });
 
 await check("sticky force skill message + persist helpers", async () => {
@@ -153,11 +160,12 @@ await check("child-runner concurrency default>=8 + persist + session isolated", 
     rmSync(dir, { recursive: true, force: true });
   }
   const src = readFileSync(resolve(ROOT, "extensions/subagents/child-runner.ts"), "utf8");
+  const sessionSrc = readFileSync(resolve(ROOT, "extensions/subagents/session-dir.ts"), "utf8");
   assert.ok(src.includes("PSTACK_MAX_CONCURRENCY"));
-  assert.ok(src.includes("sessionMode") || src.includes("PSTACK_CHILD_SESSION"));
+  assert.ok(src.includes("sessionMode") || sessionSrc.includes("PSTACK_CHILD_SESSION"));
   assert.ok(src.includes("--append-system-prompt"));
   assert.ok(src.includes("--session-dir"));
-  assert.ok(src.includes("return \"isolated\"") || src.includes('return "isolated"'));
+  assert.ok(sessionSrc.includes('return "isolated"'));
   assert.equal(mod.shouldPersistOutput({ task: "x", timeoutMs: 10 * 60 * 1000 }), true);
   assert.equal(mod.shouldPersistOutput({ task: "x", persistOutput: false, timeoutMs: 10 * 60 * 1000 }), false);
 });
@@ -177,6 +185,7 @@ await check("jobs enqueue + abort/cancel registry", async () => {
 
 await check("heartbeat coalesces dynamic double-fire + maxFires + shutdown clear", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/heartbeat/coalesce.ts")).href);
+  const fsm = await import(pathToFileURL(resolve(ROOT, "extensions/heartbeat/state.ts")).href);
   assert.equal(mod.DYNAMIC_COALESCE_MS, 2500);
   const state = { lastFireAt: 1000, fires: 0, maxFires: 3, armed: true };
   const c = mod.decideFire(state, "settle", 1000 + 500, mod.DYNAMIC_COALESCE_MS, "dynamic");
@@ -184,18 +193,26 @@ await check("heartbeat coalesces dynamic double-fire + maxFires + shutdown clear
   const f = mod.decideFire(state, "watcher", 1000 + 3000, mod.DYNAMIC_COALESCE_MS, "dynamic");
   assert.equal(f.action, "fire");
   assert.equal(f.fires, 1);
-  mod.applyFire(state, 1000 + 3000);
-  assert.equal(state.fires, 1);
-  assert.ok(mod.shouldSkipSettleArm(state.lastFireAt, state.lastFireAt + 100));
-  state.fires = 3;
-  state.lastFireAt = 0;
-  const stop = mod.decideFire(state, "interval", Date.now(), mod.DYNAMIC_COALESCE_MS, "interval");
-  assert.equal(stop.action, "stop");
-  mod.clearLoopState(state);
-  assert.equal(state.armed, false);
-  const src = readFileSync(resolve(ROOT, "extensions/heartbeat/index.ts"), "utf8");
+  assert.equal(state.fires, 0, "decideFire must not mutate the state it decides on");
+  const armed = fsm.initialLoopState({ id: "h", mode: "dynamic", prompt: "tick", intervalMs: 1000, maxFires: 3, watchArgv: [] });
+  const fired = fsm.reduceLoop(armed, { type: "tick", reason: "settle" }, 1000 + 3000);
+  assert.equal(fired.state.fires, 1);
+  assert.equal(armed.fires, 0, "a transition must return a new state, not mutate the armed one");
+  assert.ok(mod.shouldSkipSettleArm(fired.state.lastFireAt, fired.state.lastFireAt + 100));
+  const capped = fsm.initialLoopState({ id: "h", mode: "interval", prompt: "tick", intervalMs: 1000, maxFires: 3, watchArgv: [] });
+  const atCap = { ...capped, fires: 3, lastFireAt: 0 };
+  const stop = fsm.reduceLoop(atCap, { type: "tick", reason: "interval" }, Date.now());
+  assert.equal(stop.state.armed, false);
+  assert.equal(stop.effects.some((effect) => effect.type === "announce-stopped"), true);
+  const disarmed = fsm.reduceLoop(atCap, { type: "disarm" }, Date.now());
+  assert.equal(disarmed.state.armed, false);
+  assert.equal(atCap.armed, true, "disarm must return a new state, not mutate the armed one");
+  const src =
+    readFileSync(resolve(ROOT, "extensions/heartbeat/index.ts"), "utf8") +
+    readFileSync(resolve(ROOT, "extensions/heartbeat/runtime.ts"), "utf8") +
+    readFileSync(resolve(ROOT, "extensions/heartbeat/state.ts"), "utf8");
   assert.ok(src.includes("DYNAMIC_COALESCE_MS"));
-  assert.match(src, /clearTimer\(state\)/);
+  assert.match(src, /clearTimer\(run, id\)/);
   assert.ok(src.includes("session_shutdown"));
   assert.ok(src.includes("lastFireAt"));
   assert.ok(src.includes("status") && src.includes("list") && src.includes("stop"));
@@ -205,7 +222,12 @@ await check("heartbeat coalesces dynamic double-fire + maxFires + shutdown clear
 
 await check("zero double-fire under rapid settle+watcher script", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/heartbeat/coalesce.ts")).href);
-  const state = { lastFireAt: 0, fires: 0, maxFires: 10, armed: true };
+  const fsm = await import(pathToFileURL(resolve(ROOT, "extensions/heartbeat/state.ts")).href);
+  const eventFor = (reason) =>
+    reason === "watcher"
+      ? { type: "watcher-exit", code: 0, output: "ready" }
+      : { type: "tick", reason };
+  let loop = fsm.initialLoopState({ id: "rapid", mode: "dynamic", prompt: "wake", intervalMs: 1000, maxFires: 10, watchArgv: [] });
   let fires = 0;
   const t0 = 10_000;
   for (const [reason, t] of [
@@ -214,15 +236,13 @@ await check("zero double-fire under rapid settle+watcher script", async () => {
     ["settle", t0 + 400],
     ["watcher", t0 + 600],
   ]) {
-    const d = mod.decideFire(state, reason, t, mod.DYNAMIC_COALESCE_MS, "dynamic");
-    if (d.action === "fire") {
-      fires = fires + 1;
-      mod.applyFire(state, t);
-    }
+    const reduced = fsm.reduceLoop(loop, eventFor(reason), t);
+    loop = reduced.state;
+    if (reduced.effects.some((effect) => effect.type === "deliver")) fires = fires + 1;
   }
   assert.equal(fires, 1, `expected 1 fire in coalesce window, got ${fires}`);
-  const later = mod.decideFire(state, "settle", t0 + 3000, mod.DYNAMIC_COALESCE_MS, "dynamic");
-  assert.equal(later.action, "fire");
+  const later = fsm.reduceLoop(loop, { type: "tick", reason: "settle" }, t0 + 3000);
+  assert.equal(later.effects.some((effect) => effect.type === "deliver"), true);
 });
 
 await check("babysit watchArgv recipes concrete + materialize + shipping default", async () => {
@@ -326,7 +346,7 @@ await check("deslop applySafe + dryRun path exercised", async () => {
         safeDelete: true,
       },
     ];
-    const result = mod.applySafeDeletes(dir, suggestions);
+    const result = await mod.applySafeDeletes(dir, suggestions);
     assert.ok(result.applied >= 1, `applied=${result.applied}`);
     const next = readFileSync(file, "utf8");
     assert.ok(!next.includes("Phase 1"));

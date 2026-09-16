@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
 import { auditSource } from "../../support/conformance/rules.mjs";
 import { collectViolations } from "../../support/conformance/collect.mjs";
 import { scanFrames, sanitize } from "../../support/conformance/scan.mjs";
+import { repoRoot } from "../../support/repo-root.mjs";
 
-const TESTS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const TESTS_DIR = join(repoRoot(import.meta.url), "tests");
 
 test("scanFrames reports declaration, arrow, and method spans", () => {
   const source = [
@@ -122,6 +122,63 @@ test("auditSource flags each banned construct with its line number", () => {
     auditSource(source).map((violation) => `${violation.rule}:${violation.line}`),
     ["mutation:2", "increment:4", "empty-catch:5", "delete:6", "console.log:7"],
   );
+});
+
+const SHARED_STATE_WRITES = [
+  { label: "property assignment", source: "const obj = {};\nexport function f() {\n  obj.prop = 1;\n}\n" },
+  { label: "compound assignment", source: "const state = { n: 0 };\nexport function f() {\n  state.n += 1;\n}\n" },
+  { label: "Map.set", source: "const m = new Map();\nexport function f(k, v) {\n  m.set(k, v);\n}\n" },
+  { label: "Set.add", source: "const s = new Set();\nexport function f(x) {\n  s.add(x);\n}\n" },
+  { label: "index assignment", source: "const arr = [0];\nexport function f() {\n  arr[0] = 1;\n}\n" },
+];
+
+test("auditSource flags every shared-state write form at its own line", () => {
+  for (const { label, source } of SHARED_STATE_WRITES) {
+    const hits = auditSource(source).filter((violation) => violation.rule === "mutation");
+    assert.equal(hits.length, 1, `${label} is reported once`);
+    assert.equal(hits[0].line, 3, `${label} reports the write line`);
+    assert.equal(hits[0].scope, "module", `${label} is classified as module scope`);
+    assert.match(hits[0].detail, /module-level/, `${label} names the receiver`);
+  }
+});
+
+test("auditSource follows a property chain to its module-level root", () => {
+  const source = "const config = { db: { timeout: 1 } };\nexport function f() {\n  config.db.timeout = 5;\n}\n";
+  const hits = auditSource(source).filter((violation) => violation.rule === "mutation");
+  assert.deepEqual(
+    hits.map((hit) => [hit.line, hit.scope]),
+    [[3, "module"]],
+  );
+});
+
+test("auditSource leaves a local array push to the container-call rule", () => {
+  const violations = auditSource("export function f() {\n  const acc = [];\n  acc.push(1);\n}\n");
+  assert.deepEqual(
+    violations.map((violation) => violation.rule),
+    ["mutation"],
+    "the unconditional container-call rule still fires",
+  );
+  assert.deepEqual(
+    violations.filter((violation) => violation.scope === "module"),
+    [],
+    "a function-local accumulator is not shared state",
+  );
+});
+
+test("auditSource does not report a parameter or a read-only module object", () => {
+  const parameter = "export function f(state) {\n  state.n = 1;\n}\n";
+  const readOnly = "const config = { timeout: 1 };\nexport function f() {\n  return config.timeout;\n}\n";
+  assert.deepEqual(auditSource(parameter), []);
+  assert.deepEqual(auditSource(readOnly), []);
+});
+
+test("auditSource ignores module-initiation writes, this.x, and a regex cursor", () => {
+  const atInit = "const seen = [0];\nfor (const step of [1]) {\n  seen[0] = step;\n}\n";
+  const ownField = "export function f() {\n  this.x = 1;\n}\n";
+  const cursor = "const re = /a/g;\nexport function f() {\n  re.lastIndex = 0;\n}\n";
+  assert.deepEqual(auditSource(atInit), []);
+  assert.deepEqual(auditSource(ownField), []);
+  assert.deepEqual(auditSource(cursor), []);
 });
 
 test("auditSource flags a function body longer than 50 lines", () => {

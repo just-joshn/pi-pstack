@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { repoRoot } from "../../support/repo-root.mjs";
 import { registerArena } from "../../../extensions/orchestration/arena.ts";
 import { MAX_TASKS, READONLY_TOOLS } from "../../../extensions/subagents/child-runner.ts";
 
 const WORKTREE_DIR = ".pstack-worktrees";
-const ROOT = resolve(import.meta.dirname, "../../..");
+const ROOT = repoRoot(import.meta.url);
 
 interface ToolTextPart {
   type: string;
@@ -55,7 +56,7 @@ function captureArena(): CapturedTool {
 }
 
 function arenaCtx(cwd: string) {
-  return { cwd, model: { provider: "pstack-test", id: "parent" } };
+  return { cwd, model: { provider: "pstack-test", id: "parent" }, isProjectTrusted: () => true };
 }
 
 const STUB_CHILD_SOURCE = [

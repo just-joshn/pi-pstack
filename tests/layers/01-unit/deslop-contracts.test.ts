@@ -232,7 +232,7 @@ test("deslop-04 enforces 19 rules categorized into three severities", () => {
   );
 });
 
-test("deslop-05 applySafeDeletes removes safe comments and keeps console and code", () => {
+test("deslop-05 applySafeDeletes removes safe comments and keeps console and code", async () => {
   const dir = fixtureDir({ "app.ts": APP_ORIGINAL });
   try {
     const { suggestions, rankedLabels } = scanAddedLinesForSlop(APP_SUGGESTION_ROWS);
@@ -250,7 +250,7 @@ test("deslop-05 applySafeDeletes removes safe comments and keeps console and cod
       "empty comment line",
     ]);
 
-    const result = applySafeDeletes(dir, suggestions);
+    const result = await applySafeDeletes(dir, suggestions);
     assert.deepEqual(result, { applied: 2, files: ["app.ts"] });
     assert.equal(readFileSync(join(dir, "app.ts"), "utf8"), APP_CLEAN);
   } finally {
@@ -360,7 +360,7 @@ test("deslop-08 the deslop command queues the deslop plus unslop prompt", async 
   assert.deepEqual(h.sent(), [
     {
       text: "Run pstack_deslop on the current diff against main (consider applySafe:true for safe comment deletes), then apply /skill:unslop to any prose surfaces and fix remaining findings with edit.",
-      opts: { expandPromptTemplates: true },
+      opts: { expandPromptTemplates: true, deliverAs: "followUp" },
     },
   ]);
   assert.deepEqual(notices, [{ msg: "Queued deslop twin", level: "info" }]);

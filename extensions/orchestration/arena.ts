@@ -2,8 +2,11 @@
  * pstack_arena — N candidates, optional cross-judge, return artifacts for graft.
  * Full graft stays in the arena skill; this tool owns fan-out + gather.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, AgentToolUpdateCallback, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { capToolOutput } from "../lib/tool-output.ts";
+import { stripAtPrefix } from "../lib/paths.ts";
+import type { ChildTaskResult } from "../subagents/child-runner.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   MAX_CONCURRENCY,
@@ -13,7 +16,7 @@ import {
   mapConcurrent,
   runChildTask,
 } from "../subagents/child-runner.ts";
-import { resolveRoleModel } from "../models/config.ts";
+import { projectConfigCwd, resolveRoleModel } from "../models/config.ts";
 import { ensureAlwaysIsolated } from "../worktree/helpers.ts";
 
 type ArenaCandidate = {
@@ -34,29 +37,44 @@ type ArenaParams = {
 
 type CandidateResult = {
   label: string;
-  outputPath?: string;
+  outputPath?: string | undefined;
   cwd: string;
-  result: { model: string; exitCode: number; output: string; stopReason?: string };
+  result: ChildTaskResult;
 };
+
+/** One cwd per candidate; a missing entry means the allocator returned short. */
+function zipCandidates(
+  candidates: ReadonlyArray<ArenaCandidate>,
+  cwds: ReadonlyArray<string>,
+): Array<{ candidate: ArenaCandidate; index: number; cwd: string }> {
+  return candidates.map((candidate, index) => {
+    const cwd = cwds[index];
+    if (cwd === undefined) throw new Error(`missing isolated worktree for candidate ${index + 1}`);
+    return { candidate, index, cwd };
+  });
+}
 
 async function runArenaCandidates(
   params: ArenaParams,
   cwds: string[],
   parentModel: string,
   ctxCwd: string,
+  trustedConfigCwd: string | undefined,
   signal: AbortSignal | undefined,
-  onUpdate: ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void) | undefined,
+  onUpdate: AgentToolUpdateCallback<Record<string, unknown>> | undefined,
 ): Promise<CandidateResult[]> {
+  const units = zipCandidates(params.candidates, cwds);
   let doneCount = 0;
-  return await mapConcurrent(params.candidates, MAX_CONCURRENCY, async (c, index) => {
+  return await mapConcurrent(units, MAX_CONCURRENCY, async (unit) => {
     const model =
-      c.model ??
-      resolveRoleModel("arena runners", parentModel, index, ctxCwd) ??
+      unit.candidate.model ??
+      resolveRoleModel("arena runners", parentModel, unit.index, trustedConfigCwd) ??
       parentModel;
-    const label = c.label ?? `candidate-${index + 1}`;
+    const label = unit.candidate.label ?? `candidate-${unit.index + 1}`;
+    const outputPath = stripAtPrefix(unit.candidate.outputPath);
     const task = [
       params.prompt,
-      c.outputPath ? `Write your artifact under: ${c.outputPath}` : "",
+      outputPath ? `Write your artifact under: ${outputPath}` : "",
       "Also return a short rationale naming alternatives considered and rejected.",
     ]
       .filter(Boolean)
@@ -65,7 +83,7 @@ async function runArenaCandidates(
       {
         task,
         model,
-        cwd: cwds[index],
+        cwd: unit.cwd,
         role: "general",
         timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       },
@@ -75,10 +93,10 @@ async function runArenaCandidates(
     );
     doneCount = doneCount + 1;
     onUpdate?.({
-      content: [{ type: "text", text: `${doneCount}/${params.candidates.length} arena candidates done` }],
+      content: [{ type: "text", text: `${doneCount}/${units.length} arena candidates done` }],
       details: {},
     });
-    return { label, outputPath: c.outputPath, cwd: cwds[index], result };
+    return { label, outputPath, cwd: unit.cwd, result };
   });
 }
 
@@ -87,12 +105,13 @@ async function runCrossJudge(
   results: CandidateResult[],
   parentModel: string,
   ctxCwd: string,
+  trustedConfigCwd: string | undefined,
   signal: AbortSignal | undefined,
 ): Promise<string> {
   if (!params.crossJudge) return "";
   const judgeModel =
     params.judgeModel ??
-    resolveRoleModel("arena cross-judge pool", parentModel, 0, ctxCwd) ??
+    resolveRoleModel("arena cross-judge pool", parentModel, 0, trustedConfigCwd) ??
     parentModel;
   const summaries = results
     .map(
@@ -119,65 +138,95 @@ async function runCrossJudge(
   return `\n\n## Cross-judge (${judge.model})\n\n${judge.output}`;
 }
 
-function formatArenaResponse(results: CandidateResult[], judgeText: string) {
+function formatArenaResponse(
+  results: CandidateResult[],
+  judgeText: string,
+): AgentToolResult<Record<string, unknown>> {
   const body = results
     .map(
       (r) =>
         `### ${r.label} (${r.result.model}, exit ${r.result.exitCode})\npath: ${r.outputPath ?? "(inline)"}\ncwd: ${r.cwd}\n\n${r.result.output}`,
     )
     .join("\n\n---\n\n");
+  const report = `## Arena candidates\n\n${body}${judgeText}\n\nNext: pick a base and graft per the arena skill.`;
+  const capped = capToolOutput(report, { keep: "head", label: "arena-report" });
   return {
     content: [
       {
         type: "text",
-        text: `## Arena candidates\n\n${body}${judgeText}\n\nNext: pick a base and graft per the arena skill.`,
+        text: capped.text,
       },
     ],
-    details: { results, concurrencyCap: MAX_CONCURRENCY },
+    details: {
+      results,
+      concurrencyCap: MAX_CONCURRENCY,
+      ...(capped.outputPath ? { fullOutputPath: capped.outputPath } : {}),
+    },
   };
 }
+
+const ARENA_DESCRIPTION =
+  `Run N parallel candidates at the same task (optional cross-judge). Always isolates each candidate in a unique worktree (even N=1). Global child concurrency cap: ${MAX_CONCURRENCY}. Parent skill picks base and grafts. The aggregate report caps at 50KB / 2000 lines; a truncated report's trailer names the temp file with the full text.`;
+
+const ARENA_PROMPT_GUIDELINES = [
+  "Use pstack_arena for arena Phase B fan-out; then pick/graft per the arena skill.",
+  "pstack_arena always auto-isolates candidates (even N=1). Omit cwd for auto worktree; never share parent dirty cwd.",
+  `pstack_arena caps ${MAX_CONCURRENCY} concurrent children globally. pstack_arena cross-judge is read-only (no bash).`,
+];
+
+const ARENA_PARAMETERS = Type.Object({
+  prompt: Type.String({ description: "Shared candidate prompt/contract" }),
+  candidates: Type.Array(
+    Type.Object({
+      model: Type.Optional(Type.String()),
+      cwd: Type.Optional(Type.String()),
+      outputPath: Type.Optional(Type.String()),
+      label: Type.Optional(Type.String()),
+    }),
+    { minItems: 1, maxItems: MAX_TASKS },
+  ),
+  rubric: Type.Optional(Type.String({ description: "Rubric for optional cross-judge" })),
+  crossJudge: Type.Optional(Type.Boolean({ description: "Spawn a readonly judge after candidates" })),
+  judgeModel: Type.Optional(Type.String()),
+  timeoutMs: Type.Optional(Type.Integer({ minimum: 1_000, maximum: MAX_TIMEOUT_MS })),
+});
 
 export function registerArena(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "pstack_arena",
     label: "Pstack Arena",
-    description:
-      `Run N parallel candidates at the same task (optional cross-judge). Always isolates each candidate in a unique worktree (even N=1). Global child concurrency cap: ${MAX_CONCURRENCY}. Parent skill picks base and grafts.`,
+    description: ARENA_DESCRIPTION,
     promptSnippet: "Parallel design/code candidates for arena synthesis",
-    promptGuidelines: [
-      "Use pstack_arena for arena Phase B fan-out; then pick/graft per the arena skill.",
-      "Always auto-isolates candidates (even N=1). Omit cwd for auto worktree; never share parent dirty cwd.",
-      `Cap ${MAX_CONCURRENCY} concurrent children globally. Cross-judge is read-only (no bash).`,
-    ],
-    parameters: Type.Object({
-      prompt: Type.String({ description: "Shared candidate prompt/contract" }),
-      candidates: Type.Array(
-        Type.Object({
-          model: Type.Optional(Type.String()),
-          cwd: Type.Optional(Type.String()),
-          outputPath: Type.Optional(Type.String()),
-          label: Type.Optional(Type.String()),
-        }),
-        { minItems: 1, maxItems: MAX_TASKS },
-      ),
-      rubric: Type.Optional(Type.String({ description: "Rubric for optional cross-judge" })),
-      crossJudge: Type.Optional(Type.Boolean({ description: "Spawn a readonly judge after candidates" })),
-      judgeModel: Type.Optional(Type.String()),
-      timeoutMs: Type.Optional(Type.Integer({ minimum: 1_000, maximum: MAX_TIMEOUT_MS })),
-    }),
+    promptGuidelines: ARENA_PROMPT_GUIDELINES,
+    parameters: ARENA_PARAMETERS,
     async execute(_id, params, signal, onUpdate, ctx) {
       if (!ctx.model) throw new Error("pstack_arena requires an active parent model");
       const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
       const cwds = await ensureAlwaysIsolated(
         ctx.cwd,
         params.candidates.map((c, i) => ({
-          cwd: c.cwd,
+          cwd: stripAtPrefix(c.cwd),
           label: c.label ?? `candidate-${i + 1}`,
         })),
       );
 
-      const results = await runArenaCandidates(params, cwds, parentModel, ctx.cwd, signal, onUpdate);
-      const judgeText = await runCrossJudge(params, results, parentModel, ctx.cwd, signal);
+      const results = await runArenaCandidates(
+        params,
+        cwds,
+        parentModel,
+        ctx.cwd,
+        projectConfigCwd(ctx),
+        signal,
+        onUpdate,
+      );
+      const judgeText = await runCrossJudge(
+        params,
+        results,
+        parentModel,
+        ctx.cwd,
+        projectConfigCwd(ctx),
+        signal,
+      );
       return formatArenaResponse(results, judgeText);
     },
   });

@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pi-pstack.local/compat/parity.schema.json",
+  "title": "pi-pstack parity matrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "upstreamRevision",
+    "pluginVersion",
+    "capturedAt",
+    "generatedFrom",
+    "totals",
+    "rows"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "upstreamRevision": { "type": "string", "minLength": 7 },
+    "pluginVersion": { "type": "string", "minLength": 1 },
+    "capturedAt": { "type": "string", "minLength": 1 },
+    "generatedFrom": { "const": "spec/contracts/*.tsv" },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["byClassification", "byStatus"],
+      "properties": {
+        "byClassification": { "$ref": "#/$defs/classificationCounts" },
+        "byStatus": { "$ref": "#/$defs/statusCounts" }
+      }
+    },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/row" } }
+  },
+  "$defs": {
+    "classification": {
+      "enum": [
+        "EXACT-CONTRACT",
+        "ADAPTED-EQUIVALENT",
+        "HOSTED-CAPABILITY-REQUIRED",
+        "APPROVED-EXCEPTION"
+      ]
+    },
+    "status": { "enum": ["unimplemented", "implemented", "verified", "blocked"] },
+    "category": {
+      "enum": [
+        "skill",
+        "agent",
+        "playbook",
+        "command",
+        "config",
+        "state",
+        "integration",
+        "dependency",
+        "edge-case"
+      ]
+    },
+    "classificationCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "EXACT-CONTRACT",
+        "ADAPTED-EQUIVALENT",
+        "HOSTED-CAPABILITY-REQUIRED",
+        "APPROVED-EXCEPTION"
+      ],
+      "properties": {
+        "EXACT-CONTRACT": { "type": "integer", "minimum": 0 },
+        "ADAPTED-EQUIVALENT": { "type": "integer", "minimum": 0 },
+        "HOSTED-CAPABILITY-REQUIRED": { "type": "integer", "minimum": 0 },
+        "APPROVED-EXCEPTION": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "statusCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unimplemented", "implemented", "verified", "blocked"],
+      "properties": {
+        "unimplemented": { "type": "integer", "minimum": 0 },
+        "implemented": { "type": "integer", "minimum": 0 },
+        "verified": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "category",
+        "upstreamRevision",
+        "upstreamPath",
+        "behavior",
+        "observableContract",
+        "classification",
+        "piMechanism",
+        "prerequisites",
+        "tests",
+        "normalization",
+        "status",
+        "evidence",
+        "divergences",
+        "exceptionJustification"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "category": { "$ref": "#/$defs/category" },
+        "upstreamRevision": { "type": "string", "minLength": 7 },
+        "upstreamPath": { "type": "string", "minLength": 1 },
+        "behavior": { "type": "string", "minLength": 1 },
+        "observableContract": { "type": "array", "items": { "type": "string" } },
+        "classification": { "$ref": "#/$defs/classification" },
+        "piMechanism": { "type": "array", "items": { "type": "string" } },
+        "prerequisites": { "type": "array", "items": { "type": "string" } },
+        "tests": { "type": "array", "items": { "type": "string" } },
+        "normalization": { "type": "array", "items": { "type": "string" } },
+        "status": { "$ref": "#/$defs/status" },
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "divergences": { "type": "array", "items": { "type": "string" } },
+        "exceptionJustification": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

@@ -27,23 +27,20 @@ import { __resetBackgroundJobsForTests } from "../../extensions/subagents/child-
 import { buildInventory } from "./inventory.mjs";
 
 const HARNESS_HOME_PREFIX = "pstack-journeys-home-";
-const harnessHomeState = { home: undefined, savedHome: undefined };
+let harnessHomeState = { home: undefined, savedHome: undefined };
 
 function installHarnessHome(prefix = HARNESS_HOME_PREFIX) {
-  if (harnessHomeState.home !== undefined) return harnessHomeState.home;
+  if (harnessHomeState.home !== undefined) return harnessHomeState;
   const home = mkdtempSync(join(tmpdir(), prefix));
-  harnessHomeState.savedHome = process.env.HOME;
-  harnessHomeState.home = home;
+  harnessHomeState = { home, savedHome: process.env.HOME };
   process.env.HOME = home;
-  return home;
+  return harnessHomeState;
 }
 
 function removeHarnessHome() {
-  const home = harnessHomeState.home;
+  const { home, savedHome } = harnessHomeState;
   if (home === undefined) return;
-  const savedHome = harnessHomeState.savedHome;
-  harnessHomeState.home = undefined;
-  harnessHomeState.savedHome = undefined;
+  harnessHomeState = { home: undefined, savedHome: undefined };
   rmSync(home, { recursive: true, force: true });
   if (savedHome === undefined) Reflect.deleteProperty(process.env, "HOME");
   else process.env.HOME = savedHome;
@@ -276,8 +273,7 @@ async function executeJourney({ entry, probe, home, journey }) {
 }
 
 export async function createJourneyBench({ entry }) {
-  installHarnessHome();
-  const home = harnessHomeState.home;
+  const { home } = installHarnessHome();
   const state = { observed: [], results: [] };
   const probe = await createProbe(entry);
   return {

@@ -16,6 +16,8 @@ function fakeLoopEnv(execResult: { code: number; stdout: string; stderr: string 
   let tool: CapturedTool | undefined;
   let signals: AbortSignal[] = [];
   let messages: string[] = [];
+  let execFailure: Error | undefined;
+  let sendFailure: Error | undefined;
   const pi = {
     on() {},
     registerCommand() {},
@@ -24,10 +26,12 @@ function fakeLoopEnv(execResult: { code: number; stdout: string; stderr: string 
     },
     async exec(_command: string, _args: string[], opts?: { signal?: AbortSignal }) {
       if (opts?.signal) signals = [...signals, opts.signal];
+      if (execFailure) throw execFailure;
       if (execResult === "pending") return new Promise(() => {});
       return execResult;
     },
     sendUserMessage(content: string) {
+      if (sendFailure) throw sendFailure;
       messages = [...messages, content];
     },
     sendMessage() {},
@@ -38,6 +42,12 @@ function fakeLoopEnv(execResult: { code: number; stdout: string; stderr: string 
     tool: () => tool as CapturedTool,
     signals: () => signals,
     messages: () => messages,
+    failExec: (error: Error) => {
+      execFailure = error;
+    },
+    failSend: (error: Error) => {
+      sendFailure = error;
+    },
     ctx,
   };
 }
@@ -77,4 +87,66 @@ test("stopping a loop aborts the running watcher", async () => {
   assert.equal(env.signals().at(-1)?.aborted, false);
   await env.tool().execute("t", { action: "stop" }, undefined, undefined, env.ctx);
   assert.equal(env.signals().at(-1)?.aborted, true);
+});
+
+test("a rejected watcher arm does not leave a phantom loop in status", async () => {
+  const env = fakeLoopEnv({ code: 0, stdout: "", stderr: "" });
+  await assert.rejects(
+    env.tool().execute(
+      "t",
+      { action: "arm", mode: "watcher", prompt: "wake", watchArgv: ["-x"] },
+      undefined,
+      undefined,
+      env.ctx,
+    ),
+    /watchArgv\[0\] must be a command path\/name/,
+  );
+  const status = (await env.tool().execute(
+    "t",
+    { action: "status" },
+    undefined,
+    undefined,
+    env.ctx,
+  )) as { content: Array<{ text: string }> };
+  assert.equal(status.content[0].text, "(no active loops)");
+});
+
+test("a watcher whose argv fails to spawn wakes with the crash cause, not a silent stop", async () => {
+  const env = fakeLoopEnv({ code: 0, stdout: "", stderr: "" });
+  env.failExec(new Error("spawn watch-pr ENOENT"));
+  await armWatcher(env);
+  await flush();
+  await flush();
+  const last = env.messages().at(-1) ?? "";
+  assert.match(last, /reason=watcher-error\]/);
+  assert.match(last, /--- watcher failed ---\nspawn watch-pr ENOENT/);
+});
+
+test("a host refusal to deliver is recorded on the loop instead of becoming an unhandled rejection", async () => {
+  const env = fakeLoopEnv({ code: 0, stdout: "READY", stderr: "" });
+  env.failSend(new Error("host refused sendUserMessage"));
+  let rejections: unknown[] = [];
+  const listener = (reason: unknown) => {
+    rejections = [...rejections, reason];
+  };
+  process.on("unhandledRejection", listener);
+  try {
+    await armWatcher(env);
+    await flush();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const status = (await env.tool().execute(
+      "t",
+      { action: "status" },
+      undefined,
+      undefined,
+      env.ctx,
+    )) as { content: Array<{ text: string }> };
+    assert.deepEqual(rejections, []);
+    assert.equal(
+      status.content[0].text,
+      "loop-1 mode=watcher fires=1/50 armed=true lastReason=deliver-failed (host refused sendUserMessage)",
+    );
+  } finally {
+    process.off("unhandledRejection", listener);
+  }
 });

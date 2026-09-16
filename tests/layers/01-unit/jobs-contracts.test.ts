@@ -139,7 +139,7 @@ function makeHarness(cwd: string): Harness {
   };
   subagents.registerSpawn(pi as never);
   return {
-    ctx: { model: { provider: "anthropic", id: "claude-parent-4-5" }, cwd },
+    ctx: { model: { provider: "anthropic", id: "claude-parent-4-5" }, cwd, isProjectTrusted: () => false },
     tool(name: string) {
       const tool = tools.get(name);
       if (!tool) throw new Error(`tool not registered: ${name}`);
@@ -354,10 +354,13 @@ test("jobs-07 keeps records queryable across follow-ups and aborts in-flight job
     const runningId = running.details.jobId as string;
     assert.equal(childRunner.getBackgroundJob(runningId)?.status, "running");
     h.shutdown();
-    assert.equal(childRunner.getBackgroundJob(runningId)?.status, "aborted");
+    assert.equal(childRunner.getBackgroundJob(runningId), undefined, "shutdown clears job records");
+    assert.deepEqual(childRunner.listBackgroundJobs(), []);
     assert.deepEqual(recordedSpawns.at(-1)?.killSignals, ["SIGTERM"]);
-    const afterShutdown = await runJobs(h, { action: "status", id: runningId });
-    assert.match(afterShutdown.content[0].text, /status=aborted/);
+    await assert.rejects(
+      runJobs(h, { action: "status", id: runningId }),
+      new RegExp(`unknown job: ${runningId}`),
+    );
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

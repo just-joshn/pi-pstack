@@ -19,3 +19,4 @@ readonly	11	/pstack-readonly(-off), tool policy, auto-arm, status	agents/comment
 sessions	8	pstack_sessions: list/grep/current/recall, ranking	skills/recall/SKILL.md
 benny	10	pstack_benny_wake, /setup-benny, /benny-triage, /benny-repro	automations/benny/FOR_AGENTS.md
 ceiling	9, 12	EXCLUDED rows only, each naming its twin surface	none in tree
+host	0	ExtensionAPI conformance: tool definitions, enums, output caps, path normalization, file mutation queue, trust gating, shutdown lifecycle	@earendil-works/pi-coding-agent docs/extensions.md

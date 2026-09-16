@@ -5,8 +5,11 @@
 import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
+import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
+import { projectConfigCwd } from "../models/config.ts";
 import { recallGitLog, recallGhPrs } from "./recall-corpus.ts";
 import { buildRankedRecallCorpus, formatRankedRecallBody } from "./recall-rank.ts";
 
@@ -17,10 +20,12 @@ export {
   rankRecallHits,
 } from "./recall-rank.ts";
 
-function candidateSessionDirs(cwd: string): string[] {
+type SessionsReply = AgentToolResult<Record<string, unknown>>;
+
+function candidateSessionDirs(cwd: string, trustedConfigCwd: string | undefined): string[] {
   const home = homedir();
   return [
-    join(cwd, ".pi", "sessions"),
+    trustedConfigCwd ? join(trustedConfigCwd, CONFIG_DIR_NAME, "sessions") : "",
     join(home, ".pi", "agent", "sessions"),
     join(home, ".pi", "sessions"),
     process.env.PI_SESSION_DIR || "",
@@ -56,8 +61,12 @@ function walkSessionDir(
   });
 }
 
-function listSessionFiles(cwd: string, limit: number): Array<{ path: string; mtimeMs: number; bytes: number }> {
-  const collected = candidateSessionDirs(cwd)
+function listSessionFiles(
+  cwd: string,
+  limit: number,
+  trustedConfigCwd: string | undefined,
+): Array<{ path: string; mtimeMs: number; bytes: number }> {
+  const collected = candidateSessionDirs(cwd, trustedConfigCwd)
     .filter(existsSync)
     .flatMap((dir) => walkSessionDir(dir, 0));
   return collected.toSorted((a, b) => b.mtimeMs - a.mtimeMs).slice(0, limit);
@@ -66,7 +75,7 @@ function listSessionFiles(cwd: string, limit: number): Array<{ path: string; mti
 function handleListAction(
   files: Array<{ path: string; mtimeMs: number; bytes: number }>,
   limit: number,
-) {
+): SessionsReply {
   const sliced = files.slice(0, limit);
   const lines = sliced.map(
     (f) => `${new Date(f.mtimeMs).toISOString()}  ${f.bytes}B  ${f.path}`,
@@ -101,7 +110,7 @@ function handleGrepAction(
   files: Array<{ path: string; mtimeMs: number; bytes: number }>,
   query: string,
   limit: number,
-) {
+): SessionsReply {
   const q = query.toLowerCase();
   if (!q) throw new Error("query required for grep");
   const hits = files
@@ -158,7 +167,7 @@ async function handleRecallAction(
   limit: number,
   days: number,
   cwd: string,
-) {
+): Promise<SessionsReply> {
   const q = query ?? "";
   const sessionHits = buildSessionHits(files, q, limit);
   const gitLog = await recallGitLog(cwd, q, limit);
@@ -196,10 +205,12 @@ export function registerSessions(pi: ExtensionAPI): void {
     promptSnippet: "Find recent Pi sessions / ranked recall corpus for a topic",
     promptGuidelines: [
       "Use pstack_sessions for recall fan-out instead of Cursor ~/.cursor/projects/*/agent-transcripts.",
-      "action=recall fans out across sessions + git log + gh PRs and returns a ranked merge (local workflow twin of rebuild-context-for-topic).",
+      "pstack_sessions action=recall fans out across sessions + git log + gh PRs and returns a ranked merge (local workflow twin of rebuild-context-for-topic).",
     ],
     parameters: Type.Object({
-      action: Type.String({ description: "list | grep | current | recall" }),
+      action: StringEnum(["list", "grep", "current", "recall"] as const, {
+        description: "list | grep | current | recall",
+      }),
       query: Type.Optional(Type.String()),
       limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
       days: Type.Optional(Type.Integer({ minimum: 1, maximum: 365 })),
@@ -215,7 +226,7 @@ export function registerSessions(pi: ExtensionAPI): void {
       const limit = params.limit ?? 20;
       const days = params.days ?? 7;
       const cutoff = Date.now() - days * 86400000;
-      const files = listSessionFiles(ctx.cwd, 200).filter((f) => f.mtimeMs >= cutoff);
+      const files = listSessionFiles(ctx.cwd, 200, projectConfigCwd(ctx)).filter((f) => f.mtimeMs >= cutoff);
 
       if (params.action === "list") {
         return handleListAction(files, limit);

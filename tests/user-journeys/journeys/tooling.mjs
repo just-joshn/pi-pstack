@@ -250,11 +250,11 @@ async function assertControlCli(user) {
   const cli = { calls: [] };
   user.setExec(execStub(cli));
   const result = textOf(
-    await user.tool("pstack_control_cli", { argv: ["./node_modules/.bin/tsx", "probe"], cwd: "/tmp/probe" }),
+    await user.tool("pstack_control_cli", { argv: ["git", "probe"], cwd: "/tmp/probe" }),
   );
   assert.equal(result, "exit 3\n\nline one\n\nline two\n");
   assert.equal(cli.calls.length, 1);
-  assert.equal(cli.calls[0].command, "./node_modules/.bin/tsx");
+  assert.equal(cli.calls[0].command, "git");
   assert.deepEqual(cli.calls[0].args, ["probe"]);
   assert.equal(cli.calls[0].opts.cwd, "/tmp/probe");
   assert.equal(cli.calls[0].opts.timeout, 120000);
@@ -274,12 +274,12 @@ function responseStub(state) {
 async function assertControlUi(user) {
   const fetchState = { calls: [] };
   user.setFetch(responseStub(fetchState));
-  const ok = await user.tool("pstack_control_ui", { url: "http://127.0.0.1:8080/" });
+  const ok = await user.tool("pstack_control_ui", { url: "http://127.0.0.1:8080/", allowHosts: ["127.0.0.1"] });
   assert.equal(textOf(ok), "HTTP 200 ok=true\n\ncontrol-ui body");
   assert.deepEqual(ok.details, { status: 200, ok: true });
   assert.deepEqual(fetchState.calls, [["http://127.0.0.1:8080/", "GET"]]);
 
-  const mismatch = await user.tool("pstack_control_ui", { url: "http://127.0.0.1:8080/", expectStatus: 204 });
+  const mismatch = await user.tool("pstack_control_ui", { url: "http://127.0.0.1:8080/", expectStatus: 204, allowHosts: ["127.0.0.1"] });
   assert.equal(textOf(mismatch).startsWith("HTTP 200 ok=false"), true);
   assert.deepEqual(mismatch.details, { status: 200, ok: false });
 }
@@ -288,12 +288,10 @@ async function assertControlUiFailure(user) {
   user.setFetch(async () => {
     throw new Error("boom");
   });
-  const failed = await user.tool("pstack_control_ui", { url: "http://127.0.0.1:9/" });
-  assert.equal(
-    textOf(failed),
-    "pstack_control_ui failed: boom\nHTTP-only twin. If you need real browser interaction, use an available browser MCP alongside this probe.",
+  await assert.rejects(
+    () => user.tool("pstack_control_ui", { url: "http://127.0.0.1:9/", allowHosts: ["127.0.0.1"] }),
+    /pstack_control_ui failed: boom\. HTTP-only twin\./,
   );
-  assert.deepEqual(failed.details, { ok: false });
 }
 
 const J12 = {

@@ -6,6 +6,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readSkillChrome, splitFrontmatter } from "./lib/skill-chrome.ts";
 import {
   buildPlaybookInjectBlock,
   buildPlaybookInjectFromId,
@@ -18,14 +19,22 @@ const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const POTETO_SKILL = resolve(PACKAGE_ROOT, "skills", "poteto-mode", "SKILL.md");
 
 let cachedBody: string | undefined;
+let cachedReminder: string | null = null;
 
 /** Strip YAML frontmatter; return markdown body (or empty). */
 export function stripFrontmatter(raw: string): string {
-  if (!raw.startsWith("---")) return raw.trim();
-  const end = raw.indexOf("\n---", 3);
-  if (end < 0) return raw.trim();
-  const after = raw.slice(end + 4);
-  return after.replace(/^\r?\n/, "").trim();
+  return splitFrontmatter(raw).body;
+}
+
+/**
+ * The poteto-mode `reminder:` frontmatter line. It is part of the skill chrome
+ * and reaches the host through this sticky inject, not the status line.
+ */
+export function loadPotetoReminder(): string | undefined {
+  if (cachedReminder === null) {
+    cachedReminder = readSkillChrome(POTETO_SKILL)?.reminder ?? "";
+  }
+  return cachedReminder || undefined;
 }
 
 /**
@@ -56,6 +65,7 @@ export function loadPotetoStickyBody(): string {
 /** Clear cache (tests / reload). */
 export function clearPotetoStickyCache(): void {
   cachedBody = undefined;
+  cachedReminder = null;
 }
 
 export interface StickyPromptOptions {
@@ -82,6 +92,7 @@ export function buildPotetoStickyPrompt(
   opts?: StickyPromptOptions,
 ): string {
   const body = loadPotetoStickyBody();
+  const reminder = loadPotetoReminder();
   const match =
     opts?.match === null
       ? undefined
@@ -98,6 +109,7 @@ export function buildPotetoStickyPrompt(
     body,
     "",
     "(End sticky skill body. Casual turns: stay concise. Opt out: /poteto-mode-off.)",
+    ...(reminder ? ["", `Reminder: ${reminder}`] : []),
   ];
 
   const tailParts = match

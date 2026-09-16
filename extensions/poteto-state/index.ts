@@ -2,7 +2,7 @@
  * Poteto-mode sticky state: immutable state + pure transitions + runtime wiring.
  * Owns sticky entry persistence, playbook matching, and forced skill invocation.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { CustomEntry, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   PLAYBOOK_ASSIGN_SCORE,
   STICKY_ENTRY_TYPE,
@@ -145,7 +145,7 @@ function registerPotetoSessionStart(pi: ExtensionAPI, stateRef: PotetoStateRef):
   pi.on("session_start", (_event, ctx) => {
     const entries = ctx.sessionManager
       .getBranch()
-      .filter((e) => e.type === "custom" && e.customType === STICKY_ENTRY_TYPE)
+      .filter((e): e is CustomEntry => e.type === "custom" && e.customType === STICKY_ENTRY_TYPE)
       .map((e) => e.data);
     stateRef.state = reduceRestore(entries);
     if (stateRef.state.enabled) {
@@ -272,9 +272,7 @@ function registerPotetoModeCommand(
         return;
       }
       stateRef.state = reduceRecordText(stateRef.state, task);
-      pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
-        expandPromptTemplates: true,
-      });
+      pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), { expandPromptTemplates: true, deliverAs: "followUp" });
     },
   });
 }
@@ -308,9 +306,7 @@ function registerPstackCommand(
         return;
       }
       stateRef.state = reduceRecordText(stateRef.state, task);
-      pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
-        expandPromptTemplates: true,
-      });
+      pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), { expandPromptTemplates: true, deliverAs: "followUp" });
     },
   });
 }

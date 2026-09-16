@@ -198,7 +198,6 @@ export const PLAYBOOK_RULES: PlaybookRule[] = [
 export interface PlaybookMatch {
   id: string;
   file: string;
-  path: string;
   score: number;
   priority: number;
 }
@@ -223,11 +222,9 @@ export function matchPlaybook(userText: string, minScore = 2): PlaybookMatch | u
     if (new RegExp(`\\bplaybooks/${rule.id}\\b`, "i").test(text)) score += 10;
     if (new RegExp(`\\b${rule.id}\\s+playbook\\b`, "i").test(text)) score += 4;
     if (score < minScore) continue;
-    const path = join(PLAYBOOKS_DIR, rule.file);
     const cand: PlaybookMatch = {
       id: rule.id,
       file: rule.file,
-      path,
       score,
       priority: rule.priority,
     };

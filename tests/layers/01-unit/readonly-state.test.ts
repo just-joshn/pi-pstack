@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { repoRoot } from "../../support/repo-root.mjs";
 import {
   READONLY_TOOL_POLICIES,
   computeReadonlyTools,
@@ -11,7 +11,7 @@ import {
 } from "../../../extensions/readonly-state/index.ts";
 import { READONLY_TOOLS } from "../../../extensions/subagents/child-runner.ts";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const ROOT = repoRoot(import.meta.url);
 
 const ALL = ["read", "grep", "find", "ls", "write", "bash", "pstack_spawn", "pstack_ship"];
 const WRITE_BLOCKED = new Set(["write", "bash", "pstack_ship"]);
@@ -35,6 +35,34 @@ test("computeReadonlyTools keeps read-only pstack tools and drops blocked ones",
   assert.equal(nextActive.includes("pstack_ship"), false);
   assert.equal(nextActive.includes("write"), false);
   assert.equal(nextActive.includes("bash"), false);
+});
+
+test("computeReadonlyTools preserves an unrelated tool and strips only write-blocked tools", () => {
+  const result = computeReadonlyTools(
+    ["read", "webfetch", "pstack_ship", "write"],
+    ["read", "webfetch", "pstack_ship", "write"],
+    WRITE_BLOCKED,
+  );
+  assert.deepEqual(result.nextActive, ["read", "grep", "find", "ls", "webfetch"]);
+  assert.equal(result.nextActive.includes("pstack_ship"), false);
+  assert.equal(result.nextActive.includes("write"), false);
+});
+
+test("reduceSetEnabled disabling unions the pre-arm snapshot with tools added while readonly", () => {
+  const armed = reduceSetEnabled(
+    createInitialReadonlyState(),
+    true,
+    { allTools: ALL, activeTools: ["read", "write"] },
+    "command",
+  ).state;
+  assert.deepEqual(armed.toolsBefore, ["read", "write"]);
+  const result = reduceSetEnabled(armed, false, { allTools: ALL, activeTools: ["read", "webfetch"] });
+  const restore = result.effects.find((effect) => effect.type === "setActiveTools");
+  assert.deepEqual(restore, {
+    type: "setActiveTools",
+    tools: ["read", "write", "webfetch"],
+    guarded: true,
+  });
 });
 
 test("reduceSetEnabled enabling returns the stripped active set and a readonly status", () => {

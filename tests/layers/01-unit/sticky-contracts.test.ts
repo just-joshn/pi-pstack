@@ -12,6 +12,14 @@ import {
 } from "../../../extensions/sticky-poteto.ts";
 
 const SKILL_HEADER = "## Poteto mode (sticky \u2014 re-injected each turn)";
+// A pstack child process sets PSTACK_CHILD_ROLE, which disables sticky arming for
+// the child. These tests exercise the parent path, so the ambient value must not leak in.
+const savedChildRole = process.env.PSTACK_CHILD_ROLE;
+Reflect.deleteProperty(process.env, "PSTACK_CHILD_ROLE");
+test.after(() => {
+  if (savedChildRole === undefined) Reflect.deleteProperty(process.env, "PSTACK_CHILD_ROLE");
+  else process.env.PSTACK_CHILD_ROLE = savedChildRole;
+});
 const SKILL_TRAILER = "(End sticky skill body. Casual turns: stay concise. Opt out: /poteto-mode-off.)";
 const PLAYBOOK_HEADER = "## Matched playbook (sticky routing \u2014 forced)";
 const RESTORED_HEADER = "## Restored sticky playbook (steps reinjected)";
@@ -176,7 +184,7 @@ test("sticky-01 /poteto-mode enables sticky mode and matches the playbook for th
     },
   });
   assert.deepEqual(env.messages(), [
-    { text: "/skill:poteto-mode playbooks/babysit babysit PR 12", opts: { expandPromptTemplates: true } },
+    { text: "/skill:poteto-mode playbooks/babysit babysit PR 12", opts: { expandPromptTemplates: true, deliverAs: "followUp" } },
   ]);
 
   const plain = fakeStickyEnv();

@@ -6,49 +6,52 @@
  * with PSTACK_MAX_CONCURRENCY). Output cap default 50KiB (PSTACK_MAX_OUTPUT_BYTES);
  * oversized output can be summarized to disk under .pi/pstack-child-output/.
  */
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { spawn, type ChildProcessByStdio } from "node:child_process";
+import { join } from "node:path";
+import type { Readable } from "node:stream";
+import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
+import { allowedCwdRoots, assertPathContainment } from "../lib/path-contain.ts";
+import { READONLY_TOOLS, type PstackTaskPolicy } from "../agents/policy.ts";
+import { resolveChildSessionDir } from "./session-dir.ts";
+import { createJobRegistryCell } from "./job-registry.ts";
+import {
+  DEFAULT_TIMEOUT_MS,
+  MAX_OUTPUT_BYTES,
+  appendCapped,
+  parsePositiveInt,
+  shouldPersistOutput,
+  truncate,
+} from "./output-policy.ts";
+
+export { READONLY_TOOLS };
+export { resolveChildSessionDir } from "./session-dir.ts";
+export {
+  DEFAULT_TIMEOUT_MS,
+  MAX_OUTPUT_BYTES,
+  MAX_TIMEOUT_MS,
+  persistOutputSummary,
+  shouldPersistOutput,
+  truncate,
+} from "./output-policy.ts";
 
 export const MAX_TASKS = 8;
-
-function parsePositiveInt(raw: string | undefined, fallback: number, min: number, max: number): number {
-  if (!raw) return fallback;
-  const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, n));
-}
 
 /** Shared cap for all pstack child agents (spawn + swarm + arena). Env: PSTACK_MAX_CONCURRENCY (1–32). */
 export const MAX_CONCURRENCY = parsePositiveInt(process.env.PSTACK_MAX_CONCURRENCY, 8, 1, 32);
 
-/** Default output cap. Env: PSTACK_MAX_OUTPUT_BYTES (4KiB–2MiB). */
-export const MAX_OUTPUT_BYTES = parsePositiveInt(
-  process.env.PSTACK_MAX_OUTPUT_BYTES,
-  50 * 1024,
-  4 * 1024,
-  2 * 1024 * 1024,
-);
-
-export const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
-export const MAX_TIMEOUT_MS = 30 * 60 * 1000;
-
-/** Pi builtins that cannot mutate the tree (no bash / write / edit). */
-export const READONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
-
+/** Pi builtins that cannot mutate the tree (no bash / write / edit). Owned by policy.ts. */
 export interface ChildTaskInput {
   task: string;
-  model?: string;
-  cwd?: string;
-  role?: string;
-  poteto?: boolean;
-  tools?: string[];
-  timeoutMs?: number;
-  skillPath?: string;
+  model?: string | undefined;
+  cwd?: string | undefined;
+  role?: string | undefined;
+  poteto?: boolean | undefined;
+  tools?: string[] | undefined;
+  timeoutMs?: number | undefined;
+  skillPath?: string | undefined;
   /** When true, write full output to disk if truncated and return path in trailer. */
-  persistOutput?: boolean;
+  persistOutput?: boolean | undefined;
   /**
    * Session mode for the child process (Pi CLI flags — exact):
    * - isolated (default): `--session-dir` under cwd/.pi/pstack-child-sessions
@@ -57,31 +60,35 @@ export interface ChildTaskInput {
    * - ephemeral: `--no-session` (no transcript save; still discovers extensions/skills)
    * Env default override: PSTACK_CHILD_SESSION=ephemeral|isolated
    */
-  sessionMode?: "ephemeral" | "isolated";
+  sessionMode?: "ephemeral" | "isolated" | undefined;
   /**
    * Resume a prior child: reuse its `--session-dir` AND pass `--continue`/`-c`
    * so Pi calls continueRecent (not SessionManager.create). Absolute or cwd-relative.
    * Fail closed if missing/unreadable. Conflicts with sessionMode=ephemeral.
    */
-  resumeSessionDir?: string;
+  resumeSessionDir?: string | undefined;
   /**
    * Pre-resolved isolated session dir (e.g. minted by enqueueBackgroundChild).
    * Uses `--session-dir` without `--continue` (fresh create). Not a resume signal.
    */
-  sessionDir?: string;
+  sessionDir?: string | undefined;
+  /** Compiled multidimensional policy; forwarded to the child as PSTACK_CHILD_POLICY. */
+  policy?: PstackTaskPolicy | undefined;
+  /** Explicit Pi thinking level; forwarded as `--thinking <level>`. */
+  thinkingLevel?: string | undefined;
 }
 
 export interface ChildTaskResult {
   task: string;
   model: string;
-  role?: string;
+  role?: string | undefined;
   exitCode: number;
   output: string;
   stderr: string;
-  stopReason?: string;
-  outputPath?: string;
+  stopReason?: string | undefined;
+  outputPath?: string | undefined;
   /** Child `--session-dir` when isolated/resume (for in-session resumeJobId). */
-  sessionDir?: string;
+  sessionDir?: string | undefined;
 }
 
 let activeChildren = 0;
@@ -116,97 +123,21 @@ export function piInvocation(args: string[]): { command: string; args: string[] 
   return { command: "pi", args };
 }
 
+function messageText(message: Message): string | undefined {
+  if (message.role !== "assistant") return undefined;
+  if (!Array.isArray(message.content)) return undefined;
+  const text = message.content.find((part) => part.type === "text");
+  return text?.type === "text" ? text.text : undefined;
+}
+
 function finalText(messages: Message[]): string {
   for (let i = messages.length - 1; i >= 0; i = i - 1) {
     const message = messages[i];
-    if (message.role !== "assistant") continue;
-    const text = message.content.find((part) => part.type === "text");
-    if (text?.type === "text") return text.text;
+    if (message === undefined) continue;
+    const text = messageText(message);
+    if (text !== undefined) return text;
   }
   return "";
-}
-
-function resolveSessionMode(input: ChildTaskInput): "ephemeral" | "isolated" {
-  if (input.sessionMode === "ephemeral" || input.sessionMode === "isolated") return input.sessionMode;
-  const env = process.env.PSTACK_CHILD_SESSION;
-  if (env === "isolated" || env === "ephemeral") return env;
-  // Prefer isolated: preserves tools/MCP discovery via normal Pi package load
-  // (no --no-extensions) + dedicated --session-dir. Pi CLI cannot inherit parent
-  // MCP bindings or conversation history into children.
-  return "isolated";
-}
-
-/**
- * Resolve child session dir for isolated/resume paths.
- * Resume fails closed if path missing; resume+ephemeral is rejected.
- * Mint creates under cwd/.pi/pstack-child-sessions when not resuming.
- * `continueSession` is true only for true resume (resumeSessionDir) — argv must add -c/--continue.
- */
-export function resolveChildSessionDir(
-  input: ChildTaskInput,
-  cwd: string,
-): { sessionMode: "ephemeral" | "isolated"; sessionDir?: string; continueSession: boolean } {
-  const sessionMode = resolveSessionMode(input);
-  if (input.resumeSessionDir) {
-    if (sessionMode === "ephemeral") {
-      throw new Error(
-        "resumeSessionDir conflicts with sessionMode=ephemeral; omit ephemeral to resume, or spawn fresh without resume",
-      );
-    }
-    const sessionDir = isAbsolute(input.resumeSessionDir)
-      ? input.resumeSessionDir
-      : resolve(cwd, input.resumeSessionDir);
-    if (!existsSync(sessionDir)) {
-      throw new Error(`resumeSessionDir missing or unreadable: ${sessionDir}`);
-    }
-    try {
-      if (!statSync(sessionDir).isDirectory()) {
-        throw new Error(`resumeSessionDir is not a directory: ${sessionDir}`);
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message.startsWith("resumeSessionDir")) throw err;
-      throw new Error(`resumeSessionDir missing or unreadable: ${sessionDir}`);
-    }
-    return { sessionMode: "isolated", sessionDir, continueSession: true };
-  }
-  if (sessionMode === "ephemeral") return { sessionMode, continueSession: false };
-  // Pre-resolved mint (enqueue): reuse dir without continue semantics.
-  if (input.sessionDir) {
-    const sessionDir = isAbsolute(input.sessionDir) ? input.sessionDir : resolve(cwd, input.sessionDir);
-    return { sessionMode, sessionDir, continueSession: false };
-  }
-  const sessionDir = mintChildSessionDir(join(cwd, ".pi", "pstack-child-sessions"));
-  return { sessionMode, sessionDir, continueSession: false };
-}
-
-/**
- * Mint a fresh, collision-free directory under `parentDir`. Date.now() alone
- * has millisecond resolution, so two spawns in one tick (a common case: a
- * parallel pstack_spawn batch mints all children synchronously before any
- * await) would otherwise share one directory. That breaks resume: Pi's
- * continueRecent picks the newest session file in --session-dir, so a shared
- * directory can attach the wrong child's transcript. A random suffix alone
- * only makes collision astronomically unlikely; mkdirSync without `recursive`
- * turns "unlikely" into "detected and retried", including across two Pi
- * processes racing on the same repo's .pi/pstack-child-sessions.
- */
-function mintChildSessionDir(parentDir: string): string {
-  mkdirSync(parentDir, { recursive: true });
-  let attempt = 0;
-  while (attempt < 20) {
-    const dir = join(parentDir, `c-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`);
-    try {
-      mkdirSync(dir);
-      return dir;
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "EEXIST") {
-        attempt = attempt + 1;
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error(`failed to mint a unique child session dir under ${parentDir} after 20 attempts`);
 }
 
 /**
@@ -216,11 +147,12 @@ function mintChildSessionDir(parentDir: string): string {
 export function buildChildPiArgs(opts: {
   selectedModel: string;
   sessionMode: "ephemeral" | "isolated";
-  sessionDir?: string;
-  continueSession?: boolean;
+  sessionDir?: string | undefined;
+  continueSession?: boolean | undefined;
   inheritNote: string;
-  skillPath?: string;
-  tools?: string[];
+  skillPath?: string | undefined;
+  tools?: string[] | undefined;
+  thinkingLevel?: string | undefined;
   prompt: string;
 }): string[] {
   const base = ["--mode", "json", "-p", "--model", opts.selectedModel];
@@ -238,7 +170,8 @@ export function buildChildPiArgs(opts: {
   const systemPromptArgs = ["--append-system-prompt", opts.inheritNote];
   const skillArgs = opts.skillPath ? ["--skill", opts.skillPath] : [];
   const toolsArgs = opts.tools?.length ? ["--tools", opts.tools.join(",")] : [];
-  return [...base, ...sessionArgs, ...systemPromptArgs, ...skillArgs, ...toolsArgs, opts.prompt];
+  const thinkingArgs = opts.thinkingLevel ? ["--thinking", opts.thinkingLevel] : [];
+  return [...base, ...sessionArgs, ...systemPromptArgs, ...skillArgs, ...toolsArgs, ...thinkingArgs, opts.prompt];
 }
 
 /** True if argv has continue semantics (not dir-only / not interactive -r). */
@@ -255,64 +188,6 @@ export function argvIsDirOnlyResume(args: string[]): boolean {
   return hasSessionDir && !hasContinue && !hasSessionOpen && !hasInteractiveResume;
 }
 
-/**
- * Persist full text under outDir; return path.
- * Same collision hazard as mintChildSessionDir: two children sharing a role
- * (a common parallel-spawn pattern) finish in the same millisecond and would
- * mint the same `${tag}-${timestamp}.txt`, so a plain write would silently
- * clobber the first child's persisted output. Write exclusively (`wx`) and
- * retry on EEXIST instead of overwriting.
- */
-export function persistOutputSummary(fullText: string, outDir: string, tag: string): string {
-  mkdirSync(outDir, { recursive: true });
-  const safe = tag.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "child";
-  let attempt = 0;
-  while (attempt < 20) {
-    const path = join(outDir, `${safe}-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}.txt`);
-    try {
-      writeFileSync(path, fullText, { encoding: "utf8", flag: "wx" });
-      return path;
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "EEXIST") {
-        attempt = attempt + 1;
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error(`failed to mint a unique output path under ${outDir} after 20 attempts`);
-}
-
-export function truncate(
-  text: string,
-  opts?: { maxBytes?: number; persistDir?: string; tag?: string },
-): { text: string; outputPath?: string } {
-  const max = opts?.maxBytes ?? MAX_OUTPUT_BYTES;
-  if (Buffer.byteLength(text, "utf8") <= max) return { text };
-  let outputPath: string | undefined;
-  if (opts?.persistDir) {
-    try {
-      outputPath = persistOutputSummary(text, opts.persistDir, opts.tag ?? "out");
-    } catch {
-      /* ignore disk errors; still truncate and return path-less result */
-      outputPath = undefined;
-    }
-  }
-  let content = text.slice(0, max);
-  while (Buffer.byteLength(content, "utf8") > max) content = content.slice(0, -1);
-  const trailer = outputPath
-    ? `\n\n[Output truncated to ${max} bytes. Full output: ${outputPath}]`
-    : `\n\n[Output truncated to ${max} bytes. Set persistOutput:true or PSTACK_PERSIST_OUTPUT=1 to save full text under .pi/pstack-child-output/.]`;
-  return { text: `${content}${trailer}`, outputPath };
-}
-
-function appendCapped(current: string, chunk: string, max = MAX_OUTPUT_BYTES): string {
-  if (Buffer.byteLength(current, "utf8") >= max) return current;
-  const next = current + chunk;
-  if (Buffer.byteLength(next, "utf8") <= max) return next;
-  return truncate(next, { maxBytes: max }).text;
-}
-
 export async function mapConcurrent<T, U>(
   items: T[],
   limit: number,
@@ -324,23 +199,13 @@ export async function mapConcurrent<T, U>(
     while (next < items.length) {
       const index = next;
       next = next + 1;
-      results[index] = await run(items[index], index);
+      const item = items[index];
+      if (item === undefined) throw new Error(`mapConcurrent lost an item at index ${index}`);
+      results[index] = await run(item, index);
     }
   });
   await Promise.all(workers);
   return results;
-}
-
-
-/** Persist full output when explicitly requested, env on, or long-running child (timeout >= 5m). Default-on for long children. */
-export function shouldPersistOutput(input: ChildTaskInput): boolean {
-  if (input.persistOutput === true) return true;
-  if (input.persistOutput === false) return false;
-  const env = process.env.PSTACK_PERSIST_OUTPUT;
-  if (env === "0" || env === "false") return false;
-  if (env === "1" || env === "true") return true;
-  const timeout = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  return timeout >= 5 * 60 * 1000;
 }
 
 export async function runChildTask(
@@ -355,14 +220,29 @@ export async function runChildTask(
 interface ChildRunOutcome {
   messages: Message[];
   stderr: string;
-  stopReason?: string;
+  stopReason?: string | undefined;
   midStreamCapped: boolean;
   aborted: boolean;
   timedOut: boolean;
   exitCode: number;
 }
 
-type ChildStreamSnapshot = Pick<ChildRunOutcome, "messages" | "stderr" | "stopReason" | "midStreamCapped">;
+type ChildStream = ChildProcessByStdio<null, Readable, Readable>;
+
+/**
+ * Every key is present on a snapshot; a value may be undefined when the stream
+ * ended without the child reporting that field. Modelling it as required rather
+ * than optional is what makes `stopReason: undefined` legal under
+ * `exactOptionalPropertyTypes`, which distinguishes an absent key from a
+ * present-but-undefined one.
+ */
+interface ChildStreamSnapshot {
+  messages: Message[];
+  stderr: string;
+  stopReason: string | undefined;
+  midStreamCapped: boolean;
+}
+
 type ChildLifecycleOutcome = Pick<ChildRunOutcome, "aborted" | "timedOut">;
 
 function buildChildPrompt(input: ChildTaskInput): string {
@@ -385,7 +265,13 @@ function buildChildPrompt(input: ChildTaskInput): string {
   return input.task;
 }
 
-function spawnChildProcess(args: string[], cwd: string, parentModel: string, role: string | undefined): ChildProcessWithoutNullStreams {
+function spawnChildProcess(
+  args: string[],
+  cwd: string,
+  parentModel: string,
+  role: string | undefined,
+  policy: PstackTaskPolicy | undefined,
+): ChildProcessByStdio<null, Readable, Readable> {
   const invocation = piInvocation(args);
   return spawn(invocation.command, invocation.args, {
     cwd,
@@ -395,11 +281,12 @@ function spawnChildProcess(args: string[], cwd: string, parentModel: string, rol
       ...process.env,
       PSTACK_PARENT_MODEL: parentModel,
       PSTACK_CHILD_ROLE: role ?? "general",
+      ...(policy ? { PSTACK_CHILD_POLICY: JSON.stringify(policy) } : {}),
     },
   });
 }
 
-function consumeChildStream(child: ChildProcessWithoutNullStreams): () => ChildStreamSnapshot {
+function consumeChildStream(child: ChildStream): () => ChildStreamSnapshot {
   let messages: Message[] = [];
   let stderr = "";
   let stopReason: string | undefined;
@@ -447,7 +334,7 @@ function consumeChildStream(child: ChildProcessWithoutNullStreams): () => ChildS
 }
 
 function armChildLifecycle(
-  child: ChildProcessWithoutNullStreams,
+  child: ChildStream,
   timeoutMs: number,
   signal: AbortSignal | undefined,
 ): () => ChildLifecycleOutcome {
@@ -482,7 +369,7 @@ function finalizeChildResult(
   cwd: string,
 ): ChildTaskResult {
   const persist = shouldPersistOutput(input);
-  const persistDir = persist ? join(cwd, ".pi", "pstack-child-output") : undefined;
+  const persistDir = persist ? join(cwd, CONFIG_DIR_NAME, "pstack-child-output") : undefined;
   const fullOut = finalText(outcome.messages) || outcome.stderr || (outcome.timedOut ? "(timed out)" : "(no output)");
   const truncated = truncate(fullOut, {
     persistDir,
@@ -516,7 +403,11 @@ async function runChildTaskUnlocked(
     !input.model || input.model === "auto" || input.model === "inherit-parent"
       ? parentModel
       : input.model;
-  const cwd = input.cwd ?? defaultCwd;
+  const cwd = assertPathContainment(input.cwd ?? defaultCwd, {
+    root: defaultCwd,
+    label: "child cwd",
+    allowedRoots: allowedCwdRoots(defaultCwd),
+  });
   const prepared = resolveChildSessionDir(input, cwd);
   // Children still discover extensions/skills from package + project (not --no-extensions).
   // Append a short inheritance note so the child knows parent role expectations.
@@ -535,9 +426,10 @@ async function runChildTaskUnlocked(
     inheritNote,
     skillPath: input.skillPath,
     tools: input.tools,
+    thinkingLevel: input.thinkingLevel,
     prompt: buildChildPrompt(input),
   });
-  const child = spawnChildProcess(args, cwd, parentModel, input.role);
+  const child = spawnChildProcess(args, cwd, parentModel, input.role, input.policy);
   const finishStream = consumeChildStream(child);
   const disposeLifecycle = armChildLifecycle(child, input.timeoutMs ?? DEFAULT_TIMEOUT_MS, signal);
   const exitCode = await new Promise<number>((complete) => {
@@ -589,7 +481,7 @@ export function resolveTools(
 
 /** Resolve resumeSessionDir from explicit path and/or in-memory resumeJobId. Fail closed. */
 export function resolveResumeSessionDirParam(params: {
-  resumeSessionDir?: string;
+  resumeSessionDir?: string | undefined;
   resumeJobId?: string;
   sessionMode?: string;
 }): string | undefined {
@@ -622,48 +514,48 @@ export type BackgroundJobStatus = "queued" | "running" | "done" | "failed" | "ab
 export interface BackgroundJob {
   id: string;
   status: BackgroundJobStatus;
-  role?: string;
+  role?: string | undefined;
   model: string;
   taskPreview: string;
   startedAt: number;
-  finishedAt?: number;
-  result?: ChildTaskResult;
-  error?: string;
+  finishedAt?: number | undefined;
+  result?: ChildTaskResult | undefined;
+  error?: string | undefined;
   /** Child `--session-dir` when known (in-memory; enables resumeJobId within session). */
-  sessionDir?: string;
+  sessionDir?: string | undefined;
 }
 
-const backgroundJobs = new Map<string, BackgroundJob>();
-const backgroundControllers = new Map<string, AbortController>();
+const registry = createJobRegistryCell<BackgroundJob>();
 let backgroundSeq = 0;
 
 export function listBackgroundJobs(): BackgroundJob[] {
-  return [...backgroundJobs.values()].toSorted((a, b) => a.startedAt - b.startedAt);
+  return registry.jobs().toSorted((a, b) => a.startedAt - b.startedAt);
 }
 
 export function getBackgroundJob(id: string): BackgroundJob | undefined {
-  return backgroundJobs.get(id);
+  return registry.job(id);
 }
 
 export function abortBackgroundJob(id: string): BackgroundJob | undefined {
-  const controller = backgroundControllers.get(id);
-  const job = backgroundJobs.get(id);
+  const controller = registry.controller(id);
+  const job = registry.job(id);
   if (controller) {
     controller.abort();
-    backgroundControllers.delete(id);
+    registry.dropController(id);
   }
   if (job && (job.status === "queued" || job.status === "running")) {
-    const abortedJob = { ...job, status: "aborted" as const, finishedAt: Date.now() };
-    backgroundJobs.set(id, abortedJob);
+    const abortedJob: BackgroundJob = { ...job, status: "aborted", finishedAt: Date.now() };
+    registry.putJob(abortedJob);
     return abortedJob;
   }
   return job;
 }
 
 export function abortAllBackgroundJobs(): void {
-  for (const id of [...backgroundControllers.keys()]) {
+  for (const id of registry.controllerIds()) {
     abortBackgroundJob(id);
   }
+  registry.reset();
 }
 
 function createBackgroundJob(
@@ -674,7 +566,11 @@ function createBackgroundJob(
   backgroundSeq = backgroundSeq + 1;
   const id = `bg-${backgroundSeq}-${Date.now().toString(36)}`;
   const controller = new AbortController();
-  const cwd = input.cwd ?? defaultCwd;
+  const cwd = assertPathContainment(input.cwd ?? defaultCwd, {
+    root: defaultCwd,
+    label: "child cwd",
+    allowedRoots: allowedCwdRoots(defaultCwd),
+  });
   // Resolve session dir synchronously so resumeJobId can see it while the job runs.
   // Fresh mint → pass sessionDir (no continue). True resume → keep resumeSessionDir (adds -c).
   const prepared = resolveChildSessionDir(input, cwd);
@@ -704,7 +600,7 @@ async function runBackgroundJob(
   parentModel: string,
 ): Promise<BackgroundJob> {
   const runningJob = { ...job, status: "running" as const };
-  backgroundJobs.set(job.id, runningJob);
+  registry.putJob(runningJob);
   try {
     const result = await runChildTask(resolvedInput, defaultCwd, parentModel, controller.signal);
     const finalStatus = controller.signal.aborted
@@ -743,15 +639,44 @@ export function enqueueBackgroundChild(
   onComplete?: (job: BackgroundJob) => void,
 ): BackgroundJob {
   const { job, controller, resolvedInput } = createBackgroundJob(input, defaultCwd, parentModel);
-  backgroundJobs.set(job.id, job);
-  backgroundControllers.set(job.id, controller);
-  void runBackgroundJob(job, controller, resolvedInput, defaultCwd, parentModel).then((finalJob) => {
-    backgroundJobs.set(job.id, finalJob);
-    backgroundControllers.delete(job.id);
-    // A throwing onComplete must not reclassify a finished job or fire twice.
-    onComplete?.(finalJob);
-  });
+  registry.putJob(job);
+  registry.putController(job.id, controller);
+  void runBackgroundJob(job, controller, resolvedInput, defaultCwd, parentModel)
+    .then((finalJob) => {
+      registry.putJob(finalJob);
+      registry.dropController(job.id);
+      // A throwing onComplete must not reclassify a finished job or fire twice.
+      deliverBackgroundCompletion(onComplete, finalJob);
+    })
+    .catch((error: unknown) => {
+      recordBackgroundFailure(job, error);
+    });
   return job;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function deliverBackgroundCompletion(
+  onComplete: ((job: BackgroundJob) => void) | undefined,
+  finalJob: BackgroundJob,
+): void {
+  try {
+    onComplete?.(finalJob);
+  } catch (error) {
+    registry.putJob({ ...finalJob, error: `completion callback failed: ${errorMessage(error)}` });
+  }
+}
+
+function recordBackgroundFailure(job: BackgroundJob, error: unknown): void {
+  registry.putJob({
+    ...job,
+    status: "failed",
+    error: errorMessage(error),
+    finishedAt: Date.now(),
+  });
+  registry.dropController(job.id);
 }
 
 export async function awaitBackgroundJob(
@@ -760,7 +685,7 @@ export async function awaitBackgroundJob(
 ): Promise<BackgroundJob> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const job = backgroundJobs.get(id);
+    const job = registry.job(id);
     if (!job) throw new Error(`unknown background job: ${id}`);
     if (job.status === "done" || job.status === "failed" || job.status === "aborted") return job;
     if (Date.now() >= deadline) throw new Error(`await timed out for job ${id}`);
@@ -773,7 +698,7 @@ export async function awaitBackgroundJob(
 export function __seedBackgroundJobForTests(
   job: Pick<BackgroundJob, "id" | "sessionDir"> & Partial<BackgroundJob>,
 ): void {
-  backgroundJobs.set(job.id, {
+  registry.putJob({
     id: job.id,
     status: job.status ?? "done",
     role: job.role,
@@ -790,8 +715,6 @@ export function __seedBackgroundJobForTests(
 /** Test helper: reset in-process job registry. */
 export function __resetBackgroundJobsForTests(): void {
   abortAllBackgroundJobs();
-  backgroundJobs.clear();
-  backgroundControllers.clear();
   backgroundSeq = 0;
   activeChildren = 0;
   childWaiters = [];

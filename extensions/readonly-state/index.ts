@@ -2,7 +2,7 @@
  * Session-level readonly state: immutable state + pure transitions + runtime wiring.
  * Owns tool-strip/restore, tool_call blocking, and readonly entry persistence.
  */
-import type { ExtensionAPI, ExtensionContext, ToolCallEvent } from "@earendil-works/pi-coding-agent";
+import type { CustomEntry, ExtensionAPI, ExtensionContext, ToolCallEvent } from "@earendil-works/pi-coding-agent";
 import { READONLY_ENTRY_TYPE, parseReadonlyEntry } from "../sticky-session.ts";
 import { READONLY_TOOLS } from "../subagents/child-runner.ts";
 import { applyEffects, type Effect, type EffectContext } from "../effects.ts";
@@ -18,7 +18,7 @@ export interface ReadonlyState {
   readonly enabled: boolean;
   readonly toolsBefore: string[] | undefined;
   /** Why the arm happened (e.g. "playbook:investigation" or "command"). */
-  readonly reason?: string;
+  readonly reason?: string | undefined;
 }
 
 export function createInitialReadonlyState(): ReadonlyState {
@@ -31,19 +31,11 @@ export function computeReadonlyTools(
   writeBlocked: ReadonlySet<string>,
 ): { nextActive: string[]; toolsBefore: string[] } {
   const toolsBefore = activeTools.length ? [...activeTools] : [...allTools];
-  const keep = new Set<string>([...READONLY_TOOLS]);
-  for (const name of toolsBefore) {
-    if (name.startsWith("pstack_") && !writeBlocked.has(name)) {
-      keep.add(name);
-    }
-    if (name === "read" || name === "grep" || name === "find" || name === "ls") {
-      keep.add(name);
-    }
-  }
-  const alwaysKeep = new Set<string>([...READONLY_TOOLS]);
-  const nextActive = [...keep].filter(
-    (n) => alwaysKeep.has(n) || allTools.includes(n) || toolsBefore.includes(n),
-  );
+  // Preserve every tool the session already had except the blocked writers; the
+  // readonly allowlist is unioned in. setActiveTools replaces the active list, so
+  // narrowing to the allowlist alone would silently drop unrelated tools.
+  const kept = toolsBefore.filter((name) => !writeBlocked.has(name));
+  const nextActive = [...new Set([...READONLY_TOOLS, ...kept])];
   return { nextActive, toolsBefore };
 }
 
@@ -82,10 +74,11 @@ export function reduceSetEnabled(
       ],
     };
   }
+  const restoredTools = [...new Set([...(state.toolsBefore ?? []), ...ctx.activeTools])];
   const offEffects: Effect[] = [
     baseEffect,
-    ...(state.toolsBefore?.length
-      ? [{ type: "setActiveTools" as const, tools: state.toolsBefore, guarded: true }]
+    ...(restoredTools.length
+      ? [{ type: "setActiveTools" as const, tools: restoredTools, guarded: true }]
       : []),
     { type: "setStatus" as const, statusId: "pstack-ro", value: undefined },
     { type: "notify" as const, message: "Session readonly off.", level: "info" as const },
@@ -93,7 +86,7 @@ export function reduceSetEnabled(
   return { state: { enabled: false, toolsBefore: undefined, reason: undefined }, effects: offEffects };
 }
 
-function restoreFromEntries(entries: readonly unknown[]): { enabled: boolean; reason?: string } {
+function restoreFromEntries(entries: readonly unknown[]): { enabled: boolean; reason: string | undefined } {
   let enabled = false;
   let reason: string | undefined;
   for (const entry of entries) {
@@ -142,7 +135,7 @@ function restoreReadonlyState(
 ): void {
   const entries = ctx.sessionManager
     .getBranch()
-    .filter((e) => e.type === "custom" && e.customType === READONLY_ENTRY_TYPE)
+    .filter((e): e is CustomEntry => e.type === "custom" && e.customType === READONLY_ENTRY_TYPE)
     .map((e) => e.data);
   const restored = restoreFromEntries(entries);
   stateRef.state = createInitialReadonlyState();
@@ -206,15 +199,36 @@ function spawnPolicy(input: unknown): ReadonlyPolicyDecision {
   return { action: ok ? "allow" : "coerceReadonly" };
 }
 
-function loopPolicy(input: unknown): ReadonlyPolicyDecision {
-  const action = actionOf(input);
-  if (action === "status" || action === "list" || action === "stop") return { action: "allow" };
-  return { action: "block", reason: "pstack session readonly: blocked pstack_loop arm (subprocess watcher)." };
+/** pstack_task carries a policy; force the read-only axes rather than rewriting the policy here. */
+function taskPolicy(input: unknown): ReadonlyPolicyDecision {
+  const value = input as { readonly?: boolean; subagent_type?: string };
+  const role = value.subagent_type ?? "general";
+  const ok = value.readonly === true || role === "investigator" || role === "comment-sicko";
+  return { action: ok ? "allow" : "coerceReadonly" };
+}
+
+/** Loop-style tools arm a watcher subprocess and a run record; only inspection is read-safe. */
+function loopLikePolicy(toolName: string): ReadonlyToolPolicy {
+  return (input: unknown) => {
+    const action = actionOf(input);
+    if (action === "status" || action === "list" || action === "stop") return { action: "allow" };
+    return {
+      action: "block",
+      reason: `pstack session readonly: blocked ${toolName} arm (subprocess watcher).`,
+    };
+  };
 }
 
 function bennyWakePolicy(input: unknown): ReadonlyPolicyDecision {
   if (actionOf(input) === "path") return { action: "allow" };
   return { action: "block", reason: "pstack session readonly: blocked pstack_benny_wake write." };
+}
+
+/** Capability inventory is read-safe; a query spawns git/gh or a configured adapter. */
+function integrationsPolicy(input: unknown): ReadonlyPolicyDecision {
+  const action = actionOf(input);
+  if (action === "list" || action === "status" || action === "probe") return { action: "allow" };
+  return { action: "block", reason: "pstack session readonly: blocked pstack_integrations query." };
 }
 
 /**
@@ -232,13 +246,16 @@ export const READONLY_TOOL_POLICIES: Record<string, ReadonlyToolPolicy> = {
   pstack_babysit: blockPolicy("pstack session readonly: blocked pstack_babysit."),
   pstack_deslop: deslopPolicy,
   pstack_spawn: spawnPolicy,
+  pstack_task: taskPolicy,
+  pstack_loop: loopLikePolicy("pstack_loop"),
+  pstack_run: loopLikePolicy("pstack_run"),
   pstack_swarm: blockPolicy("pstack session readonly: blocked pstack_swarm."),
   pstack_arena: blockPolicy("pstack session readonly: blocked pstack_arena."),
-  pstack_loop: loopPolicy,
   pstack_decision_log: blockPolicy("pstack session readonly: blocked pstack_decision_log."),
   pstack_benny_wake: bennyWakePolicy,
   pstack_control_cli: blockPolicy("pstack session readonly: blocked pstack_control_cli."),
   pstack_control_ui: allowPolicy,
+  pstack_integrations: integrationsPolicy,
   pstack_sessions: allowPolicy,
   pstack_jobs: allowPolicy,
 };

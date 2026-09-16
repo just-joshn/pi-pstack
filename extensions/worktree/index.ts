@@ -2,7 +2,9 @@
  * Worktree helpers for arena/swarm isolation + session_shutdown safe cleanup.
  */
 import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
+import { execOptions } from "../lib/exec-options.ts";
 import {
   MAX_PSTACK_WORKTREES,
   cleanupPstackWorktreesOnShutdown,
@@ -37,7 +39,7 @@ async function executeWorktreeList(
   ctx: ExtensionContext,
   signal: AbortSignal | undefined,
 ): Promise<AgentToolResult<{ code: number; count: number }>> {
-  const listed = await pi.exec("git", ["worktree", "list", "--porcelain"], { signal });
+  const listed = await pi.exec("git", ["worktree", "list", "--porcelain"], execOptions({ signal }));
   const count = countPstackWorktrees(ctx.cwd);
   return {
     content: [
@@ -112,10 +114,9 @@ async function executeWorktree(
 
 function registerWorktreeShutdown(pi: ExtensionAPI): void {
   // Auto-cleanup pstack-owned empty/merged worktrees when the session ends.
-  pi.on("session_shutdown", async () => {
+  pi.on("session_shutdown", async (_event, ctx) => {
     try {
-      const cwd = process.cwd();
-      await cleanupPstackWorktreesOnShutdown(cwd);
+      await cleanupPstackWorktreesOnShutdown(ctx.cwd);
     } catch {
       return;
     }
@@ -130,7 +131,9 @@ function registerWorktreeTool(pi: ExtensionAPI): void {
       `Create/list/remove/prune git worktrees for isolated arena/swarm writes. Create rejects path/option injection and enforces a session cap of ${MAX_PSTACK_WORKTREES}. On session_shutdown, empty/merged pstack-owned trees under .pstack-worktrees are auto-removed (dirty/unmerged skipped).`,
     promptSnippet: "Allocate an isolated git worktree path",
     parameters: Type.Object({
-      action: Type.String({ description: "create | list | remove | prune | cleanup" }),
+      action: StringEnum(["create", "list", "remove", "prune", "cleanup"] as const, {
+        description: "create | list | remove | prune | cleanup",
+      }),
       name: Type.Optional(Type.String({ description: "Worktree/branch slug for create/remove" })),
       base: Type.Optional(Type.String({ description: "Base ref (default HEAD)" })),
     }),

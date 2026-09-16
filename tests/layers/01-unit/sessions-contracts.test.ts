@@ -152,8 +152,13 @@ function callTool(
   params: ToolParams,
   cwd: string,
   sessionManager: Record<string, unknown> = {},
+  isProjectTrusted = true,
 ): Promise<ToolResult> {
-  return tool.execute("contract", params, undefined, undefined, { cwd, sessionManager });
+  return tool.execute("contract", params, undefined, undefined, {
+    cwd,
+    sessionManager,
+    isProjectTrusted: () => isProjectTrusted,
+  });
 }
 
 function writeSessionFile(
@@ -503,5 +508,20 @@ test("sessions-17 formats recall output into four ordered sections", async () =>
     assert.equal(body.split("### ").length - 1, 4, "exactly four sections");
     assert.match(body, /\n1\. \[session score=\d+\]/);
     assert.ok(body.includes("sectionsmarker session body"));
+  });
+});
+
+test("sessions-18 skips the project session dir when the project is untrusted", async () => {
+  await withSandbox(async (sandbox, tool) => {
+    const fixed = Date.now() - 60000;
+    const cwdFile = writeSessionFile(join(sandbox.cwd, ".pi/sessions"), "a-cwd.jsonl", "{}\n", { mtimeMs: fixed });
+    const homeFile = writeSessionFile(join(sandbox.home, ".pi/agent/sessions"), "b-agent.jsonl", "{}\n", { mtimeMs: fixed });
+
+    const trusted = await callTool(tool, { action: "list", limit: 10 }, sandbox.cwd);
+    assert.deepEqual(listedPaths(trusted).toSorted(), [cwdFile, homeFile].toSorted());
+
+    const untrusted = await callTool(tool, { action: "list", limit: 10 }, sandbox.cwd, {}, false);
+    assert.deepEqual(listedPaths(untrusted), [homeFile]);
+    assert.equal(listedPaths(untrusted).includes(cwdFile), false);
   });
 });

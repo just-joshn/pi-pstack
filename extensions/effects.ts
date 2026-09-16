@@ -2,7 +2,7 @@
  * Pure effect descriptors + applier for state machine side-effects.
  * Keeps reducers pure and unit-testable; applier is the only place that calls Pi/UI.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 
 export type Effect =
   | { type: "appendEntry"; entryType: string; payload: unknown }
@@ -11,10 +11,7 @@ export type Effect =
   | { type: "setActiveTools"; tools: string[]; guarded?: boolean };
 
 export interface EffectContext {
-  ui: {
-    setStatus: (id: string, value: string | undefined) => void;
-    notify?: (message: string, level: string) => void;
-  };
+  ui: Pick<ExtensionUIContext, "setStatus"> & { notify?: ExtensionUIContext["notify"] };
 }
 
 function restoreToolsQuietly(pi: ExtensionAPI, tools: string[]): void {

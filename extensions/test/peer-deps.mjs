@@ -27,7 +27,7 @@ function findHostRequire() {
   const execRoot = join(dirname(dirname(process.execPath)), "lib", "node_modules");
   const execAnchor = join(execRoot, ANCHOR_PACKAGE);
   if (existsSync(execAnchor)) {
-    return createRequire(pathToFileURL(execAnchor));
+    return { require: createRequire(pathToFileURL(execAnchor)), anchor: execAnchor };
   }
 
   let npmRoot;
@@ -39,7 +39,7 @@ function findHostRequire() {
   if (npmRoot) {
     const npmAnchor = join(npmRoot, ANCHOR_PACKAGE);
     if (existsSync(npmAnchor)) {
-      return createRequire(pathToFileURL(npmAnchor));
+      return { require: createRequire(pathToFileURL(npmAnchor)), anchor: npmAnchor };
     }
   }
 
@@ -51,12 +51,12 @@ function findHostRequire() {
   );
 }
 
-const hostRequire = findHostRequire();
+const { anchor: hostAnchor } = findHostRequire();
 
-// require.resolve() below is itself routed through this same hook (Node's
-// module customization hooks cover both ESM resolve and CJS require.resolve),
-// so resolving a peer specifier here would re-enter and recurse forever.
-// Guard re-entrancy instead of trying to special-case the caller.
+// require.resolve() cannot resolve a peer whose "exports" map only carries the
+// "import" condition (pi-ai does), so resolve through Node's ESM resolver with
+// the host package as the anchor. The re-entrancy guard below stops the inner
+// resolution from recursing into this hook.
 let resolvingPeer = false;
 
 registerHooks({
@@ -65,7 +65,7 @@ registerHooks({
       resolvingPeer = true;
       try {
         return {
-          url: pathToFileURL(hostRequire.resolve(specifier)).href,
+          url: import.meta.resolve(specifier, pathToFileURL(hostAnchor).href),
           shortCircuit: true,
         };
       } finally {

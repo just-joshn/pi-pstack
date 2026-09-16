@@ -6,8 +6,13 @@
  * pstack_deslop: severity + samples + structured fix suggestions; optional
  * applySafe deletes high-confidence safe comment/slop lines in the working tree.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { capToolOutput } from "../lib/tool-output.ts";
+import { execOptions } from "../lib/exec-options.ts";
+import { stripAtPrefix, stripAtPrefixes } from "../lib/paths.ts";
+import { resolveTrustedCommand, DEFAULT_TRUSTED_BIN_DIRS } from "../lib/exec-allowlist.ts";
+import { fetchFollowingSafeRedirects, normalizedHostname, ipv4ToInt, validateProbeTarget } from "../lib/url-policy.ts";
 import {
   SLOP_PATTERNS,
   applySafeDeletes,
@@ -19,6 +24,11 @@ import {
 
 export { applySafeDeletes, scanAddedLinesForSlop, type FixSuggestion } from "./deslop-core.ts";
 
+/**
+ * Command names the tool may run. The interpreter names stay here for the opt-in
+ * path, but they are unreachable while `allowInterpreters` is off, because the
+ * interpreter check runs before the allowlist check.
+ */
 const ALLOWED_CONTROL_COMMANDS = new Set([
   "npm",
   "pnpm",
@@ -74,7 +84,63 @@ const CONTROL_UI_PARAMETERS = Type.Object({
   url: Type.String(),
   method: Type.Optional(Type.String()),
   expectStatus: Type.Optional(Type.Integer()),
+  allowHosts: Type.Optional(
+    Type.Array(Type.String(), {
+      description:
+        "Explicit opt-in hostnames (exact match) that may bypass the private-address check for a dev server, e.g. localhost or 127.0.0.1:5173. The caller may only name a loopback host; a wider network is the operator's call through PSTACK_CONTROL_UI_ALLOW_HOSTS. Metadata hostnames and .internal/.local stay blocked.",
+    }),
+  ),
 });
+
+const ALLOWED_CONTROL_COMMAND_LIST = Object.freeze([...ALLOWED_CONTROL_COMMANDS]);
+
+/**
+ * PSTACK_CONTROL_CLI_INTERPRETERS=1 grants arbitrary code execution: an
+ * interpreter runs whatever the caller puts in argv. It is off unless the
+ * operator opts in, and argv can never set it.
+ */
+function interpretersAllowed(): boolean {
+  return process.env.PSTACK_CONTROL_CLI_INTERPRETERS === "1";
+}
+
+/**
+ * Extra binary directories the operator trusts, absolute paths only. Every command
+ * the tool runs must resolve inside this list or the built-in one; argv cannot
+ * reach either. A toolchain outside them (mise, nvm, ~/.cargo) needs this set.
+ */
+function trustedBinDirs(): readonly string[] {
+  const extra = (process.env.PSTACK_CONTROL_CLI_TRUSTED_DIRS ?? "")
+    .split(":")
+    .map((dir) => dir.trim())
+    .filter((dir) => dir.startsWith("/"));
+  return extra.length === 0 ? DEFAULT_TRUSTED_BIN_DIRS : [...DEFAULT_TRUSTED_BIN_DIRS, ...extra];
+}
+
+/** `host[:port]`, the shape a dev server is written in. */
+function isLoopbackEntry(entry: string): boolean {
+  let host: string;
+  try {
+    host = normalizedHostname(new URL(`http://${entry.trim()}`));
+  } catch {
+    return false;
+  }
+  if (host === "localhost" || host === "::1") return true;
+  const value = ipv4ToInt(host);
+  return value !== undefined && (value >>> 24) === 127;
+}
+
+/**
+ * A caller-supplied host may only open loopback, because the caller is the model.
+ * Reaching any wider network is the operator's decision, through
+ * PSTACK_CONTROL_UI_ALLOW_HOSTS.
+ */
+function uiAllowHosts(extra?: readonly string[]): readonly string[] {
+  const fromEnv = (process.env.PSTACK_CONTROL_UI_ALLOW_HOSTS ?? "")
+    .split(",")
+    .map((host) => host.trim())
+    .filter((host) => host !== "");
+  return [...fromEnv, ...(extra ?? []).filter(isLoopbackEntry)];
+}
 
 function buildGitDiffArgs(base: string, paths?: string[]): string[] {
   const args = ["diff", "-U3", `${base}...HEAD`];
@@ -170,8 +236,8 @@ async function scanDiffForSlop(
   signal: AbortSignal | undefined,
 ): Promise<{ ranked: Hit[]; suggestions: FixSuggestion[]; addedLineCount: number }> {
   const args = buildGitDiffArgs(base, paths);
-  const diff = await pi.exec("git", args, { signal });
-  const unstaged = await pi.exec("git", ["diff", "-U3"], { signal });
+  const diff = await pi.exec("git", args, execOptions({ signal }));
+  const unstaged = await pi.exec("git", ["diff", "-U3"], execOptions({ signal }));
   const addedLines = extractAddedLines(`${diff.stdout || ""}\n${unstaged.stdout || ""}`);
   const { buckets, suggestions } = scanSlopPatterns(addedLines);
 
@@ -229,7 +295,7 @@ function formatResult(
   addedLineCount: number,
   applyDetails?: { applied: number; files: string[]; dryRun?: boolean },
   applyReport = "",
-): { content: Array<{ type: string; text: string }>; details: unknown } {
+): AgentToolResult<unknown> {
   if (ranked.length === 0) {
     return {
       content: [
@@ -295,7 +361,7 @@ function registerDeslopTool(pi: ExtensionAPI): void {
       const { ranked, suggestions, addedLineCount } = await scanDiffForSlop(
         pi,
         base,
-        params.paths,
+        stripAtPrefixes(params.paths),
         signal,
       );
       const { applyReport, applyDetails, doApply } = await determineApplyAction(
@@ -305,7 +371,7 @@ function registerDeslopTool(pi: ExtensionAPI): void {
       );
 
       if (doApply && suggestions.some((s) => s.safeDelete)) {
-        const result = applySafeDeletes(ctx.cwd, suggestions);
+        const result = await applySafeDeletes(ctx.cwd, suggestions);
         return formatResult(ctx.cwd, ranked, suggestions, addedLineCount, {
           applied: result.applied,
           files: result.files,
@@ -322,7 +388,7 @@ function registerControlCliTool(pi: ExtensionAPI): void {
     name: "pstack_control_cli",
     label: "Pstack Control CLI",
     description:
-      "Pi-local control-cli twin: run a CLI/TUI verification via argv array (no shell), capture stdout/stderr/exit, truncate for the model.",
+      "Pi-local control-cli twin: run a CLI/TUI verification via argv array (no shell), capture stdout/stderr/exit, truncate for the model. Output caps at 50KB / 2000 lines; the trailer names the temp file with the full text.",
     promptSnippet: "Drive a CLI/TUI and capture proof output",
     promptGuidelines: [
       "Use pstack_control_cli with argv=[cmd,...args] — never a raw shell string.",
@@ -330,30 +396,30 @@ function registerControlCliTool(pi: ExtensionAPI): void {
     parameters: CONTROL_CLI_PARAMETERS,
     async execute(_id, params, signal) {
       const [command, ...args] = params.argv;
-      if (!command || command.startsWith("-")) {
-        throw new Error("argv[0] must be a command name/path");
-      }
-      const parts = command.split("/");
-      const base = parts.length > 0 ? parts[parts.length - 1] : command;
-      if (!ALLOWED_CONTROL_COMMANDS.has(base)) {
-        throw new Error(
-          `command '${base}' not in control_cli allowlist (${[...ALLOWED_CONTROL_COMMANDS].join(", ")})`,
-        );
-      }
-      const result = await pi.exec(command, args, {
+      const resolution = resolveTrustedCommand(command, {
+        commandAllowlist: ALLOWED_CONTROL_COMMAND_LIST,
+        allowInterpreters: interpretersAllowed(),
+        trustedDirs: trustedBinDirs(),
+      });
+      if (!resolution.ok) throw new Error(resolution.reason);
+      const result = await pi.exec(resolution.command, args, execOptions({
         signal,
         timeout: (params.timeoutSeconds ?? 120) * 1000,
-        cwd: params.cwd,
-      });
-      const out = `${result.stdout || ""}\n${result.stderr || ""}`.slice(0, 50_000);
+        cwd: stripAtPrefix(params.cwd),
+      }));
+      const raw = `${result.stdout || ""}\n${result.stderr || ""}`;
+      const out = capToolOutput(raw || "(no output)", { keep: "tail", label: "control-cli" });
       return {
         content: [
           {
             type: "text",
-            text: `exit ${result.code}\n\n${out || "(no output)"}`,
+            text: `exit ${result.code}\n\n${out.text}`,
           },
         ],
-        details: { code: result.code },
+        details: {
+          code: result.code,
+          ...(out.outputPath ? { fullOutputPath: out.outputPath } : {}),
+        },
       };
     },
   });
@@ -364,35 +430,42 @@ function registerControlUiTool(pi: ExtensionAPI): void {
     name: "pstack_control_ui",
     label: "Pstack Control UI",
     description:
-      "Pi-local control-ui twin: probe a URL (HTTP) or run a browser MCP hint. Returns status + body snippet. Full browser automation depends on available MCP/browser tools — HTTP-only unless a browser MCP is present.",
+      "Pi-local control-ui twin: probe a URL (HTTP) or run a browser MCP hint. Returns status + body snippet. Body caps at 50KB / 2000 lines; the trailer names the temp file with the full body. Full browser automation depends on available MCP/browser tools — HTTP-only unless a browser MCP is present.",
     promptSnippet: "HTTP-probe a UI surface for proof",
     parameters: CONTROL_UI_PARAMETERS,
     async execute(_id, params, signal) {
+      const allowHosts = uiAllowHosts(params.allowHosts);
+      const validated = await validateProbeTarget(params.url, { allowHosts });
+      if (!validated.ok) {
+        throw new Error(`pstack_control_ui refused ${params.url}: ${validated.reason}`);
+      }
       const method = params.method ?? "GET";
       try {
-        const res = await fetch(params.url, { method, signal: signal ?? null });
-        const body = (await res.text()).slice(0, 20_000);
+        const res = await fetchFollowingSafeRedirects(fetch, validated.target, {
+          method,
+          signal: signal ?? null,
+          allowHosts,
+        });
+        const capped = capToolOutput(await res.text(), { keep: "head", label: "control-ui" });
         const expect = params.expectStatus;
         const ok = expect == null ? res.ok : res.status === expect;
         return {
           content: [
             {
               type: "text",
-              text: `HTTP ${res.status} ok=${ok}\n\n${body}`,
+              text: `HTTP ${res.status} ok=${ok}\n\n${capped.text}`,
             },
           ],
-          details: { status: res.status, ok },
+          details: {
+            status: res.status,
+            ok,
+            ...(capped.outputPath ? { fullOutputPath: capped.outputPath } : {}),
+          },
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `pstack_control_ui failed: ${(err as Error).message}\nHTTP-only twin. If you need real browser interaction, use an available browser MCP alongside this probe.`,
-            },
-          ],
-          details: { ok: false },
-        };
+        throw new Error(
+          `pstack_control_ui failed: ${(err as Error).message}. HTTP-only twin. If you need real browser interaction, use an available browser MCP alongside this probe.`,
+        );
       }
     },
   });
@@ -402,10 +475,7 @@ function registerDeslopCommand(pi: ExtensionAPI): void {
   pi.registerCommand("deslop", {
     description: "Run pstack_deslop twin then remind /skill:unslop",
     handler: async (_args, ctx) => {
-      pi.sendUserMessage(
-        "Run pstack_deslop on the current diff against main (consider applySafe:true for safe comment deletes), then apply /skill:unslop to any prose surfaces and fix remaining findings with edit.",
-        { expandPromptTemplates: true },
-      );
+      pi.sendUserMessage("Run pstack_deslop on the current diff against main (consider applySafe:true for safe comment deletes), then apply /skill:unslop to any prose surfaces and fix remaining findings with edit.", { expandPromptTemplates: true, deliverAs: "followUp" });
       ctx.ui.notify("Queued deslop twin", "info");
     },
   });

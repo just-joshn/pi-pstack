@@ -1,6 +1,7 @@
 /**
  * Pure coalesce / lifecycle helpers for pstack_loop (unit-testable without ExtensionAPI).
  */
+import { execOptions } from "../lib/exec-options.ts";
 export const DYNAMIC_COALESCE_MS = 2_500;
 
 export interface CoalesceState {
@@ -47,17 +48,6 @@ export function shouldSkipSettleArm(
   return lastFireAt > 0 && now - lastFireAt < coalesceMs;
 }
 
-/** Apply a successful fire onto mutable state. */
-export function applyFire(state: CoalesceState, now: number): void {
-  state.fires += 1;
-  state.lastFireAt = now;
-}
-
-/** Clear/disarm (session_shutdown twin). */
-export function clearLoopState(state: CoalesceState): void {
-  state.armed = false;
-}
-
 /** Bundled watch-pr is TypeScript run by its declared bun shebang; never exec it via bash. */
 const WATCH_PR_SCRIPT = "skills/poteto-mode/scripts/watch-pr/watch-pr";
 
@@ -76,7 +66,7 @@ export async function assertBunAvailable(
   execFn: (command: string, args: string[], opts?: { signal?: AbortSignal; timeout?: number }) => Promise<{ code: number }>,
   signal?: AbortSignal,
 ): Promise<void> {
-  const check = await execFn("bun", ["--version"], { signal, timeout: 10_000 });
+  const check = await execFn("bun", ["--version"], execOptions({ signal, timeout: 10_000 }));
   if (check.code !== 0) {
     throw new Error(
       "bun is required to run the bundled watch-pr script but was not found on PATH (checked `bun --version`). Install bun (https://bun.sh) or use a gh-* babysit recipe instead.",
@@ -133,7 +123,7 @@ function sanitizePrToken(n: string, label: string): string {
 export function materializeWatchArgv(
   recipeId: string,
   pr: string,
-  opts?: { stackPrs?: string[] },
+  opts?: { stackPrs?: string[] | undefined },
 ): string[] {
   const recipe = BABYSIT_WATCH_RECIPES[recipeId];
   if (!recipe) throw new Error(`unknown babysit watch recipe: ${recipeId}`);

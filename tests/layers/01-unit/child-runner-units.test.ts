@@ -95,7 +95,7 @@ test("truncate returns short text untouched and caps long text with a trailer", 
   const long = "abcdefghij".repeat(10);
   const capped = truncate(long, { maxBytes: 20 });
   assert.equal(capped.text.startsWith(long.slice(0, 20)), true);
-  assert.match(capped.text, /\[Output truncated to 20 bytes\./);
+  assert.match(capped.text, /\[Output truncated: 1 of 1 lines \(35B of 100B\)\./);
   assert.equal(capped.outputPath, undefined);
 });
 

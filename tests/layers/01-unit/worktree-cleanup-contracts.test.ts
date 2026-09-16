@@ -2,9 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { repoRoot } from "../../support/repo-root.mjs";
 
-const ROOT = join(fileURLToPath(import.meta.url), "..", "..", "..", "..");
+const ROOT = repoRoot(import.meta.url);
 
 function read(rel: string): string {
   return readFileSync(join(ROOT, rel), "utf8");

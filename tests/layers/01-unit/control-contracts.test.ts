@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { Check } from "typebox/value";
 import { registerCompanions } from "../../../extensions/companions/index.ts";
+import { INTERPRETER_COMMANDS } from "../../../extensions/lib/exec-allowlist.ts";
 
 const ALLOWLIST = [
   "npm",
@@ -112,15 +114,19 @@ test("control-01 validates argv against the allowlist", async () => {
   const env = companionEnv();
   const cli = env.tool("pstack_control_cli");
 
-  for (const command of ALLOWLIST) {
-    const result = await cli.execute("t", { argv: [command, "--version"] });
-    assert.equal(result.details.code, 0, `${command} passes the allowlist`);
-  }
-  assert.deepEqual(
-    env.calls().map((call) => call.command),
-    ALLOWLIST,
-  );
+  const trusted = await cli.execute("t", { argv: ["git", "--version"] });
+  assert.equal(trusted.details.code, 0, "a trusted command passes the allowlist");
+  assert.equal(env.calls().at(-1)?.command, "git");
 
+  for (const command of INTERPRETER_COMMANDS) {
+    await assert.rejects(
+      () => cli.execute("t", { argv: [command, "--version"] }),
+      { message: `interpreter '${command}' requires an explicit allowInterpreters opt-in` },
+      `${command} needs the explicit opt-in`,
+    );
+  }
+
+  const reachedExec = env.calls().length;
   await assert.rejects(() => cli.execute("t", { argv: ["rm", "-rf", "/"] }), {
     message: `command 'rm' not in control_cli allowlist (${ALLOWLIST.join(", ")})`,
   });
@@ -130,15 +136,24 @@ test("control-01 validates argv against the allowlist", async () => {
   await assert.rejects(() => cli.execute("t", { argv: ["-v"] }), {
     message: "argv[0] must be a command name/path",
   });
-  assert.equal(env.calls().length, ALLOWLIST.length, "rejected commands never reach exec");
+  assert.equal(env.calls().length, reachedExec, "rejected commands never reach exec");
+
+  process.env.PSTACK_CONTROL_CLI_INTERPRETERS = "1";
+  try {
+    const opted = await cli.execute("t", { argv: ["node", "--version"] });
+    assert.equal(opted.details.code, 0, "the documented opt-in reaches exec");
+    assert.equal(env.calls().at(-1)?.command, "node");
+  } finally {
+    Reflect.deleteProperty(process.env, "PSTACK_CONTROL_CLI_INTERPRETERS");
+  }
 
   const byPath = await cli.execute("t", { argv: ["/usr/local/bin/git", "status"] });
   assert.equal(byPath.details.code, 0);
   assert.equal(env.calls().at(-1)?.command, "/usr/local/bin/git");
 });
 
-test("control-02 runs argv without a shell and truncates output at 50000 characters", async () => {
-  const stdout = `${"a".repeat(49_999)}BC`;
+test("control-02 runs argv without a shell and caps output at the 50KB default limit", async () => {
+  const stdout = `${"a".repeat(60_000)}\n`;
   const env = companionEnv(() => ({ code: 3, stdout, stderr: "" }));
   const cli = env.tool("pstack_control_cli");
 
@@ -158,14 +173,21 @@ test("control-02 runs argv without a shell and truncates output at 50000 charact
   const header = "exit 3\n\n";
   const text = result.content[0].text;
   assert.equal(text.startsWith(header), true);
-  assert.equal(text.slice(header.length), `${"a".repeat(49_999)}B`);
-  assert.equal(text.length, header.length + 50_000);
+  assert.equal(text.includes("a".repeat(1000)), true);
+  assert.match(text, /\[Output truncated: \d+ of \d+ lines \([\d.]+KB of 58\.6KB\)\. Full output saved to: /);
+  assert.equal(typeof result.details.fullOutputPath, "string");
+  assert.equal(readFileSync(result.details.fullOutputPath as string, "utf8"), `${stdout}\n`);
 
   const short = companionEnv(() => ({ code: 0, stdout: "all good", stderr: "warn" }));
-  const shortResult = await short.tool("pstack_control_cli").execute("t", {
-    argv: ["make", "test"],
-  });
-  assert.equal(shortResult.content[0].text, "exit 0\n\nall good\nwarn");
+  process.env.PSTACK_CONTROL_CLI_INTERPRETERS = "1";
+  try {
+    const shortResult = await short.tool("pstack_control_cli").execute("t", {
+      argv: ["make", "test"],
+    });
+    assert.equal(shortResult.content[0].text, "exit 0\n\nall good\nwarn");
+  } finally {
+    Reflect.deleteProperty(process.env, "PSTACK_CONTROL_CLI_INTERPRETERS");
+  }
 });
 
 test("control-03 probes the URL with the requested method and expected status", async () => {
@@ -175,6 +197,7 @@ test("control-03 probes the URL with the requested method and expected status", 
       url: "http://127.0.0.1:65535/health",
       method: "HEAD",
       expectStatus: 503,
+      allowHosts: ["127.0.0.1"],
     });
     assert.deepEqual(env.fetchCalls(), [{ url: "http://127.0.0.1:65535/health", method: "HEAD" }]);
     assert.equal(result.details.status, 503);
@@ -187,18 +210,27 @@ test("control-03 probes the URL with the requested method and expected status", 
 });
 
 test("control-04 returns the HTTP status and a truncated body snippet", async () => {
-  const body = `prefix-${"b".repeat(25_000)}`;
+  const body = `prefix-${'b'.repeat(60_000)}`;
   const env = fakeFetchEnv(() => ({ status: 200, ok: true, body }));
   try {
-    const result = await env.probe.execute("t", { url: "http://localhost:3000/" });
+    const result = await env.probe.execute("t", { url: "http://localhost:3000/", allowHosts: ["localhost"] });
     assert.equal(result.details.status, 200);
     assert.equal(result.details.ok, true);
     const text = result.content[0].text;
     const header = "HTTP 200 ok=true\n\n";
     assert.equal(text.startsWith(header), true);
-    assert.equal(text.slice(header.length), body.slice(0, 20_000));
-    assert.equal(text.length, header.length + 20_000);
-    assert.equal(body.length > 20_000, true, "the fake body is longer than the snippet cap");
+    assert.equal(text.includes(body.slice(0, 200)), true);
+    assert.match(text, /\[Output truncated: 1 of 1 lines \(\d+\.\dKB of 58\.6KB\)\./);
+    assert.equal(typeof result.details.fullOutputPath, "string");
+    assert.equal(readFileSync(result.details.fullOutputPath as string, "utf8"), body);
+
+    const small = fakeFetchEnv(() => ({ status: 200, ok: true, body: "upstream down" }));
+    try {
+      const smallResult = await small.probe.execute("t", { url: "http://localhost:3000/", allowHosts: ["localhost"] });
+      assert.equal(smallResult.content[0].text, "HTTP 200 ok=true\n\nupstream down");
+    } finally {
+      small.restore();
+    }
   } finally {
     env.restore();
   }
@@ -224,8 +256,8 @@ test("control-06 passes the optional cwd through to exec", async () => {
   const env = companionEnv();
   const cli = env.tool("pstack_control_cli");
 
-  await cli.execute("t", { argv: ["npm", "run", "build"], cwd: "/tmp/control-cwd" });
-  await cli.execute("t", { argv: ["npm", "run", "build"] });
+  await cli.execute("t", { argv: ["git", "log"], cwd: "/tmp/control-cwd" });
+  await cli.execute("t", { argv: ["git", "log"] });
 
   assert.equal(env.calls()[0].opts?.cwd, "/tmp/control-cwd");
   assert.equal(env.calls()[1].opts?.cwd, undefined);
@@ -265,8 +297,12 @@ test("control-08 requires the url parameter", async () => {
 test("control-09 defaults the ui method to GET", async () => {
   const env = fakeFetchEnv(() => ({ status: 200, ok: true, body: "ok" }));
   try {
-    await env.probe.execute("t", { url: "http://localhost:3000/one" });
-    await env.probe.execute("t", { url: "http://localhost:3000/two", method: "POST" });
+    await env.probe.execute("t", { url: "http://localhost:3000/one", allowHosts: ["localhost"] });
+    await env.probe.execute("t", {
+      url: "http://localhost:3000/two",
+      method: "POST",
+      allowHosts: ["localhost"],
+    });
     assert.deepEqual(
       env.fetchCalls().map((call) => call.method),
       ["GET", "POST"],
@@ -282,12 +318,14 @@ test("control-10 honors the optional expectStatus parameter", async () => {
     const matched = await env.probe.execute("t", {
       url: "http://localhost:3000/",
       expectStatus: 503,
+      allowHosts: ["localhost"],
     });
     const mismatched = await env.probe.execute("t", {
       url: "http://localhost:3000/",
       expectStatus: 200,
+      allowHosts: ["localhost"],
     });
-    const omitted = await env.probe.execute("t", { url: "http://localhost:3000/" });
+    const omitted = await env.probe.execute("t", { url: "http://localhost:3000/", allowHosts: ["localhost"] });
 
     assert.deepEqual(
       [matched.details.ok, mismatched.details.ok, omitted.details.ok],

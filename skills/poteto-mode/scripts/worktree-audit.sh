@@ -22,8 +22,10 @@ prs=$(mktemp)
 gh pr list --author "@me" --state all --limit 1000 \
 	--json number,state,headRefName 2>/dev/null > "$prs" || echo "[]" > "$prs"
 
-# Transcripts dir: ~/.pi/agent/sessions (Pi session store).
-transcripts="$HOME/.pi/agent/sessions"
+# Transcripts dir: $HOME/.pi/agent/sessions/<encoded-workspace-slug>/ (Pi session store; scoped to this repo).
+pi_home="$HOME/.pi/agent"
+slug=$(printf '%s' "$main_wt" | sed 's#^[/\\]##; s#[/\\:]#-#g')
+transcripts="$pi_home/sessions/--$slug--"
 now=$(date +%s)
 
 printf "SIZE\tAGE\tMERGED\tDIRTY\tREMOTE\tPR\tLAST_CHAT\tBUCKET\tWORKTREE\n"

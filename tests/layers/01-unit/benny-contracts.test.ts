@@ -10,9 +10,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { basename, join, resolve } from "node:path";
 import { Check } from "typebox/value";
+import { repoRoot } from "../../support/repo-root.mjs";
 
 const ORIGINAL_HOME = process.env.HOME;
 const TEMP_HOME = mkdtempSync(join(tmpdir(), "pstack-benny-home-"));
@@ -21,7 +21,7 @@ process.env.HOME = TEMP_HOME;
 const { registerBenny } = await import("../../../extensions/benny/index.ts");
 const { registerHeartbeat } = await import("../../../extensions/heartbeat/index.ts");
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const REPO_ROOT = repoRoot(import.meta.url);
 const WAKE_DIR = join(TEMP_HOME, ".pi", "agent");
 const WAKE_FILE = join(WAKE_DIR, "pstack-benny-wakes.jsonl");
 
@@ -244,7 +244,7 @@ test("benny-04 setup-benny sends the skill path to read and follow", async () =>
   const sent = env.messages()[0];
   assert.equal(sent.text.startsWith("Read and follow "), true);
   assert.equal(sent.text.includes(skill), true);
-  assert.deepEqual(sent.options, { expandPromptTemplates: false });
+  assert.deepEqual(sent.options, { expandPromptTemplates: false, deliverAs: "followUp" });
   assert.deepEqual(env.notifications(), []);
 });
 
@@ -267,8 +267,8 @@ test("benny-05 benny-triage sends the triage skill path for immediate evaluation
   assert.deepEqual(
     env.messages().map((message) => message.options),
     [
-      { expandPromptTemplates: false },
-      { expandPromptTemplates: false },
+      { expandPromptTemplates: false, deliverAs: "followUp" },
+      { expandPromptTemplates: false, deliverAs: "followUp" },
     ],
   );
 });
@@ -347,9 +347,10 @@ test("benny-08 parses the payload as JSON when possible and keeps raw strings ot
   assert.equal(rows[1].payload, "not json {");
   assert.equal(rows[2].payload, 42);
 
-  const blank = await wake.execute("t", { action: "append", payload: "   " });
-  assert.equal(blank.details.ok, false);
-  assert.equal(blank.content[0].text, "pstack_benny_wake append requires payload JSON");
+  await assert.rejects(
+    () => wake.execute("t", { action: "append", payload: "   " }),
+    /pstack_benny_wake append requires a non-empty payload JSON string/,
+  );
   assert.equal(readWakeRows().length, 3);
 });
 

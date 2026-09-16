@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import { Value } from "typebox/value";
+import { repoRoot } from "../../support/repo-root.mjs";
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const REPO_ROOT = repoRoot(import.meta.url);
 const PARENT_MODEL = "anthropic/claude-parent-4-5";
 const GENERAL_NOTE =
   "pstack child: role=general sessionMode=isolated. Extensions/skills discover from Pi defaults; conversation history is not inherited.";
@@ -158,7 +158,7 @@ function makeHarness(cwd: string): Harness {
   };
   subagents.registerSpawn(pi as never);
   return {
-    ctx: { model: { provider: "anthropic", id: "claude-parent-4-5" }, cwd },
+    ctx: { model: { provider: "anthropic", id: "claude-parent-4-5" }, cwd, isProjectTrusted: () => true },
     tool(name: string) {
       const tool = tools.get(name);
       if (!tool) throw new Error(`tool not registered: ${name}`);

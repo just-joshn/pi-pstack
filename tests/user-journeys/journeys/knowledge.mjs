@@ -275,11 +275,14 @@ async function assertWakeAppend(user, wakeFile) {
 }
 
 async function assertWakeRefusal(user, wakeFile) {
-  const refused = await user.tool("pstack_benny_wake", { action: "append" });
-  assert.equal(textOf(refused), "pstack_benny_wake append requires payload JSON");
-  assert.deepEqual(refused.details, { ok: false });
-  const blank = await user.tool("pstack_benny_wake", { action: "append", payload: "   " });
-  assert.equal(textOf(blank), "pstack_benny_wake append requires payload JSON");
+  await assert.rejects(
+    () => user.tool("pstack_benny_wake", { action: "append" }),
+    /pstack_benny_wake append requires a non-empty payload JSON string/,
+  );
+  await assert.rejects(
+    () => user.tool("pstack_benny_wake", { action: "append", payload: "   " }),
+    /pstack_benny_wake append requires a non-empty payload JSON string/,
+  );
   assert.equal(wakeLines(wakeFile).length, 2);
 }
 
@@ -300,7 +303,7 @@ async function assertBennyCommands(user) {
   assert.equal(existsSync(SETUP_SKILL), true);
   await user.command("setup-benny", "");
   assert.equal(user.message(), SETUP_BODY);
-  assert.deepEqual(user.messages().at(-1).options, { expandPromptTemplates: false });
+  assert.deepEqual(user.messages().at(-1).options, { expandPromptTemplates: false, deliverAs: "followUp" });
 
   await user.command("benny-triage", "slack payload");
   assert.equal(user.message(), `${TRIAGE_BODY} Context: slack payload`);

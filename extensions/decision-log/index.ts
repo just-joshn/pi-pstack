@@ -5,19 +5,26 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { CONFIG_DIR_NAME, withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { stripAtPrefix } from "../lib/paths.ts";
+import { assertPathContainment } from "../lib/path-contain.ts";
 
 const HEADER = "ts\tphase\tdecision\twhy\tevidence\tresult\n";
 
 function assertAllowlistedLogPath(cwd: string, requested: string): string {
-  const root = resolve(cwd, ".pi");
+  const root = resolve(cwd, CONFIG_DIR_NAME);
   const path = resolve(cwd, requested);
+  const refusal = `pstack_decision_log path must stay under ${root} (got ${path}). Use .pi/decisions.tsv or .pi/audit/<slug>.tsv`;
   if (path === root || !path.startsWith(root + sep)) {
-    throw new Error(
-      `pstack_decision_log path must stay under ${root} (got ${path}). Use .pi/decisions.tsv or .pi/audit/<slug>.tsv`,
-    );
+    throw new Error(refusal);
   }
-  return path;
+  try {
+    return assertPathContainment(path, { root, label: "pstack_decision_log path" });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`${refusal} ${detail}`);
+  }
 }
 
 type DecisionLogParams = {
@@ -56,9 +63,14 @@ async function executeDecisionLog(
   params: DecisionLogParams,
   ctx: ExtensionContext,
 ): Promise<AgentToolResult<Record<string, unknown>>> {
-  const path = assertAllowlistedLogPath(ctx.cwd, params.path ?? join(".pi", "decisions.tsv"));
-  ensureDecisionLogHeader(path);
-  appendFileSync(path, `${formatDecisionRow(params)}\n`, "utf8");
+  const path = assertAllowlistedLogPath(
+    ctx.cwd,
+    stripAtPrefix(params.path) ?? join(CONFIG_DIR_NAME, "decisions.tsv"),
+  );
+  await withFileMutationQueue(path, async () => {
+    ensureDecisionLogHeader(path);
+    appendFileSync(path, `${formatDecisionRow(params)}\n`, "utf8");
+  });
   pi.appendEntry("pstack-decision", { path, decision: params.decision, phase: params.phase });
   return {
     content: [{ type: "text", text: `Logged decision to ${path}` }],
@@ -75,8 +87,8 @@ export function registerDecisionLog(pi: ExtensionAPI): void {
     promptSnippet: "Append an auditable decision-trail row",
     promptGuidelines: [
       "Use pstack_decision_log during long/autonomous runs per the show-me-your-work skill.",
-      "Schema matches scripts/log.sh: ts, phase, decision, why, evidence, result.",
-      "Paths must be under .pi/ (default .pi/decisions.tsv).",
+      "pstack_decision_log schema matches scripts/log.sh: ts, phase, decision, why, evidence, result.",
+      "pstack_decision_log paths must be under .pi/ (default .pi/decisions.tsv).",
     ],
     parameters: Type.Object({
       path: Type.Optional(

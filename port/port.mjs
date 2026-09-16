@@ -144,8 +144,16 @@ for (const rel of files) {
     continue;
   }
 
-  // Byte-identical files need no decode and no binding pass.
+  // Byte-identical files skip the binding pass, so upstream content reaches the
+  // tree verbatim here. Scan them too: an unmigrated token hides exactly where
+  // no rule ran.
   if (localBuf.equals(upstreamBuf)) {
+    const loose = isText(rel, upstreamBuf) ? scanLeftovers(rel, upstreamBuf.toString("utf8")) : [];
+    if (loose.length) {
+      out(`LOOSE  ${rel}`);
+      for (const h of loose) out(`  ${h}`);
+      stats = bump(stats, "loose");
+    }
     stats = bump(stats, "identical");
     continue;
   }

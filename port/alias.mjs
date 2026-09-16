@@ -83,14 +83,16 @@ if (!indexSrc.includes("registerPiOnlyCommands(pi)")) {
 }
 
 // --- no name claimed twice across skills / reserved / Pi-only buckets ---
-const claims = new Map(); // name -> [source, ...]
-const addClaim = (name, source) => {
-  const prev = claims.get(name) ?? [];
-  claims.set(name, [...prev, source]);
-};
-for (const name of skillNames) addClaim(name, "skill");
-for (const name of reserved) addClaim(name, "reserved");
-for (const cmd of PI_ONLY_COMMANDS) addClaim(cmd.name, "pi-only");
+const claimed = [
+  ...skillNames.map((name) => [name, "skill"]),
+  ...[...reserved].map((name) => [name, "reserved"]),
+  ...PI_ONLY_COMMANDS.map((cmd) => [cmd.name, "pi-only"]),
+];
+// name -> [source, ...]
+const claims = claimed.reduce((acc, [name, source]) => {
+  const prev = acc.get(name) ?? [];
+  return new Map(acc).set(name, [...prev, source]);
+}, new Map());
 for (const [name, sources] of claims) {
   if (sources.length > 1) problems = [...problems, `name claimed twice: ${name} (${sources.join(", ")})`];
 }

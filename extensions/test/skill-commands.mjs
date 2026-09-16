@@ -72,7 +72,7 @@ await check("registered handler forwards args verbatim into /skill:<name> <args>
   await how.handler("  WHYISMARKER two  ", {});
   assert.equal(pi.calls.length, 1);
   assert.equal(pi.calls[0].content, "/skill:how WHYISMARKER two");
-  assert.deepEqual(pi.calls[0].options, { expandPromptTemplates: true });
+  assert.deepEqual(pi.calls[0].options, { expandPromptTemplates: true, deliverAs: "followUp" });
 
   const unslop = pi.registered.get("unslop");
   await unslop.handler("", {});

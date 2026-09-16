@@ -11,7 +11,7 @@ export interface RecallHit {
   title: string;
   detail: string;
   /** Optional path / url / sha for citation */
-  ref?: string;
+  ref?: string | undefined;
 }
 
 export interface RankedRecallCorpus {
@@ -47,7 +47,7 @@ export function hitsFromSessionSnippets(
 ): RecallHit[] {
   return snippets.map((s) => {
     const [pathLine, ...rest] = s.split("\n");
-    const detail = rest.join("\n").trim() || pathLine;
+    const detail = rest.join("\n").trim() || pathLine || "session";
     return {
       source: "session" as const,
       score: scoreText(query, s, 20),
@@ -102,7 +102,7 @@ export function hitsFromGhPrs(prs: string, query: string): RecallHit[] {
         score: scoreText(query, line, 18),
         title: line.slice(0, 140),
         detail: line.slice(0, 300),
-        ref: m ? `#${m[1]}` : undefined,
+        ref: m?.[1] ? `#${m[1]}` : undefined,
       };
     });
 }

@@ -63,11 +63,11 @@ interface FakeExecResult {
 
 function worktreeHarness(execResults: FakeExecResult[] = []) {
   let tool: CapturedTool | undefined;
-  let shutdown: (() => Promise<void>) | undefined;
+  let shutdown: ((event: unknown, ctx: { cwd: string }) => Promise<void>) | undefined;
   let calls: ExecCall[] = [];
   let cursor = 0;
   const pi = {
-    on(event: string, handler: () => Promise<void>) {
+    on(event: string, handler: (event: unknown, ctx: { cwd: string }) => Promise<void>) {
       if (event === "session_shutdown") shutdown = handler;
     },
     registerCommand() {},
@@ -84,7 +84,10 @@ function worktreeHarness(execResults: FakeExecResult[] = []) {
   registerWorktree(pi as never);
   return {
     tool: () => tool as CapturedTool,
-    shutdown: () => shutdown as () => Promise<void>,
+    shutdownHandler: () =>
+      shutdown as ((event: unknown, ctx: { cwd: string }) => Promise<void>) | undefined,
+    shutdown: (ctx: { cwd: string }) =>
+      (shutdown as (event: unknown, ctx: { cwd: string }) => Promise<void>)({}, ctx),
     execCalls: () => calls,
   };
 }
@@ -188,12 +191,16 @@ test("worktree-01 registers pstack_worktree with the documented schema", () => {
   assert.equal(tool.parameters.type, "object");
   assert.deepEqual(tool.parameters.required, ["action"]);
   assert.deepEqual(tool.parameters.properties, {
-    action: { type: "string", description: "create | list | remove | prune | cleanup" },
+    action: {
+      type: "string",
+      enum: ["create", "list", "remove", "prune", "cleanup"],
+      description: "create | list | remove | prune | cleanup",
+    },
     name: { type: "string", description: "Worktree/branch slug for create/remove" },
     base: { type: "string", description: "Base ref (default HEAD)" },
   });
   assert.equal(typeof tool.execute, "function");
-  assert.equal(typeof harness.shutdown(), "function");
+  assert.equal(typeof harness.shutdownHandler(), "function");
 });
 
 test("worktree-02 rejects unsafe worktree names", () => {
@@ -533,7 +540,7 @@ test("worktree-15 runs shutdown cleanup in the project cwd and swallows errors",
     ]);
     const harness = worktreeHarness();
     process.chdir(repo);
-    await withFakeGit(git.bin, () => harness.shutdown()());
+    await withFakeGit(git.bin, () => harness.shutdown({ cwd: repo }));
     const calls = git.readLog();
     assert.ok(calls.length > 0);
     assert.deepEqual([...new Set(calls.map((entry) => entry.cwd))], [repo]);
@@ -541,7 +548,7 @@ test("worktree-15 runs shutdown cleanup in the project cwd and swallows errors",
     const gone = tempDir("pstack-wt-15-gone-");
     process.chdir(gone);
     rmSync(gone, { recursive: true, force: true });
-    await assert.doesNotReject(harness.shutdown()());
+    await assert.doesNotReject(harness.shutdown({ cwd: gone }));
     process.chdir(savedCwd);
   } finally {
     process.chdir(savedCwd);
