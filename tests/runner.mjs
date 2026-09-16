@@ -37,7 +37,7 @@ function failingFiles(output) {
 const args = process.argv.slice(2);
 
 function parseArgs(args) {
-  const flags = {
+  let flags = {
     layer: null,
     list: false,
     dryRun: false,
@@ -50,17 +50,17 @@ function parseArgs(args) {
     const arg = args[i];
     if (arg === "--layer" && args[i + 1]) {
       i = i + 1;
-      flags.layer = args[i];
+      flags = { ...flags, layer: args[i] };
     } else if (arg === "--list") {
-      flags.list = true;
+      flags = { ...flags, list: true };
     } else if (arg === "--dry-run") {
-      flags.dryRun = true;
+      flags = { ...flags, dryRun: true };
     } else if (arg === "--verbose") {
-      flags.verbose = true;
+      flags = { ...flags, verbose: true };
     } else if (arg === "--bail") {
-      flags.bail = true;
+      flags = { ...flags, bail: true };
     } else if (!arg.startsWith("-")) {
-      flags.files = [...flags.files, arg];
+      flags = { ...flags, files: [...flags.files, arg] };
     } else {
       process.stderr.write(`Unknown option: ${arg}\n`);
       process.stderr.write(`${USAGE}\n`);
