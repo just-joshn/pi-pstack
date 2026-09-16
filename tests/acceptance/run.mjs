@@ -10,18 +10,27 @@
  * Run: node --experimental-strip-types --import ./extensions/test/peer-deps.mjs tests/acceptance/run.mjs
  * Exit 0 all pass, 1 any scenario fails, 2 harness error.
  */
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripFrontmatter } from "../../extensions/sticky-poteto.ts";
 import { defaultModelsConfig, loadModelsConfig } from "../../extensions/models/config.ts";
 import { matchPlaybook } from "../../extensions/sticky-playbook.ts";
+import {
+  createHost,
+  installChildScript,
+  installEnvVar,
+  installFakeGh,
+  installFakeGit,
+  installHome,
+  makeHostTempRoot,
+  runGit,
+  writeModelsConfig,
+  writeStubChild,
+} from "../support/pi-host.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const SKILLS = join(ROOT, "skills");
-const BUILTIN_TOOLS = ["read", "write", "edit", "bash", "grep", "find", "ls"];
 const FINISH_CONDITION = "finish condition: every acceptance scenario reports PASS";
 const SCENARIO_NAMES = [
   "poteto-mode", "poteto-mode-off", "pstack", "how", "why", "recall", "blast-radius",
@@ -39,24 +48,6 @@ const DOD_SKILL_HEADINGS = {
   "technical-writing": "# Technical writing",
   unslop: "# Unslop",
 };
-const STUB_CHILD_SOURCE = [
-  "const argv = process.argv;",
-  "function flagValue(name) {",
-  "  const index = argv.indexOf(name);",
-  '  return index >= 0 ? argv[index + 1] : "none";',
-  "}",
-  "const text = [",
-  '  "stub-child cwd=" + process.cwd(),',
-  '  "stub-child model=" + flagValue("--model"),',
-  '  "stub-child tools=" + flagValue("--tools"),',
-  '  "stub-child prompt=" + (argv.at(-1) ?? ""),',
-  '  "PASS",',
-  '].join("\\n");',
-  'const event = { type: "message_end", message: { role: "assistant", content: [{ type: "text", text }] } };',
-  'process.stdout.write(JSON.stringify(event) + "\\n");',
-  "",
-].join("\n");
-
 let assertionCount = 0;
 let extensionEntry;
 
@@ -115,275 +106,8 @@ function createReport() {
   };
 }
 
-function makeHostCounters() {
-  let registrations = [];
-  let entries = [];
-  let messages = [];
-  let statuses = [];
-  let notifications = [];
-  let execCalls = [];
-  let activeTools = [...BUILTIN_TOOLS];
-  return {
-    registrations: () => [...registrations],
-    addRegistration: (name) => {
-      registrations = [...registrations, name];
-    },
-    entries: () => [...entries],
-    addEntry: (customType, data) => {
-      entries = [...entries, { type: "custom", customType, data }];
-    },
-    messages: () => [...messages],
-    addMessage: (text, options) => {
-      messages = [...messages, { text, options }];
-    },
-    statuses: () => [...statuses],
-    addStatus: (key, value) => {
-      statuses = [...statuses, [key, value]];
-    },
-    notifications: () => [...notifications],
-    addNotification: (level, message) => {
-      notifications = [...notifications, [level, message]];
-    },
-    execCalls: () => [...execCalls],
-    addExecCall: (command, args) => {
-      execCalls = [...execCalls, { command, args: [...args] }];
-    },
-    activeTools: () => [...activeTools],
-    setActiveTools: (names) => {
-      activeTools = [...names];
-    },
-  };
-}
-
-function makeUiContext(counters) {
-  return {
-    setStatus: (key, value) => counters.addStatus(key, value),
-    notify: (message, level) => counters.addNotification(level, message),
-    confirm: async () => true,
-    select: async () => undefined,
-    input: async () => undefined,
-    editor: async () => undefined,
-  };
-}
-
-function makePiFacade(counters, commands, tools, handlers) {
-  return {
-    on(event, handler) {
-      handlers.set(event, [...(handlers.get(event) ?? []), handler]);
-    },
-    registerCommand(name, spec) {
-      counters.addRegistration(name);
-      commands.set(name, spec);
-    },
-    registerTool(definition) {
-      if (tools.has(definition.name)) {
-        throw new Error(`duplicate tool registration: ${definition.name}`);
-      }
-      tools.set(definition.name, definition);
-    },
-    appendEntry(customType, data) {
-      counters.addEntry(customType, data);
-    },
-    sendUserMessage(content, options) {
-      const text = typeof content === "string" ? content : JSON.stringify(content);
-      counters.addMessage(text, options ?? {});
-    },
-    sendMessage(message) {
-      counters.addMessage(String(message?.content ?? ""), { deliverAs: "custom" });
-    },
-    async exec(command, args) {
-      counters.addExecCall(command, args);
-      return { code: 0, stdout: "acceptance-watcher: finish condition observed", stderr: "", killed: false };
-    },
-    getActiveTools: () => counters.activeTools(),
-    getAllTools: () => [...new Set([...BUILTIN_TOOLS, ...tools.keys()])].map((name) => ({ name })),
-    setActiveTools(names) {
-      counters.setActiveTools(names);
-    },
-  };
-}
-
-function makeHostState(cwd) {
-  const counters = makeHostCounters();
-  const commands = new Map();
-  const tools = new Map();
-  const handlers = new Map();
-  return {
-    pi: makePiFacade(counters, commands, tools, handlers),
-    ui: makeUiContext(counters),
-    commands,
-    tools,
-    handlers,
-    cwd,
-    registrations: counters.registrations,
-    entries: counters.entries,
-    messages: counters.messages,
-    statuses: counters.statuses,
-    notifications: counters.notifications,
-    execCalls: counters.execCalls,
-    activeTools: counters.activeTools,
-  };
-}
-
-function makeCtx(state) {
-  return {
-    cwd: state.cwd,
-    hasUI: true,
-    model: { provider: "acceptance", id: "parent" },
-    sessionManager: { getBranch: () => state.entries(), getSessionFile: () => undefined },
-    ui: state.ui,
-  };
-}
-
-function makeEmitters(state, ctx, emit) {
-  return {
-    emitSessionStart: () => emit("session_start", { type: "session_start", reason: "startup" }),
-    emitBeforeAgentStart: async (prompt, systemPrompt) => {
-      let current = systemPrompt;
-      for (const handler of state.handlers.get("before_agent_start") ?? []) {
-        const result = await handler(
-          { type: "before_agent_start", prompt, images: undefined, systemPrompt: current },
-          ctx(),
-        );
-        if (result?.systemPrompt !== undefined) current = result.systemPrompt;
-      }
-      return current;
-    },
-    emitInput: async (text, source) => {
-      let current = { text, images: undefined };
-      for (const handler of state.handlers.get("input") ?? []) {
-        const result = await handler(
-          { type: "input", text: current.text, images: current.images, source },
-          ctx(),
-        );
-        if (result?.action === "handled") return { text: "", handled: true };
-        if (result?.action === "transform") {
-          current = { text: result.text, images: result.images ?? current.images };
-        }
-      }
-      return { text: current.text, handled: false };
-    },
-  };
-}
-
-function makeHostApi(state) {
-  const ctx = () => makeCtx(state);
-  const emit = async (event, payload) => {
-    let results = [];
-    for (const handler of state.handlers.get(event) ?? []) {
-      results = [...results, await handler(payload, ctx())];
-    }
-    return results;
-  };
-
-  return {
-    ctx,
-    commands: state.commands,
-    tools: state.tools,
-    registrations: state.registrations,
-    entries: state.entries,
-    messages: state.messages,
-    statuses: state.statuses,
-    notifications: state.notifications,
-    execCalls: state.execCalls,
-    activeTools: state.activeTools,
-    lastEntry: (customType) => state.entries().filter((entry) => entry.customType === customType).at(-1),
-    ...makeEmitters(state, ctx, emit),
-  };
-}
-
-function createHost(cwd) {
-  const state = makeHostState(cwd);
-  return { pi: state.pi, ...makeHostApi(state) };
-}
-
-function prependPath(dir) {
-  const saved = process.env.PATH;
-  process.env.PATH = `${dir}:${saved ?? ""}`;
-  return () => {
-    if (saved === undefined) Reflect.deleteProperty(process.env, "PATH");
-    else process.env.PATH = saved;
-  };
-}
-
-function installHome(home) {
-  const saved = process.env.HOME;
-  process.env.HOME = home;
-  return () => {
-    if (saved === undefined) Reflect.deleteProperty(process.env, "HOME");
-    else process.env.HOME = saved;
-  };
-}
-
-function installEnvVar(name, value) {
-  const saved = process.env[name];
-  if (value === undefined) Reflect.deleteProperty(process.env, name);
-  else process.env[name] = value;
-  return () => {
-    if (saved === undefined) Reflect.deleteProperty(process.env, name);
-    else process.env[name] = saved;
-  };
-}
-
-function writeStubChild(root) {
-  const path = join(root, "stub-child.mjs");
-  writeFileSync(path, STUB_CHILD_SOURCE, "utf8");
-  return path;
-}
-
-function installChildScript(stubPath) {
-  const saved = process.argv[1];
-  process.argv[1] = stubPath;
-  return () => {
-    if (saved === undefined) Reflect.deleteProperty(process.argv, 1);
-    else process.argv[1] = saved;
-  };
-}
-
-function installFakeGit(root) {
-  const binDir = join(root, "fake-git-bin");
-  mkdirSync(binDir, { recursive: true });
-  const script = '#!/bin/sh\nif [ "$1" = "worktree" ] && [ "$2" = "add" ]; then mkdir -p "$5"; fi\nexit 0\n';
-  writeFileSync(join(binDir, "git"), script, { mode: 0o755 });
-  return prependPath(binDir);
-}
-
-function installFakeGh(root) {
-  const binDir = join(root, "fake-gh-bin");
-  mkdirSync(binDir, { recursive: true });
-  writeFileSync(join(binDir, "gh"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
-  return prependPath(binDir);
-}
-
-function writeModelsConfig(cwd, roles) {
-  const dir = join(cwd, ".pi");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "pstack-models.json"), `${JSON.stringify({ version: 1, roles }, null, 2)}\n`, "utf8");
-}
-
-function runGit(env, args) {
-  execFileSync("git", args, {
-    cwd: env.cwd,
-    env: {
-      ...process.env,
-      HOME: env.tmp.home,
-      GIT_CONFIG_NOSYSTEM: "1",
-      GIT_AUTHOR_NAME: "Acceptance",
-      GIT_AUTHOR_EMAIL: "acceptance@example.invalid",
-      GIT_COMMITTER_NAME: "Acceptance",
-      GIT_COMMITTER_EMAIL: "acceptance@example.invalid",
-    },
-    stdio: "ignore",
-  });
-}
-
-function makeTempRoot() {
-  const root = mkdtempSync(join(tmpdir(), "pstack-acceptance-"));
-  const home = join(root, "home");
-  const cwd = join(root, "cwd");
-  mkdirSync(home, { recursive: true });
-  mkdirSync(join(cwd, ".pi"), { recursive: true });
-  return { root, home, cwd };
+function acceptanceExec() {
+  return { code: 0, stdout: "acceptance-watcher: finish condition observed", stderr: "", killed: false };
 }
 
 function createScenarioEnv(tmp, report) {
@@ -392,9 +116,7 @@ function createScenarioEnv(tmp, report) {
     cwd: tmp.cwd,
     report,
     newHost() {
-      const host = createHost(tmp.cwd);
-      extensionEntry(host.pi);
-      return host;
+      return createHost(tmp.cwd, { entry: (pi) => extensionEntry(pi), exec: acceptanceExec });
     },
   };
 }
@@ -726,7 +448,7 @@ const SCENARIOS = [
 ];
 
 async function runScenario(descriptor) {
-  const tmp = makeTempRoot();
+  const tmp = makeHostTempRoot("pstack-acceptance-");
   const restores = [
     installHome(tmp.home),
     installEnvVar("PSTACK_CHILD_ROLE", undefined),
