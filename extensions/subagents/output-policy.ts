@@ -54,8 +54,8 @@ export function persistOutputSummary(fullText: string, outDir: string, tag: stri
 
 export function truncate(
   text: string,
-  opts?: { maxBytes?: number; persistDir?: string; tag?: string },
-): { text: string; outputPath?: string } {
+  opts?: { maxBytes?: number | undefined; persistDir?: string | undefined; tag?: string | undefined },
+): { text: string; outputPath?: string | undefined } {
   const max = opts?.maxBytes ?? MAX_OUTPUT_BYTES;
   const truncation = truncateHead(text, { maxBytes: max, maxLines: DEFAULT_MAX_LINES });
   if (!truncation.truncated) return { text };
@@ -87,7 +87,7 @@ export function appendCapped(current: string, chunk: string, max = MAX_OUTPUT_BY
 }
 
 /** Persist full output when explicitly requested, env on, or long-running child (timeout >= 5m). Default-on for long children. */
-export function shouldPersistOutput(input: { persistOutput?: boolean; timeoutMs?: number }): boolean {
+export function shouldPersistOutput(input: { persistOutput?: boolean | undefined; timeoutMs?: number | undefined }): boolean {
   if (input.persistOutput === true) return true;
   if (input.persistOutput === false) return false;
   const env = process.env.PSTACK_PERSIST_OUTPUT;

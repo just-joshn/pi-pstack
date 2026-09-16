@@ -1,11 +1,12 @@
 /**
  * pstack_swarm — fan-out N parallel child agents, aggregate one report.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, AgentToolUpdateCallback, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { capToolOutput } from "../lib/tool-output.ts";
 import { stripAtPrefix } from "../lib/paths.ts";
+import type { ChildTaskResult } from "../subagents/child-runner.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   MAX_CONCURRENCY,
@@ -22,13 +23,24 @@ type WorkerSpec = {
   role?: string;
 };
 
-type WorkerResult = {
-  model: string;
-  exitCode: number;
-  stopReason?: string;
-  output: string;
-  cwd: string;
-};
+/**
+ * A worker result is the child's own result plus the cwd it ran in. Deriving it
+ * from `ChildTaskResult` keeps the two in step: redeclaring the shape here is
+ * what let `stopReason` diverge when the child's optionality changed.
+ */
+type WorkerResult = ChildTaskResult & { cwd: string };
+
+/** One cwd per worker; a missing entry means the allocator returned short. */
+function zipWorkers(
+  workers: ReadonlyArray<WorkerSpec>,
+  cwds: ReadonlyArray<string>,
+): Array<{ worker: WorkerSpec; cwd: string }> {
+  return workers.map((worker, index) => {
+    const cwd = cwds[index];
+    if (cwd === undefined) throw new Error(`missing isolated worktree for worker ${index + 1}`);
+    return { worker, cwd };
+  });
+}
 
 export type SwarmSelection = "coverage" | "first-pass" | "rank-all" | "best-of";
 
@@ -62,7 +74,7 @@ export function swarmVerdict(output: string, exitCode: number): SwarmVerdict {
 
 export interface SwarmSelectionResult {
   readonly ordered: number[];
-  readonly winner?: number;
+  readonly winner?: number | undefined;
   readonly verdicts: SwarmVerdict[];
 }
 
@@ -82,7 +94,11 @@ export function selectSwarmResults(
     }
   }
   const winner = selection === "first-pass" ? verdicts.findIndex((v) => v === "PASS") : byRank[0];
-  return { ordered: byRank, winner: winner >= 0 ? winner : undefined, verdicts };
+  return {
+    ordered: byRank,
+    winner: winner !== undefined && winner >= 0 ? winner : undefined,
+    verdicts,
+  };
 }
 
 /**
@@ -113,20 +129,21 @@ async function runSwarmWorkers(
   trustedConfigCwd: string | undefined,
   signal: AbortSignal | undefined,
   timeoutMs: number,
-  onUpdate: ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void) | undefined,
+  onUpdate: AgentToolUpdateCallback<Record<string, unknown>> | undefined,
 ): Promise<WorkerResult[]> {
+  const units = zipWorkers(workers, cwds);
   let doneCount = 0;
-  return await runInWaves(workers, MAX_CONCURRENCY, async (w, index) => {
+  return await runInWaves(units, MAX_CONCURRENCY, async (unit) => {
     const model =
-      w.model ??
+      unit.worker.model ??
       resolveRoleModel("swarm workers", parentModel, 0, trustedConfigCwd) ??
       parentModel;
     const result = await runChildTask(
       {
-        task: w.task,
+        task: unit.worker.task,
         model,
-        cwd: cwds[index],
-        role: w.role ?? "general",
+        cwd: unit.cwd,
+        role: unit.worker.role ?? "general",
         timeoutMs,
       },
       ctxCwd,
@@ -135,31 +152,41 @@ async function runSwarmWorkers(
     );
     doneCount = doneCount + 1;
     onUpdate?.({
-      content: [{ type: "text", text: `${doneCount}/${workers.length} swarm workers done` }],
+      content: [{ type: "text", text: `${doneCount}/${units.length} swarm workers done` }],
       details: {},
     });
-    return { ...result, cwd: cwds[index] };
+    return { ...result, cwd: unit.cwd };
   });
 }
 
-function formatSwarmResponse(results: WorkerResult[], selection: SwarmSelection) {
+function formatSwarmResponse(
+  results: WorkerResult[],
+  selection: SwarmSelection,
+): AgentToolResult<Record<string, unknown>> {
   const ranking = selectSwarmResults(results, selection);
-  const table = ranking.ordered
+  const ordered = ranking.ordered.flatMap((index) => {
+    const result = results[index];
+    const verdict = ranking.verdicts[index];
+    return result === undefined || verdict === undefined ? [] : [{ index, result, verdict }];
+  });
+  const table = ordered
     .map(
-      (index) =>
-        `| ${index + 1} | ${results[index].model} | ${ranking.verdicts[index]} | exit ${results[index].exitCode} | ${results[index].stopReason ?? "-"} | ${results[index].cwd} |`,
+      ({ index, result, verdict }) =>
+        `| ${index + 1} | ${result.model} | ${verdict} | exit ${result.exitCode} | ${result.stopReason ?? "-"} | ${result.cwd} |`,
     )
     .join("\n");
-  const bodies = ranking.ordered
+  const bodies = ordered
     .map(
-      (index) =>
-        `### Worker ${index + 1} (${results[index].model}, exit ${results[index].exitCode}, cwd ${results[index].cwd})\n\n${results[index].output}`,
+      ({ index, result }) =>
+        `### Worker ${index + 1} (${result.model}, exit ${result.exitCode}, cwd ${result.cwd})\n\n${result.output}`,
     )
     .join("\n\n---\n\n");
+  const winner = ranking.winner;
+  const winnerVerdict = winner === undefined ? undefined : ranking.verdicts[winner];
   const winnerLine =
-    ranking.winner === undefined
+    winner === undefined || winnerVerdict === undefined
       ? ""
-      : `\n\nDeclared rule \`${selection}\`: take worker ${ranking.winner + 1} (${ranking.verdicts[ranking.winner]}).`;
+      : `\n\nDeclared rule \`${selection}\`: take worker ${winner + 1} (${winnerVerdict}).`;
 
   const report = `## Swarm report (${selection})\n\n| # | model | verdict | exit | stop | cwd |\n|---|-------|---------|------|------|-----|\n${table}${winnerLine}\n\n${bodies}`;
   const capped = capToolOutput(report, { keep: "head", label: "swarm-report" });

@@ -16,24 +16,21 @@ import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { DYNAMIC_COALESCE_MS } from "./coalesce.ts";
-import { createRun, armLoop, dispatch, nextLoopId, startArmedLoop, stopAllLoops, stopLoop, type HeartbeatRun, type LoopState } from "./runtime.ts";
+import { createRun, armLoop, dispatch, nextLoopId, startArmedLoop, stopAllLoops, stopLoop, type HeartbeatRun } from "./runtime.ts";
 import {
   COMMAND_MAX_FIRES,
   DEFAULT_INTERVAL_SECONDS,
   MIN_INTERVAL_SECONDS,
   formatLoopRows,
   initialLoopState,
+  type LoopState,
 } from "./state.ts";
 
 export { DYNAMIC_COALESCE_MS, decideFire, shouldSkipSettleArm, materializeWatchArgv, BABYSIT_WATCH_RECIPES } from "./coalesce.ts";
 export { formatLoopRows, watcherFireReason } from "./state.ts";
 
-interface LoopUiContext {
-  ui: {
-    setStatus: (key: string, value: string | undefined) => void;
-    notify: (message: string, level: string) => void;
-  };
-}
+/** The UI surface the loop handlers touch; both ExtensionContext and ExtensionCommandContext satisfy it. */
+type LoopUiContext = Pick<ExtensionContext, "ui">;
 
 interface LoopToolParams {
   action: string;
@@ -104,7 +101,8 @@ function registerLoopCommand(run: HeartbeatRun): void {
       }
       const stopOne = trimmed.match(/^stop\s+(\S+)$/i);
       if (stopOne) {
-        handleStopOne(run, stopOne[1], ctx);
+        const id = stopOne[1];
+        if (id !== undefined) handleStopOne(run, id, ctx);
         return;
       }
       const m = trimmed.match(/^(\d+)\s+([\s\S]+)$/);
@@ -115,7 +113,10 @@ function registerLoopCommand(run: HeartbeatRun): void {
         );
         return;
       }
-      armIntervalLoop(run, Number(m[1]), m[2], ctx);
+      const seconds = m[1];
+      const prompt = m[2];
+      if (seconds === undefined || prompt === undefined) return;
+      armIntervalLoop(run, Number(seconds), prompt, ctx);
     },
   });
 }
@@ -208,10 +209,10 @@ function registerLoopTool(run: HeartbeatRun): void {
 interface ProgrammaticLoopParams {
   id: string;
   prompt: string;
-  mode?: string;
-  intervalSeconds?: number;
-  maxFires?: number;
-  watchArgv?: string[];
+  mode?: string | undefined;
+  intervalSeconds?: number | undefined;
+  maxFires?: number | undefined;
+  watchArgv?: string[] | undefined;
 }
 
 let activeRun: HeartbeatRun | undefined;

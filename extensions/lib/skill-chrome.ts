@@ -6,11 +6,12 @@
  * through the documented ctx.ui.setStatus surface with a theme.fg color token.
  */
 import { existsSync, readFileSync } from "node:fs";
+import type { ThemeColor } from "@earendil-works/pi-coding-agent";
 
 export interface SkillChrome {
-  readonly icon?: string;
-  readonly color?: string;
-  readonly reminder?: string;
+  readonly icon?: string | undefined;
+  readonly color?: string | undefined;
+  readonly reminder?: string | undefined;
 }
 
 export interface Frontmatter {
@@ -22,7 +23,7 @@ export interface Frontmatter {
  * Best-effort mapping of a declared color name onto a Pi theme token. The theme
  * exposes a fixed token set, not arbitrary color names.
  */
-const COLOR_TOKEN: Readonly<Record<string, string>> = Object.freeze({
+const COLOR_TOKEN: Readonly<Record<string, ThemeColor>> = Object.freeze({
   yellow: "warning",
   gold: "warning",
   amber: "warning",
@@ -44,8 +45,10 @@ const COLOR_TOKEN: Readonly<Record<string, string>> = Object.freeze({
 function parseFoldedScalar(bodyLines: string[], startIndex: number): { value: string; nextIndex: number } {
   let parts: string[] = [];
   let i = startIndex;
-  while (i < bodyLines.length && /^\s+\S/.test(bodyLines[i])) {
-    parts = [...parts, bodyLines[i].trim()];
+  while (i < bodyLines.length) {
+    const line = bodyLines[i];
+    if (line === undefined || !/^\s+\S/.test(line)) break;
+    parts = [...parts, line.trim()];
     i = i + 1;
   }
   return { value: parts.join(" "), nextIndex: i };
@@ -70,13 +73,18 @@ function parseFields(lines: string[]): Record<string, string> {
   const out: Record<string, string> = {};
   let i = 0;
   while (i < lines.length) {
-    const matched = /^([a-zA-Z0-9_-]+):\s?(.*)$/.exec(lines[i]);
+    const line = lines[i];
+    const matched = line === undefined ? null : /^([a-zA-Z0-9_-]+):\s?(.*)$/.exec(line);
     if (!matched) {
       i = i + 1;
       continue;
     }
     const key = matched[1];
-    const rest = matched[2].trim();
+    const rest = (matched[2] ?? "").trim();
+    if (key === undefined) {
+      i = i + 1;
+      continue;
+    }
     if (rest === ">-" || rest === ">" || rest === "|-" || rest === "|") {
       const folded = parseFoldedScalar(lines, i + 1);
       out[key] = folded.value;
@@ -129,6 +137,6 @@ export function chromeStatusLabel(chrome: SkillChrome, name?: string): string {
 }
 
 /** The Pi theme token for a declared color name, or undefined when unmapped. */
-export function chromeThemeToken(color: string | undefined): string | undefined {
+export function chromeThemeToken(color: string | undefined): ThemeColor | undefined {
   return color ? COLOR_TOKEN[color.toLowerCase()] : undefined;
 }

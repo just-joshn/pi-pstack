@@ -26,7 +26,7 @@ export interface ToolOutputCaps {
 export interface CappedToolOutput {
   text: string;
   truncated: boolean;
-  outputPath?: string;
+  outputPath?: string | undefined;
 }
 
 function writeFullOutput(text: string, label: string): string | undefined {

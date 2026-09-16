@@ -18,6 +18,7 @@ import {
   type RunReduction,
 } from "./fsm.ts";
 import { latestRun, listRuns, loadRun, saveRun } from "./run-store.ts";
+import { createArmedRunsCell } from "./armed-runs.ts";
 
 const MANDATED_ACTIONS = [
   "arm",
@@ -214,7 +215,7 @@ function armRun(pi: ExtensionAPI, params: RunToolParams): AgentToolResult<unknow
     maxFires: defined.record.maxFires,
     watchArgv: params.watchArgv,
   });
-  armedRunIds.add(runId);
+  armedRunIds.arm(runId);
   saveRun(defined.record);
   return runResult(defined.record, defined.effects);
 }
@@ -304,7 +305,7 @@ function runToolParameters() {
 export const SESSION_SHUTDOWN_BLOCK_REASON =
   "local runtime session ended without completion; hand off to a hosted worker or re-arm";
 
-const armedRunIds = new Set<string>();
+const armedRunIds = createArmedRunsCell();
 
 /**
  * A local run's timer dies with the session, so a non-terminal record must not
@@ -313,7 +314,7 @@ const armedRunIds = new Set<string>();
  */
 export function blockArmedRunsOnSessionShutdown(reason: string): string[] {
   let blocked: string[] = [];
-  for (const runId of armedRunIds) {
+  for (const runId of armedRunIds.ids()) {
     const record = loadRun(runId);
     if (!record || isTerminalPhase(record.phase)) continue;
     const reduced = reduceRun(record, { type: "mark_blocked", reason }, Date.now());
@@ -321,7 +322,7 @@ export function blockArmedRunsOnSessionShutdown(reason: string): string[] {
     stopProgrammaticLoop(runId);
     blocked = [...blocked, runId];
   }
-  armedRunIds.clear();
+  armedRunIds.disarmAll();
   return blocked;
 }
 

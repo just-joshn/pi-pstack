@@ -106,7 +106,9 @@ function startsLikeFlag(token: string): boolean {
 
 function skipAssignments(words: readonly WordToken[], start: number): number {
   let index = start;
-  while (index < words.length && isAssignment(words[index].value)) {
+  while (index < words.length) {
+    const word = words[index];
+    if (word === undefined || !isAssignment(word.value)) break;
     index += 1;
   }
   return index;
@@ -114,7 +116,9 @@ function skipAssignments(words: readonly WordToken[], start: number): number {
 
 function commandIndex(words: readonly WordToken[]): number {
   let index = skipAssignments(words, 0);
-  while (index < words.length && !words[index].dynamic && KEYWORD_PREFIXES.has(words[index].value)) {
+  while (index < words.length) {
+    const word = words[index];
+    if (word === undefined || word.dynamic || !KEYWORD_PREFIXES.has(word.value)) break;
     index = skipAssignments(words, index + 1);
   }
   return index;
@@ -127,7 +131,9 @@ function skipWrapperArgs(
 ): number {
   let index = start;
   while (index < words.length) {
-    const token = words[index].value;
+    const word = words[index];
+    if (word === undefined) return index;
+    const token = word.value;
     if (token === "--") return index + 1;
     if (isAssignment(token)) {
       index += 1;
@@ -193,8 +199,8 @@ function resolveWrapper(
 
 function resolveExecution(words: readonly WordToken[], depth: number): ResolveResult {
   const index = commandIndex(words);
-  if (index >= words.length) return EMPTY_RESULT;
   const token = words[index];
+  if (token === undefined) return EMPTY_RESULT;
   if (token.dynamic) return refusalResult("a command name built from a variable or substitution");
   const name = basename(token.value);
   if (name.length === 0) return EMPTY_RESULT;
@@ -277,6 +283,7 @@ export function subcommandOf(args: readonly ShellArg[], valueFlags: ReadonlySet<
   let index = 0;
   while (index < args.length) {
     const arg = args[index];
+    if (arg === undefined) break;
     if (!arg.value.startsWith("-")) {
       return arg.dynamic ? { dynamic: true } : { sub: arg.value.toLowerCase(), dynamic: false };
     }

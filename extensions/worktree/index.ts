@@ -4,6 +4,7 @@
 import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
+import { execOptions } from "../lib/exec-options.ts";
 import {
   MAX_PSTACK_WORKTREES,
   cleanupPstackWorktreesOnShutdown,
@@ -38,7 +39,7 @@ async function executeWorktreeList(
   ctx: ExtensionContext,
   signal: AbortSignal | undefined,
 ): Promise<AgentToolResult<{ code: number; count: number }>> {
-  const listed = await pi.exec("git", ["worktree", "list", "--porcelain"], { signal });
+  const listed = await pi.exec("git", ["worktree", "list", "--porcelain"], execOptions({ signal }));
   const count = countPstackWorktrees(ctx.cwd);
   return {
     content: [

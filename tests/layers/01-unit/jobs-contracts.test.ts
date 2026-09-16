@@ -139,7 +139,7 @@ function makeHarness(cwd: string): Harness {
   };
   subagents.registerSpawn(pi as never);
   return {
-    ctx: { model: { provider: "anthropic", id: "claude-parent-4-5" }, cwd },
+    ctx: { model: { provider: "anthropic", id: "claude-parent-4-5" }, cwd, isProjectTrusted: () => false },
     tool(name: string) {
       const tool = tools.get(name);
       if (!tool) throw new Error(`tool not registered: ${name}`);

@@ -235,11 +235,13 @@ function pieceFromDouble(input: string, index: number): WordPiece {
   while (cursor < input.length) {
     const char = input[cursor];
     if (char === '"') return { value, dynamic, substitutions, next: cursor + 1 };
-    if (char === "\\" && cursor + 1 < input.length) {
+    if (char === "\\") {
       const escaped = input[cursor + 1];
-      value += escaped === "\n" ? "" : /[$"`\\]/.test(escaped) ? escaped : `\\${escaped}`;
-      cursor += 2;
-      continue;
+      if (escaped !== undefined) {
+        value += escaped === "\n" ? "" : /[$"`\\]/.test(escaped) ? escaped : `\\${escaped}`;
+        cursor += 2;
+        continue;
+      }
     }
     if (char === "$") {
       const expansion = scanDollar(input, cursor);
@@ -270,6 +272,7 @@ function pieceFromEscape(input: string, index: number): WordPiece {
 
 function scanWordPiece(input: string, index: number): WordPiece {
   const char = input[index];
+  if (char === undefined) return { value: "", dynamic: false, substitutions: [], next: index };
   if (char === "'") return pieceFromLiteral(input, index);
   if (char === '"') return pieceFromDouble(input, index);
   if (char === "\\") return pieceFromEscape(input, index);
@@ -283,7 +286,9 @@ function scanWord(input: string, start: number): WordPiece {
   let value = "";
   let dynamic = false;
   let substitutions: readonly string[] = [];
-  while (index < input.length && !WORD_END.has(input[index])) {
+  while (index < input.length) {
+    const char = input[index];
+    if (char === undefined || WORD_END.has(char)) break;
     const piece = scanWordPiece(input, index);
     value += piece.value;
     dynamic = dynamic || piece.dynamic;
@@ -319,6 +324,7 @@ function scanOperator(input: string, index: number): OperatorScan | undefined {
   const match = fd ?? OPERATOR_PATTERN.exec(rest);
   if (!match) return undefined;
   const operator = fd ? fd[2] : match[1];
+  if (operator === undefined) return undefined;
   if (operator === "<<" || operator === "<<<") throw new ShellRefusalError("here-doc or here-string");
   const next = index + (fd ? fd[0].length : operator.length);
   if (!fd && SEPARATOR_OPERATORS.has(operator)) {
@@ -344,6 +350,7 @@ export function scanTokens(input: string): TokenScan {
   let substitutions: readonly string[] = [];
   while (index < input.length) {
     const char = input[index];
+    if (char === undefined) break;
     if (char === "\n") {
       tokens = [...tokens, { kind: "op", value: "\n" }];
       index += 1;

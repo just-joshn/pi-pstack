@@ -41,7 +41,8 @@
     ]
   },
   "scripts": {
-    "test": "node compat/check.mjs && node spec/spec-check.mjs && node tests/runner.mjs",
+    "test": "npm run typecheck && node compat/check.mjs && node spec/spec-check.mjs && node tests/runner.mjs",
+    "typecheck": "tsc -p tsconfig.json",
     "compat:generate": "node compat/generate.mjs",
     "compat:check": "node compat/check.mjs",
     "compat:report": "node compat/report.mjs",
@@ -51,7 +52,7 @@
     "test:differential": "node tests/differential.mjs",
     "test:acceptance": "node --experimental-strip-types --import ./extensions/test/peer-deps.mjs tests/acceptance/run.mjs",
     "test:journeys": "node tests/runner.mjs --layer 8",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"extensions/**\" --test-coverage-exclude=\"extensions/test/**\" --test-coverage-branches=80 tests/layers/01-unit/*.test.ts tests/layers/02-integration/*.test.mjs tests/acceptance/run.mjs",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"extensions/**\" --test-coverage-include=\"services/**\" --test-coverage-exclude=\"extensions/test/**\" --test-coverage-branches=80 --test-coverage-functions=80 tests/layers/01-unit/*.test.ts tests/layers/02-integration/*.test.mjs tests/acceptance/run.mjs tests/hosted/*.test.mjs",
     "test:conformance": "node tests/conformance.mjs",
     "test:bootstrap": "node tests/support/link-peers.mjs",
     "test:unit": "node tests/runner.mjs --layer 1",
@@ -76,5 +77,9 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.5",
+    "typescript": "^7.0.2"
   }
 }

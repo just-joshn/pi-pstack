@@ -9,18 +9,18 @@ export const READONLY_ENTRY_TYPE = "pstack-session-readonly";
 export interface StickySessionData {
   enabled: boolean;
   /** Last high-confidence matched playbook id (persisted for restore). */
-  matchedPlaybookId?: string | null;
+  matchedPlaybookId?: string | null | undefined;
   /** Score at match time (informational). */
-  matchedScore?: number;
+  matchedScore?: number | undefined;
   /** When sticky was last armed/updated (ms epoch). */
-  updatedAt?: number;
+  updatedAt?: number | undefined;
 }
 
 export interface ReadonlySessionData {
   enabled: boolean;
   /** Why readonly was armed (e.g. investigation playbook). */
-  reason?: string;
-  updatedAt?: number;
+  reason?: string | undefined;
+  updatedAt?: number | undefined;
 }
 
 export function parseStickyEntry(data: unknown): StickySessionData {

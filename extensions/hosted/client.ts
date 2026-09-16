@@ -46,14 +46,14 @@ export interface TaskEnvelopeInput {
   model: string;
   policy: PstackTaskPolicy;
   parentCwd: string;
-  parentSessionId?: string;
-  idempotencyKey?: string;
-  thinkingLevel?: string;
-  capabilities?: string[];
-  secretRefs?: string[];
-  isolation?: string;
-  timeoutMs?: number;
-  reportSchema?: unknown;
+  parentSessionId?: string | undefined;
+  idempotencyKey?: string | undefined;
+  thinkingLevel?: string | undefined;
+  capabilities?: string[] | undefined;
+  secretRefs?: string[] | undefined;
+  isolation?: string | undefined;
+  timeoutMs?: number | undefined;
+  reportSchema?: unknown | undefined;
   upstreamRevision?: string;
   pluginVersion?: string;
 }
@@ -65,8 +65,8 @@ export interface HostedReply {
 }
 
 export interface HostedRequestOptions {
-  signal?: AbortSignal;
-  base?: string;
+  signal?: AbortSignal | undefined;
+  base?: string | undefined;
 }
 
 function trimBase(raw: string): string {
@@ -145,8 +145,8 @@ async function requestJson(
   const response = await fetch(`${base}${path}`, {
     method,
     headers,
-    body: payload === undefined ? undefined : JSON.stringify(payload),
-    signal: options.signal,
+    ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
+    ...(options.signal !== undefined ? { signal: options.signal } : {}),
   });
   const text = await response.text();
   if (!response.ok) {

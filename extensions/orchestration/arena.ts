@@ -2,10 +2,11 @@
  * pstack_arena — N candidates, optional cross-judge, return artifacts for graft.
  * Full graft stays in the arena skill; this tool owns fan-out + gather.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, AgentToolUpdateCallback, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { capToolOutput } from "../lib/tool-output.ts";
 import { stripAtPrefix } from "../lib/paths.ts";
+import type { ChildTaskResult } from "../subagents/child-runner.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   MAX_CONCURRENCY,
@@ -36,10 +37,22 @@ type ArenaParams = {
 
 type CandidateResult = {
   label: string;
-  outputPath?: string;
+  outputPath?: string | undefined;
   cwd: string;
-  result: { model: string; exitCode: number; output: string; stopReason?: string };
+  result: ChildTaskResult;
 };
+
+/** One cwd per candidate; a missing entry means the allocator returned short. */
+function zipCandidates(
+  candidates: ReadonlyArray<ArenaCandidate>,
+  cwds: ReadonlyArray<string>,
+): Array<{ candidate: ArenaCandidate; index: number; cwd: string }> {
+  return candidates.map((candidate, index) => {
+    const cwd = cwds[index];
+    if (cwd === undefined) throw new Error(`missing isolated worktree for candidate ${index + 1}`);
+    return { candidate, index, cwd };
+  });
+}
 
 async function runArenaCandidates(
   params: ArenaParams,
@@ -48,16 +61,17 @@ async function runArenaCandidates(
   ctxCwd: string,
   trustedConfigCwd: string | undefined,
   signal: AbortSignal | undefined,
-  onUpdate: ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void) | undefined,
+  onUpdate: AgentToolUpdateCallback<Record<string, unknown>> | undefined,
 ): Promise<CandidateResult[]> {
+  const units = zipCandidates(params.candidates, cwds);
   let doneCount = 0;
-  return await mapConcurrent(params.candidates, MAX_CONCURRENCY, async (c, index) => {
+  return await mapConcurrent(units, MAX_CONCURRENCY, async (unit) => {
     const model =
-      c.model ??
-      resolveRoleModel("arena runners", parentModel, index, trustedConfigCwd) ??
+      unit.candidate.model ??
+      resolveRoleModel("arena runners", parentModel, unit.index, trustedConfigCwd) ??
       parentModel;
-    const label = c.label ?? `candidate-${index + 1}`;
-    const outputPath = stripAtPrefix(c.outputPath);
+    const label = unit.candidate.label ?? `candidate-${unit.index + 1}`;
+    const outputPath = stripAtPrefix(unit.candidate.outputPath);
     const task = [
       params.prompt,
       outputPath ? `Write your artifact under: ${outputPath}` : "",
@@ -69,7 +83,7 @@ async function runArenaCandidates(
       {
         task,
         model,
-        cwd: cwds[index],
+        cwd: unit.cwd,
         role: "general",
         timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       },
@@ -79,10 +93,10 @@ async function runArenaCandidates(
     );
     doneCount = doneCount + 1;
     onUpdate?.({
-      content: [{ type: "text", text: `${doneCount}/${params.candidates.length} arena candidates done` }],
+      content: [{ type: "text", text: `${doneCount}/${units.length} arena candidates done` }],
       details: {},
     });
-    return { label, outputPath, cwd: cwds[index], result };
+    return { label, outputPath, cwd: unit.cwd, result };
   });
 }
 
@@ -124,7 +138,10 @@ async function runCrossJudge(
   return `\n\n## Cross-judge (${judge.model})\n\n${judge.output}`;
 }
 
-function formatArenaResponse(results: CandidateResult[], judgeText: string) {
+function formatArenaResponse(
+  results: CandidateResult[],
+  judgeText: string,
+): AgentToolResult<Record<string, unknown>> {
   const body = results
     .map(
       (r) =>

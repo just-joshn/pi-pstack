@@ -15,11 +15,34 @@ import { THINKING_LEVELS, type ThinkingLevel } from "../models/budget.ts";
 /** Pi builtins that cannot mutate the tree (no bash / write / edit). */
 export const READONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
 
+/** The mandated integration/MCP capability categories, shared by S3 and the guard. */
+const INTEGRATION_CATEGORY_VALUES = [
+  "source-control",
+  "issue-tracker",
+  "long-form-docs",
+  "team-chat",
+  "observability",
+  "error-tracking",
+  "analytics",
+  "browser-ui",
+  "cli-tui",
+] as const;
+
+export type IntegrationCategory = (typeof INTEGRATION_CATEGORY_VALUES)[number];
+
+export const INTEGRATION_CATEGORIES: readonly IntegrationCategory[] = Object.freeze([
+  ...INTEGRATION_CATEGORY_VALUES,
+]);
+
+export function isIntegrationCategory(value: unknown): value is IntegrationCategory {
+  return typeof value === "string" && INTEGRATION_CATEGORIES.some((entry) => entry === value);
+}
+
 export type FilesystemPolicy = "read-only" | "workspace-write";
 export type ShellPolicy = "none" | "restricted" | "full";
 export type GitPolicy = "read" | "branch-write" | "push" | "merge";
 export type NetworkPolicy = "none" | "allowed";
-export type IntegrationsPolicy = "none" | "inherit" | string[];
+export type IntegrationsPolicy = "none" | "inherit" | readonly IntegrationCategory[];
 export type EnvironmentPolicy = "local" | "hosted";
 export type IsolationPolicy = "session" | "process" | "worktree" | "container" | "vm" | "remote";
 
@@ -36,16 +59,16 @@ export interface PstackTaskPolicy {
 
 /** Partial override shape accepted by compileTaskPolicy (the pstack_task params + permissions). */
 export interface PolicyOverrideInput {
-  filesystem?: string;
-  shell?: string;
-  git?: string;
-  network?: string;
-  integrations?: string | string[];
-  environment?: string;
-  background?: boolean;
-  isolation?: string;
-  readonly?: boolean;
-  worktree?: boolean;
+  filesystem?: string | undefined;
+  shell?: string | undefined;
+  git?: string | undefined;
+  network?: string | undefined;
+  integrations?: string | string[] | undefined;
+  environment?: string | undefined;
+  background?: boolean | undefined;
+  isolation?: string | undefined;
+  readonly?: boolean | undefined;
+  worktree?: boolean | undefined;
 }
 
 export const FILESYSTEM_VALUES: readonly FilesystemPolicy[] = ["read-only", "workspace-write"];
@@ -72,6 +95,8 @@ const BASE_POLICY: PstackTaskPolicy = Object.freeze({
   background: false,
   isolation: "session",
 });
+
+const GENERAL_POLICY: PstackTaskPolicy = Object.freeze({ ...BASE_POLICY });
 
 /**
  * Hosted execution places the run on the worker service. A caller who asked for a
@@ -109,13 +134,12 @@ export const ROLE_POLICY_DEFAULTS: Readonly<Record<string, PstackTaskPolicy>> = 
     integrations: "inherit",
   }),
   "poteto-agent": basePolicy({}),
-  general: basePolicy({}),
+  general: GENERAL_POLICY,
 });
 
 export function defaultsForRole(role: string): PstackTaskPolicy {
-  return Object.hasOwn(ROLE_POLICY_DEFAULTS, role)
-    ? ROLE_POLICY_DEFAULTS[role]
-    : ROLE_POLICY_DEFAULTS.general;
+  const policy = Object.hasOwn(ROLE_POLICY_DEFAULTS, role) ? ROLE_POLICY_DEFAULTS[role] : undefined;
+  return policy ?? GENERAL_POLICY;
 }
 
 function formatValue(value: unknown): string {
@@ -162,9 +186,8 @@ function requireBoolean(field: string, value: unknown): boolean {
 function pickIntegrations(value: unknown): IntegrationsPolicy | undefined {
   if (value === undefined) return undefined;
   if (value === "none" || value === "inherit") return value;
-  const isGrantList =
-    Array.isArray(value) && value.every((entry) => typeof entry === "string" && entry.length > 0);
-  if (isGrantList) return Object.freeze([...(value as string[])]);
+  const isGrantList = Array.isArray(value) && value.every(isIntegrationCategory);
+  if (isGrantList) return Object.freeze([...value]);
   return failInvalid("integrations", value, ["none", "inherit", "[<capability>, ...]"]);
 }
 
@@ -267,25 +290,6 @@ export function resolveThinkingLevel(
   return failInvalid("thinkingLevel", explicit, THINKING_LEVELS);
 }
 
-/** The mandated integration/MCP capability categories, shared by S3 and the guard. */
-const INTEGRATION_CATEGORY_VALUES = [
-  "source-control",
-  "issue-tracker",
-  "long-form-docs",
-  "team-chat",
-  "observability",
-  "error-tracking",
-  "analytics",
-  "browser-ui",
-  "cli-tui",
-] as const;
-
-export type IntegrationCategory = (typeof INTEGRATION_CATEGORY_VALUES)[number];
-
-export const INTEGRATION_CATEGORIES: readonly IntegrationCategory[] = Object.freeze([
-  ...INTEGRATION_CATEGORY_VALUES,
-]);
-
 /**
  * Capability -> the registered tool that serves it. Seven categories are served
  * by the single `pstack_integrations` bridge (git/gh and configured command
@@ -311,7 +315,9 @@ export const INTEGRATION_CAPABILITIES: Readonly<Record<IntegrationCategory, read
  */
 export function integrationToolsFor(integrations: IntegrationsPolicy): string[] {
   if (integrations === "none") return [];
-  const categories = Array.isArray(integrations) ? integrations : INTEGRATION_CATEGORIES;
+  const categories: readonly IntegrationCategory[] = Array.isArray(integrations)
+    ? integrations
+    : INTEGRATION_CATEGORIES;
   return [...new Set(categories.flatMap((category) => [...INTEGRATION_CAPABILITIES[category]]))];
 }
 

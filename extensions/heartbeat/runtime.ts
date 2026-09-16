@@ -23,8 +23,8 @@ const WATCHER_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 
 /** Process handles for one loop. Kept apart from LoopState so domain state stays serializable. */
 export interface LoopResources {
-  readonly timer?: ReturnType<typeof setTimeout>;
-  readonly controller?: AbortController;
+  readonly timer?: ReturnType<typeof setTimeout> | undefined;
+  readonly controller?: AbortController | undefined;
   readonly watcherRunning: boolean;
 }
 
@@ -36,13 +36,13 @@ export interface HeartbeatRun {
 }
 
 export interface ArmParams {
-  id?: string;
-  mode?: string;
-  prompt?: string;
-  intervalSeconds?: number;
-  maxFires?: number;
-  watchArgv?: string[];
-  watchCommand?: string;
+  id?: string | undefined;
+  mode?: string | undefined;
+  prompt?: string | undefined;
+  intervalSeconds?: number | undefined;
+  maxFires?: number | undefined;
+  watchArgv?: string[] | undefined;
+  watchCommand?: string | undefined;
 }
 
 function errorText(error: unknown): string {

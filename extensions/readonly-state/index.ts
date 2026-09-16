@@ -2,7 +2,7 @@
  * Session-level readonly state: immutable state + pure transitions + runtime wiring.
  * Owns tool-strip/restore, tool_call blocking, and readonly entry persistence.
  */
-import type { ExtensionAPI, ExtensionContext, ToolCallEvent } from "@earendil-works/pi-coding-agent";
+import type { CustomEntry, ExtensionAPI, ExtensionContext, ToolCallEvent } from "@earendil-works/pi-coding-agent";
 import { READONLY_ENTRY_TYPE, parseReadonlyEntry } from "../sticky-session.ts";
 import { READONLY_TOOLS } from "../subagents/child-runner.ts";
 import { applyEffects, type Effect, type EffectContext } from "../effects.ts";
@@ -18,7 +18,7 @@ export interface ReadonlyState {
   readonly enabled: boolean;
   readonly toolsBefore: string[] | undefined;
   /** Why the arm happened (e.g. "playbook:investigation" or "command"). */
-  readonly reason?: string;
+  readonly reason?: string | undefined;
 }
 
 export function createInitialReadonlyState(): ReadonlyState {
@@ -86,7 +86,7 @@ export function reduceSetEnabled(
   return { state: { enabled: false, toolsBefore: undefined, reason: undefined }, effects: offEffects };
 }
 
-function restoreFromEntries(entries: readonly unknown[]): { enabled: boolean; reason?: string } {
+function restoreFromEntries(entries: readonly unknown[]): { enabled: boolean; reason: string | undefined } {
   let enabled = false;
   let reason: string | undefined;
   for (const entry of entries) {
@@ -135,7 +135,7 @@ function restoreReadonlyState(
 ): void {
   const entries = ctx.sessionManager
     .getBranch()
-    .filter((e) => e.type === "custom" && e.customType === READONLY_ENTRY_TYPE)
+    .filter((e): e is CustomEntry => e.type === "custom" && e.customType === READONLY_ENTRY_TYPE)
     .map((e) => e.data);
   const restored = restoreFromEntries(entries);
   stateRef.state = createInitialReadonlyState();

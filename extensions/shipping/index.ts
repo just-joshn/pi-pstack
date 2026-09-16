@@ -7,10 +7,11 @@
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { capToolOutput } from "../lib/tool-output.ts";
+import { execOptions } from "../lib/exec-options.ts";
 import {
   evaluateMergeGates,
   MERGE_GATE_FIXTURES,
@@ -45,22 +46,19 @@ export {
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WATCH_PR = resolve(PACKAGE_ROOT, "skills/poteto-mode/scripts/watch-pr/watch-pr");
 
-type BabysitResponse = {
-  content: Array<{ type: string; text: string }>;
-  details: {
-    code: number;
-    via: string;
-    recipeId: string;
-    watchArgv: string[];
-    loopArm?: unknown;
-    fixturesAvailable?: number;
-  };
+type BabysitDetails = {
+  code: number;
+  via: string;
+  recipeId: string;
+  watchArgv: string[];
+  loopArm?: unknown;
+  fixturesAvailable?: number;
+  fullOutputPath?: string;
 };
 
-type ShipStackResponse = {
-  content: Array<{ type: string; text: string }>;
-  details: Record<string, unknown>;
-};
+type BabysitResponse = AgentToolResult<BabysitDetails>;
+
+type ShipStackResponse = AgentToolResult<Record<string, unknown>>;
 
 async function executeBabysitWithWatchPr(
   pi: ExtensionAPI,
@@ -75,7 +73,7 @@ async function executeBabysitWithWatchPr(
   const tailArgs = hint.watchArgv.slice(2); // drop ["bun", <script-path-token>]
   const scriptArgs = params.pretty ? [...tailArgs, "--pretty"] : tailArgs;
   const { command, args } = watchPrInvocation(WATCH_PR, scriptArgs);
-  const result = await pi.exec(command, args, { signal, timeout: 60 * 60 * 1000 });
+  const result = await pi.exec(command, args, execOptions({ signal, timeout: 60 * 60 * 1000 }));
   const hintBlock = includeHint
     ? `\n\n--- pstack_loop dynamic arm (default babysit recipe ${recipeId}) ---\n${JSON.stringify(hint.loopArm, null, 2)}\nwatchArgv=${JSON.stringify(hint.watchArgv)}`
     : "";
@@ -109,10 +107,11 @@ async function executeBabysitWithGhRecipe(
   signal: AbortSignal | undefined,
 ): Promise<BabysitResponse> {
   const [cmd, ...argv] = hint.watchArgv;
-  const result = await pi.exec(cmd, argv, {
+  if (cmd === undefined) throw new Error("babysit recipe argv must start with a command");
+  const result = await pi.exec(cmd, argv, execOptions({
     signal,
     timeout: recipeId === "gh-checks-watch" ? 60 * 60 * 1000 : 60_000,
-  });
+  }));
   const hintBlock = includeHint
     ? `\n\n--- pstack_loop dynamic arm ---\n${JSON.stringify(hint.loopArm, null, 2)}`
     : "";
@@ -155,7 +154,7 @@ async function executeBabysitWithGhView(
       "--json",
       "number,title,state,mergedAt,mergeStateStatus,statusCheckRollup,url,reviewDecision",
     ],
-    { signal },
+    execOptions({ signal }),
   );
   const hintBlock = includeHint
     ? `\n\n--- pstack_loop dynamic arm (default babysit) ---\n${JSON.stringify(hint.loopArm, null, 2)}\nwatchArgv=${JSON.stringify(hint.watchArgv)}`
@@ -191,7 +190,7 @@ async function handleShipView(
   const r = await pi.exec(
     "gh",
     ["pr", "view", pr.replace(/^#/, ""), "--json", "number,title,state,mergedAt,mergeStateStatus,url,statusCheckRollup"],
-    { signal },
+    execOptions({ signal }),
   );
   const out = capToolOutput(r.stdout || r.stderr, { keep: "tail", label: "ship-view" });
   return { content: [{ type: "text", text: out.text }], details: { code: r.code } };
@@ -212,7 +211,7 @@ async function fetchStackView(
       "--json",
       "number,state,mergedAt,mergeStateStatus,title,statusCheckRollup,reviewDecision",
     ],
-    { signal },
+    execOptions({ signal }),
   );
   if (r.code !== 0) return { number: clean, state: "UNKNOWN" };
   try {
@@ -272,9 +271,7 @@ async function handleShipMerge(
   const gate = await assertMergeGates(pi, prClean, signal);
   const method = mergeMethod ?? "squash";
   const flag = method === "merge" ? "--merge" : method === "rebase" ? "--rebase" : "--squash";
-  const r = await pi.exec("gh", ["pr", "merge", prClean, flag], {
-    signal,
-  });
+  const r = await pi.exec("gh", ["pr", "merge", prClean, flag], execOptions({ signal }));
   if (r.code !== 0) {
     throw new Error(`gh pr merge failed (fail closed): ${r.stderr || r.stdout || `exit ${r.code}`}`);
   }
@@ -308,7 +305,7 @@ async function assertMergeGates(
       "--json",
       "number,title,state,mergedAt,mergeStateStatus,statusCheckRollup,reviewDecision,url",
     ],
-    { signal },
+    execOptions({ signal }),
   );
   if (r.code !== 0) {
     throw new Error(`merge gate check failed (fail closed): cannot view PR — ${r.stderr || r.stdout || `exit ${r.code}`}`);

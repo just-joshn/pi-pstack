@@ -6,9 +6,10 @@
  * pstack_deslop: severity + samples + structured fix suggestions; optional
  * applySafe deletes high-confidence safe comment/slop lines in the working tree.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { capToolOutput } from "../lib/tool-output.ts";
+import { execOptions } from "../lib/exec-options.ts";
 import { stripAtPrefix, stripAtPrefixes } from "../lib/paths.ts";
 import { resolveTrustedCommand } from "../lib/exec-allowlist.ts";
 import { fetchFollowingSafeRedirects, validateProbeTarget } from "../lib/url-policy.ts";
@@ -194,8 +195,8 @@ async function scanDiffForSlop(
   signal: AbortSignal | undefined,
 ): Promise<{ ranked: Hit[]; suggestions: FixSuggestion[]; addedLineCount: number }> {
   const args = buildGitDiffArgs(base, paths);
-  const diff = await pi.exec("git", args, { signal });
-  const unstaged = await pi.exec("git", ["diff", "-U3"], { signal });
+  const diff = await pi.exec("git", args, execOptions({ signal }));
+  const unstaged = await pi.exec("git", ["diff", "-U3"], execOptions({ signal }));
   const addedLines = extractAddedLines(`${diff.stdout || ""}\n${unstaged.stdout || ""}`);
   const { buckets, suggestions } = scanSlopPatterns(addedLines);
 
@@ -253,7 +254,7 @@ function formatResult(
   addedLineCount: number,
   applyDetails?: { applied: number; files: string[]; dryRun?: boolean },
   applyReport = "",
-): { content: Array<{ type: string; text: string }>; details: unknown } {
+): AgentToolResult<unknown> {
   if (ranked.length === 0) {
     return {
       content: [
@@ -359,11 +360,11 @@ function registerControlCliTool(pi: ExtensionAPI): void {
         allowInterpreters: interpretersAllowed(),
       });
       if (!resolution.ok) throw new Error(resolution.reason);
-      const result = await pi.exec(command, args, {
+      const result = await pi.exec(resolution.command, args, execOptions({
         signal,
         timeout: (params.timeoutSeconds ?? 120) * 1000,
         cwd: stripAtPrefix(params.cwd),
-      });
+      }));
       const raw = `${result.stdout || ""}\n${result.stderr || ""}`;
       const out = capToolOutput(raw || "(no output)", { keep: "tail", label: "control-cli" });
       return {

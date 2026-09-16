@@ -84,6 +84,11 @@ test("invalid policy enums throw naming the field and its allowed values", () =>
   assert.throws(() => compileTaskPolicy({ environment: "cloud" }, "general"), /invalid environment 'cloud'/);
   assert.throws(() => compileTaskPolicy({ integrations: 7 }, "general"), /invalid integrations '7'/);
   assert.throws(() => compileTaskPolicy({ integrations: [""] }, "general"), /invalid integrations/);
+  assert.throws(
+    () => compileTaskPolicy({ integrations: ["typo-capability"] }, "general"),
+    /invalid integrations/,
+    "an unknown capability name is rejected at compile time, not when the tool list is resolved",
+  );
   assert.throws(() => compileTaskPolicy({ readonly: "yes" }, "general"), /invalid readonly 'yes'; allowed: true, false/);
   assert.throws(() => resolveThinkingLevel({ thinkingLevel: "turbo" }, undefined), /invalid thinkingLevel 'turbo'/);
 });

@@ -76,7 +76,7 @@ export interface TaskParams {
 export interface TaskContext {
   readonly cwd: string;
   readonly model: { provider: string; id: string } | undefined;
-  readonly isProjectTrusted?: () => boolean;
+  readonly isProjectTrusted: () => boolean;
 }
 
 interface WorktreeAllocation {
@@ -308,6 +308,24 @@ function hostedReply(
   };
 }
 
+function withTaskOverrides(
+  prepared: ChildTaskInput,
+  policy: PstackTaskPolicy,
+  thinkingLevel: string | undefined,
+  worktree: WorktreeAllocation | undefined,
+  parentCwd: string,
+): ChildTaskInput {
+  const worktreeCwd = worktree
+    ? containSpawnPath(worktree.path, parentCwd, "pstack_task worktree cwd")
+    : undefined;
+  return {
+    ...prepared,
+    policy,
+    ...(thinkingLevel !== undefined ? { thinkingLevel } : {}),
+    ...(worktreeCwd !== undefined ? { cwd: worktreeCwd } : {}),
+  };
+}
+
 async function executeTask(
   params: TaskParams,
   signal: AbortSignal | undefined,
@@ -346,12 +364,7 @@ async function executeTask(
     return hostedReply(hosted, policy, thinkingLevel, prepared.model, role);
   }
   const worktree = await allocateTaskWorktree(policy, params, ctx.cwd);
-  const childInput: ChildTaskInput = {
-    ...prepared.childInput,
-    policy,
-    thinkingLevel,
-    ...(worktree ? { cwd: containSpawnPath(worktree.path, ctx.cwd, "pstack_task worktree cwd") } : {}),
-  };
+  const childInput = withTaskOverrides(prepared.childInput, policy, thinkingLevel, worktree, ctx.cwd);
   const reply = await runPreparedChild({
     prepared: { ...prepared, childInput },
     ctx,

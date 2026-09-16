@@ -6,13 +6,15 @@
  * with PSTACK_MAX_CONCURRENCY). Output cap default 50KiB (PSTACK_MAX_OUTPUT_BYTES);
  * oversized output can be summarized to disk under .pi/pstack-child-output/.
  */
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, type ChildProcessByStdio } from "node:child_process";
 import { join } from "node:path";
+import type { Readable } from "node:stream";
 import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
 import { allowedCwdRoots, assertPathContainment } from "../lib/path-contain.ts";
 import { READONLY_TOOLS, type PstackTaskPolicy } from "../agents/policy.ts";
 import { resolveChildSessionDir } from "./session-dir.ts";
+import { createJobRegistryCell } from "./job-registry.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   MAX_OUTPUT_BYTES,
@@ -41,15 +43,15 @@ export const MAX_CONCURRENCY = parsePositiveInt(process.env.PSTACK_MAX_CONCURREN
 /** Pi builtins that cannot mutate the tree (no bash / write / edit). Owned by policy.ts. */
 export interface ChildTaskInput {
   task: string;
-  model?: string;
-  cwd?: string;
-  role?: string;
-  poteto?: boolean;
-  tools?: string[];
-  timeoutMs?: number;
-  skillPath?: string;
+  model?: string | undefined;
+  cwd?: string | undefined;
+  role?: string | undefined;
+  poteto?: boolean | undefined;
+  tools?: string[] | undefined;
+  timeoutMs?: number | undefined;
+  skillPath?: string | undefined;
   /** When true, write full output to disk if truncated and return path in trailer. */
-  persistOutput?: boolean;
+  persistOutput?: boolean | undefined;
   /**
    * Session mode for the child process (Pi CLI flags — exact):
    * - isolated (default): `--session-dir` under cwd/.pi/pstack-child-sessions
@@ -58,35 +60,35 @@ export interface ChildTaskInput {
    * - ephemeral: `--no-session` (no transcript save; still discovers extensions/skills)
    * Env default override: PSTACK_CHILD_SESSION=ephemeral|isolated
    */
-  sessionMode?: "ephemeral" | "isolated";
+  sessionMode?: "ephemeral" | "isolated" | undefined;
   /**
    * Resume a prior child: reuse its `--session-dir` AND pass `--continue`/`-c`
    * so Pi calls continueRecent (not SessionManager.create). Absolute or cwd-relative.
    * Fail closed if missing/unreadable. Conflicts with sessionMode=ephemeral.
    */
-  resumeSessionDir?: string;
+  resumeSessionDir?: string | undefined;
   /**
    * Pre-resolved isolated session dir (e.g. minted by enqueueBackgroundChild).
    * Uses `--session-dir` without `--continue` (fresh create). Not a resume signal.
    */
-  sessionDir?: string;
+  sessionDir?: string | undefined;
   /** Compiled multidimensional policy; forwarded to the child as PSTACK_CHILD_POLICY. */
-  policy?: PstackTaskPolicy;
+  policy?: PstackTaskPolicy | undefined;
   /** Explicit Pi thinking level; forwarded as `--thinking <level>`. */
-  thinkingLevel?: string;
+  thinkingLevel?: string | undefined;
 }
 
 export interface ChildTaskResult {
   task: string;
   model: string;
-  role?: string;
+  role?: string | undefined;
   exitCode: number;
   output: string;
   stderr: string;
-  stopReason?: string;
-  outputPath?: string;
+  stopReason?: string | undefined;
+  outputPath?: string | undefined;
   /** Child `--session-dir` when isolated/resume (for in-session resumeJobId). */
-  sessionDir?: string;
+  sessionDir?: string | undefined;
 }
 
 let activeChildren = 0;
@@ -121,12 +123,19 @@ export function piInvocation(args: string[]): { command: string; args: string[] 
   return { command: "pi", args };
 }
 
+function messageText(message: Message): string | undefined {
+  if (message.role !== "assistant") return undefined;
+  if (!Array.isArray(message.content)) return undefined;
+  const text = message.content.find((part) => part.type === "text");
+  return text?.type === "text" ? text.text : undefined;
+}
+
 function finalText(messages: Message[]): string {
   for (let i = messages.length - 1; i >= 0; i = i - 1) {
     const message = messages[i];
-    if (message.role !== "assistant") continue;
-    const text = message.content.find((part) => part.type === "text");
-    if (text?.type === "text") return text.text;
+    if (message === undefined) continue;
+    const text = messageText(message);
+    if (text !== undefined) return text;
   }
   return "";
 }
@@ -138,12 +147,12 @@ function finalText(messages: Message[]): string {
 export function buildChildPiArgs(opts: {
   selectedModel: string;
   sessionMode: "ephemeral" | "isolated";
-  sessionDir?: string;
-  continueSession?: boolean;
+  sessionDir?: string | undefined;
+  continueSession?: boolean | undefined;
   inheritNote: string;
-  skillPath?: string;
-  tools?: string[];
-  thinkingLevel?: string;
+  skillPath?: string | undefined;
+  tools?: string[] | undefined;
+  thinkingLevel?: string | undefined;
   prompt: string;
 }): string[] {
   const base = ["--mode", "json", "-p", "--model", opts.selectedModel];
@@ -190,7 +199,9 @@ export async function mapConcurrent<T, U>(
     while (next < items.length) {
       const index = next;
       next = next + 1;
-      results[index] = await run(items[index], index);
+      const item = items[index];
+      if (item === undefined) throw new Error(`mapConcurrent lost an item at index ${index}`);
+      results[index] = await run(item, index);
     }
   });
   await Promise.all(workers);
@@ -209,14 +220,29 @@ export async function runChildTask(
 interface ChildRunOutcome {
   messages: Message[];
   stderr: string;
-  stopReason?: string;
+  stopReason?: string | undefined;
   midStreamCapped: boolean;
   aborted: boolean;
   timedOut: boolean;
   exitCode: number;
 }
 
-type ChildStreamSnapshot = Pick<ChildRunOutcome, "messages" | "stderr" | "stopReason" | "midStreamCapped">;
+type ChildStream = ChildProcessByStdio<null, Readable, Readable>;
+
+/**
+ * Every key is present on a snapshot; a value may be undefined when the stream
+ * ended without the child reporting that field. Modelling it as required rather
+ * than optional is what makes `stopReason: undefined` legal under
+ * `exactOptionalPropertyTypes`, which distinguishes an absent key from a
+ * present-but-undefined one.
+ */
+interface ChildStreamSnapshot {
+  messages: Message[];
+  stderr: string;
+  stopReason: string | undefined;
+  midStreamCapped: boolean;
+}
+
 type ChildLifecycleOutcome = Pick<ChildRunOutcome, "aborted" | "timedOut">;
 
 function buildChildPrompt(input: ChildTaskInput): string {
@@ -245,7 +271,7 @@ function spawnChildProcess(
   parentModel: string,
   role: string | undefined,
   policy: PstackTaskPolicy | undefined,
-): ChildProcessWithoutNullStreams {
+): ChildProcessByStdio<null, Readable, Readable> {
   const invocation = piInvocation(args);
   return spawn(invocation.command, invocation.args, {
     cwd,
@@ -260,7 +286,7 @@ function spawnChildProcess(
   });
 }
 
-function consumeChildStream(child: ChildProcessWithoutNullStreams): () => ChildStreamSnapshot {
+function consumeChildStream(child: ChildStream): () => ChildStreamSnapshot {
   let messages: Message[] = [];
   let stderr = "";
   let stopReason: string | undefined;
@@ -308,7 +334,7 @@ function consumeChildStream(child: ChildProcessWithoutNullStreams): () => ChildS
 }
 
 function armChildLifecycle(
-  child: ChildProcessWithoutNullStreams,
+  child: ChildStream,
   timeoutMs: number,
   signal: AbortSignal | undefined,
 ): () => ChildLifecycleOutcome {
@@ -455,7 +481,7 @@ export function resolveTools(
 
 /** Resolve resumeSessionDir from explicit path and/or in-memory resumeJobId. Fail closed. */
 export function resolveResumeSessionDirParam(params: {
-  resumeSessionDir?: string;
+  resumeSessionDir?: string | undefined;
   resumeJobId?: string;
   sessionMode?: string;
 }): string | undefined {
@@ -488,50 +514,48 @@ export type BackgroundJobStatus = "queued" | "running" | "done" | "failed" | "ab
 export interface BackgroundJob {
   id: string;
   status: BackgroundJobStatus;
-  role?: string;
+  role?: string | undefined;
   model: string;
   taskPreview: string;
   startedAt: number;
-  finishedAt?: number;
-  result?: ChildTaskResult;
-  error?: string;
+  finishedAt?: number | undefined;
+  result?: ChildTaskResult | undefined;
+  error?: string | undefined;
   /** Child `--session-dir` when known (in-memory; enables resumeJobId within session). */
-  sessionDir?: string;
+  sessionDir?: string | undefined;
 }
 
-const backgroundJobs = new Map<string, BackgroundJob>();
-const backgroundControllers = new Map<string, AbortController>();
+const registry = createJobRegistryCell<BackgroundJob>();
 let backgroundSeq = 0;
 
 export function listBackgroundJobs(): BackgroundJob[] {
-  return [...backgroundJobs.values()].toSorted((a, b) => a.startedAt - b.startedAt);
+  return registry.jobs().toSorted((a, b) => a.startedAt - b.startedAt);
 }
 
 export function getBackgroundJob(id: string): BackgroundJob | undefined {
-  return backgroundJobs.get(id);
+  return registry.job(id);
 }
 
 export function abortBackgroundJob(id: string): BackgroundJob | undefined {
-  const controller = backgroundControllers.get(id);
-  const job = backgroundJobs.get(id);
+  const controller = registry.controller(id);
+  const job = registry.job(id);
   if (controller) {
     controller.abort();
-    backgroundControllers.delete(id);
+    registry.dropController(id);
   }
   if (job && (job.status === "queued" || job.status === "running")) {
-    const abortedJob = { ...job, status: "aborted" as const, finishedAt: Date.now() };
-    backgroundJobs.set(id, abortedJob);
+    const abortedJob: BackgroundJob = { ...job, status: "aborted", finishedAt: Date.now() };
+    registry.putJob(abortedJob);
     return abortedJob;
   }
   return job;
 }
 
 export function abortAllBackgroundJobs(): void {
-  for (const id of [...backgroundControllers.keys()]) {
+  for (const id of registry.controllerIds()) {
     abortBackgroundJob(id);
   }
-  backgroundJobs.clear();
-  backgroundControllers.clear();
+  registry.reset();
 }
 
 function createBackgroundJob(
@@ -576,7 +600,7 @@ async function runBackgroundJob(
   parentModel: string,
 ): Promise<BackgroundJob> {
   const runningJob = { ...job, status: "running" as const };
-  backgroundJobs.set(job.id, runningJob);
+  registry.putJob(runningJob);
   try {
     const result = await runChildTask(resolvedInput, defaultCwd, parentModel, controller.signal);
     const finalStatus = controller.signal.aborted
@@ -615,12 +639,12 @@ export function enqueueBackgroundChild(
   onComplete?: (job: BackgroundJob) => void,
 ): BackgroundJob {
   const { job, controller, resolvedInput } = createBackgroundJob(input, defaultCwd, parentModel);
-  backgroundJobs.set(job.id, job);
-  backgroundControllers.set(job.id, controller);
+  registry.putJob(job);
+  registry.putController(job.id, controller);
   void runBackgroundJob(job, controller, resolvedInput, defaultCwd, parentModel)
     .then((finalJob) => {
-      backgroundJobs.set(job.id, finalJob);
-      backgroundControllers.delete(job.id);
+      registry.putJob(finalJob);
+      registry.dropController(job.id);
       // A throwing onComplete must not reclassify a finished job or fire twice.
       deliverBackgroundCompletion(onComplete, finalJob);
     })
@@ -641,18 +665,18 @@ function deliverBackgroundCompletion(
   try {
     onComplete?.(finalJob);
   } catch (error) {
-    backgroundJobs.set(finalJob.id, { ...finalJob, error: `completion callback failed: ${errorMessage(error)}` });
+    registry.putJob({ ...finalJob, error: `completion callback failed: ${errorMessage(error)}` });
   }
 }
 
 function recordBackgroundFailure(job: BackgroundJob, error: unknown): void {
-  backgroundJobs.set(job.id, {
+  registry.putJob({
     ...job,
     status: "failed",
     error: errorMessage(error),
     finishedAt: Date.now(),
   });
-  backgroundControllers.delete(job.id);
+  registry.dropController(job.id);
 }
 
 export async function awaitBackgroundJob(
@@ -661,7 +685,7 @@ export async function awaitBackgroundJob(
 ): Promise<BackgroundJob> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const job = backgroundJobs.get(id);
+    const job = registry.job(id);
     if (!job) throw new Error(`unknown background job: ${id}`);
     if (job.status === "done" || job.status === "failed" || job.status === "aborted") return job;
     if (Date.now() >= deadline) throw new Error(`await timed out for job ${id}`);
@@ -674,7 +698,7 @@ export async function awaitBackgroundJob(
 export function __seedBackgroundJobForTests(
   job: Pick<BackgroundJob, "id" | "sessionDir"> & Partial<BackgroundJob>,
 ): void {
-  backgroundJobs.set(job.id, {
+  registry.putJob({
     id: job.id,
     status: job.status ?? "done",
     role: job.role,
@@ -691,8 +715,6 @@ export function __seedBackgroundJobForTests(
 /** Test helper: reset in-process job registry. */
 export function __resetBackgroundJobsForTests(): void {
   abortAllBackgroundJobs();
-  backgroundJobs.clear();
-  backgroundControllers.clear();
   backgroundSeq = 0;
   activeChildren = 0;
   childWaiters = [];

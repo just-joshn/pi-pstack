@@ -7,14 +7,15 @@
  * module prints or persists output.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { execOptions } from "../lib/exec-options.ts";
 import type { IntegrationEntry, IntegrationsConfig, ProbeContext } from "./registry.ts";
 
 export interface ExecRequest {
   readonly command: string;
   readonly args: readonly string[];
-  readonly cwd?: string;
-  readonly timeoutMs?: number;
-  readonly signal?: AbortSignal;
+  readonly cwd?: string | undefined;
+  readonly timeoutMs?: number | undefined;
+  readonly signal?: AbortSignal | undefined;
 }
 
 export interface ExecOutcome {
@@ -40,15 +41,15 @@ const MAX_LOG_LIMIT = 200;
 const DEFAULT_LOG_LIMIT = 20;
 
 /** Reject an argv that is empty, non-string, or starts with an option. */
-export function assertArgv(argv: readonly string[], where: string): readonly string[] {
-  if (argv.length === 0) throw new Error(`${where}: command argv must not be empty`);
-  const allStrings = argv.every((entry) => typeof entry === "string" && entry.length > 0);
-  if (!allStrings) throw new Error(`${where}: command argv must be non-empty strings`);
+export function assertArgv(argv: readonly string[], where: string): readonly [string, ...string[]] {
   const head = argv[0];
+  const allStrings = argv.every((entry) => typeof entry === "string" && entry.length > 0);
+  if (head === undefined) throw new Error(`${where}: command argv must not be empty`);
+  if (!allStrings) throw new Error(`${where}: command argv must be non-empty strings`);
   if (head.startsWith("-")) {
     throw new Error(`${where}: argv[0] must be a command name, not an option ('${head}')`);
   }
-  return argv;
+  return [head, ...argv.slice(1)];
 }
 
 export function assertSafePath(value: string, where: string): string {
@@ -61,7 +62,11 @@ export function assertSafePath(value: string, where: string): string {
 /** Wrap pi.exec as the ExecLike shape the adapters test and call. */
 export function piExec(pi: Pick<ExtensionAPI, "exec">): ExecLike {
   return async ({ command, args, cwd, timeoutMs, signal }) => {
-    const result = await pi.exec(command, [...args], { cwd, timeout: timeoutMs, signal });
+    const result = await pi.exec(
+      command,
+      [...args],
+      execOptions({ cwd, timeout: timeoutMs, signal }),
+    );
     return { stdout: result.stdout ?? "", stderr: result.stderr ?? "", code: result.code };
   };
 }
@@ -71,7 +76,7 @@ export function executeCommandAdapter(
   exec: ExecLike,
   command: readonly string[],
   query: string,
-  opts: { cwd?: string; timeoutMs?: number; signal?: AbortSignal } = {},
+  opts: { cwd?: string | undefined; timeoutMs?: number | undefined; signal?: AbortSignal | undefined } = {},
 ): Promise<ExecOutcome> {
   const argv = assertArgv(command, "command adapter");
   const head = argv[0];
@@ -89,7 +94,7 @@ export function executeCommandAdapter(
 export async function runArgv(
   exec: ExecLike,
   argv: readonly string[],
-  opts: { cwd?: string; timeoutMs?: number; signal?: AbortSignal } = {},
+  opts: { cwd?: string | undefined; timeoutMs?: number | undefined; signal?: AbortSignal | undefined } = {},
 ): Promise<ExecOutcome> {
   const validated = assertArgv(argv, "source-control");
   return exec({
@@ -169,10 +174,17 @@ export function planSourceControlQuery(
   const text = query.trim();
   const blame = BLAME_QUERY.exec(text);
   if (blame) {
-    return Object.freeze({ mode: "blame", requiresGh: false, argv: gitBlame(blame[1], Number(blame[2])) });
+    const file = blame[1];
+    const line = blame[2];
+    if (file === undefined || line === undefined) throw new Error(`malformed blame query: ${text}`);
+    return Object.freeze({ mode: "blame", requiresGh: false, argv: gitBlame(file, Number(line)) });
   }
   const prs = PRS_QUERY.exec(text);
-  if (prs) return Object.freeze({ mode: "prs", requiresGh: true, argv: ghPrSearch(prs[1]) });
+  if (prs) {
+    const term = prs[1];
+    if (term === undefined) throw new Error(`malformed PR query: ${text}`);
+    return Object.freeze({ mode: "prs", requiresGh: true, argv: ghPrSearch(term) });
+  }
   return Object.freeze({
     mode: "log",
     requiresGh: false,
@@ -205,7 +217,7 @@ export async function detectGhOnPath(exec: ExecLike): Promise<boolean> {
 export async function probeContext(
   exec: ExecLike,
   config: IntegrationsConfig,
-  opts: { cwd?: string; registeredTools?: readonly string[] } = {},
+  opts: { cwd?: string | undefined; registeredTools?: readonly string[] | undefined } = {},
 ): Promise<ProbeContext> {
   const gitWorkTree = await detectGitWorkTree(exec, opts.cwd);
   const ghOnPath = gitWorkTree ? await detectGhOnPath(exec) : false;
@@ -226,7 +238,7 @@ export async function probeForEntry(
   entry: IntegrationEntry,
   exec: ExecLike,
   config: IntegrationsConfig,
-  opts: { cwd?: string; registeredTools?: readonly string[] } = {},
+  opts: { cwd?: string | undefined; registeredTools?: readonly string[] | undefined } = {},
 ): Promise<ProbeContext> {
   const needsSourceControl = entry.probeSpec.kind === "source-control";
   const gitWorkTree = needsSourceControl ? await detectGitWorkTree(exec, opts.cwd) : false;

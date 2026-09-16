@@ -90,10 +90,10 @@ export const DEFAULT_PLATEAU_LIMIT = 3;
 export interface InitialRecordParams {
   runId: string;
   now: number;
-  maxFires?: number;
-  plateauLimit?: number;
-  remoteRequired?: boolean;
-  endpoint?: string;
+  maxFires?: number | undefined;
+  plateauLimit?: number | undefined;
+  remoteRequired?: boolean | undefined;
+  endpoint?: string | undefined;
 }
 
 export function initialRecord(params: InitialRecordParams): RunRecord {

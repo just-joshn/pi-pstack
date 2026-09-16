@@ -8,7 +8,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { chromeStatusLabel, chromeThemeToken, readSkillChrome, splitFrontmatter, type SkillChrome } from "../lib/skill-chrome.ts";
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
@@ -82,7 +82,7 @@ export const SHADOWED_SKILL_NAMES = ["setup-pstack"];
 interface SkillChromeUiContext {
   readonly ui?: {
     setStatus: (key: string, value: string | undefined) => void;
-    theme?: { fg?: (token: string, text: string) => string };
+    theme?: { fg?: (token: ThemeColor, text: string) => string };
   };
 }
 

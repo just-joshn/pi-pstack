@@ -104,7 +104,7 @@ export async function createIsolatedWorktree(
  */
 export async function ensureWriterIsolation(
   parentCwd: string,
-  writers: Array<{ cwd?: string; label: string }>,
+  writers: Array<{ cwd?: string | undefined; label: string }>,
 ): Promise<string[]> {
   if (writers.length <= 1) {
     return writers.map((w) => w.cwd ?? parentCwd);
@@ -307,7 +307,7 @@ export async function cleanupPstackWorktreesOnShutdown(
  */
 export async function ensureAlwaysIsolated(
   parentCwd: string,
-  writers: Array<{ cwd?: string; label: string }>,
+  writers: Array<{ cwd?: string | undefined; label: string }>,
 ): Promise<string[]> {
   if (writers.length === 0) return [];
   const parentResolved = resolve(parentCwd);

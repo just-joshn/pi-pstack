@@ -5,7 +5,7 @@
 import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
@@ -19,6 +19,8 @@ export {
   formatRankedRecallBody,
   rankRecallHits,
 } from "./recall-rank.ts";
+
+type SessionsReply = AgentToolResult<Record<string, unknown>>;
 
 function candidateSessionDirs(cwd: string, trustedConfigCwd: string | undefined): string[] {
   const home = homedir();
@@ -73,7 +75,7 @@ function listSessionFiles(
 function handleListAction(
   files: Array<{ path: string; mtimeMs: number; bytes: number }>,
   limit: number,
-) {
+): SessionsReply {
   const sliced = files.slice(0, limit);
   const lines = sliced.map(
     (f) => `${new Date(f.mtimeMs).toISOString()}  ${f.bytes}B  ${f.path}`,
@@ -108,7 +110,7 @@ function handleGrepAction(
   files: Array<{ path: string; mtimeMs: number; bytes: number }>,
   query: string,
   limit: number,
-) {
+): SessionsReply {
   const q = query.toLowerCase();
   if (!q) throw new Error("query required for grep");
   const hits = files
@@ -165,7 +167,7 @@ async function handleRecallAction(
   limit: number,
   days: number,
   cwd: string,
-) {
+): Promise<SessionsReply> {
   const q = query ?? "";
   const sessionHits = buildSessionHits(files, q, limit);
   const gitLog = await recallGitLog(cwd, q, limit);

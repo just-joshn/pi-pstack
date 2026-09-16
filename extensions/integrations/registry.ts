@@ -16,8 +16,11 @@ import { join } from "node:path";
 import {
   INTEGRATION_CATEGORIES,
   INTEGRATION_CAPABILITIES,
+  isIntegrationCategory,
   type IntegrationCategory,
 } from "../agents/policy.ts";
+
+export { isIntegrationCategory };
 
 export type IntegrationKind = "implemented" | "prerequisite";
 
@@ -106,10 +109,6 @@ const CATEGORY_META: Readonly<Record<IntegrationCategory, CategoryMeta>> = Objec
   }),
 });
 
-export function isIntegrationCategory(value: string): value is IntegrationCategory {
-  return (INTEGRATION_CATEGORIES as readonly string[]).includes(value);
-}
-
 /** The capability tool name from the policy table, the single source of truth. */
 export function capabilityToolName(id: IntegrationCategory): string {
   const patterns = INTEGRATION_CAPABILITIES[id] ?? [];
@@ -155,15 +154,13 @@ function requireRecord(value: unknown, where: string): Record<string, unknown> {
 }
 
 function parseArgv(value: unknown, id: string, source: string): readonly string[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    throw new Error(`${source}: capability '${id}' adapter.command must be a non-empty array of strings`);
-  }
+  const emptyMessage = `${source}: capability '${id}' adapter.command must be a non-empty array of strings`;
+  if (!Array.isArray(value) || value.length === 0) throw new Error(emptyMessage);
   const allStrings = value.every((entry) => typeof entry === "string" && entry.length > 0);
-  if (!allStrings) {
-    throw new Error(`${source}: capability '${id}' adapter.command must be a non-empty array of strings`);
-  }
+  if (!allStrings) throw new Error(emptyMessage);
   const argv = Object.freeze([...(value as string[])]);
   const head = argv[0];
+  if (head === undefined) throw new Error(emptyMessage);
   if (head.startsWith("-")) {
     throw new Error(
       `${source}: capability '${id}' adapter.command[0] must be a command name, not an option ('${head}')`,
@@ -227,7 +224,7 @@ export interface ProbeContext {
   readonly gitWorkTree: boolean;
   readonly ghOnPath: boolean;
   readonly config: IntegrationsConfig;
-  readonly registeredTools?: readonly string[];
+  readonly registeredTools?: readonly string[] | undefined;
 }
 
 export interface IntegrationStatus {

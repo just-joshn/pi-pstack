@@ -8,7 +8,7 @@
  */
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, AgentToolUpdateCallback, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_MAX_LINES } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
@@ -31,6 +31,8 @@ import {
   resolveTools,
   runChildTask,
   wantsBackground,
+  type BackgroundJob,
+  type ChildTaskInput,
   type ChildTaskResult,
 } from "./child-runner.ts";
 
@@ -45,24 +47,28 @@ import { normalizeModelSelector, projectConfigCwd, resolveRoleModel } from "../m
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const POTETO_SKILL = resolve(PACKAGE_ROOT, "skills", "poteto-mode", "SKILL.md");
 
-/** Inputs shared by pstack_spawn and pstack_task; the task tool adds policy on top. */
+/**
+ * Inputs shared by pstack_spawn and pstack_task; the task tool adds policy on top.
+ * Optionals carry an explicit `| undefined` because callers resolve them from
+ * other optional values and pass the result straight through.
+ */
 export interface SpawnParams {
   task: string;
-  model?: string;
+  model?: string | undefined;
   /** Config role for model resolution. pstack_task splits this from the behavior role. */
-  modelRole?: string;
-  cwd?: string;
-  role?: string;
-  poteto?: boolean;
-  tools?: string[];
-  readonly?: boolean;
-  inheritParentTools?: boolean;
-  timeoutMs?: number;
-  persistOutput?: boolean;
-  background?: boolean;
-  sessionMode?: string;
-  resumeSessionDir?: string;
-  resumeJobId?: string;
+  modelRole?: string | undefined;
+  cwd?: string | undefined;
+  role?: string | undefined;
+  poteto?: boolean | undefined;
+  tools?: string[] | undefined;
+  readonly?: boolean | undefined;
+  inheritParentTools?: boolean | undefined;
+  timeoutMs?: number | undefined;
+  persistOutput?: boolean | undefined;
+  background?: boolean | undefined;
+  sessionMode?: string | undefined;
+  resumeSessionDir?: string | undefined;
+  resumeJobId?: string | undefined;
 }
 
 export interface PreparedChild {
@@ -96,7 +102,15 @@ function resolveChildToolList(params: SpawnParams, role: string, pi: ExtensionAP
   } catch {
     parentTools = undefined;
   }
-  return resolveTools(role, params, parentTools);
+  return resolveTools(
+    role,
+    {
+      ...(params.tools !== undefined ? { tools: params.tools } : {}),
+      ...(params.readonly !== undefined ? { readonly: params.readonly } : {}),
+      ...(params.inheritParentTools !== undefined ? { inheritParentTools: params.inheritParentTools } : {}),
+    },
+    parentTools,
+  );
 }
 
 /** Resolve a caller-supplied spawn path against the workspace root, honoring the documented allowlist. */
@@ -129,33 +143,36 @@ export function prepareChildInput(
     params.sessionMode === "isolated" || params.sessionMode === "ephemeral"
       ? params.sessionMode
       : undefined;
+  const rawResumeDir = stripAtPrefix(params.resumeSessionDir);
   const requestedResumeDir = resolveResumeSessionDirParam({
-    resumeSessionDir: stripAtPrefix(params.resumeSessionDir),
-    resumeJobId: params.resumeJobId,
-    sessionMode,
+    ...(rawResumeDir !== undefined ? { resumeSessionDir: rawResumeDir } : {}),
+    ...(params.resumeJobId !== undefined ? { resumeJobId: params.resumeJobId } : {}),
+    ...(sessionMode !== undefined ? { sessionMode } : {}),
   });
   const resumeSessionDir = containSpawnPath(requestedResumeDir, ctx.cwd, "resumeSessionDir");
   const background = wantsBackground(params.background, poteto);
+  const childCwd = containSpawnPath(stripAtPrefix(params.cwd), ctx.cwd, "pstack_spawn cwd");
+  const persistOutput =
+    params.persistOutput === true
+      ? true
+      : params.persistOutput === false
+        ? false
+        : background
+          ? true
+          : undefined;
 
-  const childInput = {
+  const childInput: ChildTaskInput = {
     task: params.task,
     model,
-    cwd: containSpawnPath(stripAtPrefix(params.cwd), ctx.cwd, "pstack_spawn cwd"),
     role,
     poteto,
-    tools,
     timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-    skillPath: poteto ? POTETO_SKILL : undefined,
-    persistOutput:
-      params.persistOutput === true
-        ? true
-        : params.persistOutput === false
-          ? false
-          : background
-            ? true
-            : undefined,
-    sessionMode,
-    resumeSessionDir,
+    ...(childCwd !== undefined ? { cwd: childCwd } : {}),
+    ...(tools !== undefined ? { tools } : {}),
+    ...(poteto ? { skillPath: POTETO_SKILL } : {}),
+    ...(persistOutput !== undefined ? { persistOutput } : {}),
+    ...(sessionMode !== undefined ? { sessionMode } : {}),
+    ...(resumeSessionDir !== undefined ? { resumeSessionDir } : {}),
   };
 
   return { childInput, model, role, readonlyApplied, background };
@@ -169,7 +186,7 @@ function formatBackgroundJobResult(done: BackgroundJob, role: string, label: str
     : `### ${label} background ${done.status} (${done.id}${sess}): ${done.error ?? "(no result)"}`;
 }
 
-function handleListAction() {
+function handleListAction(): ChildToolReply {
   const jobs = listBackgroundJobs();
   const rows = jobs.map(
     (j) =>
@@ -191,7 +208,7 @@ function handleListAction() {
   };
 }
 
-function handleAbortAction(jobId: string) {
+function handleAbortAction(jobId: string): ChildToolReply {
   const job = abortBackgroundJob(jobId);
   if (!job) throw new Error(`unknown job: ${jobId}`);
   return {
@@ -205,7 +222,7 @@ function handleAbortAction(jobId: string) {
   };
 }
 
-function handleStatusAction(jobId: string) {
+function handleStatusAction(jobId: string): ChildToolReply {
   const job = getBackgroundJob(jobId);
   if (!job) throw new Error(`unknown job: ${jobId}`);
   const tail =
@@ -226,7 +243,7 @@ function handleStatusAction(jobId: string) {
   };
 }
 
-async function handleAwaitAction(jobId: string, timeoutMs: number) {
+async function handleAwaitAction(jobId: string, timeoutMs: number): Promise<ChildToolReply> {
   const job = await awaitBackgroundJob(jobId, timeoutMs);
   const out = job.result?.output ?? job.error ?? "(no output)";
   const sessionDirNote = job.sessionDir ? `, sessionDir=${job.sessionDir}` : "";
@@ -251,7 +268,7 @@ function handleBackgroundSpawn(
   onUpdate: SpawnOnUpdate,
   pi: ExtensionAPI,
   label = "pstack_spawn",
-) {
+): ChildToolReply {
   onUpdate?.({
     content: [
       {
@@ -294,7 +311,7 @@ async function handleForegroundSpawn(
   signal: AbortSignal | undefined,
   onUpdate: SpawnOnUpdate,
   label = "pstack_spawn",
-) {
+): Promise<ChildToolReply> {
   onUpdate?.({
     content: [
       {
@@ -325,22 +342,17 @@ async function handleForegroundSpawn(
 }
 
 /** Structured reply shared by the spawn and task tools. */
-export interface ChildToolReply {
-  content: Array<{ type: string; text: string }>;
-  details: Record<string, unknown>;
-}
+export type ChildToolReply = AgentToolResult<Record<string, unknown>>;
 
-export type SpawnOnUpdate =
-  | ((update: { content: Array<{ type: string; text: string }>; details: Record<string, unknown> }) => void)
-  | undefined;
+export type SpawnOnUpdate = AgentToolUpdateCallback<Record<string, unknown>> | undefined;
 
 export interface PreparedChildRun {
   prepared: PreparedChild;
   ctx: { cwd: string };
   parentModel: string;
   /** Reply header label; pstack_spawn keeps its default so its output is unchanged. */
-  label?: string;
-  signal?: AbortSignal;
+  label?: string | undefined;
+  signal?: AbortSignal | undefined;
   onUpdate?: SpawnOnUpdate;
   pi: ExtensionAPI;
 }
@@ -463,7 +475,11 @@ function registerSpawnTool(pi: ExtensionAPI): void {
     async execute(_id, params, signal, onUpdate, ctx) {
       if (!ctx.model) throw new Error("pstack_spawn requires an active parent model");
       const parentModel = `${ctx.model.provider}/${ctx.model.id}`;
-      const prepared = prepareChildInput(params, ctx, pi);
+      const prepared = prepareChildInput(
+        params,
+        { model: ctx.model, cwd: ctx.cwd, isProjectTrusted: () => ctx.isProjectTrusted() },
+        pi,
+      );
       return runPreparedChild({ prepared, ctx, parentModel, signal, onUpdate, pi });
     },
   });
