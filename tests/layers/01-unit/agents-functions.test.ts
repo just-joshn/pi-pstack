@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -81,21 +80,21 @@ function agentsHost(): { toolNames: readonly string[]; handlerCount: number } {
 }
 
 test("scanTokens folds escapes and line continuations into a single word", () => {
-  assert.deepEqual(scanTokens("echo a\\ b"), {
+  expect(scanTokens("echo a\\ b")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "a b", dynamic: false },
     ],
     substitutions: [],
   });
-  assert.deepEqual(scanTokens("echo a\\\nb"), {
+  expect(scanTokens("echo a\\\nb")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "ab", dynamic: false },
     ],
     substitutions: [],
   });
-  assert.deepEqual(scanTokens("echo a\\"), {
+  expect(scanTokens("echo a\\")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "a", dynamic: false },
@@ -105,28 +104,28 @@ test("scanTokens folds escapes and line continuations into a single word", () =>
 });
 
 test("scanTokens unescapes a double-quoted word and folds its escaped newline", () => {
-  assert.deepEqual(scanTokens('echo "a\\"b"'), {
+  expect(scanTokens('echo "a\\"b"')).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: 'a"b', dynamic: false },
     ],
     substitutions: [],
   });
-  assert.deepEqual(scanTokens('echo "a\\qb"'), {
+  expect(scanTokens('echo "a\\qb"')).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "a\\qb", dynamic: false },
     ],
     substitutions: [],
   });
-  assert.deepEqual(scanTokens('echo "a\\\nb"'), {
+  expect(scanTokens('echo "a\\\nb"')).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "ab", dynamic: false },
     ],
     substitutions: [],
   });
-  assert.deepEqual(scanTokens('echo "`date`"'), {
+  expect(scanTokens('echo "`date`"')).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "", dynamic: true },
@@ -136,14 +135,14 @@ test("scanTokens unescapes a double-quoted word and folds its escaped newline", 
 });
 
 test("scanTokens keeps a bare dollar literal and a result that is not a word", () => {
-  assert.deepEqual(scanTokens("echo $"), {
+  expect(scanTokens("echo $")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "$", dynamic: false },
     ],
     substitutions: [],
   });
-  assert.deepEqual(scanTokens("echo $%b"), {
+  expect(scanTokens("echo $%b")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "$%b", dynamic: false },
@@ -153,28 +152,28 @@ test("scanTokens keeps a bare dollar literal and a result that is not a word", (
 });
 
 test("scanTokens reads command substitutions that contain quotes and escapes", () => {
-  assert.deepEqual(scanTokens("echo $(echo a\\ b)"), {
+  expect(scanTokens("echo $(echo a\\ b)")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "", dynamic: true },
     ],
     substitutions: ["echo a\\ b"],
   });
-  assert.deepEqual(scanTokens("echo $(echo 'x')"), {
+  expect(scanTokens("echo $(echo 'x')")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "", dynamic: true },
     ],
     substitutions: ["echo 'x'"],
   });
-  assert.deepEqual(scanTokens('echo $(echo "x")'), {
+  expect(scanTokens('echo $(echo "x")')).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "", dynamic: true },
     ],
     substitutions: ['echo "x"'],
   });
-  assert.deepEqual(scanTokens('echo $(echo "a\\b")'), {
+  expect(scanTokens('echo $(echo "a\\b")')).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "", dynamic: true },
@@ -184,7 +183,7 @@ test("scanTokens reads command substitutions that contain quotes and escapes", (
 });
 
 test("scanTokens reads a backtick substitution whose body contains a backslash", () => {
-  assert.deepEqual(scanTokens("echo `echo a\\b`"), {
+  expect(scanTokens("echo `echo a\\b`")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "", dynamic: true },
@@ -194,21 +193,21 @@ test("scanTokens reads a backtick substitution whose body contains a backslash",
 });
 
 test("scanTokens tracks escapes, nesting, and backticks inside a braced parameter", () => {
-  assert.deepEqual(scanTokens("echo ${a\\}b}"), {
+  expect(scanTokens("echo ${a\\}b}")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "${a\\}b}", dynamic: true },
     ],
     substitutions: [],
   });
-  assert.deepEqual(scanTokens("echo ${a${b}c}"), {
+  expect(scanTokens("echo ${a${b}c}")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "${a${b}c}", dynamic: true },
     ],
     substitutions: [],
   });
-  assert.deepEqual(scanTokens("echo ${x:-`date`}"), {
+  expect(scanTokens("echo ${x:-`date`}")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "${x:-`date`}", dynamic: true },
@@ -218,7 +217,7 @@ test("scanTokens tracks escapes, nesting, and backticks inside a braced paramete
 });
 
 test("scanTokens marks an ANSI-C quote dynamic", () => {
-  assert.deepEqual(scanTokens("echo $'x'"), {
+  expect(scanTokens("echo $'x'")).toEqual({
     tokens: [
       { kind: "word", value: "echo", dynamic: false },
       { kind: "word", value: "x", dynamic: true },
@@ -228,21 +227,21 @@ test("scanTokens marks an ANSI-C quote dynamic", () => {
 });
 
 test("scanTokens refuses each construct it cannot close", () => {
-  assert.equal(refusalConstruct(() => scanTokens("echo $(echo 'x)")), "unbalanced command substitution `$(`");
-  assert.equal(refusalConstruct(() => scanTokens('echo $(echo "x)')), "unbalanced command substitution `$(`");
-  assert.equal(refusalConstruct(() => scanTokens("echo ${oops")), "unbalanced parameter expansion `${`");
-  assert.equal(refusalConstruct(() => scanTokens("echo `oops")), "unbalanced backtick substitution");
-  assert.equal(refusalConstruct(() => scanTokens("echo $'x")), "unbalanced ANSI-C quote");
-  assert.equal(refusalConstruct(() => scanTokens("echo ok")), "no refusal");
+  expect(refusalConstruct(() => scanTokens("echo $(echo 'x)"))).toBe("unbalanced command substitution `$(`");
+  expect(refusalConstruct(() => scanTokens('echo $(echo "x)'))).toBe("unbalanced command substitution `$(`");
+  expect(refusalConstruct(() => scanTokens("echo ${oops"))).toBe("unbalanced parameter expansion `${`");
+  expect(refusalConstruct(() => scanTokens("echo `oops"))).toBe("unbalanced backtick substitution");
+  expect(refusalConstruct(() => scanTokens("echo $'x"))).toBe("unbalanced ANSI-C quote");
+  expect(refusalConstruct(() => scanTokens("echo ok"))).toBe("no refusal");
 });
 
 test("parseShellCommand refuses a redirection with no target", () => {
-  assert.deepEqual(parseShellCommand("cmd < ;"), {
+  expect(parseShellCommand("cmd < ;")).toEqual({
     executions: [],
     redirects: [],
     refusals: ["redirection without a target"],
   });
-  assert.deepEqual(parseShellCommand("cmd > > out"), {
+  expect(parseShellCommand("cmd > > out")).toEqual({
     executions: [],
     redirects: [],
     refusals: ["redirection without a target"],
@@ -250,72 +249,60 @@ test("parseShellCommand refuses a redirection with no target", () => {
 });
 
 test("parseShellCommand refuses a wrapper that runs no command", () => {
-  assert.deepEqual(parseShellCommand("env FOO=1"), { executions: [], redirects: [], refusals: [] });
-  assert.deepEqual(parseShellCommand("sudo -n"), { executions: [], redirects: [], refusals: [] });
+  expect(parseShellCommand("env FOO=1")).toEqual({ executions: [], redirects: [], refusals: [] });
+  expect(parseShellCommand("sudo -n")).toEqual({ executions: [], redirects: [], refusals: [] });
 });
 
 test("parseShellCommand refuses nesting deeper than eight levels", () => {
   const nested = Array.from({ length: 9 }).reduce((acc) => `true x$(${acc})`, "true");
   const parsed = parseShellCommand(nested);
-  assert.deepEqual(parsed.executions.map((execution) => execution.name), Array.from({ length: 9 }, () => "true"));
-  assert.deepEqual(parsed.executions[8].args, [{ value: "x", dynamic: true }]);
-  assert.deepEqual(parsed.redirects, []);
-  assert.deepEqual(parsed.refusals, ["shell nested deeper than 8 levels"]);
+  expect(parsed.executions.map((execution) => execution.name)).toEqual(Array.from({ length: 9 }, () => "true"));
+  expect(parsed.executions[8].args).toEqual([{ value: "x", dynamic: true }]);
+  expect(parsed.redirects).toEqual([]);
+  expect(parsed.refusals).toEqual(["shell nested deeper than 8 levels"]);
 });
 
 test("subcommandOf lowers the subcommand and skips its value flag", () => {
-  assert.deepEqual(
-    subcommandOf(
+  expect(subcommandOf(
       [
         { value: "--git-dir", dynamic: false },
         { value: "/srv/repo", dynamic: false },
         { value: "PUSH", dynamic: false },
       ],
       new Set(["--git-dir"]),
-    ),
-    { sub: "push", dynamic: false },
-  );
-  assert.deepEqual(
-    subcommandOf(
+    )).toEqual({ sub: "push", dynamic: false });
+  expect(subcommandOf(
       [
         { value: "-C", dynamic: false },
         { value: "/srv/repo", dynamic: false },
         { value: "$SUB", dynamic: true },
       ],
       new Set(["-C"]),
-    ),
-    { dynamic: true },
-  );
-  assert.deepEqual(subcommandOf([{ value: "--bare", dynamic: false }], new Set(["--git-dir"])), {
+    )).toEqual({ dynamic: true });
+  expect(subcommandOf([{ value: "--bare", dynamic: false }], new Set(["--git-dir"]))).toEqual({
     dynamic: false,
   });
 });
 
 test("filesystem read-only refuses a git subcommand built from a variable", () => {
   const readOnly = compileTaskPolicy({ filesystem: "read-only", shell: "full" }, "general");
-  assert.deepEqual(evaluateGuard(readOnly, { toolName: "bash", input: { command: "git $SUB status" } }), {
+  expect(evaluateGuard(readOnly, { toolName: "bash", input: { command: "git $SUB status" } })).toEqual({
     block: true,
     reason: "pstack policy guard: filesystem read-only cannot verify a git subcommand built from a variable",
   });
-  assert.equal(evaluateGuard(readOnly, { toolName: "bash", input: { command: "git log --oneline" } }), undefined);
+  expect(evaluateGuard(readOnly, { toolName: "bash", input: { command: "git log --oneline" } })).toBe(undefined);
 });
 
 test("normalizePolicyObject validates every axis and rejects a non-object", () => {
-  assert.deepEqual(normalizePolicyObject(GENERAL_POLICY), GENERAL_POLICY);
-  assert.equal(Object.isFrozen(normalizePolicyObject(GENERAL_POLICY)), true);
-  assert.deepEqual(normalizePolicyObject({ ...GENERAL_POLICY, integrations: ["browser-ui"], extra: 1 }), {
+  expect(normalizePolicyObject(GENERAL_POLICY)).toEqual(GENERAL_POLICY);
+  expect(Object.isFrozen(normalizePolicyObject(GENERAL_POLICY))).toBe(true);
+  expect(normalizePolicyObject({ ...GENERAL_POLICY, integrations: ["browser-ui"], extra: 1 })).toEqual({
     ...GENERAL_POLICY,
     integrations: ["browser-ui"],
   });
-  assert.throws(
-    () => normalizePolicyObject(null),
-    /invalid filesystem 'undefined'; allowed: read-only, workspace-write/,
-  );
-  assert.throws(() => normalizePolicyObject([]), /invalid filesystem 'undefined'/);
-  assert.throws(
-    () => normalizePolicyObject({ ...GENERAL_POLICY, background: "yes" }),
-    /invalid background 'yes'; allowed: true, false/,
-  );
+  expect(() => normalizePolicyObject(null)).toThrow(/invalid filesystem 'undefined'; allowed: read-only, workspace-write/);
+  expect(() => normalizePolicyObject([])).toThrow(/invalid filesystem 'undefined'/);
+  expect(() => normalizePolicyObject({ ...GENERAL_POLICY, background: "yes" })).toThrow(/invalid background 'yes'; allowed: true, false/);
 });
 
 test("pstack_task survives a parent host whose active tool list throws", async () => {
@@ -340,19 +327,16 @@ test("pstack_task survives a parent host whose active tool list throws", async (
       undefined,
       { model: { provider: "anthropic", id: "claude-parent-4-5" }, cwd, isProjectTrusted: () => true },
     );
-    assert.equal(activeToolCalls.count, 2);
-    assert.deepEqual(posted, ["http://worker.test/v1/tasks"]);
-    assert.equal(reply.details.hosted, true);
-    assert.equal(reply.details.status, 202);
-    assert.equal(reply.details.role, "general");
-    assert.equal(reply.details.thinkingLevel, null);
-    assert.equal(reply.content[0].text, "hosted worker accepted");
-    assert.match(String(reply.details.runId), /^run-[0-9a-z]+-[0-9a-f]{8}$/);
-    assert.deepEqual(reply.details.policy, { ...GENERAL_POLICY, environment: "hosted", isolation: "remote" });
-    assert.equal(
-      reply.content[1].text,
-      "policy: filesystem=workspace-write shell=full git=branch-write network=allowed integrations=inherit environment=hosted background=false isolation=remote; thinkingLevel=default",
-    );
+    expect(activeToolCalls.count).toBe(2);
+    expect(posted).toEqual(["http://worker.test/v1/tasks"]);
+    expect(reply.details.hosted).toBe(true);
+    expect(reply.details.status).toBe(202);
+    expect(reply.details.role).toBe("general");
+    expect(reply.details.thinkingLevel).toBe(null);
+    expect(reply.content[0].text).toBe("hosted worker accepted");
+    expect(String(reply.details.runId)).toMatch(/^run-[0-9a-z]+-[0-9a-f]{8}$/);
+    expect(reply.details.policy).toEqual({ ...GENERAL_POLICY, environment: "hosted", isolation: "remote" });
+    expect(reply.content[1].text).toBe("policy: filesystem=workspace-write shell=full git=branch-write network=allowed integrations=inherit environment=hosted background=false isolation=remote; thinkingLevel=default");
   } finally {
     globalThis.fetch = realFetch;
     if (previous === undefined) Reflect.deleteProperty(process.env, "PSTACK_HOSTED_URL");
@@ -367,8 +351,8 @@ test("registerAgents registers the task tool and no guard hook without a child p
   __setGuardPolicyForTests(null);
   try {
     const host = agentsHost();
-    assert.deepEqual(host.toolNames, ["pstack_task"]);
-    assert.equal(host.handlerCount, 0);
+    expect(host.toolNames).toEqual(["pstack_task"]);
+    expect(host.handlerCount).toBe(0);
   } finally {
     if (previous !== undefined) process.env.PSTACK_CHILD_POLICY = previous;
     __setGuardPolicyForTests(null);

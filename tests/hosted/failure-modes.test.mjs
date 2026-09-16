@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import test from "node:test";
+import { expect, test } from "vitest";
 import { createRunStore } from "../../services/worker/store.mjs";
 import {
   TEST_TOKEN,
@@ -28,7 +27,7 @@ test("cancel during a hung execution records cancelled and fires the abort signa
       );
     });
   const worker = await startWorker({ stateDir, token: TEST_TOKEN, execute: executor });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -38,11 +37,11 @@ test("cancel during a hung execution records cancelled and fires the abort signa
     method: "POST",
     token: TEST_TOKEN,
   });
-  assert.equal(cancelled.status, 200);
-  assert.equal(cancelled.json.state, "cancelled");
-  assert.equal(cancelled.json.exitCode, 130);
-  assert.equal(cancelled.json.stopReason, "cancelled");
-  assert.equal(aborted.fired, true);
+  expect(cancelled.status).toBe(200);
+  expect(cancelled.json.state).toBe("cancelled");
+  expect(cancelled.json.exitCode).toBe(130);
+  expect(cancelled.json.stopReason).toBe("cancelled");
+  expect(aborted.fired).toBe(true);
 });
 
 test("a completion from a stale attempt is rejected", async (t) => {
@@ -56,7 +55,7 @@ test("a completion from a stale attempt is rejected", async (t) => {
     return { exitCode: 0 };
   };
   const worker = await startWorker({ stateDir, token: TEST_TOKEN, execute: executor });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -64,12 +63,12 @@ test("a completion from a stale attempt is rejected", async (t) => {
   await request(worker.base, "/v1/tasks", { method: "POST", body: envelope, token: TEST_TOKEN });
   const store = createRunStore({ stateDir });
   const bumped = store.claimAttempt(envelope.runId);
-  assert.equal(bumped.attempt, 2);
+  expect(bumped.attempt).toBe(2);
   gate.release();
   await new Promise((resolve) => setTimeout(resolve, 50));
   const response = await request(worker.base, `/v1/tasks/${envelope.runId}`, { token: TEST_TOKEN });
-  assert.equal(response.json.attempt, 2);
-  assert.equal(response.json.state, "running");
+  expect(response.json.attempt).toBe(2);
+  expect(response.json.state).toBe("running");
 });
 
 test("a run past timeoutMs is marked timed_out", async (t) => {
@@ -79,16 +78,16 @@ test("a run past timeoutMs is marked timed_out", async (t) => {
     token: TEST_TOKEN,
     execute: () => new Promise(() => {}),
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
   const envelope = makeEnvelope({ timeoutMs: 1000 });
   await request(worker.base, "/v1/tasks", { method: "POST", body: envelope, token: TEST_TOKEN });
   const record = await waitForState(worker, envelope.runId, TEST_TOKEN, "timed_out", 5000);
-  assert.equal(record.state, "timed_out");
-  assert.equal(record.exitCode, 124);
-  assert.equal(record.stopReason, "timeout");
+  expect(record.state).toBe("timed_out");
+  expect(record.exitCode).toBe(124);
+  expect(record.stopReason).toBe("timeout");
 });
 
 test("a restart reconciles a dead lease without losing the partial output", async (t) => {
@@ -109,16 +108,16 @@ test("a restart reconciles a dead lease without losing the partial output", asyn
     execute: async () => ({ exitCode: 0 }),
     leaseMs: 0,
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await second.close();
     cleanupStateDir(stateDir);
   });
   const response = await request(second.base, `/v1/tasks/${envelope.runId}`, { token: TEST_TOKEN });
-  assert.equal(response.status, 200);
-  assert.equal(response.json.state, "dead");
-  assert.equal(response.json.stdout, "partial output");
-  assert.equal(response.json.stopReason, "lease_expired");
-  assert.equal(existsSync(store.outputPath(envelope.runId, "stdout")), true);
+  expect(response.status).toBe(200);
+  expect(response.json.state).toBe("dead");
+  expect(response.json.stdout).toBe("partial output");
+  expect(response.json.stopReason).toBe("lease_expired");
+  expect(existsSync(store.outputPath(envelope.runId, "stdout"))).toBe(true);
 });
 
 test("parent shutdown does not cancel a durable run", async (t) => {
@@ -137,17 +136,17 @@ test("parent shutdown does not cancel a durable run", async (t) => {
     execute: async () => ({ exitCode: 0 }),
     leaseMs: 60000,
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await first.close();
     await second.close();
     cleanupStateDir(stateDir);
   });
   const before = await request(first.base, `/v1/tasks/${envelope.runId}`, { token: TEST_TOKEN });
   const after = await request(second.base, `/v1/tasks/${envelope.runId}`, { token: TEST_TOKEN });
-  assert.equal(before.json.state, "running");
-  assert.equal(after.status, 200);
-  assert.equal(after.json.runId, envelope.runId);
-  assert.equal(after.json.state, "running");
+  expect(before.json.state).toBe("running");
+  expect(after.status).toBe(200);
+  expect(after.json.runId).toBe(envelope.runId);
+  expect(after.json.state).toBe("running");
 });
 
 test("a request without a token is rejected when a token is configured", async (t) => {
@@ -161,7 +160,7 @@ test("a request without a token is rejected when a token is configured", async (
       return { exitCode: 0 };
     },
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -171,9 +170,9 @@ test("a request without a token is rejected when a token is configured", async (
     body: makeEnvelope(),
     token: "not-the-token",
   });
-  assert.equal(missing.status, 401);
-  assert.equal(wrong.status, 401);
-  assert.equal(calls.count, 0);
+  expect(missing.status).toBe(401);
+  expect(wrong.status).toBe(401);
+  expect(calls.count).toBe(0);
 });
 
 test("a worker with no configured token refuses /v1 with 503", async (t) => {
@@ -187,7 +186,7 @@ test("a worker with no configured token refuses /v1 with 503", async (t) => {
       return { exitCode: 0 };
     },
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -196,8 +195,8 @@ test("a worker with no configured token refuses /v1 with 503", async (t) => {
     body: makeEnvelope(),
     token: "anything",
   });
-  assert.equal(response.status, 503);
-  assert.equal(calls.count, 0);
+  expect(response.status).toBe(503);
+  expect(calls.count).toBe(0);
 });
 
 test("a malformed body is rejected 400 without executing", async (t) => {
@@ -211,7 +210,7 @@ test("a malformed body is rejected 400 without executing", async (t) => {
       return { exitCode: 0 };
     },
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -225,9 +224,9 @@ test("a malformed body is rejected 400 without executing", async (t) => {
     body: { runId: "bad id", idempotencyKey: "k", task: "t", role: "r", model: "m" },
     token: TEST_TOKEN,
   });
-  assert.equal(badJson.status, 400);
-  assert.equal(badShape.status, 400);
-  assert.equal(calls.count, 0);
+  expect(badJson.status).toBe(400);
+  expect(badShape.status).toBe(400);
+  expect(calls.count).toBe(0);
 });
 
 test("an oversized body is rejected", async (t) => {
@@ -241,7 +240,7 @@ test("an oversized body is rejected", async (t) => {
       return { exitCode: 0 };
     },
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -251,6 +250,6 @@ test("an oversized body is rejected", async (t) => {
     body: envelope,
     token: TEST_TOKEN,
   });
-  assert.equal(response.status, 413);
-  assert.equal(calls.count, 0);
+  expect(response.status).toBe(413);
+  expect(calls.count).toBe(0);
 });

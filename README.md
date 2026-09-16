@@ -67,35 +67,41 @@ npm run parity:check   # ported tree == upstream + declared bindings; tools/scri
 npm run parity:sync    # regenerate the ported tree after an upstream bump
 npm run test:differential  # execute the pinned reference and the ported twin on identical fixtures
 npm run test:acceptance    # drive the representative workflows through the real handlers
-npm run test:coverage      # merged coverage over unit + integration + acceptance; fails under 80 percent branch
+npm run test:coverage      # merged coverage over extensions/ and services/; fails under 80 percent branch or function
 ```
 
 The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported file: a legitimate platform difference belongs in `port/bindings/`, and everything else belongs upstream.
 
 ## Testing
 
-One entry point runs eight layers plus the pre-existing suites:
+One entry point runs every default project plus the gates that precede them:
 
 ```bash
-npm test                          # layers 0-6 + legacy; layer 7 is opt-in
-node tests/runner.mjs --layer 2   # one layer
-node tests/runner.mjs --list      # layers, files, requirements
+npm test                       # typecheck + compat/spec/conformance gates, then vitest run
+npx vitest run --project unit  # one project
+npm run test:list              # projects and test files Vitest will collect
 ```
 
-| Layer | Proves |
-|-------|--------|
-| 0 conformance | AGENTS.md rules over project-owned code (`extensions/`, `tests/`, `port/`): file and function size, nesting depth, no `console.log`, no in-place mutation, no empty catch, no secret patterns. The byte-pinned ported tree reports warn-only via `npm run conformance -- --all` |
-| 1 unit | pure extension functions with no Pi dependency |
-| 2 integration | extension registration, lifecycle events, tool interception, and session behavior through the public SDK + faux provider |
-| 3 smoke | the real `pi --no-extensions -e ./extensions/index.ts` load, with a broken-extension negative control |
-| 4 reload | `.pi/extensions/` + `/reload` in a real tmux TUI re-reads an edited extension |
-| 5 rpc | dialogs, notifications, and status over the RPC protocol (`/setup-pstack` select → confirm → notify) |
-| 6 tui | rendered TUI output and key-driven commands in a tmux pane |
-| 7 third-party | opt-in `pi-test-harness` compatibility gate; skipped by default, never on the network |
-| 8 user-journeys | user-perspective journeys over the fake Pi host; gate is all critical journeys or 80% of the runtime behavior inventory |
-| legacy | `npm run test:extensions` and the upstream bun:test suite, wrapped verbatim |
+| Project | Proves |
+|---------|--------|
+| conformance (gate) | AGENTS.md rules over project-owned code (`extensions/`, `tests/`, `port/`): file and function size, nesting depth, no `console.log`, no in-place mutation, no empty catch, no secret patterns. The byte-pinned ported tree reports warn-only via `npm run conformance -- --all` |
+| unit | pure extension functions with no Pi dependency |
+| integration | extension registration, lifecycle events, tool interception, and session behavior through the public SDK + faux provider |
+| smoke | the real `pi --no-extensions -e ./extensions/index.ts` load, with a broken-extension negative control |
+| reload | `.pi/extensions/` + `/reload` in a real tmux TUI re-reads an edited extension |
+| rpc | dialogs, notifications, and status over the RPC protocol (`/setup-pstack` select → confirm → notify) |
+| tui | rendered TUI output and key-driven commands in a tmux pane |
+| third-party | opt-in `pi-test-harness` compatibility gate (`npm run test:third-party`); never on the network by default |
+| user-journeys | user-perspective journeys over the fake Pi host; gate is all critical journeys or 80% of the runtime behavior inventory |
+| inventory | docs, port bindings, and root artifacts match the pinned upstream |
+| hosted | the worker and benny services on a real loopback `http.Server` |
+| acceptance | representative workflows driven through the real extension handlers |
+| extensions | hermetic checks for skill commands, sticky input, and the spawn/orchestrate seams |
+| scripts | the ported `watch-pr` and `orch` test suites, bound from bun:test to Vitest |
+| differential (`npm run test:differential`) | the pinned upstream executables and the ported twin on identical fixtures |
+| audit (`npm run test:audit`) | the audit work-list predicates over gates, docs, and security guards |
 
-Tests are hermetic (temp `HOME` and agent dirs, `PI_OFFLINE=1`, no ports) and need `pi` on PATH, plus `tmux` for layers 4 and 6. `npm run parity:check` stays a separate gate because its first run clones upstream. Full matrix, flags, and exit codes: [`tests/README.md`](./tests/README.md).
+Tests are hermetic (temp `HOME` and agent dirs, `PI_OFFLINE=1`, no ports) and need `pi` on PATH, plus `tmux` for the reload and tui projects and `bun` for the scripts and differential suites. Projects and their requirements live in `tests/registry.mjs`; `vitest.config.ts` builds them into Vitest projects. `npm run parity:check` stays a separate gate because its first run clones upstream. Full matrix, flags, and exit codes: [`tests/README.md`](./tests/README.md).
 
 ## Quick start
 

@@ -1,6 +1,9 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { afterEach, expect, test, vi } from "vitest";
 import { registerHeartbeat } from "../../../extensions/heartbeat/index.ts";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 interface ToolParameter {
   type: string;
@@ -145,10 +148,10 @@ function fakeHeartbeat(execFn: ExecFn = defaultExec) {
 
 test("loop-01 registers pstack_loop with the documented parameter schema", () => {
   const tool = fakeHeartbeat().tool();
-  assert.equal(tool.name, "pstack_loop");
-  assert.equal(tool.label, "Pstack Loop");
-  assert.deepEqual(tool.parameters.required, ["action"]);
-  assert.deepEqual(Object.keys(tool.parameters.properties), [
+  expect(tool.name).toBe("pstack_loop");
+  expect(tool.label).toBe("Pstack Loop");
+  expect(tool.parameters.required).toEqual(["action"]);
+  expect(Object.keys(tool.parameters.properties)).toEqual([
     "action",
     "mode",
     "prompt",
@@ -158,20 +161,17 @@ test("loop-01 registers pstack_loop with the documented parameter schema", () =>
     "watchCommand",
     "id",
   ]);
-  assert.equal(tool.parameters.properties.action.type, "string");
-  assert.equal(tool.parameters.properties.mode.type, "string");
-  assert.equal(tool.parameters.properties.prompt.type, "string");
-  assert.equal(tool.parameters.properties.id.type, "string");
+  expect(tool.parameters.properties.action.type).toBe("string");
+  expect(tool.parameters.properties.mode.type).toBe("string");
+  expect(tool.parameters.properties.prompt.type).toBe("string");
+  expect(tool.parameters.properties.id.type).toBe("string");
 });
 
 test("loop-02 defaults mode to interval intervalSeconds to 1800 and maxFires to 50", async () => {
   const env = fakeHeartbeat();
   const armed = await env.execute({ action: "arm", prompt: "wake" });
-  assert.equal(
-    armed.content[0].text,
-    "Armed loop-1 mode=interval intervalSeconds=1800 maxFires=50 coalesceMs=2500",
-  );
-  assert.deepEqual(armed.details, { id: "loop-1", mode: "interval", coalesceMs: 2500 });
+  expect(armed.content[0].text).toBe("Armed loop-1 mode=interval intervalSeconds=1800 maxFires=50 coalesceMs=2500");
+  expect(armed.details).toEqual({ id: "loop-1", mode: "interval", coalesceMs: 2500 });
   const custom = await env.execute({
     action: "arm",
     prompt: "wake",
@@ -180,86 +180,71 @@ test("loop-02 defaults mode to interval intervalSeconds to 1800 and maxFires to 
     maxFires: 4,
     id: "custom",
   });
-  assert.equal(custom.content[0].text, "Armed custom mode=settle intervalSeconds=30 maxFires=4 coalesceMs=2500");
+  expect(custom.content[0].text).toBe("Armed custom mode=settle intervalSeconds=30 maxFires=4 coalesceMs=2500");
   const status = await env.execute({ action: "status" });
-  assert.equal(
-    status.content[0].text,
-    [
+  expect(status.content[0].text).toBe([
       "loop-1 mode=interval fires=0/50 armed=true lastReason=-",
       "custom mode=settle fires=0/4 armed=true lastReason=-",
-    ].join("\n"),
-  );
+    ].join("\n"));
 });
 
 test("loop-03 throws prompt required to arm when arming without a prompt", async () => {
   const env = fakeHeartbeat();
-  await assert.rejects(env.execute({ action: "arm" }), { message: "prompt required to arm" });
-  await assert.rejects(env.execute({ action: "arm", prompt: "" }), {
-    message: "prompt required to arm",
-  });
+  await expect(env.execute({ action: "arm" })).rejects.toThrow("prompt required to arm");
+  await expect(env.execute({ action: "arm", prompt: "" })).rejects.toThrow("prompt required to arm");
   const status = await env.execute({ action: "status" });
-  assert.equal(status.content[0].text, "(no active loops)");
+  expect(status.content[0].text).toBe("(no active loops)");
 });
 
 test("loop-04 throws action must be arm|stop|status|list for an unknown action", async () => {
   const env = fakeHeartbeat();
-  await assert.rejects(env.execute({ action: "explode", prompt: "x" }), {
-    message: "action must be arm|stop|status|list",
-  });
+  await expect(env.execute({ action: "explode", prompt: "x" })).rejects.toThrow("action must be arm|stop|status|list");
 });
 
 test("loop-05 throws mode must be interval|settle|watcher|dynamic for an invalid mode", async () => {
   const env = fakeHeartbeat();
   for (const mode of ["cron", "Interval"]) {
-    await assert.rejects(env.execute({ action: "arm", mode, prompt: "x" }), {
-      message: "mode must be interval|settle|watcher|dynamic",
-    });
+    await expect(env.execute({ action: "arm", mode, prompt: "x" })).rejects.toThrow("mode must be interval|settle|watcher|dynamic");
   }
 });
 
 test("loop-06 rejects watchCommand and requires watchArgv as an argv array", async () => {
   const tool = fakeHeartbeat().tool();
-  assert.equal(tool.parameters.properties.watchArgv.type, "array");
-  assert.equal(tool.parameters.properties.watchArgv.items?.type, "string");
-  assert.equal(tool.parameters.properties.watchCommand.type, "string");
+  expect(tool.parameters.properties.watchArgv.type).toBe("array");
+  expect(tool.parameters.properties.watchArgv.items?.type).toBe("string");
+  expect(tool.parameters.properties.watchCommand.type).toBe("string");
   const env = fakeHeartbeat();
-  await assert.rejects(
-    env.execute({ action: "arm", mode: "watcher", prompt: "wake", watchCommand: "bash -lc echo hi" }),
-    {
-      message:
-        "watchCommand is rejected (no bash -lc of model strings); pass watchArgv as an argv array",
-    },
-  );
+  await expect(env.execute({ action: "arm", mode: "watcher", prompt: "wake", watchCommand: "bash -lc echo hi" })).rejects.toThrow("watchCommand is rejected (no bash -lc of model strings); pass watchArgv as an argv array");
 });
 
 test("loop-07 constrains intervalSeconds to 5 through 86400 and maxFires to 1 through 500", () => {
   const properties = fakeHeartbeat().tool().parameters.properties;
-  assert.equal(properties.intervalSeconds.type, "integer");
-  assert.equal(properties.intervalSeconds.minimum, 5);
-  assert.equal(properties.intervalSeconds.maximum, 86400);
-  assert.equal(properties.maxFires.type, "integer");
-  assert.equal(properties.maxFires.minimum, 1);
-  assert.equal(properties.maxFires.maximum, 500);
+  expect(properties.intervalSeconds.type).toBe("integer");
+  expect(properties.intervalSeconds.minimum).toBe(5);
+  expect(properties.intervalSeconds.maximum).toBe(86400);
+  expect(properties.maxFires.type).toBe("integer");
+  expect(properties.maxFires.minimum).toBe(1);
+  expect(properties.maxFires.maximum).toBe(500);
 });
 
 test("loop-08 arms the interval timer at arm time and re-arms it after each fire", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
   const env = fakeHeartbeat();
   await env.execute({ action: "arm", prompt: "tick", intervalSeconds: 60, maxFires: 3, id: "alarm" });
-  assert.deepEqual(env.messages(), []);
-  t.mock.timers.tick(59_999);
-  assert.deepEqual(env.messages(), []);
-  t.mock.timers.tick(1);
-  assert.deepEqual(env.messages(), ["[pstack_loop alarm fire 1/3 reason=interval]\ntick"]);
-  t.mock.timers.tick(60_000);
-  assert.deepEqual(env.messages(), [
+  expect(env.messages()).toEqual([]);
+  vi.advanceTimersByTime(59_999);
+  expect(env.messages()).toEqual([]);
+  vi.advanceTimersByTime(1);
+  expect(env.messages()).toEqual(["[pstack_loop alarm fire 1/3 reason=interval]\ntick"]);
+  vi.advanceTimersByTime(60_000);
+  expect(env.messages()).toEqual([
     "[pstack_loop alarm fire 1/3 reason=interval]\ntick",
     "[pstack_loop alarm fire 2/3 reason=interval]\ntick",
   ]);
 });
 
 test("loop-09 arms the settle timer only on agent_settled for settle and dynamic modes", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
   const env = fakeHeartbeat(pendingExec);
   await env.execute({ action: "arm", mode: "settle", prompt: "settled", intervalSeconds: 5, id: "s" });
   await env.execute({ action: "arm", mode: "dynamic", prompt: "dyn", intervalSeconds: 5, id: "d" });
@@ -270,11 +255,11 @@ test("loop-09 arms the settle timer only on agent_settled for settle and dynamic
     watchArgv: ["waiter"],
     id: "w",
   });
-  t.mock.timers.tick(60_000);
-  assert.deepEqual(env.messages(), []);
+  vi.advanceTimersByTime(60_000);
+  expect(env.messages()).toEqual([]);
   env.emit("agent_settled");
-  t.mock.timers.tick(5_000);
-  assert.deepEqual(env.messages(), [
+  vi.advanceTimersByTime(5_000);
+  expect(env.messages()).toEqual([
     "[pstack_loop s fire 1/50 reason=settle]\nsettled",
     "[pstack_loop d fire 1/50 reason=settle]\ndyn",
   ]);
@@ -291,8 +276,8 @@ test("loop-10 fires a watcher-mode loop once on exit and never re-arms it", asyn
   });
   await flush();
   await flush();
-  assert.equal(env.execCalls().length, 1);
-  assert.deepEqual(env.messages(), [
+  expect(env.execCalls().length).toBe(1);
+  expect(env.messages()).toEqual([
     "[pstack_loop w fire 1/50 reason=watcher]\nwake\n\n--- watcher output ---\nREADY",
   ]);
 });
@@ -305,8 +290,8 @@ test("loop-11 re-arms the watcher after each fire in dynamic mode while armed an
   });
   await env.execute({ action: "arm", mode: "dynamic", prompt: "wake", watchArgv: ["watch-pr"], id: "d" });
   await flush();
-  assert.equal(env.execCalls().length, 2);
-  assert.deepEqual(env.messages(), [
+  expect(env.execCalls().length).toBe(2);
+  expect(env.messages()).toEqual([
     "[pstack_loop d fire 1/50 reason=watcher]\nwake\n\n--- watcher output ---\nfirst",
   ]);
   const capped = fakeHeartbeat(async () => ({ code: 0, stdout: "x", stderr: "" }));
@@ -320,7 +305,7 @@ test("loop-11 re-arms the watcher after each fire in dynamic mode while armed an
   });
   await flush();
   await flush();
-  assert.equal(capped.execCalls().length, 1);
+  expect(capped.execCalls().length).toBe(1);
   const deferred = createDeferred();
   let round = 0;
   const stopped = fakeHeartbeat(async () => {
@@ -329,27 +314,27 @@ test("loop-11 re-arms the watcher after each fire in dynamic mode while armed an
   });
   await stopped.execute({ action: "arm", mode: "dynamic", prompt: "wake", watchArgv: ["watch-pr"], id: "g" });
   await flush();
-  assert.equal(stopped.execCalls().length, 2);
+  expect(stopped.execCalls().length).toBe(2);
   await stopped.execute({ action: "stop", id: "g" });
   deferred.resolve({ code: 0, stdout: "late", stderr: "" });
   await flush();
-  assert.equal(stopped.execCalls().length, 2);
-  assert.equal(stopped.messages().length, 1);
+  expect(stopped.execCalls().length).toBe(2);
+  expect(stopped.messages().length).toBe(1);
 });
 
 test("loop-16 delivers the fire as a follow-up message with the documented prefix", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
   const env = fakeHeartbeat();
   await env.execute({ action: "arm", prompt: "run the checks", intervalSeconds: 5, maxFires: 4, id: "beam" });
-  t.mock.timers.tick(5_000);
-  assert.deepEqual(env.messages(), ["[pstack_loop beam fire 1/4 reason=interval]\nrun the checks"]);
-  assert.deepEqual(env.messageEntries()[0].opts, { deliverAs: "followUp" });
-  t.mock.timers.tick(5_000);
-  assert.deepEqual(env.messages().at(-1), "[pstack_loop beam fire 2/4 reason=interval]\nrun the checks");
+  vi.advanceTimersByTime(5_000);
+  expect(env.messages()).toEqual(["[pstack_loop beam fire 1/4 reason=interval]\nrun the checks"]);
+  expect(env.messageEntries()[0].opts).toEqual({ deliverAs: "followUp" });
+  vi.advanceTimersByTime(5_000);
+  expect(env.messages().at(-1)).toEqual("[pstack_loop beam fire 2/4 reason=interval]\nrun the checks");
 });
 
 test("loop-17 resets the prompt to the base prompt after each fire", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+  vi.useFakeTimers({ toFake: ["setTimeout", "Date"], now: 1_000 });
   const deferred = createDeferred();
   let calls = 0;
   const env = fakeHeartbeat(async () => {
@@ -358,14 +343,14 @@ test("loop-17 resets the prompt to the base prompt after each fire", async (t) =
   });
   await env.execute({ action: "arm", mode: "dynamic", prompt: "base", watchArgv: ["watch-pr"], intervalSeconds: 5, id: "d" });
   await flush();
-  assert.deepEqual(env.messages(), [
+  expect(env.messages()).toEqual([
     "[pstack_loop d fire 1/50 reason=watcher]\nbase\n\n--- watcher output ---\nFIRST-OUTPUT",
   ]);
-  t.mock.timers.tick(10_000);
+  vi.advanceTimersByTime(10_000);
   env.emit("agent_settled");
-  t.mock.timers.tick(5_000);
-  assert.equal(env.messages().length, 2);
-  assert.equal(env.messages()[1], "[pstack_loop d fire 2/50 reason=settle]\nbase");
+  vi.advanceTimersByTime(5_000);
+  expect(env.messages().length).toBe(2);
+  expect(env.messages()[1]).toBe("[pstack_loop d fire 2/50 reason=settle]\nbase");
 });
 
 test("loop-18 runs watchArgv as command plus args with a 24-hour timeout and guards a dashed argv0", async () => {
@@ -379,32 +364,23 @@ test("loop-18 runs watchArgv as command plus args with a 24-hour timeout and gua
     id: "w",
   });
   await flush();
-  assert.equal(env.execCalls()[0].command, "watch-pr");
-  assert.deepEqual(env.execCalls()[0].args, ["--pr", "5", "--status-only"]);
-  assert.equal(env.execCalls()[0].timeout, 86_400_000);
-  assert.equal(env.execCalls()[0].signal instanceof AbortSignal, true);
+  expect(env.execCalls()[0].command).toBe("watch-pr");
+  expect(env.execCalls()[0].args).toEqual(["--pr", "5", "--status-only"]);
+  expect(env.execCalls()[0].timeout).toBe(86_400_000);
+  expect(env.execCalls()[0].signal instanceof AbortSignal).toBe(true);
   const guard = fakeHeartbeat();
-  await assert.rejects(
-    guard.execute({ action: "arm", mode: "watcher", prompt: "wake", watchArgv: ["--dashed", "x"] }),
-    { message: "watchArgv[0] must be a command path/name (not an option)" },
-  );
-  assert.deepEqual(guard.execCalls(), []);
+  await expect(guard.execute({ action: "arm", mode: "watcher", prompt: "wake", watchArgv: ["--dashed", "x"] })).rejects.toThrow("watchArgv[0] must be a command path/name (not an option)");
+  expect(guard.execCalls()).toEqual([]);
 });
 
 test("loop-20 requires watchArgv for mode=watcher and rejects an empty or dashed argv0", async () => {
   const env = fakeHeartbeat();
   const watcher = { action: "arm", mode: "watcher", prompt: "wake" };
-  await assert.rejects(env.execute(watcher), { message: "watchArgv required for mode=watcher" });
-  await assert.rejects(env.execute({ ...watcher, watchArgv: [] }), {
-    message: "watchArgv required for mode=watcher",
-  });
-  await assert.rejects(env.execute({ ...watcher, watchArgv: [""] }), {
-    message: "watchArgv[0] must be a command path/name (not an option)",
-  });
-  await assert.rejects(env.execute({ ...watcher, watchArgv: ["-x"] }), {
-    message: "watchArgv[0] must be a command path/name (not an option)",
-  });
-  assert.deepEqual(env.execCalls(), []);
+  await expect(env.execute(watcher)).rejects.toThrow("watchArgv required for mode=watcher");
+  await expect(env.execute({ ...watcher, watchArgv: [] })).rejects.toThrow("watchArgv required for mode=watcher");
+  await expect(env.execute({ ...watcher, watchArgv: [""] })).rejects.toThrow("watchArgv[0] must be a command path/name (not an option)");
+  await expect(env.execute({ ...watcher, watchArgv: ["-x"] })).rejects.toThrow("watchArgv[0] must be a command path/name (not an option)");
+  expect(env.execCalls()).toEqual([]);
 });
 
 test("loop-21 clears every loop and aborts running watchers on session_shutdown", async () => {
@@ -412,55 +388,55 @@ test("loop-21 clears every loop and aborts running watchers on session_shutdown"
   await env.execute({ action: "arm", mode: "watcher", prompt: "a", watchArgv: ["waiter-a"], id: "a" });
   await env.execute({ action: "arm", mode: "watcher", prompt: "b", watchArgv: ["waiter-b"], id: "b" });
   await flush();
-  assert.deepEqual(env.execCalls().map((call) => call.command), ["waiter-a", "waiter-b"]);
-  assert.deepEqual(env.execCalls().map((call) => call.signal?.aborted), [false, false]);
+  expect(env.execCalls().map((call) => call.command)).toEqual(["waiter-a", "waiter-b"]);
+  expect(env.execCalls().map((call) => call.signal?.aborted)).toEqual([false, false]);
   env.emit("session_shutdown");
-  assert.deepEqual(env.execCalls().map((call) => call.signal?.aborted), [true, true]);
+  expect(env.execCalls().map((call) => call.signal?.aborted)).toEqual([true, true]);
   const status = await env.execute({ action: "status" });
-  assert.equal(status.content[0].text, "(no active loops)");
+  expect(status.content[0].text).toBe("(no active loops)");
 });
 
 test("loop-22 returns one formatted row per loop for status and list and stops one or all loops", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
   const env = fakeHeartbeat();
   await env.execute({ action: "arm", prompt: "one", intervalSeconds: 5, id: "a" });
   await env.execute({ action: "arm", mode: "settle", prompt: "two", intervalSeconds: 5, id: "b" });
-  t.mock.timers.tick(5_000);
+  vi.advanceTimersByTime(5_000);
   const rows = [
     "a mode=interval fires=1/50 armed=true lastReason=interval",
     "b mode=settle fires=0/50 armed=true lastReason=-",
   ];
   const status = await env.execute({ action: "status" });
-  assert.equal(status.content[0].text, rows.join("\n"));
-  assert.deepEqual(status.details, { loops: ["a", "b"], action: "status" });
+  expect(status.content[0].text).toBe(rows.join("\n"));
+  expect(status.details).toEqual({ loops: ["a", "b"], action: "status" });
   const list = await env.execute({ action: "list" });
-  assert.equal(list.content[0].text, rows.join("\n"));
-  assert.deepEqual(list.details, { loops: ["a", "b"], action: "list" });
+  expect(list.content[0].text).toBe(rows.join("\n"));
+  expect(list.details).toEqual({ loops: ["a", "b"], action: "list" });
   const stopped = await env.execute({ action: "stop", id: "a" });
-  assert.equal(stopped.content[0].text, "stopped");
+  expect(stopped.content[0].text).toBe("stopped");
   const remaining = await env.execute({ action: "status" });
-  assert.equal(remaining.content[0].text, rows[1]);
+  expect(remaining.content[0].text).toBe(rows[1]);
   await env.execute({ action: "stop" });
   const empty = await env.execute({ action: "list" });
-  assert.equal(empty.content[0].text, "(no active loops)");
-  assert.deepEqual(empty.details, { loops: [], action: "list" });
+  expect(empty.content[0].text).toBe("(no active loops)");
+  expect(empty.details).toEqual({ loops: [], action: "list" });
 });
 
 test("loop-23 arms an interval loop from /pstack-loop seconds prompt with maxFires 100 and a 5s floor", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
   const env = fakeHeartbeat();
   const command = env.command();
   await command.handler("10 run the suite", env.ctx);
-  assert.deepEqual(env.notices()[0], { message: "Armed loop-1 every 10s", level: "info" });
-  t.mock.timers.tick(9_999);
-  assert.deepEqual(env.messages(), []);
-  t.mock.timers.tick(1);
-  assert.deepEqual(env.messages(), ["[pstack_loop loop-1 fire 1/100 reason=interval]\nrun the suite"]);
+  expect(env.notices()[0]).toEqual({ message: "Armed loop-1 every 10s", level: "info" });
+  vi.advanceTimersByTime(9_999);
+  expect(env.messages()).toEqual([]);
+  vi.advanceTimersByTime(1);
+  expect(env.messages()).toEqual(["[pstack_loop loop-1 fire 1/100 reason=interval]\nrun the suite"]);
   await command.handler("1 quick", env.ctx);
-  t.mock.timers.tick(4_999);
-  assert.equal(env.messages().length, 1);
-  t.mock.timers.tick(1);
-  assert.deepEqual(env.messages().at(-1), "[pstack_loop loop-2 fire 1/100 reason=interval]\nquick");
+  vi.advanceTimersByTime(4_999);
+  expect(env.messages().length).toBe(1);
+  vi.advanceTimersByTime(1);
+  expect(env.messages().at(-1)).toEqual("[pstack_loop loop-2 fire 1/100 reason=interval]\nquick");
 });
 
 test("loop-24 treats status list stop and off command forms as status and stop", async () => {
@@ -469,19 +445,19 @@ test("loop-24 treats status list stop and off command forms as status and stop",
   await command.handler("30 keep going", env.ctx);
   const row = "loop-1 mode=interval fires=0/100 armed=true lastReason=-";
   await command.handler("status", env.ctx);
-  assert.deepEqual(env.notices().at(-1), { message: row, level: "info" });
+  expect(env.notices().at(-1)).toEqual({ message: row, level: "info" });
   await command.handler("list", env.ctx);
-  assert.deepEqual(env.notices().at(-1), { message: row, level: "info" });
+  expect(env.notices().at(-1)).toEqual({ message: row, level: "info" });
   await command.handler("stop loop-1", env.ctx);
-  assert.deepEqual(env.notices().at(-1), { message: "Stopped loop-1", level: "info" });
+  expect(env.notices().at(-1)).toEqual({ message: "Stopped loop-1", level: "info" });
   await command.handler("status", env.ctx);
-  assert.deepEqual(env.notices().at(-1), { message: "(no active loops)", level: "info" });
+  expect(env.notices().at(-1)).toEqual({ message: "(no active loops)", level: "info" });
   await command.handler("30 keep going", env.ctx);
   await command.handler("off", env.ctx);
-  assert.deepEqual(env.notices().at(-1), { message: "All pstack loops stopped.", level: "info" });
+  expect(env.notices().at(-1)).toEqual({ message: "All pstack loops stopped.", level: "info" });
   await command.handler("30 keep going", env.ctx);
   await command.handler("stop", env.ctx);
-  assert.deepEqual(env.notices().at(-1), { message: "All pstack loops stopped.", level: "info" });
+  expect(env.notices().at(-1)).toEqual({ message: "All pstack loops stopped.", level: "info" });
   await command.handler("list", env.ctx);
-  assert.deepEqual(env.notices().at(-1), { message: "(no active loops)", level: "info" });
+  expect(env.notices().at(-1)).toEqual({ message: "(no active loops)", level: "info" });
 });

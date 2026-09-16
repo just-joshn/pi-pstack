@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -29,44 +28,28 @@ test("models-09 maps each budget label to a Pi thinking level", () => {
   ] as const;
   for (const [label, level] of cases) {
     withConfig(label, "anthropic/claude-opus-4-5", (cwd) => {
-      assert.equal(
-        resolveRoleModel("swarm workers", "xai/grok-4", 0, cwd),
-        `anthropic/claude-opus-4-5:${level}`,
-        `${label} must reach the child selector`,
-      );
+      expect(resolveRoleModel("swarm workers", "xai/grok-4", 0, cwd), `${label} must reach the child selector`).toBe(`anthropic/claude-opus-4-5:${level}`);
     });
   }
 });
 
 test("models-09 an explicit effort token wins over the budget", () => {
   withConfig("small — medium reasoning", "anthropic/claude-opus-4-5-xhigh", (cwd) => {
-    assert.equal(
-      resolveRoleModel("swarm workers", "xai/grok-4", 0, cwd),
-      "anthropic/claude-opus-4-5:xhigh",
-      "the effort written for the role must survive the budget",
-    );
+    expect(resolveRoleModel("swarm workers", "xai/grok-4", 0, cwd), "the effort written for the role must survive the budget").toBe("anthropic/claude-opus-4-5:xhigh");
   });
 });
 
 test("models-09 inherit-parent roles carry the budget to the parent model", () => {
   withConfig("small — medium reasoning", "inherit-parent", (cwd) => {
-    assert.equal(
-      resolveRoleModel("swarm workers", "deepseek-flash", 0, cwd),
-      "deepseek-flash:medium",
-      "an inheriting child still receives the configured level",
-    );
+    expect(resolveRoleModel("swarm workers", "deepseek-flash", 0, cwd), "an inheriting child still receives the configured level").toBe("deepseek-flash:medium");
   });
 });
 
 test("models-09 an unknown budget and a missing budget leave the selector unchanged", () => {
   withConfig("wild", "anthropic/claude-opus-4-5", (cwd) => {
-    assert.equal(
-      resolveRoleModel("swarm workers", "xai/grok-4", 0, cwd),
-      "anthropic/claude-opus-4-5",
-      "an unknown budget must not invent a level",
-    );
+    expect(resolveRoleModel("swarm workers", "xai/grok-4", 0, cwd), "an unknown budget must not invent a level").toBe("anthropic/claude-opus-4-5");
   });
-  assert.equal(effortForBudget(undefined), null, "a missing budget has no effort target");
-  assert.equal(effortForBudget("unlimited (max)"), "max", "the written default label parses");
-  assert.equal(withBudget("xai/grok-4", null), "xai/grok-4", "a null budget leaves the selector alone");
+  expect(effortForBudget(undefined), "a missing budget has no effort target").toBe(null);
+  expect(effortForBudget("unlimited (max)"), "the written default label parses").toBe("max");
+  expect(withBudget("xai/grok-4", null), "a null budget leaves the selector alone").toBe("xai/grok-4");
 });

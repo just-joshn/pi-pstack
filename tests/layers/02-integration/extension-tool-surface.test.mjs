@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -85,11 +84,8 @@ const GH_SHIP_OK = [
 
 async function runArmAndState(exec) {
   const armed = await exec("pstack_run", { action: "arm", runId: "r1", predicate: "green build", intervalSeconds: 5 });
-  assert.equal(
-    text(armed),
-    "r1 phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/50 predicate=green build\nrun r1 predicate defined: green build",
-  );
-  assert.deepEqual(armed.details.effects, [{ type: "notify", message: "run r1 predicate defined: green build" }]);
+  expect(text(armed)).toBe("r1 phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/50 predicate=green build\nrun r1 predicate defined: green build");
+  expect(armed.details.effects).toEqual([{ type: "notify", message: "run r1 predicate defined: green build" }]);
   const second = await exec("pstack_run", {
     action: "arm",
     runId: "r2",
@@ -99,57 +95,54 @@ async function runArmAndState(exec) {
     plateauLimit: 2,
     remoteRequired: true,
   });
-  assert.equal(second.details.run.maxFires, 3);
-  assert.deepEqual(second.details.run.remote, { required: true, handedOff: false });
+  expect(second.details.run.maxFires).toBe(3);
+  expect(second.details.run.remote).toEqual({ required: true, handedOff: false });
   const explicit = await exec("pstack_run", { action: "state", runId: "r1" });
-  assert.equal(explicit.details.run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
-  assert.deepEqual(explicit.details.effects, []);
-  assert.equal((await exec("pstack_run", { action: "state" })).details.run.runId, "r2");
+  expect(explicit.details.run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+  expect(explicit.details.effects).toEqual([]);
+  expect((await exec("pstack_run", { action: "state" })).details.run.runId).toBe("r2");
   const listed = await exec("pstack_run", { action: "list" });
-  assert.equal(listed.details.count, 2);
-  assert.equal(listed.details.runs.map((record) => record.runId).join(","), "r1,r2");
+  expect(listed.details.count).toBe(2);
+  expect(listed.details.runs.map((record) => record.runId).join(",")).toBe("r1,r2");
 }
 
 async function runMidActions(exec) {
   const iterated = await exec("pstack_run", { action: "iterate", runId: "r1", step: "npm test" });
-  assert.equal(iterated.details.run.iterations.length, 0);
-  assert.deepEqual(iterated.details.effects, []);
+  expect(iterated.details.run.iterations.length).toBe(0);
+  expect(iterated.details.effects).toEqual([]);
   const verified = await exec("pstack_run", {
     action: "verify",
     runId: "r1",
     evidence: "suite green",
-    verification: "node --test",
+    verification: "vitest run",
   });
-  assert.equal(verified.details.run.iterations.length, 0);
+  expect(verified.details.run.iterations.length).toBe(0);
   const checkpointed = await exec("pstack_run", { action: "checkpoint", runId: "r1" });
-  assert.equal(checkpointed.details.run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
+  expect(checkpointed.details.run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
   const discarded = await exec("pstack_run", { action: "discard", runId: "r1", reason: "no gain" });
-  assert.equal(discarded.details.run.consecutiveDiscards, 0);
+  expect(discarded.details.run.consecutiveDiscards).toBe(0);
   const inconclusive = await exec("pstack_run", { action: "inconclusive", runId: "r1" });
-  assert.deepEqual(inconclusive.details.effects, []);
+  expect(inconclusive.details.effects).toEqual([]);
 }
 
 async function runTerminalActions(exec, ui) {
   const blocked = await exec("pstack_run", { action: "blocked", runId: "r1", reason: "upstream outage" });
-  assert.equal(
-    text(blocked),
-    "r1 phase=BLOCKED iterations=0 discards=0 fires=0/50 predicate=green build\nblockedReason: upstream outage\nrun r1 BLOCKED: upstream outage",
-  );
-  assert.deepEqual(ui.notifications.at(-1), ["info", "run r1 BLOCKED: upstream outage"]);
+  expect(text(blocked)).toBe("r1 phase=BLOCKED iterations=0 discards=0 fires=0/50 predicate=green build\nblockedReason: upstream outage\nrun r1 BLOCKED: upstream outage");
+  expect(ui.notifications.at(-1)).toEqual(["info", "run r1 BLOCKED: upstream outage"]);
   const handoff = await exec("pstack_run", { action: "handoff", runId: "r2", endpoint: "https://worker.example.test" });
-  assert.equal(handoff.details.run.phase, "BLOCKED");
-  assert.deepEqual(handoff.details.run.remote, {
+  expect(handoff.details.run.phase).toBe("BLOCKED");
+  expect(handoff.details.run.remote).toEqual({
     required: true,
     handedOff: true,
     endpoint: "https://worker.example.test",
   });
-  assert.deepEqual(ui.notifications.slice(-2), [
+  expect(ui.notifications.slice(-2)).toEqual([
     ["info", "run r2 hosted handoff recorded for https://worker.example.test; no local continuation"],
     ["info", "run r2 handed off to https://worker.example.test; BLOCKED locally until the hosted worker exists"],
   ]);
-  assert.equal(text(await exec("pstack_run", { action: "stop", runId: "r1" })), "no armed loop for r1");
-  assert.deepEqual((await exec("pstack_run", { action: "stop", runId: "r2" })).details, { runId: "r2", stopped: true });
-  assert.equal((await exec("pstack_run", { action: "stop", runId: "r99" })).details.stopped, false);
+  expect(text(await exec("pstack_run", { action: "stop", runId: "r1" }))).toBe("no armed loop for r1");
+  expect((await exec("pstack_run", { action: "stop", runId: "r2" })).details).toEqual({ runId: "r2", stopped: true });
+  expect((await exec("pstack_run", { action: "stop", runId: "r99" })).details.stopped).toBe(false);
 }
 
 async function runRefusals(exec) {
@@ -164,7 +157,7 @@ async function runRefusals(exec) {
     [{ action: "stop" }, "runId required for this action"],
   ];
   for (const [params, message] of cases) {
-    await assert.rejects(() => exec("pstack_run", params), new Error(message));
+    await expect(() => exec("pstack_run", params)).rejects.toThrow(new Error(message));
   }
 }
 
@@ -181,11 +174,8 @@ test("pstack_run drives every run-controller action and pins each refusal", asyn
         await exec("pstack_run", { action: "arm", runId: "r4", predicate: "ship it", intervalSeconds: 5 });
         await f.session._extensionRunner.emit({ type: "session_shutdown" });
         const record = JSON.parse(readFileSync(join(runsDir, "r4.json"), "utf8"));
-        assert.equal(record.phase, "BLOCKED");
-        assert.equal(
-          record.blockedReason,
-          "local runtime session ended without completion; hand off to a hosted worker or re-arm",
-        );
+        expect(record.phase).toBe("BLOCKED");
+        expect(record.blockedReason).toBe("local runtime session ended without completion; hand off to a hosted worker or re-arm");
       }),
     );
   } finally {
@@ -195,16 +185,16 @@ test("pstack_run drives every run-controller action and pins each refusal", asyn
 
 async function loopToolScenarios(exec, ui) {
   const empty = await exec("pstack_loop", { action: "status" });
-  assert.equal(text(empty), "(no active loops)");
-  assert.deepEqual(empty.details, { loops: [], action: "status" });
-  assert.deepEqual((await exec("pstack_loop", { action: "list" })).details, { loops: [], action: "list" });
+  expect(text(empty)).toBe("(no active loops)");
+  expect(empty.details).toEqual({ loops: [], action: "status" });
+  expect((await exec("pstack_loop", { action: "list" })).details).toEqual({ loops: [], action: "list" });
   const armed = await exec("pstack_loop", { action: "arm", prompt: "check the build", intervalSeconds: 5 });
-  assert.equal(text(armed), "Armed loop-1 mode=interval intervalSeconds=5 maxFires=50 coalesceMs=2500");
-  assert.deepEqual(armed.details, { id: "loop-1", mode: "interval", coalesceMs: 2500 });
-  assert.deepEqual(ui.statuses.at(-1), ["pstack-loop", "loop-1"]);
+  expect(text(armed)).toBe("Armed loop-1 mode=interval intervalSeconds=5 maxFires=50 coalesceMs=2500");
+  expect(armed.details).toEqual({ id: "loop-1", mode: "interval", coalesceMs: 2500 });
+  expect(ui.statuses.at(-1)).toEqual(["pstack-loop", "loop-1"]);
   const status = await exec("pstack_loop", { action: "status" });
-  assert.equal(text(status), "loop-1 mode=interval fires=0/50 armed=true lastReason=-");
-  assert.deepEqual(status.details.loops, ["loop-1"]);
+  expect(text(status)).toBe("loop-1 mode=interval fires=0/50 armed=true lastReason=-");
+  expect(status.details.loops).toEqual(["loop-1"]);
   const watcher = await exec("pstack_loop", {
     action: "arm",
     id: "watch",
@@ -213,9 +203,9 @@ async function loopToolScenarios(exec, ui) {
     intervalSeconds: 5,
     watchArgv: ["git", "status", "--short"],
   });
-  assert.equal(text(watcher), "Armed watch mode=watcher intervalSeconds=5 maxFires=50 watcher=on coalesceMs=2500");
-  assert.deepEqual((await exec("pstack_loop", { action: "stop", id: "watch" })).details, {});
-  assert.equal(text(await exec("pstack_loop", { action: "stop" })), "stopped");
+  expect(text(watcher)).toBe("Armed watch mode=watcher intervalSeconds=5 maxFires=50 watcher=on coalesceMs=2500");
+  expect((await exec("pstack_loop", { action: "stop", id: "watch" })).details).toEqual({});
+  expect(text(await exec("pstack_loop", { action: "stop" }))).toBe("stopped");
 }
 
 async function loopToolRefusals(exec) {
@@ -228,7 +218,7 @@ async function loopToolRefusals(exec) {
     [{ action: "arm", prompt: "x", mode: "watcher", watchArgv: ["-bad"] }, "watchArgv[0] must be a command path/name (not an option)"],
   ];
   for (const [params, message] of cases) {
-    await assert.rejects(() => exec("pstack_loop", params), new Error(message));
+    await expect(() => exec("pstack_loop", params)).rejects.toThrow(new Error(message));
   }
 }
 
@@ -236,24 +226,24 @@ async function loopCommandScenarios(f, ui) {
   const command = commandOf(f, "pstack-loop");
   const ctx = f.session._extensionRunner.createContext();
   await command.handler("status", ctx);
-  assert.deepEqual(ui.notifications.at(-1), ["info", "(no active loops)"]);
+  expect(ui.notifications.at(-1)).toEqual(["info", "(no active loops)"]);
   await command.handler("5 probe every five", ctx);
-  assert.deepEqual(ui.notifications.at(-1), ["info", "Armed loop-5 every 5s"]);
+  expect(ui.notifications.at(-1)).toEqual(["info", "Armed loop-5 every 5s"]);
   await command.handler("list", ctx);
-  assert.deepEqual(ui.notifications.at(-1), ["info", "loop-5 mode=interval fires=0/100 armed=true lastReason=-"]);
+  expect(ui.notifications.at(-1)).toEqual(["info", "loop-5 mode=interval fires=0/100 armed=true lastReason=-"]);
   await command.handler("stop loop-99", ctx);
-  assert.deepEqual(ui.notifications.at(-1), ["info", "No loop loop-99"]);
+  expect(ui.notifications.at(-1)).toEqual(["info", "No loop loop-99"]);
   await command.handler("nonsense", ctx);
-  assert.deepEqual(ui.notifications.at(-1), [
+  expect(ui.notifications.at(-1)).toEqual([
     "error",
     "Usage: /pstack-loop <seconds> <prompt>  |  /pstack-loop status|list  |  /pstack-loop stop [id]  |  /pstack-loop off",
   ]);
   await command.handler("off", ctx);
-  assert.deepEqual(ui.notifications.at(-1), ["info", "All pstack loops stopped."]);
+  expect(ui.notifications.at(-1)).toEqual(["info", "All pstack loops stopped."]);
   await command.handler("", ctx);
-  assert.deepEqual(ui.statuses.at(-1), ["pstack-loop", undefined]);
+  expect(ui.statuses.at(-1)).toEqual(["pstack-loop", undefined]);
   await commandOf(f, "deslop").handler("", ctx);
-  assert.deepEqual(ui.notifications.at(-1), ["info", "Queued deslop twin"]);
+  expect(ui.notifications.at(-1)).toEqual(["info", "Queued deslop twin"]);
 }
 
 test("pstack_loop arms, reports, stops, and answers its slash command", async () => {
@@ -267,40 +257,40 @@ test("pstack_loop arms, reports, stops, and answers its slash command", async ()
 
 async function worktreeLifecycle(f, exec) {
   const empty = await exec("pstack_worktree", { action: "list" });
-  assert.equal(empty.details.count, 0);
-  assert.match(text(empty), /pstack-managed under \.pstack-worktrees: 0\/12$/);
+  expect(empty.details.count).toBe(0);
+  expect(text(empty)).toMatch(/pstack-managed under \.pstack-worktrees: 0\/12$/);
   const created = await exec("pstack_worktree", { action: "create", name: "probe", base: "HEAD" });
-  assert.deepEqual(created.details, { path: join(f.tmp.cwd, ".pstack-worktrees", "probe"), branch: "pstack/probe" });
-  assert.equal((await exec("pstack_worktree", { action: "list" })).details.count, 1);
+  expect(created.details).toEqual({ path: join(f.tmp.cwd, ".pstack-worktrees", "probe"), branch: "pstack/probe" });
+  expect((await exec("pstack_worktree", { action: "list" })).details.count).toBe(1);
   await exec("pstack_worktree", { action: "create", name: "probe2" });
   const cleaned = await exec("pstack_worktree", { action: "cleanup" });
-  assert.deepEqual([...cleaned.details.removed].toSorted(), ["probe", "probe2"]);
-  assert.deepEqual(cleaned.details.skipped, []);
-  assert.equal(cleaned.details.pruned, "pruned");
-  assert.equal(cleaned.details.removed.length, 2);
-  assert.equal(f.exists(join(".pstack-worktrees", "probe")), false);
-  assert.equal(text(await exec("pstack_worktree", { action: "prune" })), "pruned");
+  expect([...cleaned.details.removed].toSorted()).toEqual(["probe", "probe2"]);
+  expect(cleaned.details.skipped).toEqual([]);
+  expect(cleaned.details.pruned).toBe("pruned");
+  expect(cleaned.details.removed.length).toBe(2);
+  expect(f.exists(join(".pstack-worktrees", "probe"))).toBe(false);
+  expect(text(await exec("pstack_worktree", { action: "prune" }))).toBe("pruned");
   await exec("pstack_worktree", { action: "create", name: "probe3" });
   const removed = await exec("pstack_worktree", { action: "remove", name: "probe3" });
-  assert.equal(removed.details.path, join(f.tmp.cwd, ".pstack-worktrees", "probe3"));
-  assert.equal(f.exists(join(".pstack-worktrees", "probe3")), false);
+  expect(removed.details.path).toBe(join(f.tmp.cwd, ".pstack-worktrees", "probe3"));
+  expect(f.exists(join(".pstack-worktrees", "probe3"))).toBe(false);
 }
 
 async function worktreeRefusals(f, exec) {
   const cases = [
-    [{ action: "remove" }, /^Error: name required for remove$/],
-    [{ action: "create", name: "../evil" }, /^WorktreeSanitizeError: worktree name must not contain '\.\.', path separators, or NUL$/],
-    [{ action: "create", name: "-flag" }, /^WorktreeSanitizeError: worktree name must not start with '-'$/],
-    [{ action: "create", name: "ok", base: "-HEAD" }, /^WorktreeSanitizeError: base ref must not start with '-'$/],
-    [{ action: "create", name: "ok", base: "main branch" }, /^WorktreeSanitizeError: base ref must not contain '\.\.', whitespace, or NUL$/],
-    [{ action: "explode" }, /^Error: action must be create\|list\|remove\|prune\|cleanup$/],
+    [{ action: "remove" }, /^name required for remove$/],
+    [{ action: "create", name: "../evil" }, /^worktree name must not contain '\.\.', path separators, or NUL$/],
+    [{ action: "create", name: "-flag" }, /^worktree name must not start with '-'$/],
+    [{ action: "create", name: "ok", base: "-HEAD" }, /^base ref must not start with '-'$/],
+    [{ action: "create", name: "ok", base: "main branch" }, /^base ref must not contain '\.\.', whitespace, or NUL$/],
+    [{ action: "explode" }, /^action must be create\|list\|remove\|prune\|cleanup$/],
   ];
   for (const [params, message] of cases) {
-    await assert.rejects(() => exec("pstack_worktree", params), message);
+    await expect(() => exec("pstack_worktree", params)).rejects.toThrow(message);
   }
   await exec("pstack_worktree", { action: "create", name: "probe4" });
   await f.session._extensionRunner.emit({ type: "session_shutdown" });
-  assert.equal(f.exists(join(".pstack-worktrees", "probe4")), false);
+  expect(f.exists(join(".pstack-worktrees", "probe4"))).toBe(false);
 }
 
 test("pstack_worktree manages real git worktrees and refuses injection", async () => {
@@ -317,55 +307,40 @@ test("pstack_worktree manages real git worktrees and refuses injection", async (
 
 async function integrationInventory(exec) {
   const listed = await exec("pstack_integrations", { action: "list" });
-  assert.equal(listed.details.available, 2);
-  assert.equal(listed.details.total, 9);
-  assert.match(text(listed), /^pstack_integrations list: 2\/9 categories available$/m);
-  assert.equal(
-    listed.details.categories.map((category) => category.id).join(","),
-    "source-control,issue-tracker,long-form-docs,team-chat,observability,error-tracking,analytics,browser-ui,cli-tui",
-  );
+  expect(listed.details.available).toBe(2);
+  expect(listed.details.total).toBe(9);
+  expect(text(listed)).toMatch(/^pstack_integrations list: 2\/9 categories available$/m);
+  expect(listed.details.categories.map((category) => category.id).join(",")).toBe("source-control,issue-tracker,long-form-docs,team-chat,observability,error-tracking,analytics,browser-ui,cli-tui");
   const source = listed.details.categories.find((category) => category.id === "source-control");
-  assert.equal(source.missing, "cwd is not inside a git work tree (git rev-parse --is-inside-work-tree)");
-  assert.equal(listed.details.categories.find((category) => category.id === "browser-ui").availability, "available");
-  assert.equal(listed.details.categories.find((category) => category.id === "cli-tui").tool, "pstack_control_cli");
-  assert.equal((await exec("pstack_integrations", { action: "status" })).details.action, "status");
-  assert.equal((await exec("pstack_integrations", { action: "probe" })).details.action, "probe");
+  expect(source.missing).toBe("cwd is not inside a git work tree (git rev-parse --is-inside-work-tree)");
+  expect(listed.details.categories.find((category) => category.id === "browser-ui").availability).toBe("available");
+  expect(listed.details.categories.find((category) => category.id === "cli-tui").tool).toBe("pstack_control_cli");
+  expect((await exec("pstack_integrations", { action: "status" })).details.action).toBe("status");
+  expect((await exec("pstack_integrations", { action: "probe" })).details.action).toBe("probe");
 }
 
 async function integrationGaps(exec, configPath) {
-  await assert.rejects(
-    () => exec("pstack_integrations", { action: "explode" }),
-    new Error("action must be one of list, status, probe, query"),
-  );
-  await assert.rejects(
-    () => exec("pstack_integrations", { action: "query", capability: "nope" }),
-    new Error("capability must be one of source-control, issue-tracker, long-form-docs, team-chat, observability, error-tracking, analytics, browser-ui, cli-tui"),
-  );
+  await expect(() => exec("pstack_integrations", { action: "explode" })).rejects.toThrow(new Error("action must be one of list, status, probe, query"));
+  await expect(() => exec("pstack_integrations", { action: "query", capability: "nope" })).rejects.toThrow(new Error("capability must be one of source-control, issue-tracker, long-form-docs, team-chat, observability, error-tracking, analytics, browser-ui, cli-tui"));
   const gap = await exec("pstack_integrations", { action: "query", capability: "source-control" });
-  assert.deepEqual(gap.details, {
+  expect(gap.details).toEqual({
     capability: "source-control",
     availability: "unavailable",
     coverageGap: true,
     substituted: false,
     missing: "cwd is not inside a git work tree (git rev-parse --is-inside-work-tree)",
   });
-  assert.equal(
-    text(gap),
-    "pstack_integrations coverage gap: capability 'source-control' is unavailable.\nmissing prerequisite: cwd is not inside a git work tree (git rev-parse --is-inside-work-tree)\nno other capability was queried in its place; report this as a null finding in /why, not a skip.",
-  );
+  expect(text(gap)).toBe("pstack_integrations coverage gap: capability 'source-control' is unavailable.\nmissing prerequisite: cwd is not inside a git work tree (git rev-parse --is-inside-work-tree)\nno other capability was queried in its place; report this as a null finding in /why, not a skip.");
   const chat = await exec("pstack_integrations", { action: "query", capability: "team-chat" });
-  assert.equal(chat.details.missing, `add a 'command' adapter for capability 'team-chat' to ${configPath}`);
+  expect(chat.details.missing).toBe(`add a 'command' adapter for capability 'team-chat' to ${configPath}`);
   const ui = await exec("pstack_integrations", { action: "query", capability: "browser-ui" });
-  assert.deepEqual(ui.details, {
+  expect(ui.details).toEqual({
     capability: "browser-ui",
     delegatedTo: "pstack_control_ui",
     executed: false,
     coverageGap: false,
   });
-  assert.equal(
-    (await exec("pstack_integrations", { action: "query", capability: "cli-tui" })).details.delegatedTo,
-    "pstack_control_cli",
-  );
+  expect((await exec("pstack_integrations", { action: "query", capability: "cli-tui" })).details.delegatedTo).toBe("pstack_control_cli");
 }
 
 async function integrationQueries(f, exec, configPath) {
@@ -382,29 +357,29 @@ async function integrationQueries(f, exec, configPath) {
     }),
   );
   const adapted = await exec("pstack_integrations", { action: "query", capability: "analytics" });
-  assert.equal(adapted.details.plan, "repo root");
-  assert.equal(adapted.details.code, 0);
-  assert.match(text(adapted), /^analytics repo root: exit 0\n\n/);
+  expect(adapted.details.plan).toBe("repo root");
+  expect(adapted.details.code).toBe(0);
+  expect(text(adapted)).toMatch(/^analytics repo root: exit 0\n\n/);
   const withRepo = await exec("pstack_integrations", { action: "list" });
-  assert.equal(withRepo.details.available, 4);
-  assert.equal(withRepo.details.categories.find((category) => category.id === "source-control").availability, "available");
+  expect(withRepo.details.available).toBe(4);
+  expect(withRepo.details.categories.find((category) => category.id === "source-control").availability).toBe("available");
   const log = await exec("pstack_integrations", { action: "query", capability: "source-control" });
-  assert.equal(log.details.plan, "log (git)");
-  assert.match(text(log), /^source-control log \(git\): exit 0\n\n/);
+  expect(log.details.plan).toBe("log (git)");
+  expect(text(log)).toMatch(/^source-control log \(git\): exit 0\n\n/);
   const blame = await exec("pstack_integrations", {
     action: "query",
     capability: "source-control",
     query: "blame:app.ts:1",
   });
-  assert.equal(blame.details.plan, "blame (git)");
-  assert.match(text(blame), /filename app\.ts\n\texport const one = 1;/);
+  expect(blame.details.plan).toBe("blame (git)");
+  expect(text(blame)).toMatch(/filename app\.ts\n\texport const one = 1;/);
   const prs = await exec("pstack_integrations", {
     action: "query",
     capability: "source-control",
     query: "prs:anything",
   });
-  assert.equal(prs.details.plan, "prs (gh)");
-  assert.equal(prs.details.code, 0);
+  expect(prs.details.plan).toBe("prs (gh)");
+  expect(prs.details.code).toBe(0);
 }
 
 test("pstack_integrations reports the capability matrix, gaps, and adapter queries", async () => {
@@ -434,29 +409,23 @@ test("pstack_integrations reports the capability matrix, gaps, and adapter queri
 
 async function sessionsScenarios(exec, seeded) {
   const current = await exec("pstack_sessions", { action: "current" });
-  assert.match(current.details.file, /\.jsonl$/);
-  assert.equal(text(current), `current session: ${current.details.file}`);
+  expect(current.details.file).toMatch(/\.jsonl$/);
+  expect(text(current)).toBe(`current session: ${current.details.file}`);
   const listed = await exec("pstack_sessions", { action: "list" });
-  assert.equal(listed.details.files.length, 1);
-  assert.equal(listed.details.files[0].path, seeded);
+  expect(listed.details.files.length).toBe(1);
+  expect(listed.details.files[0].path).toBe(seeded);
   const hit = await exec("pstack_sessions", { action: "grep", query: "needle" });
-  assert.equal(hit.details.hitCount, 1);
-  assert.equal(text(hit), `${seeded}\n  {"type":"message","text":"needle in the corpus"}`);
-  assert.equal(text(await exec("pstack_sessions", { action: "grep", query: "absent" })), "(no hits for absent)");
-  await assert.rejects(
-    () => exec("pstack_sessions", { action: "grep" }),
-    new Error("query required for grep"),
-  );
-  await assert.rejects(
-    () => exec("pstack_sessions", { action: "explode" }),
-    new Error("action must be list|grep|current|recall"),
-  );
+  expect(hit.details.hitCount).toBe(1);
+  expect(text(hit)).toBe(`${seeded}\n  {"type":"message","text":"needle in the corpus"}`);
+  expect(text(await exec("pstack_sessions", { action: "grep", query: "absent" }))).toBe("(no hits for absent)");
+  await expect(() => exec("pstack_sessions", { action: "grep" })).rejects.toThrow(new Error("query required for grep"));
+  await expect(() => exec("pstack_sessions", { action: "explode" })).rejects.toThrow(new Error("action must be list|grep|current|recall"));
   const recall = await exec("pstack_sessions", { action: "recall", query: "needle", days: 30 });
-  assert.equal(recall.details.sessionHits, 1);
-  assert.equal(recall.details.rankedHits, 1);
-  assert.deepEqual(recall.details.corpus, ["sessions", "git-log", "gh-prs", "ranked-merge"]);
-  assert.match(text(recall), /^## Recall corpus \(local, ranked\)\nquery=needle days=30\n/);
-  assert.match(text(recall), /### gh PRs\n\(no matching PRs\)/);
+  expect(recall.details.sessionHits).toBe(1);
+  expect(recall.details.rankedHits).toBe(1);
+  expect(recall.details.corpus).toEqual(["sessions", "git-log", "gh-prs", "ranked-merge"]);
+  expect(text(recall)).toMatch(/^## Recall corpus \(local, ranked\)\nquery=needle days=30\n/);
+  expect(text(recall)).toMatch(/### gh PRs\n\(no matching PRs\)/);
 }
 
 test("pstack_sessions lists, greps, and ranks a seeded session corpus", async () => {
@@ -480,35 +449,32 @@ test("pstack_sessions lists, greps, and ranks a seeded session corpus", async ()
 
 async function shipScenarios(exec) {
   const view = await exec("pstack_ship", { action: "view", pr: "#7" });
-  assert.equal(view.details.code, 0);
-  assert.equal(JSON.parse(text(view)).number, 7);
+  expect(view.details.code).toBe(0);
+  expect(JSON.parse(text(view)).number).toBe(7);
   const stack = await exec("pstack_ship", { action: "stack-status", stackPrs: ["7"] });
-  assert.deepEqual([stack.details.verdict, stack.details.frontier, stack.details.problems], ["ADVANCE", "7", []]);
-  assert.equal(text(stack), "stack ADVANCE frontier=#7\n7 state=OPEN mergeStateStatus=CLEAN");
+  expect([stack.details.verdict, stack.details.frontier, stack.details.problems]).toEqual(["ADVANCE", "7", []]);
+  expect(text(stack)).toBe("stack ADVANCE frontier=#7\n7 state=OPEN mergeStateStatus=CLEAN");
   const gate = await exec("pstack_ship", { action: "gate-check", pr: "7" });
-  assert.equal(gate.details.gate.number, 7);
-  assert.match(text(gate), /^gate-check PASS\n/);
+  expect(gate.details.gate.number).toBe(7);
+  expect(text(gate)).toMatch(/^gate-check PASS\n/);
   const merged = await exec("pstack_ship", { action: "merge", pr: "7", mergeMethod: "squash" });
-  assert.equal(merged.details.code, 0);
-  assert.match(text(merged), /^Merged PR 7 after gate check \(mergeStateStatus=CLEAN\)\.\nmerged 7/);
-  await assert.rejects(
-    () => exec("pstack_ship", { action: "merge", pr: "8" }),
-    /^Error: merge gate check failed \(fail closed\): cannot view PR/,
-  );
+  expect(merged.details.code).toBe(0);
+  expect(text(merged)).toMatch(/^Merged PR 7 after gate check \(mergeStateStatus=CLEAN\)\.\nmerged 7/);
+  await expect(() => exec("pstack_ship", { action: "merge", pr: "8" })).rejects.toThrow(/^merge gate check failed \(fail closed\): cannot view PR/);
   const cases = [
     [{ action: "view" }, "pr required"],
     [{ action: "stack-status" }, "stackPrs or pr required"],
     [{ action: "explode" }, "action must be view|merge|stack-status|gate-check"],
   ];
   for (const [params, message] of cases) {
-    await assert.rejects(() => exec("pstack_ship", params), new Error(message));
+    await expect(() => exec("pstack_ship", params)).rejects.toThrow(new Error(message));
   }
 }
 
 async function babysitScenarios(exec) {
   const recipe = await exec("pstack_babysit", { pr: "7", recipeId: "gh-view-json", armLoopHint: false });
-  assert.deepEqual([recipe.details.via, recipe.details.recipeId], ["gh-recipe", "gh-view-json"]);
-  assert.deepEqual(recipe.details.watchArgv, [
+  expect([recipe.details.via, recipe.details.recipeId]).toEqual(["gh-recipe", "gh-view-json"]);
+  expect(recipe.details.watchArgv).toEqual([
     "gh",
     "pr",
     "view",
@@ -517,18 +483,12 @@ async function babysitScenarios(exec) {
     "state,mergeStateStatus,statusCheckRollup,reviewDecision",
   ]);
   const watched = await exec("pstack_babysit", { pr: "7", statusOnly: true, armLoopHint: false });
-  assert.deepEqual([watched.details.via, watched.details.recipeId], ["watch-pr", "watch-pr-status"]);
-  assert.equal(text(watched), "watched the pr\n");
+  expect([watched.details.via, watched.details.recipeId]).toEqual(["watch-pr", "watch-pr-status"]);
+  expect(text(watched)).toBe("watched the pr\n");
   const hinted = await exec("pstack_babysit", { pr: "7", statusOnly: true });
-  assert.match(text(hinted), /pstack_loop dynamic arm \(default babysit recipe watch-pr-status\)/);
-  await assert.rejects(
-    () => exec("pstack_babysit", { pr: "7", recipeId: "nope" }),
-    new Error("unknown babysit recipeId 'nope'. Known: watch-pr-status, watch-pr-drive, watch-pr-stack, watch-pr-queued-stack, gh-checks-watch, gh-view-json"),
-  );
-  await assert.rejects(
-    () => exec("pstack_babysit", { pr: "7", recipeId: "watch-pr-queued-stack" }),
-    new Error("recipeId=watch-pr-queued-stack requires stackPrs (bottom-to-top PR numbers)"),
-  );
+  expect(text(hinted)).toMatch(/pstack_loop dynamic arm \(default babysit recipe watch-pr-status\)/);
+  await expect(() => exec("pstack_babysit", { pr: "7", recipeId: "nope" })).rejects.toThrow(new Error("unknown babysit recipeId 'nope'. Known: watch-pr-status, watch-pr-drive, watch-pr-stack, watch-pr-queued-stack, gh-checks-watch, gh-view-json"));
+  await expect(() => exec("pstack_babysit", { pr: "7", recipeId: "watch-pr-queued-stack" })).rejects.toThrow(new Error("recipeId=watch-pr-queued-stack requires stackPrs (bottom-to-top PR numbers)"));
 }
 
 test("pstack_ship and pstack_babysit drive gh and watch-pr behind stub binaries", async () => {
@@ -550,36 +510,33 @@ test("pstack_ship and pstack_babysit drive gh and watch-pr behind stub binaries"
 
 async function deslopFindings(exec) {
   const found = await exec("pstack_deslop", {});
-  assert.deepEqual(found.details.findings, [
+  expect(found.details.findings).toEqual([
     { label: "narration / alibi comment", severity: "high", count: 1, samples: ["app.ts: // Phase 1: add cards"], suggestion: "delete-line", safeDelete: true },
   ]);
-  assert.deepEqual(found.details.suggestions, [
+  expect(found.details.suggestions).toEqual([
     { file: "app.ts", line: "// Phase 1: add cards", label: "narration / alibi comment", severity: "high", action: "delete-line", safeDelete: true },
   ]);
-  assert.match(text(found), /Added lines scanned: 2\.$/);
+  expect(text(found)).toMatch(/Added lines scanned: 2\.$/);
   const dry = await exec("pstack_deslop", { dryRun: true });
-  assert.deepEqual(dry.details.apply, { applied: 0, files: ["app.ts"], dryRun: true });
-  assert.match(text(dry), /dryRun: would remove 1 safeDelete line\(s\) across 1 file\(s\) \(no writes\)$/);
+  expect(dry.details.apply).toEqual({ applied: 0, files: ["app.ts"], dryRun: true });
+  expect(text(dry)).toMatch(/dryRun: would remove 1 safeDelete line\(s\) across 1 file\(s\) \(no writes\)$/);
 }
 
 async function deslopApplies(f, exec) {
   const applied = await exec("pstack_deslop", { applySafe: true });
-  assert.deepEqual(applied.details.apply, { applied: 1, files: ["app.ts"] });
-  assert.equal(f.read("app.ts"), "export const one = 1;\nexport const two = 2;\n");
+  expect(applied.details.apply).toEqual({ applied: 1, files: ["app.ts"] });
+  expect(f.read("app.ts")).toBe("export const one = 1;\nexport const two = 2;\n");
   f.write("app.ts", "export const one = 1;\n// Phase 1: add cards\nexport const two = 2;\n");
   const auto = await exec("pstack_deslop", { autoApply: true });
-  assert.deepEqual(auto.details.apply, { applied: 1, files: ["app.ts"] });
-  assert.deepEqual(f.ui.dialogs.at(-1), {
+  expect(auto.details.apply).toEqual({ applied: 1, files: ["app.ts"] });
+  expect(f.ui.dialogs.at(-1)).toEqual({
     method: "confirm",
     title: "pstack_deslop autoApply",
     message: "Delete 1 safe slop line(s)?",
   });
   const clean = await exec("pstack_deslop", {});
-  assert.deepEqual(clean.details.findings, []);
-  assert.equal(
-    text(clean),
-    "pstack_deslop: no common slop patterns in added lines (still run /skill:unslop on prose surfaces).",
-  );
+  expect(clean.details.findings).toEqual([]);
+  expect(text(clean)).toBe("pstack_deslop: no common slop patterns in added lines (still run /skill:unslop on prose surfaces).");
 }
 
 async function deslopRefusals(exec) {
@@ -590,7 +547,7 @@ async function deslopRefusals(exec) {
     [{ paths: ["-x"] }, "invalid path: -x"],
   ];
   for (const [params, message] of cases) {
-    await assert.rejects(() => exec("pstack_deslop", params), new Error(message));
+    await expect(() => exec("pstack_deslop", params)).rejects.toThrow(new Error(message));
   }
 }
 
@@ -616,38 +573,29 @@ async function decisionLogScenarios(f, exec) {
     evidence: "tests/layers/02-integration",
     result: "green",
   });
-  assert.equal(text(logged), `Logged decision to ${join(f.tmp.cwd, ".pi", "decisions.tsv")}`);
-  assert.deepEqual(logged.details, {
+  expect(text(logged)).toBe(`Logged decision to ${join(f.tmp.cwd, ".pi", "decisions.tsv")}`);
+  expect(logged.details).toEqual({
     path: join(f.tmp.cwd, ".pi", "decisions.tsv"),
     decision: "cover the loader",
     phase: "probe",
   });
-  assert.match(
-    f.read(join(".pi", "decisions.tsv")),
-    /^ts\tphase\tdecision\twhy\tevidence\tresult\n\S+\tprobe\tcover the loader\t/,
-  );
+  expect(f.read(join(".pi", "decisions.tsv"))).toMatch(/^ts\tphase\tdecision\twhy\tevidence\tresult\n\S+\tprobe\tcover the loader\t/);
   const audit = await exec("pstack_decision_log", {
     path: "@.pi/audit/wave.tsv",
     phase: "probe",
     decision: "audit row",
     why: "exercise the at-prefix strip",
   });
-  assert.equal(audit.details.path, join(f.tmp.cwd, ".pi", "audit", "wave.tsv"));
-  await assert.rejects(
-    () => exec("pstack_decision_log", { phase: "p", decision: "d", why: "w", path: "../escape.tsv" }),
-    /pstack_decision_log path must stay under/,
-  );
-  await assert.rejects(
-    () => exec("pstack_decision_log", { phase: "p", decision: "d", why: "w", path: ".pi" }),
-    /pstack_decision_log path must stay under/,
-  );
+  expect(audit.details.path).toBe(join(f.tmp.cwd, ".pi", "audit", "wave.tsv"));
+  await expect(() => exec("pstack_decision_log", { phase: "p", decision: "d", why: "w", path: "../escape.tsv" })).rejects.toThrow(/pstack_decision_log path must stay under/);
+  await expect(() => exec("pstack_decision_log", { phase: "p", decision: "d", why: "w", path: ".pi" })).rejects.toThrow(/pstack_decision_log path must stay under/);
 }
 
 async function jobsScenarios(exec) {
   const jobs = await exec("pstack_jobs", { action: "list" });
-  assert.equal(text(jobs), "concurrency 0/8 waiting=0\n(no background jobs)");
-  assert.deepEqual(jobs.details.concurrency, { active: 0, cap: 8, waiting: 0 });
-  assert.deepEqual(jobs.details.jobs, []);
+  expect(text(jobs)).toBe("concurrency 0/8 waiting=0\n(no background jobs)");
+  expect(jobs.details.concurrency).toEqual({ active: 0, cap: 8, waiting: 0 });
+  expect(jobs.details.jobs).toEqual([]);
   const cases = [
     [{ action: "status" }, "id required for status|await"],
     [{ action: "abort" }, "id required for abort"],
@@ -656,29 +604,20 @@ async function jobsScenarios(exec) {
     [{ action: "await", id: "ghost", timeoutMs: 1000 }, "unknown background job: ghost"],
   ];
   for (const [params, message] of cases) {
-    await assert.rejects(() => exec("pstack_jobs", params), new Error(message));
+    await expect(() => exec("pstack_jobs", params)).rejects.toThrow(new Error(message));
   }
 }
 
 async function controlCliScenarios(exec) {
   const cli = await exec("pstack_control_cli", { argv: ["git", "--version"] });
-  assert.equal(cli.details.code, 0);
-  assert.match(text(cli), /^exit 0\n\ngit version /);
+  expect(cli.details.code).toBe(0);
+  expect(text(cli)).toMatch(/^exit 0\n\ngit version /);
   const cwdProbe = await exec("pstack_control_cli", { argv: ["git", "rev-parse", "--is-inside-work-tree"] });
-  assert.equal(cwdProbe.details.code, 128);
-  await assert.rejects(
-    () => exec("pstack_control_cli", { argv: ["rm", "-rf", "/tmp"] }),
-    new Error("command 'rm' not in control_cli allowlist (npm, pnpm, yarn, bun, node, python, python3, go, cargo, make, pytest, git, gh, pi, tsx, npx)"),
-  );
-  await assert.rejects(
-    () => exec("pstack_control_cli", { argv: ["/tmp/git", "status"] }),
-    /^Error: command path '\/tmp\/git' is not in a trusted binary directory/,
-  );
+  expect(cwdProbe.details.code).toBe(128);
+  await expect(() => exec("pstack_control_cli", { argv: ["rm", "-rf", "/tmp"] })).rejects.toThrow(new Error("command 'rm' not in control_cli allowlist (npm, pnpm, yarn, bun, node, python, python3, go, cargo, make, pytest, git, gh, pi, tsx, npx)"));
+  await expect(() => exec("pstack_control_cli", { argv: ["/tmp/git", "status"] })).rejects.toThrow(/^command path '\/tmp\/git' is not in a trusted binary directory/);
   await withEnv({ PSTACK_CONTROL_CLI_INTERPRETERS: "0" }, async () => {
-    await assert.rejects(
-      () => exec("pstack_control_cli", { argv: ["python3", "-c", "print(1)"] }),
-      new Error("interpreter 'python3' requires an explicit allowInterpreters opt-in"),
-    );
+    await expect(() => exec("pstack_control_cli", { argv: ["python3", "-c", "print(1)"] })).rejects.toThrow(new Error("interpreter 'python3' requires an explicit allowInterpreters opt-in"));
   });
 }
 
@@ -694,78 +633,48 @@ test("pstack_decision_log, pstack_jobs, and pstack_control_cli cover their bound
 async function controlUiScenarios(exec, origin) {
   const allowHosts = ["127.0.0.1"];
   const ok = await exec("pstack_control_ui", { url: `${origin}/ok`, allowHosts });
-  assert.equal(text(ok), "HTTP 200 ok=true\n\nprobe body");
-  assert.deepEqual(ok.details, { status: 200, ok: true });
+  expect(text(ok)).toBe("HTTP 200 ok=true\n\nprobe body");
+  expect(ok.details).toEqual({ status: 200, ok: true });
   const redirected = await exec("pstack_control_ui", { url: `${origin}/redirect`, allowHosts });
-  assert.deepEqual(redirected.details, { status: 200, ok: true });
+  expect(redirected.details).toEqual({ status: 200, ok: true });
   const mismatched = await exec("pstack_control_ui", { url: `${origin}/ok`, expectStatus: 204, allowHosts });
-  assert.deepEqual(mismatched.details, { status: 200, ok: false });
-  await assert.rejects(
-    () => exec("pstack_control_ui", { url: `${origin}/ok` }),
-    /^Error: pstack_control_ui refused http:\/\/127\.0\.0\.1:\d+\/ok: host '127\.0\.0\.1' is a private, loopback, or link-local target$/,
-  );
-  await assert.rejects(
-    () => exec("pstack_control_ui", { url: "http://169.254.169.254/latest" }),
-    new Error("pstack_control_ui refused http://169.254.169.254/latest: host '169.254.169.254' is a metadata or local-only host"),
-  );
-  await assert.rejects(
-    () => exec("pstack_control_ui", { url: "file:///etc/passwd" }),
-    new Error("pstack_control_ui refused file:///etc/passwd: scheme 'file:' is not http or https"),
-  );
+  expect(mismatched.details).toEqual({ status: 200, ok: false });
+  await expect(() => exec("pstack_control_ui", { url: `${origin}/ok` })).rejects.toThrow(/^pstack_control_ui refused http:\/\/127\.0\.0\.1:\d+\/ok: host '127\.0\.0\.1' is a private, loopback, or link-local target$/);
+  await expect(() => exec("pstack_control_ui", { url: "http://169.254.169.254/latest" })).rejects.toThrow(new Error("pstack_control_ui refused http://169.254.169.254/latest: host '169.254.169.254' is a metadata or local-only host"));
+  await expect(() => exec("pstack_control_ui", { url: "file:///etc/passwd" })).rejects.toThrow(new Error("pstack_control_ui refused file:///etc/passwd: scheme 'file:' is not http or https"));
 }
 
 async function bennyScenarios(f, exec) {
   await withEnv({ HOME: f.tmp.home }, async () => {
     const wakeFile = join(f.tmp.home, ".pi", "agent", "pstack-benny-wakes.jsonl");
     const wakePath = await exec("pstack_benny_wake", { action: "path" });
-    assert.equal(text(wakePath), wakeFile);
-    assert.deepEqual(wakePath.details, { path: wakeFile });
-    await assert.rejects(
-      () => exec("pstack_benny_wake", { action: "append" }),
-      new Error("pstack_benny_wake append requires a non-empty payload JSON string"),
-    );
+    expect(text(wakePath)).toBe(wakeFile);
+    expect(wakePath.details).toEqual({ path: wakeFile });
+    await expect(() => exec("pstack_benny_wake", { action: "append" })).rejects.toThrow(new Error("pstack_benny_wake append requires a non-empty payload JSON string"));
     const appended = await exec("pstack_benny_wake", {
       action: "append",
       payload: '{"issue":42}',
       intent: "repro",
     });
-    assert.deepEqual(appended.details, { ok: true, path: wakeFile });
+    expect(appended.details).toEqual({ ok: true, path: wakeFile });
     const drained = await exec("pstack_benny_wake", { action: "drain" });
-    assert.equal(drained.details.count, 1);
-    assert.match(text(drained), /^Drained 1 wake\(s\):\n\{"ts":".+","intent":"repro","payload":\{"issue":42\}\}$/);
+    expect(drained.details.count).toBe(1);
+    expect(text(drained)).toMatch(/^Drained 1 wake\(s\):\n\{"ts":".+","intent":"repro","payload":\{"issue":42\}\}$/);
     const empty = await exec("pstack_benny_wake", { action: "drain" });
-    assert.equal(text(empty), "No pending Benny wakes.");
-    assert.equal(empty.details.count, 0);
+    expect(text(empty)).toBe("No pending Benny wakes.");
+    expect(empty.details.count).toBe(0);
   });
 }
 
 async function spawnRefusals(exec) {
   await withEnv({ PSTACK_HOSTED_URL: "" }, async () => {
-    await assert.rejects(
-      () => exec("pstack_spawn", { task: "probe", model: "gpt-4o" }),
-      /^Error: Refused bare model slug 'gpt-4o'\. Pass provider\/id /,
-    );
-    await assert.rejects(
-      () => exec("pstack_spawn", { task: "probe", cwd: "../escape" }),
-      /^Error: pstack_spawn cwd escapes the workspace root: /,
-    );
-    await assert.rejects(
-      () => exec("pstack_task", { prompt: "probe", model: "gpt-4o" }),
-      /^Error: Refused bare model slug 'gpt-4o'\./,
-    );
-    await assert.rejects(
-      () => exec("pstack_task", { prompt: "probe", model: "inherit-parent", environment: "hosted" }),
-      /^Error: pstack_task environment=hosted requires PSTACK_HOSTED_URL/,
-    );
+    await expect(() => exec("pstack_spawn", { task: "probe", model: "gpt-4o" })).rejects.toThrow(/^Refused bare model slug 'gpt-4o'\. Pass provider\/id /);
+    await expect(() => exec("pstack_spawn", { task: "probe", cwd: "../escape" })).rejects.toThrow(/^pstack_spawn cwd escapes the workspace root: /);
+    await expect(() => exec("pstack_task", { prompt: "probe", model: "gpt-4o" })).rejects.toThrow(/^Refused bare model slug 'gpt-4o'\./);
+    await expect(() => exec("pstack_task", { prompt: "probe", model: "inherit-parent", environment: "hosted" })).rejects.toThrow(/^pstack_task environment=hosted requires PSTACK_HOSTED_URL/);
   });
-  await assert.rejects(
-    () => exec("pstack_arena", { prompt: "probe", candidates: [{ label: "a" }] }),
-    /^Error: git worktree add failed: /,
-  );
-  await assert.rejects(
-    () => exec("pstack_swarm", { workers: [{ task: "probe" }] }),
-    /^Error: git worktree add failed: /,
-  );
+  await expect(() => exec("pstack_arena", { prompt: "probe", candidates: [{ label: "a" }] })).rejects.toThrow(/^git worktree add failed: /);
+  await expect(() => exec("pstack_swarm", { workers: [{ task: "probe" }] })).rejects.toThrow(/^git worktree add failed: /);
 }
 
 test("pstack_control_ui, pstack_benny_wake, and the spawn family refuse or stay offline", async () => {

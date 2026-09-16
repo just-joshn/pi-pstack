@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -27,14 +26,11 @@ test("scanFrames reports declaration, arrow, and method spans", () => {
     "};",
   ].join("\n");
   const named = scanFrames(source).frames.filter((frame) => frame.kind !== "block");
-  assert.deepEqual(
-    named.map((frame) => [frame.name, frame.startLine, frame.endLine]),
-    [
+  expect(named.map((frame) => [frame.name, frame.startLine, frame.endLine])).toEqual([
       ["alpha", 1, 3],
       ["beta", 5, 7],
       ["gamma", 10, 12],
-    ],
-  );
+    ]);
 });
 
 test("scanFrames spans typed and generic signatures", () => {
@@ -58,15 +54,12 @@ test("scanFrames spans typed and generic signatures", () => {
     "}",
   ].join("\n");
   const named = scanFrames(source).frames.filter((frame) => frame.kind !== "block");
-  assert.deepEqual(
-    named.map((frame) => [frame.name, frame.startLine, frame.endLine]),
-    [
+  expect(named.map((frame) => [frame.name, frame.startLine, frame.endLine])).toEqual([
       ["typed", 1, 3],
       ["generic", 5, 7],
       ["run", 10, 12],
       ["bad", 15, 17],
-    ],
-  );
+    ]);
 });
 
 test("auditSource flags a typed function body longer than 50 lines", () => {
@@ -74,7 +67,7 @@ test("auditSource flags a typed function body longer than 50 lines", () => {
   const hits = auditSource(`function big(): Promise<void> {\n${body}}\n`).filter(
     (violation) => violation.rule === "function>50",
   );
-  assert.deepEqual(hits.map((hit) => hit.detail), ["big spans 53 lines"]);
+  expect(hits.map((hit) => hit.detail)).toEqual(["big spans 53 lines"]);
 });
 
 test("sanitize masks strings, templates, comments, and regex without shifting lines", () => {
@@ -82,29 +75,23 @@ test("sanitize masks strings, templates, comments, and regex without shifting li
     "\n",
   );
   const clean = sanitize(source);
-  assert.equal(clean.split("\n").length, source.split("\n").length);
-  assert.equal(clean.includes("push("), false);
-  assert.equal(clean.includes("splice("), false);
-  assert.equal(clean.includes("console.log"), false);
-  assert.equal(clean.includes("delete"), false);
-  assert.equal(clean.includes("const c = 1;"), true);
+  expect(clean.split("\n").length).toBe(source.split("\n").length);
+  expect(clean.includes("push(")).toBe(false);
+  expect(clean.includes("splice(")).toBe(false);
+  expect(clean.includes("console.log")).toBe(false);
+  expect(clean.includes("delete")).toBe(false);
+  expect(clean.includes("const c = 1;")).toBe(true);
 });
 
 test("auditSource flags secrets inside string and template literals", () => {
   const key = ["sk", "a".repeat(24)].join("-");
   const source = [`const fromString = "${key}";`, `const fromTemplate = \`${key}\`;`].join("\n");
-  assert.deepEqual(
-    auditSource(source).map((violation) => `${violation.rule}:${violation.line}`),
-    ["secret:1", "secret:2"],
-  );
+  expect(auditSource(source).map((violation) => `${violation.rule}:${violation.line}`)).toEqual(["secret:1", "secret:2"]);
 });
 
 test("auditSource flags scoped OpenAI key formats", () => {
   const key = ["sk", "proj", "b".repeat(40)].join("-");
-  assert.deepEqual(
-    auditSource(`const apiKey = "${key}";`).map((violation) => `${violation.rule}:${violation.line}`),
-    ["secret:1"],
-  );
+  expect(auditSource(`const apiKey = "${key}";`).map((violation) => `${violation.rule}:${violation.line}`)).toEqual(["secret:1"]);
 });
 
 test("auditSource flags each banned construct with its line number", () => {
@@ -118,10 +105,7 @@ test("auditSource flags each banned construct with its line number", () => {
     "  console.log(i);",
     "}",
   ].join("\n");
-  assert.deepEqual(
-    auditSource(source).map((violation) => `${violation.rule}:${violation.line}`),
-    ["mutation:2", "increment:4", "empty-catch:5", "delete:6", "console.log:7"],
-  );
+  expect(auditSource(source).map((violation) => `${violation.rule}:${violation.line}`)).toEqual(["mutation:2", "increment:4", "empty-catch:5", "delete:6", "console.log:7"]);
 });
 
 const SHARED_STATE_WRITES = [
@@ -135,57 +119,46 @@ const SHARED_STATE_WRITES = [
 test("auditSource flags every shared-state write form at its own line", () => {
   for (const { label, source } of SHARED_STATE_WRITES) {
     const hits = auditSource(source).filter((violation) => violation.rule === "mutation");
-    assert.equal(hits.length, 1, `${label} is reported once`);
-    assert.equal(hits[0].line, 3, `${label} reports the write line`);
-    assert.equal(hits[0].scope, "module", `${label} is classified as module scope`);
-    assert.match(hits[0].detail, /module-level/, `${label} names the receiver`);
+    expect(hits.length, `${label} is reported once`).toBe(1);
+    expect(hits[0].line, `${label} reports the write line`).toBe(3);
+    expect(hits[0].scope, `${label} is classified as module scope`).toBe("module");
+    expect(hits[0].detail, `${label} names the receiver`).toMatch(/module-level/);
   }
 });
 
 test("auditSource follows a property chain to its module-level root", () => {
   const source = "const config = { db: { timeout: 1 } };\nexport function f() {\n  config.db.timeout = 5;\n}\n";
   const hits = auditSource(source).filter((violation) => violation.rule === "mutation");
-  assert.deepEqual(
-    hits.map((hit) => [hit.line, hit.scope]),
-    [[3, "module"]],
-  );
+  expect(hits.map((hit) => [hit.line, hit.scope])).toEqual([[3, "module"]]);
 });
 
 test("auditSource leaves a local array push to the container-call rule", () => {
   const violations = auditSource("export function f() {\n  const acc = [];\n  acc.push(1);\n}\n");
-  assert.deepEqual(
-    violations.map((violation) => violation.rule),
-    ["mutation"],
-    "the unconditional container-call rule still fires",
-  );
-  assert.deepEqual(
-    violations.filter((violation) => violation.scope === "module"),
-    [],
-    "a function-local accumulator is not shared state",
-  );
+  expect(violations.map((violation) => violation.rule), "the unconditional container-call rule still fires").toEqual(["mutation"]);
+  expect(violations.filter((violation) => violation.scope === "module"), "a function-local accumulator is not shared state").toEqual([]);
 });
 
 test("auditSource does not report a parameter or a read-only module object", () => {
   const parameter = "export function f(state) {\n  state.n = 1;\n}\n";
   const readOnly = "const config = { timeout: 1 };\nexport function f() {\n  return config.timeout;\n}\n";
-  assert.deepEqual(auditSource(parameter), []);
-  assert.deepEqual(auditSource(readOnly), []);
+  expect(auditSource(parameter)).toEqual([]);
+  expect(auditSource(readOnly)).toEqual([]);
 });
 
 test("auditSource ignores module-initiation writes, this.x, and a regex cursor", () => {
   const atInit = "const seen = [0];\nfor (const step of [1]) {\n  seen[0] = step;\n}\n";
   const ownField = "export function f() {\n  this.x = 1;\n}\n";
   const cursor = "const re = /a/g;\nexport function f() {\n  re.lastIndex = 0;\n}\n";
-  assert.deepEqual(auditSource(atInit), []);
-  assert.deepEqual(auditSource(ownField), []);
-  assert.deepEqual(auditSource(cursor), []);
+  expect(auditSource(atInit)).toEqual([]);
+  expect(auditSource(ownField)).toEqual([]);
+  expect(auditSource(cursor)).toEqual([]);
 });
 
 test("auditSource flags a function body longer than 50 lines", () => {
   const body = "  const x = 1;\n".repeat(51);
   const source = `function big() {\n${body}}\n`;
   const hits = auditSource(source).filter((violation) => violation.rule === "function>50");
-  assert.deepEqual(hits.map((hit) => hit.detail), ["big spans 53 lines"]);
+  expect(hits.map((hit) => hit.detail)).toEqual(["big spans 53 lines"]);
 });
 
 test("auditSource flags control nesting beyond four levels", () => {
@@ -203,26 +176,20 @@ test("auditSource flags control nesting beyond four levels", () => {
     "  }",
     "}",
   ].join("\n");
-  assert.deepEqual(
-    auditSource(source).map((violation) => violation.rule),
-    ["nesting>4"],
-  );
+  expect(auditSource(source).map((violation) => violation.rule)).toEqual(["nesting>4"]);
 });
 
 test("auditSource flags a file longer than 800 lines and passes the boundary", () => {
   const atLimit = "const x = 1;\n".repeat(799) + "const y = 2;";
   const overLimit = `${atLimit}\nconst z = 3;`;
-  assert.equal(auditSource(atLimit).length, 0);
-  assert.deepEqual(
-    auditSource(overLimit).map((violation) => violation.rule),
-    ["file>800"],
-  );
+  expect(auditSource(atLimit).length).toBe(0);
+  expect(auditSource(overLimit).map((violation) => violation.rule)).toEqual(["file>800"]);
 });
 
 test("auditSource returns no violations for clean source and rejects non-strings", () => {
-  assert.deepEqual(auditSource("export const add = (a, b) => a + b;\n"), []);
-  assert.throws(() => auditSource(null), /expects source text/);
-  assert.throws(() => auditSource(undefined), /expects source text/);
+  expect(auditSource("export const add = (a, b) => a + b;\n")).toEqual([]);
+  expect(() => auditSource(null)).toThrow(/expects source text/);
+  expect(() => auditSource(undefined)).toThrow(/expects source text/);
 });
 
 test("the checker's own modules pass its rules", () => {
@@ -233,13 +200,13 @@ test("the checker's own modules pass its rules", () => {
     join(TESTS_DIR, "support", "conformance", "collect.mjs"),
   ];
   for (const file of files) {
-    assert.deepEqual(auditSource(readFileSync(file, "utf8")), [], `${file} must be conformant`);
+    expect(auditSource(readFileSync(file, "utf8")), `${file} must be conformant`).toEqual([]);
   }
 });
 
 test("collectViolations walks roots, keeps only offenders, and partitions severity", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "pi-pstack-conformance-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.onTestFinished(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, "extensions"));
   mkdirSync(join(dir, "skills"));
   writeFileSync(join(dir, "extensions", "bad.ts"), "export function f(items) {\n  items.push(1);\n}\n");
@@ -247,13 +214,7 @@ test("collectViolations walks roots, keeps only offenders, and partitions severi
   writeFileSync(join(dir, "extensions", "clean.ts"), "export const add = (a, b) => a + b;\n");
 
   const owned = collectViolations({ base: dir, roots: ["extensions"] });
-  assert.deepEqual(
-    owned.map((entry) => [entry.file, entry.violations[0].rule, entry.violations[0].severity]),
-    [["extensions/bad.ts", "mutation", "error"]],
-  );
+  expect(owned.map((entry) => [entry.file, entry.violations[0].rule, entry.violations[0].severity])).toEqual([["extensions/bad.ts", "mutation", "error"]]);
   const ported = collectViolations({ base: dir, roots: ["skills"], owned: false });
-  assert.deepEqual(
-    ported.map((entry) => [entry.file, entry.violations[0].severity]),
-    [["skills/bad.ts", "warn"]],
-  );
+  expect(ported.map((entry) => [entry.file, entry.violations[0].severity])).toEqual([["skills/bad.ts", "warn"]]);
 });

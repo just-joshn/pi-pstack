@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -40,10 +39,10 @@ function ctxFor(cwd: string) {
 const MODEL = "anthropic/claude-sonnet-4-5";
 
 test("isPathInside requires a separator boundary", () => {
-  assert.equal(isPathInside("/a/.pi", "/a/.pi/decisions.tsv"), true);
-  assert.equal(isPathInside("/a/.pi", "/a/.pi"), true);
-  assert.equal(isPathInside("/a/.pi", "/a/.pi-evil/x.tsv"), false, ".pi-evil must not pass a bare startsWith(.pi)");
-  assert.equal(isPathInside("/a/.pi", "/a/.piX"), false);
+  expect(isPathInside("/a/.pi", "/a/.pi/decisions.tsv")).toBe(true);
+  expect(isPathInside("/a/.pi", "/a/.pi")).toBe(true);
+  expect(isPathInside("/a/.pi", "/a/.pi-evil/x.tsv"), ".pi-evil must not pass a bare startsWith(.pi)").toBe(false);
+  expect(isPathInside("/a/.pi", "/a/.piX")).toBe(false);
 });
 
 test("assertPathContainment resolves the longest existing ancestor for a missing leaf", () => {
@@ -51,7 +50,7 @@ test("assertPathContainment resolves the longest existing ancestor for a missing
   try {
     const root = join(dir, ".pi");
     const leaf = join(root, "audit", "deep", "row.tsv");
-    assert.equal(assertPathContainment(leaf, { root }), leaf);
+    expect(assertPathContainment(leaf, { root })).toBe(leaf);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -66,8 +65,8 @@ test("assertPathContainment refuses a symlink whose realpath leaves the root", (
     mkdirSync(outside, { recursive: true });
     symlinkSync(outside, join(root, "esc"), "dir");
     const escaped = join(root, "esc", "row.tsv");
-    assert.throws(() => assertPathContainment(escaped, { root }), /escapes the workspace root/);
-    assert.equal(assertPathContainment(escaped, { root, allowedRoots: [outside] }), escaped);
+    expect(() => assertPathContainment(escaped, { root })).toThrow(/escapes the workspace root/);
+    expect(assertPathContainment(escaped, { root, allowedRoots: [outside] })).toBe(escaped);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -83,18 +82,15 @@ test("decision-log refuses the two-step symlinked .pi/esc write and leaves the t
     symlinkSync(outside, join(piDir, "esc"), "dir");
     const host = decisionLogHost(dir);
     const tool = host.tools.get("pstack_decision_log");
-    assert.ok(tool, "pstack_decision_log is registered");
-    await assert.rejects(
-      tool.execute(
+    expect(tool, "pstack_decision_log is registered").toBeTruthy();
+    await expect(tool.execute(
         "audit",
         { path: ".pi/esc/x.tsv", phase: "audit", decision: "escape", why: "symlink" },
         undefined,
         undefined,
         host.ctx,
-      ),
-      /must stay under/,
-    );
-    assert.equal(existsSync(join(outside, "x.tsv")), false, "nothing may land outside .pi");
+      )).rejects.toThrow(/must stay under/);
+    expect(existsSync(join(outside, "x.tsv")), "nothing may land outside .pi").toBe(false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -105,7 +101,7 @@ test("decision-log still writes a normal .pi row", async () => {
   try {
     const host = decisionLogHost(dir);
     const tool = host.tools.get("pstack_decision_log");
-    assert.ok(tool, "pstack_decision_log is registered");
+    expect(tool, "pstack_decision_log is registered").toBeTruthy();
     await tool.execute(
       "audit",
       { path: ".pi/audit/ok.tsv", phase: "p", decision: "d", why: "w" },
@@ -113,7 +109,7 @@ test("decision-log still writes a normal .pi row", async () => {
       undefined,
       host.ctx,
     );
-    assert.equal(existsSync(join(dir, ".pi", "audit", "ok.tsv")), true);
+    expect(existsSync(join(dir, ".pi", "audit", "ok.tsv"))).toBe(true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -126,15 +122,9 @@ test("prepareChildInput contains cwd and resumeSessionDir to the workspace root"
     mkdirSync(join(root, "sub"), { recursive: true });
     const inside = join(root, "sub");
     const prepared = prepareChildInput({ task: "brief", model: MODEL, cwd: inside }, ctxFor(root), spawnHost());
-    assert.equal(prepared.childInput.cwd, inside);
-    assert.throws(
-      () => prepareChildInput({ task: "brief", model: MODEL, cwd: outside }, ctxFor(root), spawnHost()),
-      /pstack_spawn cwd escapes the workspace root/,
-    );
-    assert.throws(
-      () => prepareChildInput({ task: "brief", model: MODEL, resumeSessionDir: outside }, ctxFor(root), spawnHost()),
-      /resumeSessionDir escapes the workspace root/,
-    );
+    expect(prepared.childInput.cwd).toBe(inside);
+    expect(() => prepareChildInput({ task: "brief", model: MODEL, cwd: outside }, ctxFor(root), spawnHost())).toThrow(/pstack_spawn cwd escapes the workspace root/);
+    expect(() => prepareChildInput({ task: "brief", model: MODEL, resumeSessionDir: outside }, ctxFor(root), spawnHost())).toThrow(/resumeSessionDir escapes the workspace root/);
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(outside, { recursive: true, force: true });
@@ -147,9 +137,9 @@ test("PSTACK_ALLOWED_CWD admits an intentional second workspace root", () => {
   const prior = process.env.PSTACK_ALLOWED_CWD;
   process.env.PSTACK_ALLOWED_CWD = other;
   try {
-    assert.deepEqual(allowedCwdRoots(root), [other]);
+    expect(allowedCwdRoots(root)).toEqual([other]);
     const prepared = prepareChildInput({ task: "brief", model: MODEL, cwd: other }, ctxFor(root), spawnHost());
-    assert.equal(prepared.childInput.cwd, other);
+    expect(prepared.childInput.cwd).toBe(other);
   } finally {
     if (prior === undefined) Reflect.deleteProperty(process.env, "PSTACK_ALLOWED_CWD");
     else process.env.PSTACK_ALLOWED_CWD = prior;

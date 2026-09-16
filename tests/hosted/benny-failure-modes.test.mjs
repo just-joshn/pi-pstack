@@ -1,7 +1,6 @@
-import assert from "node:assert/strict";
 import { appendFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import test from "node:test";
+import { expect, test } from "vitest";
 import {
   TEST_SIGNING_SECRET,
   TEST_TOKEN,
@@ -21,7 +20,7 @@ const CONFIG = { routes: [{ channel: "C_SOURCE", intent: "triage" }], defaultInt
 function withServer(t, options) {
   const started = startBenny(options);
   return started.then((benny) => {
-    t.after(async () => {
+    t.onTestFinished(async () => {
       await benny.close();
     });
     return benny;
@@ -44,25 +43,25 @@ test("benny-failure-01 rejects a bad slack signature", async (t) => {
     signingSecret: TEST_SIGNING_SECRET,
     now: () => FIXED_NOW,
   });
-  t.after(() => cleanupDir(stateDir));
+  t.onTestFinished(() => cleanupDir(stateDir));
 
   const raw = JSON.stringify(slackBody());
   const headers = signedHeaders(TEST_SIGNING_SECRET, raw, FIXED_NOW);
   const accepted = await request(benny.base, "/v1/benny/events", { method: "POST", body: raw, headers });
-  assert.equal(accepted.status, 202);
-  assert.equal(eventFiles(stateDir).length, 1);
+  expect(accepted.status).toBe(202);
+  expect(eventFiles(stateDir).length).toBe(1);
 
   const tampered = await request(benny.base, "/v1/benny/events", {
     method: "POST",
     body: JSON.stringify(slackBody()),
     headers: { ...headers, "x-slack-signature": `v0=${"0".repeat(64)}` },
   });
-  assert.equal(tampered.status, 401);
-  assert.equal(eventFiles(stateDir).length, 1);
+  expect(tampered.status).toBe(401);
+  expect(eventFiles(stateDir).length).toBe(1);
 
   const unsigned = await request(benny.base, "/v1/benny/events", { method: "POST", body: raw });
-  assert.equal(unsigned.status, 401);
-  assert.equal(eventFiles(stateDir).length, 1);
+  expect(unsigned.status).toBe(401);
+  expect(eventFiles(stateDir).length).toBe(1);
 });
 
 test("benny-failure-02 missing credentials are 401", async (t) => {
@@ -73,15 +72,15 @@ test("benny-failure-02 missing credentials are 401", async (t) => {
     token: TEST_TOKEN,
     signingSecret: "",
   });
-  t.after(() => cleanupDir(stateDir));
+  t.onTestFinished(() => cleanupDir(stateDir));
 
   const posted = await request(benny.base, "/v1/benny/events", { method: "POST", body: slackBody() });
-  assert.equal(posted.status, 401);
+  expect(posted.status).toBe(401);
   const listed = await request(benny.base, "/v1/benny/events?state=pending");
-  assert.equal(listed.status, 401);
+  expect(listed.status).toBe(401);
   const wrong = await request(benny.base, "/v1/benny/events?state=pending", { token: "not-the-token" });
-  assert.equal(wrong.status, 401);
-  assert.equal(eventFiles(stateDir).length, 0);
+  expect(wrong.status).toBe(401);
+  expect(eventFiles(stateDir).length).toBe(0);
 });
 
 test("benny-failure-03 no configured credential fails closed with 503", async (t) => {
@@ -92,17 +91,17 @@ test("benny-failure-03 no configured credential fails closed with 503", async (t
     token: "",
     signingSecret: "",
   });
-  t.after(() => cleanupDir(stateDir));
+  t.onTestFinished(() => cleanupDir(stateDir));
 
   const health = await request(benny.base, "/healthz");
-  assert.equal(health.status, 200);
-  assert.equal(health.json.status, "ok");
-  assert.equal((await request(benny.base, "/v1/benny/events", { method: "POST", body: slackBody() })).status, 503);
-  assert.equal((await request(benny.base, "/v1/benny/events?state=pending")).status, 503);
-  assert.equal((await request(benny.base, "/v1/benny/test-event", { method: "POST", body: slackBody() })).status, 503);
-  assert.equal((await request(benny.base, "/v1/hooks/anything", { method: "POST", body: {} })).status, 503);
-  assert.equal((await request(benny.base, "/v1/benny/events/evt-x/ack", { method: "POST" })).status, 503);
-  assert.equal(existsSync(join(stateDir, "wakes.jsonl")), false);
+  expect(health.status).toBe(200);
+  expect(health.json.status).toBe("ok");
+  expect((await request(benny.base, "/v1/benny/events", { method: "POST", body: slackBody() })).status).toBe(503);
+  expect((await request(benny.base, "/v1/benny/events?state=pending")).status).toBe(503);
+  expect((await request(benny.base, "/v1/benny/test-event", { method: "POST", body: slackBody() })).status).toBe(503);
+  expect((await request(benny.base, "/v1/hooks/anything", { method: "POST", body: {} })).status).toBe(503);
+  expect((await request(benny.base, "/v1/benny/events/evt-x/ack", { method: "POST" })).status).toBe(503);
+  expect(existsSync(join(stateDir, "wakes.jsonl"))).toBe(false);
 });
 
 test("benny-failure-04 malformed json persists nothing", async (t) => {
@@ -113,24 +112,24 @@ test("benny-failure-04 malformed json persists nothing", async (t) => {
     token: TEST_TOKEN,
     signingSecret: "",
   });
-  t.after(() => cleanupDir(stateDir));
+  t.onTestFinished(() => cleanupDir(stateDir));
 
   const posted = await request(benny.base, "/v1/benny/events", {
     method: "POST",
     token: TEST_TOKEN,
     body: "{\"type\": \"event_callback\", ",
   });
-  assert.equal(posted.status, 400);
-  assert.equal(posted.text.includes(TEST_TOKEN), false);
-  assert.equal(eventFiles(stateDir).length, 0);
+  expect(posted.status).toBe(400);
+  expect(posted.text.includes(TEST_TOKEN)).toBe(false);
+  expect(eventFiles(stateDir).length).toBe(0);
 
   const wrongShape = await request(benny.base, "/v1/benny/events", {
     method: "POST",
     token: TEST_TOKEN,
     body: { type: "event_callback" },
   });
-  assert.equal(wrongShape.status, 400);
-  assert.equal(eventFiles(stateDir).length, 0);
+  expect(wrongShape.status).toBe(400);
+  expect(eventFiles(stateDir).length).toBe(0);
 });
 
 test("benny-failure-05 a failed wake append keeps the event pending and retries", async (t) => {
@@ -150,25 +149,25 @@ test("benny-failure-05 a failed wake append keeps the event pending and retries"
     token: TEST_TOKEN,
     signingSecret: "",
   });
-  t.after(() => cleanupDir(stateDir));
+  t.onTestFinished(() => cleanupDir(stateDir));
 
   const body = slackBody();
   const first = await request(benny.base, "/v1/benny/events", { method: "POST", body, token: TEST_TOKEN });
-  assert.equal(first.status, 202);
-  assert.equal(first.json.state, "pending");
+  expect(first.status).toBe(202);
+  expect(first.json.state).toBe("pending");
   const pending = store.loadEvent(first.json.eventId);
-  assert.equal(pending.wakeAppendedAt, null);
-  assert.equal(pending.lastWakeError, "simulated wake write failure");
-  assert.equal(pending.state, "pending");
-  assert.equal(existsSync(wakeFile), false);
+  expect(pending.wakeAppendedAt).toBe(null);
+  expect(pending.lastWakeError).toBe("simulated wake write failure");
+  expect(pending.state).toBe("pending");
+  expect(existsSync(wakeFile)).toBe(false);
 
   control.fail = false;
   const retried = await request(benny.base, "/v1/benny/events", { method: "POST", body, token: TEST_TOKEN });
-  assert.equal(retried.status, 200);
-  assert.equal(retried.json.eventId, first.json.eventId);
-  assert.equal(store.loadEvent(first.json.eventId).lastWakeError, null);
-  assert.equal(typeof store.loadEvent(first.json.eventId).wakeAppendedAt, "string");
-  assert.equal(readWakeLines(wakeFile).length, 1);
+  expect(retried.status).toBe(200);
+  expect(retried.json.eventId).toBe(first.json.eventId);
+  expect(store.loadEvent(first.json.eventId).lastWakeError).toBe(null);
+  expect(typeof store.loadEvent(first.json.eventId).wakeAppendedAt).toBe("string");
+  expect(readWakeLines(wakeFile).length).toBe(1);
 });
 
 test("benny-failure-06 a stale slack timestamp is rejected", async (t) => {
@@ -180,13 +179,13 @@ test("benny-failure-06 a stale slack timestamp is rejected", async (t) => {
     signingSecret: TEST_SIGNING_SECRET,
     now: () => FIXED_NOW,
   });
-  t.after(() => cleanupDir(stateDir));
+  t.onTestFinished(() => cleanupDir(stateDir));
 
   const raw = JSON.stringify(slackBody());
   const headers = signedHeaders(TEST_SIGNING_SECRET, raw, FIXED_NOW - 600_000);
   const posted = await request(benny.base, "/v1/benny/events", { method: "POST", body: raw, headers });
-  assert.equal(posted.status, 401);
-  assert.equal(eventFiles(stateDir).length, 0);
+  expect(posted.status).toBe(401);
+  expect(eventFiles(stateDir).length).toBe(0);
 });
 
 test("benny-failure-07 oversized body is rejected with 413", async (t) => {
@@ -197,13 +196,13 @@ test("benny-failure-07 oversized body is rejected with 413", async (t) => {
     token: TEST_TOKEN,
     signingSecret: "",
   });
-  t.after(() => cleanupDir(stateDir));
+  t.onTestFinished(() => cleanupDir(stateDir));
 
   const posted = await request(benny.base, "/v1/benny/events", {
     method: "POST",
     token: TEST_TOKEN,
     body: JSON.stringify(slackBody({ event: { text: "x".repeat(300_000) } })),
   });
-  assert.equal(posted.status, 413);
-  assert.equal(eventFiles(stateDir).length, 0);
+  expect(posted.status).toBe(413);
+  expect(eventFiles(stateDir).length).toBe(0);
 });

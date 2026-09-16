@@ -41,7 +41,7 @@
     ]
   },
   "scripts": {
-    "test": "npm run typecheck && node compat/check.mjs && node spec/spec-check.mjs && node tests/runner.mjs",
+    "test": "npm run typecheck && node compat/check.mjs && node spec/spec-check.mjs && node tests/conformance.mjs && vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "compat:generate": "node compat/generate.mjs",
     "compat:check": "node compat/check.mjs",
@@ -49,28 +49,33 @@
     "compat:gate": "node compat/check.mjs && node compat/report.mjs --check && node spec/spec-check.mjs --require-complete && npm run test:differential && npm test && npm run parity:check",
     "spec:check": "node spec/spec-check.mjs",
     "spec:gate": "node spec/spec-check.mjs --require-complete && npm test && npm run parity:check && npm run test:differential && npm run test:acceptance && npm run test:coverage",
-    "test:differential": "node tests/differential.mjs",
-    "test:acceptance": "node --experimental-strip-types --import ./extensions/test/peer-deps.mjs tests/acceptance/run.mjs",
-    "test:journeys": "node tests/runner.mjs --layer 8",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"extensions/**\" --test-coverage-include=\"services/**\" --test-coverage-exclude=\"extensions/test/**\" --test-coverage-branches=80 --test-coverage-functions=80 tests/layers/01-unit/*.test.ts tests/layers/02-integration/*.test.mjs tests/acceptance/run.mjs tests/hosted/*.test.mjs",
+    "test:differential": "vitest run --config vitest.opt-in.config.ts --project differential",
+    "test:acceptance": "vitest run --project acceptance",
+    "test:journeys": "vitest run --project user-journeys",
+    "test:coverage": "vitest run --coverage",
     "test:conformance": "node tests/conformance.mjs",
     "test:bootstrap": "node tests/support/link-peers.mjs",
-    "test:unit": "node tests/runner.mjs --layer 1",
-    "test:hosted": "node --test tests/hosted/*.test.mjs",
-    "test:integration": "node tests/runner.mjs --layer 2",
-    "test:smoke": "node tests/runner.mjs --layer 3",
-    "test:reload": "node tests/runner.mjs --layer 4",
-    "test:rpc": "node tests/runner.mjs --layer 5",
-    "test:tui": "node tests/runner.mjs --layer 6",
+    "test:unit": "vitest run --project unit",
+    "test:hosted": "vitest run --project hosted",
+    "test:integration": "vitest run --project integration",
+    "test:inventory": "vitest run --project inventory",
+    "test:smoke": "vitest run --project smoke",
+    "test:reload": "vitest run --project reload",
+    "test:rpc": "vitest run --project rpc",
+    "test:tui": "vitest run --project tui",
+    "test:extensions": "vitest run --project extensions",
+    "test:third-party": "vitest run --config vitest.opt-in.config.ts --project third-party",
+    "test:scripts": "vitest run --project scripts",
+    "test:audit": "vitest run --config vitest.opt-in.config.ts --project audit",
+    "test:list": "vitest list",
     "parity:check": "node port/port.mjs check && node port/contract.mjs && node port/alias.mjs",
     "drift:report": "node port/drift.mjs report",
     "parity:sync": "node port/port.mjs sync",
-    "test:extensions": "node --experimental-strip-types --import ./extensions/test/peer-deps.mjs extensions/test/sticky-input-source.mjs && node --experimental-strip-types --import ./extensions/test/peer-deps.mjs extensions/test/spawn-orch-p1-unit.mjs && node --experimental-strip-types --import ./extensions/test/peer-deps.mjs extensions/test/spawn-orch-p1b-unit.mjs && node --experimental-strip-types --import ./extensions/test/peer-deps.mjs extensions/test/verify-local-partials.mjs && node --experimental-strip-types extensions/test/skill-commands.mjs",
     "conformance": "node tests/conformance.mjs"
   },
   "peerDependencies": {
-    "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
     "typebox": "*"
@@ -80,6 +85,8 @@
   },
   "devDependencies": {
     "@types/node": "^24.13.5",
-    "typescript": "^7.0.2"
+    "@vitest/coverage-v8": "^5.0.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
   }
 }

@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { repoRoot } from "../../support/repo-root.mjs";
@@ -19,24 +18,21 @@ test("content-11 keeps the simulator reclaimers and the keep-guard in the ported
     "Clear only caches the user has not said to keep",
     "~/.pi/agent",
   ]) {
-    assert.ok(text.includes(needle), `the reclaimed playbook must keep: ${needle}`);
+    expect(text.includes(needle), `the reclaimed playbook must keep: ${needle}`).toBeTruthy();
   }
-  assert.ok(!text.includes("Application Support/Cursor"), "the Cursor app-support path must not survive porting");
-  assert.ok(!text.includes(".cursor/projects"), "the Cursor transcript path must not survive porting");
+  expect(!text.includes("Application Support/Cursor"), "the Cursor app-support path must not survive porting").toBeTruthy();
+  expect(!text.includes(".cursor/projects"), "the Cursor transcript path must not survive porting").toBeTruthy();
 });
 
 test("content-12 the audit lever classifies from git worktree list and never deletes", () => {
   const text = read("skills/poteto-mode/scripts/worktree-audit.sh");
-  assert.ok(
-    text.includes("git worktree list --porcelain"),
-    "paths must come from git worktree list rather than a hand-typed root",
-  );
+  expect(text.includes("git worktree list --porcelain"), "paths must come from git worktree list rather than a hand-typed root").toBeTruthy();
   for (const bucket of ["hold-wip", "hold-open-pr", "verify-recent-chat", "safe", "review"]) {
-    assert.ok(text.includes(bucket), `the bucket ${bucket} must be classified`);
+    expect(text.includes(bucket), `the bucket ${bucket} must be classified`).toBeTruthy();
   }
-  assert.ok(text.includes('dirty="wip:'), "tracked edits must be classified as wip");
-  assert.ok(text.includes("scratch:"), "untracked-only trees must be classified as scratch");
-  assert.ok(text.includes("$HOME/.pi/agent/sessions"), "the transcript scan must read the Pi session store");
-  assert.ok(!text.includes("git worktree remove"), "the audit must not delete");
-  assert.ok(!text.includes("rm -rf"), "the audit must not delete");
+  expect(text.includes('dirty="wip:'), "tracked edits must be classified as wip").toBeTruthy();
+  expect(text.includes("scratch:"), "untracked-only trees must be classified as scratch").toBeTruthy();
+  expect(text.includes("$HOME/.pi/agent/sessions"), "the transcript scan must read the Pi session store").toBeTruthy();
+  expect(!text.includes("git worktree remove"), "the audit must not delete").toBeTruthy();
+  expect(!text.includes("rm -rf"), "the audit must not delete").toBeTruthy();
 });

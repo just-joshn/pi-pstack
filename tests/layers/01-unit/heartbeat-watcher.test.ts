@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { registerHeartbeat } from "../../../extensions/heartbeat/index.ts";
 
 interface CapturedTool {
@@ -68,7 +67,7 @@ test("a watcher that exits zero wakes the loop with reason=watcher", async () =>
   const env = fakeLoopEnv({ code: 0, stdout: "READY", stderr: "" });
   await armWatcher(env);
   await flush();
-  assert.match(env.messages().at(-1) ?? "", /reason=watcher\]/);
+  expect(env.messages().at(-1) ?? "").toMatch(/reason=watcher\]/);
 });
 
 test("a watcher that exits nonzero wakes with reason=watcher-error", async () => {
@@ -76,31 +75,28 @@ test("a watcher that exits nonzero wakes with reason=watcher-error", async () =>
   await armWatcher(env);
   await flush();
   const last = env.messages().at(-1) ?? "";
-  assert.match(last, /reason=watcher-error\]/);
-  assert.match(last, /watcher output \(exit 2\)/);
+  expect(last).toMatch(/reason=watcher-error\]/);
+  expect(last).toMatch(/watcher output \(exit 2\)/);
 });
 
 test("stopping a loop aborts the running watcher", async () => {
   const env = fakeLoopEnv("pending");
   await armWatcher(env);
   await flush();
-  assert.equal(env.signals().at(-1)?.aborted, false);
+  expect(env.signals().at(-1)?.aborted).toBe(false);
   await env.tool().execute("t", { action: "stop" }, undefined, undefined, env.ctx);
-  assert.equal(env.signals().at(-1)?.aborted, true);
+  expect(env.signals().at(-1)?.aborted).toBe(true);
 });
 
 test("a rejected watcher arm does not leave a phantom loop in status", async () => {
   const env = fakeLoopEnv({ code: 0, stdout: "", stderr: "" });
-  await assert.rejects(
-    env.tool().execute(
+  await expect(env.tool().execute(
       "t",
       { action: "arm", mode: "watcher", prompt: "wake", watchArgv: ["-x"] },
       undefined,
       undefined,
       env.ctx,
-    ),
-    /watchArgv\[0\] must be a command path\/name/,
-  );
+    )).rejects.toThrow(/watchArgv\[0\] must be a command path\/name/);
   const status = (await env.tool().execute(
     "t",
     { action: "status" },
@@ -108,7 +104,7 @@ test("a rejected watcher arm does not leave a phantom loop in status", async () 
     undefined,
     env.ctx,
   )) as { content: Array<{ text: string }> };
-  assert.equal(status.content[0].text, "(no active loops)");
+  expect(status.content[0].text).toBe("(no active loops)");
 });
 
 test("a watcher whose argv fails to spawn wakes with the crash cause, not a silent stop", async () => {
@@ -118,8 +114,8 @@ test("a watcher whose argv fails to spawn wakes with the crash cause, not a sile
   await flush();
   await flush();
   const last = env.messages().at(-1) ?? "";
-  assert.match(last, /reason=watcher-error\]/);
-  assert.match(last, /--- watcher failed ---\nspawn watch-pr ENOENT/);
+  expect(last).toMatch(/reason=watcher-error\]/);
+  expect(last).toMatch(/--- watcher failed ---\nspawn watch-pr ENOENT/);
 });
 
 test("a host refusal to deliver is recorded on the loop instead of becoming an unhandled rejection", async () => {
@@ -141,11 +137,8 @@ test("a host refusal to deliver is recorded on the loop instead of becoming an u
       undefined,
       env.ctx,
     )) as { content: Array<{ text: string }> };
-    assert.deepEqual(rejections, []);
-    assert.equal(
-      status.content[0].text,
-      "loop-1 mode=watcher fires=1/50 armed=true lastReason=deliver-failed (host refused sendUserMessage)",
-    );
+    expect(rejections).toEqual([]);
+    expect(status.content[0].text).toBe("loop-1 mode=watcher fires=1/50 armed=true lastReason=deliver-failed (host refused sendUserMessage)");
   } finally {
     process.off("unhandledRejection", listener);
   }

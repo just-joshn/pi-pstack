@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { afterAll, expect, test } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,7 +15,7 @@ const SKILL_HEADER = "## Poteto mode (sticky \u2014 re-injected each turn)";
 // the child. These tests exercise the parent path, so the ambient value must not leak in.
 const savedChildRole = process.env.PSTACK_CHILD_ROLE;
 Reflect.deleteProperty(process.env, "PSTACK_CHILD_ROLE");
-test.after(() => {
+afterAll(() => {
   if (savedChildRole === undefined) Reflect.deleteProperty(process.env, "PSTACK_CHILD_ROLE");
   else process.env.PSTACK_CHILD_ROLE = savedChildRole;
 });
@@ -116,7 +115,7 @@ function fakeStickyEnv() {
 function extractBetween(text: string, start: string, end: string): string {
   const startIndex = text.indexOf(start);
   const endIndex = text.indexOf(end);
-  assert.equal(startIndex >= 0 && endIndex > startIndex, true, `missing section ${start}`);
+  expect(startIndex >= 0 && endIndex > startIndex, `missing section ${start}`).toBe(true);
   return text.slice(startIndex + start.length, endIndex).trim();
 }
 
@@ -124,21 +123,18 @@ function assertCappedBodies(prompt: string, playbookHeader: string): void {
   const skillBody = extractBetween(prompt, SKILL_HEADER, SKILL_TRAILER);
   const rawSkillBody = stripFrontmatter(readFileSync(POTETO_SKILL, "utf8"));
   if (Buffer.byteLength(rawSkillBody, "utf8") <= 48_000) {
-    assert.equal(skillBody, rawSkillBody, "an under-cap skill body is injected whole");
+    expect(skillBody, "an under-cap skill body is injected whole").toBe(rawSkillBody);
   } else {
-    assert.equal(skillBody.includes(SKILL_TRUNCATION_MARKER), true, "an over-cap skill body is truncated");
-    assert.equal(
-      Buffer.byteLength(skillBody, "utf8") <= 48_000 + Buffer.byteLength(SKILL_TRUNCATION_MARKER, "utf8") + 2,
-      true,
-    );
+    expect(skillBody.includes(SKILL_TRUNCATION_MARKER), "an over-cap skill body is truncated").toBe(true);
+    expect(Buffer.byteLength(skillBody, "utf8") <= 48_000 + Buffer.byteLength(SKILL_TRUNCATION_MARKER, "utf8") + 2).toBe(true);
   }
-  assert.equal(Buffer.byteLength(loadPotetoStickyBody(), "utf8") <= 48_000 + 120, true);
+  expect(Buffer.byteLength(loadPotetoStickyBody(), "utf8") <= 48_000 + 120).toBe(true);
 
   const playbookBody = loadPlaybookBody("babysit");
-  assert.equal(prompt.includes(playbookHeader), true);
-  assert.equal(prompt.includes(PLAYBOOK_TRAILER), true);
-  assert.equal(prompt.includes(playbookBody), true, "the loaded, capped playbook body is injected");
-  assert.equal(Buffer.byteLength(playbookBody, "utf8") <= 24_000 + 120, true);
+  expect(prompt.includes(playbookHeader)).toBe(true);
+  expect(prompt.includes(PLAYBOOK_TRAILER)).toBe(true);
+  expect(prompt.includes(playbookBody), "the loaded, capped playbook body is injected").toBe(true);
+  expect(Buffer.byteLength(playbookBody, "utf8") <= 24_000 + 120).toBe(true);
 }
 
 async function runRoutedInput(childRole: string | undefined, text: string) {
@@ -168,13 +164,13 @@ test("sticky-01 /poteto-mode enables sticky mode and matches the playbook for th
   await env.commands.get("poteto-mode")?.handler("babysit PR 12", ctx);
 
   const state = env.runtime.getState();
-  assert.equal(state.enabled, true, "the command arms sticky mode");
-  assert.equal(state.matchedPlaybookId, "babysit", "the task text is matched");
-  assert.equal(state.matchedScore, 2);
-  assert.equal(state.assignedThisTurn, false, "the command records the text for the next turn");
-  assert.equal(state.lastUserText, "babysit PR 12");
-  assert.deepEqual(env.statuses().at(-1), ["pstack", "poteto:babysit"]);
-  assert.deepEqual(env.entries().at(-1), {
+  expect(state.enabled, "the command arms sticky mode").toBe(true);
+  expect(state.matchedPlaybookId, "the task text is matched").toBe("babysit");
+  expect(state.matchedScore).toBe(2);
+  expect(state.assignedThisTurn, "the command records the text for the next turn").toBe(false);
+  expect(state.lastUserText).toBe("babysit PR 12");
+  expect(env.statuses().at(-1)).toEqual(["pstack", "poteto:babysit"]);
+  expect(env.entries().at(-1)).toEqual({
     entryType: "pstack-poteto-mode",
     payload: {
       enabled: true,
@@ -183,16 +179,16 @@ test("sticky-01 /poteto-mode enables sticky mode and matches the playbook for th
       updatedAt: env.entries().at(-1)?.payload.updatedAt,
     },
   });
-  assert.deepEqual(env.messages(), [
+  expect(env.messages()).toEqual([
     { text: "/skill:poteto-mode playbooks/babysit babysit PR 12", opts: { expandPromptTemplates: true, deliverAs: "followUp" } },
   ]);
 
   const plain = fakeStickyEnv();
   await plain.commands.get("poteto-mode")?.handler("   ", { ui: plain.ui });
-  assert.equal(plain.runtime.getState().enabled, true);
-  assert.equal(plain.runtime.getState().matchedPlaybookId, null, "no task means no playbook match");
-  assert.deepEqual(plain.messages(), []);
-  assert.deepEqual(plain.statuses(), [
+  expect(plain.runtime.getState().enabled).toBe(true);
+  expect(plain.runtime.getState().matchedPlaybookId, "no task means no playbook match").toBe(null);
+  expect(plain.messages()).toEqual([]);
+  expect(plain.statuses()).toEqual([
     ["pstack", "poteto"],
     [
       "notify",
@@ -206,14 +202,14 @@ test("sticky-06 caps the injected skill body at 48000 bytes and the playbook bod
   await restored.commands.get("poteto-mode")?.handler("babysit PR 12", { ui: restored.ui });
   const first = restored.prompt()?.({ systemPrompt: "BASE" }, {});
   const second = restored.prompt()?.({ systemPrompt: "BASE" }, {});
-  assert.equal(first?.systemPrompt, second?.systemPrompt, "the section is injected on every turn");
-  assert.equal((first?.systemPrompt ?? "").startsWith("BASE\n\n"), true);
+  expect(first?.systemPrompt, "the section is injected on every turn").toBe(second?.systemPrompt);
+  expect((first?.systemPrompt ?? "").startsWith("BASE\n\n")).toBe(true);
   assertCappedBodies(first?.systemPrompt ?? "", RESTORED_HEADER);
 
   const routed = fakeStickyEnv();
   await routed.commands.get("poteto-mode")?.handler("", { ui: routed.ui });
   const transform = routed.input()?.({ source: "interactive", text: "babysit PR 12" }, { ui: routed.ui });
-  assert.deepEqual(transform, {
+  expect(transform).toEqual({
     action: "transform",
     text: "/skill:poteto-mode playbooks/babysit babysit PR 12",
   });
@@ -226,10 +222,10 @@ test("sticky-06 caps the injected skill body at 48000 bytes and the playbook bod
     writeFileSync(bigPath, "x".repeat(30_000), "utf8");
     const capped = loadPlaybookBody(bigPath);
     const trailer = `\n\n[\u2026playbook truncated for sticky inject; full: ${bigPath}]`;
-    assert.equal(Buffer.byteLength(capped, "utf8") <= 24_000 + Buffer.byteLength(trailer, "utf8"), true);
-    assert.equal(capped.includes("[\u2026playbook truncated for sticky inject; full:"), true);
-    assert.equal(capped.startsWith("x".repeat(1_000)), true);
-    assert.equal(Buffer.byteLength(capped, "utf8") < 30_000, true, "the cap drops content");
+    expect(Buffer.byteLength(capped, "utf8") <= 24_000 + Buffer.byteLength(trailer, "utf8")).toBe(true);
+    expect(capped.includes("[\u2026playbook truncated for sticky inject; full:")).toBe(true);
+    expect(capped.startsWith("x".repeat(1_000))).toBe(true);
+    expect(Buffer.byteLength(capped, "utf8") < 30_000, "the cap drops content").toBe(true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -237,38 +233,22 @@ test("sticky-06 caps the injected skill body at 48000 bytes and the playbook bod
 
 test("sticky-08 the input hook bypasses matching and force-invocation in a child session", async () => {
   const parent = await runRoutedInput(undefined, "babysit PR 12");
-  assert.deepEqual(
-    parent,
-    {
+  expect(parent, "a parent session routes the same text").toEqual({
       result: { action: "transform", text: "/skill:poteto-mode playbooks/babysit babysit PR 12" },
       matchedPlaybookId: "babysit",
       assignedThisTurn: true,
       armed: [],
-    },
-    "a parent session routes the same text",
-  );
+    });
 
   const skillPrompt = await runRoutedInput("general", "/skill:poteto-mode babysit PR 12");
-  assert.deepEqual(
-    skillPrompt,
-    { result: undefined, matchedPlaybookId: null, assignedThisTurn: false, armed: [] },
-    "a child session must not match a playbook from the spawned prompt",
-  );
+  expect(skillPrompt, "a child session must not match a playbook from the spawned prompt").toEqual({ result: undefined, matchedPlaybookId: null, assignedThisTurn: false, armed: [] });
 
   const plainPrompt = await runRoutedInput("general", "babysit PR 12");
-  assert.deepEqual(
-    plainPrompt,
-    { result: undefined, matchedPlaybookId: null, assignedThisTurn: false, armed: [] },
-    "a child session must not force-invoke poteto-mode",
-  );
+  expect(plainPrompt, "a child session must not force-invoke poteto-mode").toEqual({ result: undefined, matchedPlaybookId: null, assignedThisTurn: false, armed: [] });
 
   const investigation = await runRoutedInput(
     "general",
     "/skill:poteto-mode playbooks/investigation why is the build slow",
   );
-  assert.deepEqual(
-    investigation,
-    { result: undefined, matchedPlaybookId: null, assignedThisTurn: false, armed: [] },
-    "a child session must not arm readonly",
-  );
+  expect(investigation, "a child session must not arm readonly").toEqual({ result: undefined, matchedPlaybookId: null, assignedThisTurn: false, armed: [] });
 });

@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import test from "node:test";
+import { expect, test } from "vitest";
 import { buildWorkerPiArgs } from "../../services/worker/executor.mjs";
 import {
   TEST_TOKEN,
@@ -19,7 +18,7 @@ test("happy path records completed with the streamed stdout", async (t) => {
     return { exitCode: 0, stopReason: "end" };
   };
   const worker = await startWorker({ stateDir, token: TEST_TOKEN, execute: executor });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -29,17 +28,17 @@ test("happy path records completed with the streamed stdout", async (t) => {
     body: envelope,
     token: TEST_TOKEN,
   });
-  assert.equal(posted.status, 202);
-  assert.equal(posted.json.runId, envelope.runId);
-  assert.equal(posted.json.attempt, 1);
-  assert.equal(posted.json.state, "running");
+  expect(posted.status).toBe(202);
+  expect(posted.json.runId).toBe(envelope.runId);
+  expect(posted.json.attempt).toBe(1);
+  expect(posted.json.state).toBe("running");
   const record = await waitForState(worker, envelope.runId, TEST_TOKEN, "completed");
-  assert.equal(record.state, "completed");
-  assert.equal(record.stdout, "hello from worker");
-  assert.equal(record.exitCode, 0);
-  assert.equal(record.attempt, 1);
-  assert.equal(record.outputPath.endsWith(`${envelope.runId}.stdout.log`), true);
-  assert.equal(existsSync(record.outputPath), true);
+  expect(record.state).toBe("completed");
+  expect(record.stdout).toBe("hello from worker");
+  expect(record.exitCode).toBe(0);
+  expect(record.attempt).toBe(1);
+  expect(record.outputPath.endsWith(`${envelope.runId}.stdout.log`)).toBe(true);
+  expect(existsSync(record.outputPath)).toBe(true);
 });
 
 test("a duplicate idempotency key returns the same attempt and executes once", async (t) => {
@@ -50,19 +49,19 @@ test("a duplicate idempotency key returns the same attempt and executes once", a
     return { exitCode: 0 };
   };
   const worker = await startWorker({ stateDir, token: TEST_TOKEN, execute: executor });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
   const envelope = makeEnvelope();
   const first = await request(worker.base, "/v1/tasks", { method: "POST", body: envelope, token: TEST_TOKEN });
   const second = await request(worker.base, "/v1/tasks", { method: "POST", body: envelope, token: TEST_TOKEN });
-  assert.equal(first.status, 202);
-  assert.equal(second.status, 200);
-  assert.equal(second.json.runId, envelope.runId);
-  assert.equal(second.json.attempt, first.json.attempt);
+  expect(first.status).toBe(202);
+  expect(second.status).toBe(200);
+  expect(second.json.runId).toBe(envelope.runId);
+  expect(second.json.attempt).toBe(first.json.attempt);
   await waitForState(worker, envelope.runId, TEST_TOKEN, "completed");
-  assert.equal(calls.count, 1);
+  expect(calls.count).toBe(1);
 });
 
 test("a different idempotency key for the same runId is rejected 409", async (t) => {
@@ -73,7 +72,7 @@ test("a different idempotency key for the same runId is rejected 409", async (t)
     return { exitCode: 0 };
   };
   const worker = await startWorker({ stateDir, token: TEST_TOKEN, execute: executor });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -87,10 +86,10 @@ test("a different idempotency key for the same runId is rejected 409", async (t)
     body: makeEnvelope({ runId: "run-conflict", idempotencyKey: "key-b" }),
     token: TEST_TOKEN,
   });
-  assert.equal(first.status, 202);
-  assert.equal(second.status, 409);
+  expect(first.status).toBe(202);
+  expect(second.status).toBe(409);
   await waitForState(worker, "run-conflict", TEST_TOKEN, "completed");
-  assert.equal(calls.count, 1);
+  expect(calls.count).toBe(1);
 });
 
 test("the default executor argv matches the local child-runner shape", () => {
@@ -100,7 +99,7 @@ test("the default executor argv matches the local child-runner shape", () => {
     thinkingLevel: "high",
     prompt: "do the work",
   });
-  assert.deepEqual(args, [
+  expect(args).toEqual([
     "--mode",
     "json",
     "-p",
@@ -113,17 +112,17 @@ test("the default executor argv matches the local child-runner shape", () => {
     "do the work",
   ]);
   const withoutThinking = buildWorkerPiArgs({ model: "m", sessionDir: "/s", prompt: "p" });
-  assert.deepEqual(withoutThinking, ["--mode", "json", "-p", "--model", "m", "--session-dir", "/s", "p"]);
+  expect(withoutThinking).toEqual(["--mode", "json", "-p", "--model", "m", "--session-dir", "/s", "p"]);
 });
 
 test("GET /healthz returns ok without a token", async (t) => {
   const stateDir = tempStateDir();
   const worker = await startWorker({ stateDir, token: TEST_TOKEN, execute: async () => ({ exitCode: 0 }) });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
   const response = await request(worker.base, "/healthz");
-  assert.equal(response.status, 200);
-  assert.equal(response.json.status, "ok");
+  expect(response.status).toBe(200);
+  expect(response.json.status).toBe("ok");
 });

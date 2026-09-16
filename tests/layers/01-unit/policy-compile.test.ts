@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import {
   INTEGRATION_CAPABILITIES,
   INTEGRATION_CATEGORIES,
@@ -24,7 +23,7 @@ const BASE = {
 } as const;
 
 test("role defaults keep a read-only filesystem with inherited integrations", () => {
-  assert.deepEqual(compileTaskPolicy(undefined, "investigator"), {
+  expect(compileTaskPolicy(undefined, "investigator")).toEqual({
     ...BASE,
     filesystem: "read-only",
     shell: "none",
@@ -32,7 +31,7 @@ test("role defaults keep a read-only filesystem with inherited integrations", ()
     network: "none",
     integrations: "inherit",
   });
-  assert.deepEqual(compileTaskPolicy(undefined, "comment-sicko"), {
+  expect(compileTaskPolicy(undefined, "comment-sicko")).toEqual({
     ...BASE,
     filesystem: "read-only",
     shell: "none",
@@ -40,74 +39,63 @@ test("role defaults keep a read-only filesystem with inherited integrations", ()
     network: "none",
     integrations: "none",
   });
-  assert.deepEqual(compileTaskPolicy(undefined, "poteto-agent"), BASE);
-  assert.deepEqual(compileTaskPolicy(undefined, "general"), BASE);
-  assert.deepEqual(ROLE_POLICY_DEFAULTS["poteto-agent"], ROLE_POLICY_DEFAULTS.general);
-  assert.deepEqual(defaultsForRole("auditor-role"), ROLE_POLICY_DEFAULTS.general);
-  assert.equal(Object.isFrozen(compileTaskPolicy(undefined, "investigator")), true);
+  expect(compileTaskPolicy(undefined, "poteto-agent")).toEqual(BASE);
+  expect(compileTaskPolicy(undefined, "general")).toEqual(BASE);
+  expect(ROLE_POLICY_DEFAULTS["poteto-agent"]).toEqual(ROLE_POLICY_DEFAULTS.general);
+  expect(defaultsForRole("auditor-role")).toEqual(ROLE_POLICY_DEFAULTS.general);
+  expect(Object.isFrozen(compileTaskPolicy(undefined, "investigator"))).toBe(true);
 });
 
 test("explicit overrides replace one axis without disturbing the others", () => {
   const policy = compileTaskPolicy({ shell: "restricted", network: "none" }, "general");
-  assert.equal(policy.shell, "restricted");
-  assert.equal(policy.network, "none");
-  assert.equal(policy.filesystem, "workspace-write");
-  assert.equal(policy.git, "branch-write");
-  assert.equal(policy.integrations, "inherit");
+  expect(policy.shell).toBe("restricted");
+  expect(policy.network).toBe("none");
+  expect(policy.filesystem).toBe("workspace-write");
+  expect(policy.git).toBe("branch-write");
+  expect(policy.integrations).toBe("inherit");
 });
 
 test("readonly forces filesystem, shell, and git while integrations survive", () => {
   const investigator = compileTaskPolicy({ readonly: true }, "investigator");
-  assert.equal(investigator.filesystem, "read-only");
-  assert.equal(investigator.shell, "none");
-  assert.equal(investigator.git, "read");
-  assert.equal(investigator.integrations, "inherit", "read-only files do not imply integrations none");
+  expect(investigator.filesystem).toBe("read-only");
+  expect(investigator.shell).toBe("none");
+  expect(investigator.git).toBe("read");
+  expect(investigator.integrations, "read-only files do not imply integrations none").toBe("inherit");
 
   const general = compileTaskPolicy(
     { readonly: true, integrations: ["browser-ui", "team-chat"] },
     "general",
   );
-  assert.equal(general.filesystem, "read-only");
-  assert.deepEqual(general.integrations, ["browser-ui", "team-chat"]);
-  assert.equal(Object.isFrozen(general.integrations), true);
+  expect(general.filesystem).toBe("read-only");
+  expect(general.integrations).toEqual(["browser-ui", "team-chat"]);
+  expect(Object.isFrozen(general.integrations)).toBe(true);
 });
 
 test("invalid policy enums throw naming the field and its allowed values", () => {
-  assert.throws(
-    () => compileTaskPolicy({ filesystem: "readwrite" }, "general"),
-    /invalid filesystem 'readwrite'; allowed: read-only, workspace-write/,
-  );
-  assert.throws(() => compileTaskPolicy({ shell: "some" }, "general"), /invalid shell 'some'; allowed: none, restricted, full/);
-  assert.throws(() => compileTaskPolicy({ git: "write" }, "general"), /invalid git 'write'; allowed: read, branch-write, push, merge/);
-  assert.throws(() => compileTaskPolicy({ network: "open" }, "general"), /invalid network 'open'; allowed: none, allowed/);
-  assert.throws(() => compileTaskPolicy({ isolation: "pod" }, "general"), /invalid isolation 'pod'/);
-  assert.throws(() => compileTaskPolicy({ environment: "cloud" }, "general"), /invalid environment 'cloud'/);
-  assert.throws(() => compileTaskPolicy({ integrations: 7 }, "general"), /invalid integrations '7'/);
-  assert.throws(() => compileTaskPolicy({ integrations: [""] }, "general"), /invalid integrations/);
-  assert.throws(
-    () => compileTaskPolicy({ integrations: ["typo-capability"] }, "general"),
-    /invalid integrations/,
-    "an unknown capability name is rejected at compile time, not when the tool list is resolved",
-  );
-  assert.throws(() => compileTaskPolicy({ readonly: "yes" }, "general"), /invalid readonly 'yes'; allowed: true, false/);
-  assert.throws(() => resolveThinkingLevel({ thinkingLevel: "turbo" }, undefined), /invalid thinkingLevel 'turbo'/);
+  expect(() => compileTaskPolicy({ filesystem: "readwrite" }, "general")).toThrow(/invalid filesystem 'readwrite'; allowed: read-only, workspace-write/);
+  expect(() => compileTaskPolicy({ shell: "some" }, "general")).toThrow(/invalid shell 'some'; allowed: none, restricted, full/);
+  expect(() => compileTaskPolicy({ git: "write" }, "general")).toThrow(/invalid git 'write'; allowed: read, branch-write, push, merge/);
+  expect(() => compileTaskPolicy({ network: "open" }, "general")).toThrow(/invalid network 'open'; allowed: none, allowed/);
+  expect(() => compileTaskPolicy({ isolation: "pod" }, "general")).toThrow(/invalid isolation 'pod'/);
+  expect(() => compileTaskPolicy({ environment: "cloud" }, "general")).toThrow(/invalid environment 'cloud'/);
+  expect(() => compileTaskPolicy({ integrations: 7 }, "general")).toThrow(/invalid integrations '7'/);
+  expect(() => compileTaskPolicy({ integrations: [""] }, "general")).toThrow(/invalid integrations/);
+  expect(() => compileTaskPolicy({ integrations: ["typo-capability"] }, "general"), "an unknown capability name is rejected at compile time, not when the tool list is resolved").toThrow(/invalid integrations/);
+  expect(() => compileTaskPolicy({ readonly: "yes" }, "general")).toThrow(/invalid readonly 'yes'; allowed: true, false/);
+  expect(() => resolveThinkingLevel({ thinkingLevel: "turbo" }, undefined)).toThrow(/invalid thinkingLevel 'turbo'/);
 });
 
 test("worktree and hosted force the isolation axis", () => {
-  assert.equal(compileTaskPolicy({ worktree: true }, "general").isolation, "worktree");
-  assert.equal(compileTaskPolicy({ environment: "hosted" }, "general").isolation, "remote");
-  assert.equal(
-    compileTaskPolicy({ environment: "hosted", isolation: "container" }, "general").isolation,
-    "container",
-    "a stronger explicit sandbox survives hosted placement",
-  );
-  assert.equal(compileTaskPolicy({ environment: "hosted", worktree: true }, "general").isolation, "remote");
-  assert.equal(compileTaskPolicy({ isolation: "process" }, "general").isolation, "process");
+  expect(compileTaskPolicy({ worktree: true }, "general").isolation).toBe("worktree");
+  expect(compileTaskPolicy({ environment: "hosted" }, "general").isolation).toBe("remote");
+  expect(compileTaskPolicy({ environment: "hosted", isolation: "container" }, "general").isolation, "a stronger explicit sandbox survives hosted placement").toBe("container");
+  expect(compileTaskPolicy({ environment: "hosted", worktree: true }, "general").isolation).toBe("remote");
+  expect(compileTaskPolicy({ isolation: "process" }, "general").isolation).toBe("process");
 });
 
 test("resolvePolicyTools prefers explicit tools, then read-only plus granted integrations", () => {
   const investigator = compileTaskPolicy(undefined, "investigator");
-  assert.deepEqual(resolvePolicyTools(investigator, undefined, ["read", "write", "bash"]), [
+  expect(resolvePolicyTools(investigator, undefined, ["read", "write", "bash"])).toEqual([
     "read",
     "grep",
     "find",
@@ -117,40 +105,40 @@ test("resolvePolicyTools prefers explicit tools, then read-only plus granted int
     "pstack_control_cli",
   ]);
   const commentSicko = compileTaskPolicy(undefined, "comment-sicko");
-  assert.deepEqual(resolvePolicyTools(commentSicko, undefined, ["read", "write"]), [
+  expect(resolvePolicyTools(commentSicko, undefined, ["read", "write"])).toEqual([
     "read",
     "grep",
     "find",
     "ls",
   ]);
   const cliOnly = compileTaskPolicy({ integrations: ["cli-tui"] }, "investigator");
-  assert.deepEqual(resolvePolicyTools(cliOnly, undefined, ["read"]), [
+  expect(resolvePolicyTools(cliOnly, undefined, ["read"])).toEqual([
     "read",
     "grep",
     "find",
     "ls",
     "pstack_control_cli",
   ]);
-  assert.deepEqual(resolvePolicyTools(investigator, ["bash", "read"], ["read"]), ["bash", "read"]);
+  expect(resolvePolicyTools(investigator, ["bash", "read"], ["read"])).toEqual(["bash", "read"]);
   const shellNone = compileTaskPolicy({ shell: "none" }, "general");
-  assert.deepEqual(resolvePolicyTools(shellNone, undefined, ["read", "bash", "edit"]), ["read", "edit"]);
+  expect(resolvePolicyTools(shellNone, undefined, ["read", "bash", "edit"])).toEqual(["read", "edit"]);
   const shellNoneWithoutParentList = resolvePolicyTools(shellNone, undefined, undefined);
-  assert.equal(shellNoneWithoutParentList, undefined, "no parent list means no allowlist; the guard is the backstop");
+  expect(shellNoneWithoutParentList, "no parent list means no allowlist; the guard is the backstop").toBe(undefined);
   const full = compileTaskPolicy(undefined, "general");
-  assert.deepEqual(resolvePolicyTools(full, undefined, ["read", "bash"]), ["read", "bash"]);
-  assert.equal(resolvePolicyTools(full, undefined, undefined), undefined);
+  expect(resolvePolicyTools(full, undefined, ["read", "bash"])).toEqual(["read", "bash"]);
+  expect(resolvePolicyTools(full, undefined, undefined)).toBe(undefined);
 });
 
 test("resolveThinkingLevel honors an explicit level, a selector suffix, and rejects garbage", () => {
-  assert.equal(resolveThinkingLevel({ thinkingLevel: "xhigh" }, "xai/grok-4:max"), "xhigh");
-  assert.equal(resolveThinkingLevel(undefined, "xai/grok-4:max"), "max");
-  assert.equal(resolveThinkingLevel({}, "anthropic/claude-sonnet-4-5"), undefined);
-  assert.equal(resolveThinkingLevel(undefined, undefined), undefined);
-  assert.equal(resolveThinkingLevel(undefined, "xai/grok-4"), undefined, "no suffix means no level");
+  expect(resolveThinkingLevel({ thinkingLevel: "xhigh" }, "xai/grok-4:max")).toBe("xhigh");
+  expect(resolveThinkingLevel(undefined, "xai/grok-4:max")).toBe("max");
+  expect(resolveThinkingLevel({}, "anthropic/claude-sonnet-4-5")).toBe(undefined);
+  expect(resolveThinkingLevel(undefined, undefined)).toBe(undefined);
+  expect(resolveThinkingLevel(undefined, "xai/grok-4"), "no suffix means no level").toBe(undefined);
 });
 
 test("integration capabilities cover the nine mandated categories with one pattern table", () => {
-  assert.deepEqual(INTEGRATION_CATEGORIES, [
+  expect(INTEGRATION_CATEGORIES).toEqual([
     "source-control",
     "issue-tracker",
     "long-form-docs",
@@ -161,27 +149,17 @@ test("integration capabilities cover the nine mandated categories with one patte
     "browser-ui",
     "cli-tui",
   ]);
-  assert.equal(Object.isFrozen(INTEGRATION_CATEGORIES), true);
+  expect(Object.isFrozen(INTEGRATION_CATEGORIES)).toBe(true);
   for (const category of INTEGRATION_CATEGORIES) {
-    assert.equal(Array.isArray(INTEGRATION_CAPABILITIES[category]), true, `${category} needs patterns`);
+    expect(Array.isArray(INTEGRATION_CAPABILITIES[category]), `${category} needs patterns`).toBe(true);
   }
-  assert.equal(capabilityForTool("pstack_control_ui"), "browser-ui");
-  assert.equal(capabilityForTool("pstack_control_cli"), "cli-tui");
-  assert.equal(
-    capabilityForTool("pstack_integrations"),
-    undefined,
-    "a tool serving many categories is attributed to none of them",
-  );
-  assert.equal(capabilityForTool("read"), undefined);
+  expect(capabilityForTool("pstack_control_ui")).toBe("browser-ui");
+  expect(capabilityForTool("pstack_control_cli")).toBe("cli-tui");
+  expect(capabilityForTool("pstack_integrations"), "a tool serving many categories is attributed to none of them").toBe(undefined);
+  expect(capabilityForTool("read")).toBe(undefined);
 });
 
 test("describePolicy renders one line with every axis", () => {
-  assert.equal(
-    describePolicy(compileTaskPolicy(undefined, "investigator")),
-    "filesystem=read-only shell=none git=read network=none integrations=inherit environment=local background=false isolation=session",
-  );
-  assert.equal(
-    describePolicy(compileTaskPolicy({ integrations: ["browser-ui", "cli-tui"] }, "general")),
-    "filesystem=workspace-write shell=full git=branch-write network=allowed integrations=browser-ui|cli-tui environment=local background=false isolation=session",
-  );
+  expect(describePolicy(compileTaskPolicy(undefined, "investigator"))).toBe("filesystem=read-only shell=none git=read network=none integrations=inherit environment=local background=false isolation=session");
+  expect(describePolicy(compileTaskPolicy({ integrations: ["browser-ui", "cli-tui"] }, "general"))).toBe("filesystem=workspace-write shell=full git=branch-write network=allowed integrations=browser-ui|cli-tui environment=local background=false isolation=session");
 });

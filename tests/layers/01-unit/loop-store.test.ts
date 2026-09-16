@@ -1,5 +1,4 @@
-import { after, test } from "node:test";
-import assert from "node:assert/strict";
+import { afterAll, expect, test } from "vitest";
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,7 +8,7 @@ import { deleteRun, latestRun, listRuns, loadRun, runPath, saveRun } from "../..
 const dir = mkdtempSync(join(tmpdir(), "pstack-runs-"));
 process.env.PSTACK_RUNS_DIR = dir;
 
-after(() => {
+afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -27,13 +26,13 @@ test("saveRun and loadRun round trip a record", () => {
   const saved = record("run-alpha");
   saveRun(saved);
   const loaded = loadRun("run-alpha");
-  assert.deepEqual(loaded, saved);
+  expect(loaded).toEqual(saved);
 });
 
 test("saveRun writes atomically and leaves no temp file behind", () => {
   cleanDir();
   saveRun(record("run-atomic"));
-  assert.deepEqual(readdirSync(dir), ["run-atomic.json"]);
+  expect(readdirSync(dir)).toEqual(["run-atomic.json"]);
 });
 
 test("listRuns collects records and latestRun picks the most recently updated", () => {
@@ -41,35 +40,35 @@ test("listRuns collects records and latestRun picks the most recently updated", 
   saveRun(record("run-old", 1000));
   saveRun(record("run-new", 2000));
   const runs = listRuns();
-  assert.deepEqual(runs.map((run) => run.runId).toSorted(), ["run-new", "run-old"]);
-  assert.equal(latestRun()?.runId, "run-new");
+  expect(runs.map((run) => run.runId).toSorted()).toEqual(["run-new", "run-old"]);
+  expect(latestRun()?.runId).toBe("run-new");
 });
 
 test("latestRun returns null when no run is stored", () => {
   cleanDir();
-  assert.equal(latestRun(), null);
+  expect(latestRun()).toBe(null);
 });
 
 test("deleteRun removes a record and reports a missing id", () => {
   cleanDir();
   saveRun(record("run-temp"));
-  assert.equal(deleteRun("run-temp"), true);
-  assert.equal(loadRun("run-temp"), null);
-  assert.equal(deleteRun("run-temp"), false);
+  expect(deleteRun("run-temp")).toBe(true);
+  expect(loadRun("run-temp")).toBe(null);
+  expect(deleteRun("run-temp")).toBe(false);
 });
 
 test("corrupt JSON is reported instead of treated as a fresh run", () => {
   cleanDir();
   writeFileSync(join(dir, "run-broken.json"), "{ not json", "utf8");
-  assert.throws(() => loadRun("run-broken"), /corrupt run record/);
-  assert.throws(() => listRuns(), /corrupt run record/);
+  expect(() => loadRun("run-broken")).toThrow(/corrupt run record/);
+  expect(() => listRuns()).toThrow(/corrupt run record/);
 });
 
 test("traversal and malformed run ids are rejected", () => {
   cleanDir();
-  assert.throws(() => loadRun("../escape"), /invalid runId/);
-  assert.throws(() => loadRun(".."), /invalid runId/);
-  assert.throws(() => loadRun("nested/run"), /invalid runId/);
-  assert.throws(() => runPath("a b"), /invalid runId/);
-  assert.throws(() => saveRun(record("run/escape")), /invalid runId/);
+  expect(() => loadRun("../escape")).toThrow(/invalid runId/);
+  expect(() => loadRun("..")).toThrow(/invalid runId/);
+  expect(() => loadRun("nested/run")).toThrow(/invalid runId/);
+  expect(() => runPath("a b")).toThrow(/invalid runId/);
+  expect(() => saveRun(record("run/escape"))).toThrow(/invalid runId/);
 });

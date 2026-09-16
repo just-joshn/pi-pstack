@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { expect } from "vitest";
 
 const CENSUS_PREFIX = "pi-pstack tools: ";
 const CENSUS_TOOLS = [
@@ -16,14 +16,14 @@ const CENSUS_TOOLS = [
 function assertSingleRegistration(registrations) {
   const counts = new Map();
   for (const name of registrations) counts.set(name, (counts.get(name) ?? 0) + 1);
-  for (const [name, count] of counts) assert.equal(count, 1, `${name} registered ${count} times`);
+  for (const [name, count] of counts) expect(count, `${name} registered ${count} times`).toBe(1);
 }
 
 function assertToolSurface(toolNames) {
   const floor = CENSUS_TOOLS.length;
-  assert.ok(toolNames.length >= floor, `expected at least ${floor} tools, saw ${toolNames.length}`);
-  assert.equal(new Set(toolNames).size, toolNames.length, `duplicate tool names: ${toolNames.join(", ")}`);
-  for (const name of CENSUS_TOOLS) assert.ok(toolNames.includes(name), `${name} missing from the tool surface`);
+  expect(toolNames.length >= floor, `expected at least ${floor} tools, saw ${toolNames.length}`).toBeTruthy();
+  expect(new Set(toolNames).size, `duplicate tool names: ${toolNames.join(", ")}`).toBe(toolNames.length);
+  for (const name of CENSUS_TOOLS) expect(toolNames.includes(name), `${name} missing from the tool surface`).toBeTruthy();
 }
 
 function censusedTools(censusText) {
@@ -32,20 +32,20 @@ function censusedTools(censusText) {
 
 async function run(user) {
   const registrations = user.registrations();
-  assert.ok(registrations.length >= 40, `expected a full command surface, saw ${registrations.length}`);
+  expect(registrations.length >= 40, `expected a full command surface, saw ${registrations.length}`).toBeTruthy();
   assertSingleRegistration(registrations);
-  assert.deepEqual(registrations.toSorted(), user.commands().toSorted(), "registrations disagree with handlers");
+  expect(registrations.toSorted(), "registrations disagree with handlers").toEqual(user.commands().toSorted());
 
   const toolNames = user.tools();
   assertToolSurface(toolNames);
 
   await user.command("pstack", "");
   const census = user.notifications().at(-1);
-  assert.equal(census?.[0], "info", `unexpected census level: ${census?.[0]}`);
-  assert.ok(String(census?.[1]).startsWith(`${CENSUS_PREFIX}pstack_spawn, `), `unexpected census: ${census?.[1]}`);
+  expect(census?.[0], `unexpected census level: ${census?.[0]}`).toBe("info");
+  expect(String(census?.[1]).startsWith(`${CENSUS_PREFIX}pstack_spawn, `), `unexpected census: ${census?.[1]}`).toBeTruthy();
   const listed = censusedTools(String(census?.[1]));
-  assert.deepEqual(listed, CENSUS_TOOLS, "census lists unexpected tools");
-  for (const name of listed) assert.ok(toolNames.includes(name), `${name} listed in the census but not registered`);
+  expect(listed, "census lists unexpected tools").toEqual(CENSUS_TOOLS);
+  for (const name of listed) expect(toolNames.includes(name), `${name} listed in the census but not registered`).toBeTruthy();
 }
 
 export const JOURNEYS = [

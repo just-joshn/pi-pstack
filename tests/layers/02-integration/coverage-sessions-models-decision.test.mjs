@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -48,7 +47,7 @@ test("recall git corpus fails soft outside a repository", async () => {
   const dir = tempDir("pstack-recall-git-");
   try {
     const text = await recallGitLog(dir, "anything");
-    assert.ok(text.startsWith("git log unavailable:"), `expected the git failure line, saw: ${text}`);
+    expect(text.startsWith("git log unavailable:"), `expected the git failure line, saw: ${text}`).toBeTruthy();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -67,10 +66,7 @@ test("recall gh corpus renders the parsed pr rows", async () => {
   );
   try {
     const text = await withPath(bin, () => recallGhPrs(dir, "topic"));
-    assert.equal(
-      text,
-      "#12 [MERGED] fix the thing (fix/thing) 2026-01-02T03:04:05Z https://example.test/pr/12",
-    );
+    expect(text).toBe("#12 [MERGED] fix the thing (fix/thing) 2026-01-02T03:04:05Z https://example.test/pr/12");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -86,41 +82,35 @@ test("recall gh corpus fails soft when the pr query fails", async () => {
   );
   try {
     const text = await withPath(bin, () => recallGhPrs(dir, "topic"));
-    assert.ok(text.startsWith("gh pr list failed:"), `expected the gh failure line, saw: ${text}`);
+    expect(text.startsWith("gh pr list failed:"), `expected the gh failure line, saw: ${text}`).toBeTruthy();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("recall ranking treats unavailable corpora as empty", () => {
-  assert.deepEqual(hitsFromGitLog("git log unavailable: boom", "anything"), []);
-  assert.deepEqual(hitsFromGitLog("(no git log hits)", "anything"), []);
+  expect(hitsFromGitLog("git log unavailable: boom", "anything")).toEqual([]);
+  expect(hitsFromGitLog("(no git log hits)", "anything")).toEqual([]);
 });
 
 test("an explicit colon effort wins over the budget and an empty selector stays empty", () => {
-  assert.equal(
-    withBudget("anthropic/claude-opus-4-5:high", "small — medium reasoning"),
-    "anthropic/claude-opus-4-5:high",
-  );
-  assert.equal(withBudget("", "small — medium reasoning"), "");
+  expect(withBudget("anthropic/claude-opus-4-5:high", "small — medium reasoning")).toBe("anthropic/claude-opus-4-5:high");
+  expect(withBudget("", "small — medium reasoning")).toBe("");
 });
 
 test("decision log rejects the .pi directory itself", async () => {
   const dir = tempDir("pstack-log-dir-");
   try {
     const host = decisionHost(dir);
-    await assert.rejects(
-      () =>
+    await expect(() =>
         host.tool.execute(
           "d",
           { phase: "coverage", decision: "reject", why: "the allowlist must exclude the directory", path: ".pi" },
           undefined,
           undefined,
           host.ctx,
-        ),
-      /must stay under/,
-    );
-    assert.equal(host.entries().length, 0, "a rejected call must not append a session entry");
+        )).rejects.toThrow(/must stay under/);
+    expect(host.entries().length, "a rejected call must not append a session entry").toBe(0);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -141,10 +131,10 @@ test("decision log prepends the header when the file lacks one", async () => {
       host.ctx,
     );
     const text = readFileSync(path, "utf8");
-    assert.ok(text.startsWith(HEADER + "garbage from an older tool\n"), "the old content must survive under a fresh header");
-    assert.ok(text.endsWith("\n"), "the appended row must end with a newline");
-    assert.equal(host.entries().length, 1);
-    assert.equal(host.entries()[0].data.phase, "coverage");
+    expect(text.startsWith(HEADER + "garbage from an older tool\n"), "the old content must survive under a fresh header").toBeTruthy();
+    expect(text.endsWith("\n"), "the appended row must end with a newline").toBeTruthy();
+    expect(host.entries().length).toBe(1);
+    expect(host.entries()[0].data.phase).toBe("coverage");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

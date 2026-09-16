@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -203,22 +202,22 @@ test("jobs-02 exercises list, status, await, abort, and cancel and requires an i
     result: probeResult("probe output"),
   });
   const listed = await runJobs(h, { action: "list" });
-  assert.match(listed.content[0].text, /^concurrency \d+\/\d+ waiting=\d+/);
+  expect(listed.content[0].text).toMatch(/^concurrency \d+\/\d+ waiting=\d+/);
   const status = await runJobs(h, { action: "status", id: "bg-probe" });
-  assert.match(status.content[0].text, /^bg-probe status=done/);
+  expect(status.content[0].text).toMatch(/^bg-probe status=done/);
   const awaited = await runJobs(h, { action: "await", id: "bg-probe" });
-  assert.match(awaited.content[0].text, /^### pstack_jobs await \(bg-probe, status=done/);
+  expect(awaited.content[0].text).toMatch(/^### pstack_jobs await \(bg-probe, status=done/);
   const aborted = await runJobs(h, { action: "abort", id: "bg-probe" });
-  assert.match(aborted.content[0].text, /^abort requested; job bg-probe status=done/);
+  expect(aborted.content[0].text).toMatch(/^abort requested; job bg-probe status=done/);
   const cancelled = await runJobs(h, { action: "cancel", id: "bg-probe" });
-  assert.match(cancelled.content[0].text, /^abort requested; job bg-probe status=done/);
-  await assert.rejects(runJobs(h, { action: "frobnicate", id: "bg-probe" }), /action must be list\|status\|await\|abort\|cancel/);
-  await assert.rejects(runJobs(h, { action: "status" }), /id required for status\|await/);
-  await assert.rejects(runJobs(h, { action: "await" }), /id required for status\|await/);
-  await assert.rejects(runJobs(h, { action: "abort" }), /id required for abort/);
-  await assert.rejects(runJobs(h, { action: "cancel" }), /id required for abort/);
-  await assert.rejects(runJobs(h, { action: "status", id: "bg-missing" }), /unknown job: bg-missing/);
-  await assert.rejects(runJobs(h, { action: "cancel", id: "bg-missing" }), /unknown job: bg-missing/);
+  expect(cancelled.content[0].text).toMatch(/^abort requested; job bg-probe status=done/);
+  await expect(runJobs(h, { action: "frobnicate", id: "bg-probe" })).rejects.toThrow(/action must be list\|status\|await\|abort\|cancel/);
+  await expect(runJobs(h, { action: "status" })).rejects.toThrow(/id required for status\|await/);
+  await expect(runJobs(h, { action: "await" })).rejects.toThrow(/id required for status\|await/);
+  await expect(runJobs(h, { action: "abort" })).rejects.toThrow(/id required for abort/);
+  await expect(runJobs(h, { action: "cancel" })).rejects.toThrow(/id required for abort/);
+  await expect(runJobs(h, { action: "status", id: "bg-missing" })).rejects.toThrow(/unknown job: bg-missing/);
+  await expect(runJobs(h, { action: "cancel", id: "bg-missing" })).rejects.toThrow(/unknown job: bg-missing/);
 });
 
 test("jobs-03 prints the list header with counts and orders rows by start time", async () => {
@@ -244,21 +243,15 @@ test("jobs-03 prints the list header with counts and orders rows by start time",
   });
   const reply = await runJobs(h, { action: "list" });
   const lines = reply.content[0].text.split("\n");
-  assert.equal(lines[0], `concurrency 0/${childRunner.MAX_CONCURRENCY} waiting=0`);
-  assert.equal(
-    lines[1],
-    `bg-early status=done role=general model=test/early-model started=${new Date(100).toISOString()} finished=${new Date(500).toISOString()} sessionDir=/tmp/early`,
-  );
-  assert.equal(
-    lines[2],
-    `bg-late status=done role=reviewer model=test/late-model started=${new Date(200).toISOString()} finished=${new Date(600).toISOString()} sessionDir=/tmp/late`,
-  );
-  assert.equal(lines.length, 3);
-  assert.deepEqual(reply.details.jobs, [
+  expect(lines[0]).toBe(`concurrency 0/${childRunner.MAX_CONCURRENCY} waiting=0`);
+  expect(lines[1]).toBe(`bg-early status=done role=general model=test/early-model started=${new Date(100).toISOString()} finished=${new Date(500).toISOString()} sessionDir=/tmp/early`);
+  expect(lines[2]).toBe(`bg-late status=done role=reviewer model=test/late-model started=${new Date(200).toISOString()} finished=${new Date(600).toISOString()} sessionDir=/tmp/late`);
+  expect(lines.length).toBe(3);
+  expect(reply.details.jobs).toEqual([
     { id: "bg-early", status: "done", sessionDir: "/tmp/early" },
     { id: "bg-late", status: "done", sessionDir: "/tmp/late" },
   ]);
-  assert.deepEqual(reply.details.concurrency, { active: 0, cap: childRunner.MAX_CONCURRENCY, waiting: 0 });
+  expect(reply.details.concurrency).toEqual({ active: 0, cap: childRunner.MAX_CONCURRENCY, waiting: 0 });
 });
 
 test("jobs-04 truncates status output to 8000 characters and fails closed on an unknown id", async () => {
@@ -277,16 +270,13 @@ test("jobs-04 truncates status output to 8000 characters and fails closed on an 
   });
   const reply = await runJobs(h, { action: "status", id: "bg-long" });
   const text = reply.content[0].text;
-  assert.equal(
-    text.startsWith("bg-long status=done role=general model=test/model sessionDir=/tmp/long-session\n\nexit 0\n"),
-    true,
-  );
-  assert.equal(text.endsWith("A".repeat(8000)), true);
-  assert.equal(text.includes("TAIL"), false);
+  expect(text.startsWith("bg-long status=done role=general model=test/model sessionDir=/tmp/long-session\n\nexit 0\n")).toBe(true);
+  expect(text.endsWith("A".repeat(8000))).toBe(true);
+  expect(text.includes("TAIL")).toBe(false);
   const job = reply.details.job as { result: { output: string } };
-  assert.equal(job.result.output, longOutput);
-  assert.equal(reply.details.sessionDir, "/tmp/long-session");
-  await assert.rejects(runJobs(h, { action: "status", id: "bg-unknown" }), /unknown job: bg-unknown/);
+  expect(job.result.output).toBe(longOutput);
+  expect(reply.details.sessionDir).toBe("/tmp/long-session");
+  await expect(runJobs(h, { action: "status", id: "bg-unknown" })).rejects.toThrow(/unknown job: bg-unknown/);
 });
 
 test("jobs-05 awaits a terminal result and times out without leaking the job", async () => {
@@ -302,13 +292,10 @@ test("jobs-05 awaits a terminal result and times out without leaking the job", a
     result: probeResult("terminal output"),
   });
   const done = await childRunner.awaitBackgroundJob("bg-terminal", 5000);
-  assert.equal(done.status, "done");
-  assert.equal(done.result?.output, "terminal output");
+  expect(done.status).toBe("done");
+  expect(done.result?.output).toBe("terminal output");
   const awaited = await runJobs(h, { action: "await", id: "bg-terminal" });
-  assert.equal(
-    awaited.content[0].text,
-    "### pstack_jobs await (bg-terminal, status=done, sessionDir=/tmp/terminal)\n\nterminal output",
-  );
+  expect(awaited.content[0].text).toBe("### pstack_jobs await (bg-terminal, status=done, sessionDir=/tmp/terminal)\n\nterminal output");
 
   childRunner.__seedBackgroundJobForTests({ id: "bg-flip", status: "running", role: "general", startedAt: 30 });
   const flipping = childRunner.awaitBackgroundJob("bg-flip", 5000);
@@ -322,15 +309,15 @@ test("jobs-05 awaits a terminal result and times out without leaking the job", a
     result: probeResult("flipped"),
   });
   const flipped = await flipping;
-  assert.equal(flipped.status, "done");
-  assert.equal(flipped.result?.output, "flipped");
+  expect(flipped.status).toBe("done");
+  expect(flipped.result?.output).toBe("flipped");
 
   childRunner.__seedBackgroundJobForTests({ id: "bg-stuck", status: "running", role: "general", startedAt: 40 });
-  await assert.rejects(childRunner.awaitBackgroundJob("bg-stuck", 300), /await timed out for job bg-stuck/);
+  await expect(childRunner.awaitBackgroundJob("bg-stuck", 300)).rejects.toThrow(/await timed out for job bg-stuck/);
   const still = await runJobs(h, { action: "status", id: "bg-stuck" });
-  assert.match(still.content[0].text, /^bg-stuck status=running/);
-  assert.equal(childRunner.getBackgroundJob("bg-stuck")?.status, "running");
-  await assert.rejects(childRunner.awaitBackgroundJob("bg-missing", 200), /unknown background job: bg-missing/);
+  expect(still.content[0].text).toMatch(/^bg-stuck status=running/);
+  expect(childRunner.getBackgroundJob("bg-stuck")?.status).toBe("running");
+  await expect(childRunner.awaitBackgroundJob("bg-missing", 200)).rejects.toThrow(/unknown background job: bg-missing/);
 });
 
 test("jobs-07 keeps records queryable across follow-ups and aborts in-flight jobs on shutdown", async () => {
@@ -343,24 +330,21 @@ test("jobs-07 keeps records queryable across follow-ups and aborts in-flight job
     await awaitFollowUp(h);
     const firstId = first.details.jobId as string;
     const afterFollowUp = await runJobs(h, { action: "status", id: firstId });
-    assert.match(afterFollowUp.content[0].text, /status=done/);
+    expect(afterFollowUp.content[0].text).toMatch(/status=done/);
     const afterSecondPoll = await runJobs(h, { action: "status", id: firstId });
-    assert.match(afterSecondPoll.content[0].text, /status=done/);
-    assert.equal(childRunner.listBackgroundJobs().some((job) => job.id === firstId), true);
+    expect(afterSecondPoll.content[0].text).toMatch(/status=done/);
+    expect(childRunner.listBackgroundJobs().some((job) => job.id === firstId)).toBe(true);
 
     setSpawnPlan({ closes: false });
     const running = await runSpawn(h, { task: "long brief", role: "general", model: "test/model", background: true });
     await delay(5);
     const runningId = running.details.jobId as string;
-    assert.equal(childRunner.getBackgroundJob(runningId)?.status, "running");
+    expect(childRunner.getBackgroundJob(runningId)?.status).toBe("running");
     h.shutdown();
-    assert.equal(childRunner.getBackgroundJob(runningId), undefined, "shutdown clears job records");
-    assert.deepEqual(childRunner.listBackgroundJobs(), []);
-    assert.deepEqual(recordedSpawns.at(-1)?.killSignals, ["SIGTERM"]);
-    await assert.rejects(
-      runJobs(h, { action: "status", id: runningId }),
-      new RegExp(`unknown job: ${runningId}`),
-    );
+    expect(childRunner.getBackgroundJob(runningId), "shutdown clears job records").toBe(undefined);
+    expect(childRunner.listBackgroundJobs()).toEqual([]);
+    expect(recordedSpawns.at(-1)?.killSignals).toEqual(["SIGTERM"]);
+    await expect(runJobs(h, { action: "status", id: runningId })).rejects.toThrow(new RegExp(`unknown job: ${runningId}`));
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

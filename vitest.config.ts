@@ -1,0 +1,16 @@
+import { defineConfig } from "vitest/config";
+import { DEFAULT_PROJECTS } from "./tests/registry.mjs";
+import { projectFor } from "./tests/support/vitest-project.mjs";
+
+export default defineConfig({
+  test: {
+    projects: DEFAULT_PROJECTS.map(projectFor),
+    coverage: {
+      provider: "v8",
+      include: ["extensions/**", "services/**"],
+      exclude: ["extensions/test/**"],
+      reporter: ["text"],
+      thresholds: { branches: 80, functions: 80 },
+    },
+  },
+});

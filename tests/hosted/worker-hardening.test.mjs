@@ -1,7 +1,6 @@
-import assert from "node:assert/strict";
 import { mkdirSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
-import test from "node:test";
+import { expect, test } from "vitest";
 import {
   TEST_TOKEN,
   cleanupStateDir,
@@ -34,16 +33,16 @@ test("the worker caps per-client /v1 requests and sends Retry-After", async (t) 
     execute: async () => ({ exitCode: 0 }),
     rateLimit: { maxRequests: 3, windowMs: 60_000 },
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
   const probes = await Promise.all(
     [0, 1, 2, 3, 4].map(() => probe(worker.base, "/v1/tasks/missing-run", { token: TEST_TOKEN })),
   );
-  assert.deepEqual(probes.map((entry) => entry.status).toSorted(), [404, 404, 404, 429, 429]);
+  expect(probes.map((entry) => entry.status).toSorted()).toEqual([404, 404, 404, 429, 429]);
   const throttled = probes.filter((entry) => entry.status === 429);
-  assert.equal(throttled.every((entry) => Number(entry.retryAfter) >= 1), true);
+  expect(throttled.every((entry) => Number(entry.retryAfter) >= 1)).toBe(true);
 });
 
 test("/healthz is exempt from the worker request cap", async (t) => {
@@ -54,12 +53,12 @@ test("/healthz is exempt from the worker request cap", async (t) => {
     execute: async () => ({ exitCode: 0 }),
     rateLimit: { maxRequests: 1, windowMs: 60_000 },
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
   const probes = await Promise.all(Array.from({ length: 6 }, () => probe(worker.base, "/healthz")));
-  assert.equal(probes.every((entry) => entry.status === 200), true);
+  expect(probes.every((entry) => entry.status === 200)).toBe(true);
 });
 
 test("rotating an invalid token does not evade the worker client cap", async (t) => {
@@ -70,7 +69,7 @@ test("rotating an invalid token does not evade the worker client cap", async (t)
     execute: async () => ({ exitCode: 0 }),
     rateLimit: { maxRequests: 3, windowMs: 60_000 },
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -79,8 +78,8 @@ test("rotating an invalid token does not evade the worker client cap", async (t)
       probe(worker.base, "/v1/tasks/missing-run", { token: `bogus-${index}` }),
     ),
   );
-  assert.equal(probes.filter((entry) => entry.status === 401).length, 3);
-  assert.equal(probes.filter((entry) => entry.status === 429).length, 2);
+  expect(probes.filter((entry) => entry.status === 401).length).toBe(3);
+  expect(probes.filter((entry) => entry.status === 429).length).toBe(2);
 });
 
 test("an unexpected worker error returns an opaque 500", async (t) => {
@@ -95,7 +94,7 @@ test("an unexpected worker error returns an opaque 500", async (t) => {
     },
     execute: async () => ({ exitCode: 0 }),
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -105,9 +104,9 @@ test("an unexpected worker error returns an opaque 500", async (t) => {
     token: TEST_TOKEN,
     body: makeEnvelope({ runId: "leak-run", idempotencyKey: "leak-key" }),
   });
-  assert.equal(response.status, 500);
-  assert.equal(response.text.includes(LEAK_SENTINEL), false);
-  assert.deepEqual(JSON.parse(response.text), { error: "internal error" });
+  expect(response.status).toBe(500);
+  expect(response.text.includes(LEAK_SENTINEL)).toBe(false);
+  expect(JSON.parse(response.text)).toEqual({ error: "internal error" });
 });
 
 test("parentOwnership.cwd outside the workspace root is rejected 400", async (t) => {
@@ -117,7 +116,7 @@ test("parentOwnership.cwd outside the workspace root is rejected 400", async (t)
     token: TEST_TOKEN,
     execute: async () => ({ exitCode: 0 }),
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -129,8 +128,8 @@ test("parentOwnership.cwd outside the workspace root is rejected 400", async (t)
       parentSessionCwd: "/etc",
     }),
   });
-  assert.equal(response.status, 400);
-  assert.match(response.json.error, /workspace root/);
+  expect(response.status).toBe(400);
+  expect(response.json.error).toMatch(/workspace root/);
 });
 
 test("a symlink inside the workspace cannot escape it", async (t) => {
@@ -143,7 +142,7 @@ test("a symlink inside the workspace cannot escape it", async (t) => {
     workspaceRoot: workspace,
     execute: async () => ({ exitCode: 0 }),
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
     cleanupStateDir(workspace);
@@ -157,7 +156,7 @@ test("a symlink inside the workspace cannot escape it", async (t) => {
       parentSessionCwd: target,
     }),
   });
-  assert.equal(response.status, 400);
+  expect(response.status).toBe(400);
 });
 
 test("a cwd inside the workspace root is accepted", async (t) => {
@@ -171,7 +170,7 @@ test("a cwd inside the workspace root is accepted", async (t) => {
     workspaceRoot: workspace,
     execute: async () => ({ exitCode: 0 }),
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
     cleanupStateDir(workspace);
@@ -184,7 +183,7 @@ test("a cwd inside the workspace root is accepted", async (t) => {
       parentSessionCwd: inside,
     }),
   });
-  assert.equal(response.status, 202);
+  expect(response.status).toBe(202);
 });
 
 test("the model must match a safe selector shape", async (t) => {
@@ -194,7 +193,7 @@ test("the model must match a safe selector shape", async (t) => {
     token: TEST_TOKEN,
     execute: async () => ({ exitCode: 0 }),
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -212,8 +211,8 @@ test("the model must match a safe selector shape", async (t) => {
       model: "anthropic/claude-opus-4:high",
     }),
   });
-  assert.equal(rejected.status, 400);
-  assert.equal(accepted.status, 202);
+  expect(rejected.status).toBe(400);
+  expect(accepted.status).toBe(202);
 });
 
 test("tasks past maxInFlight are rejected with 503 and Retry-After", async (t) => {
@@ -227,7 +226,7 @@ test("tasks past maxInFlight are rejected with 503 and Retry-After", async (t) =
         context.signal.addEventListener("abort", () => resolvePromise({ exitCode: 130 }), { once: true });
       }),
   });
-  t.after(async () => {
+  t.onTestFinished(async () => {
     await worker.close();
     cleanupStateDir(stateDir);
   });
@@ -241,7 +240,7 @@ test("tasks past maxInFlight are rejected with 503 and Retry-After", async (t) =
     ),
   );
   const rejected = probes.filter((entry) => entry.status === 503);
-  assert.equal(probes.filter((entry) => entry.status === 202).length, 2);
-  assert.equal(rejected.length, 4);
-  assert.equal(rejected.every((entry) => Number(entry.retryAfter) >= 1), true);
+  expect(probes.filter((entry) => entry.status === 202).length).toBe(2);
+  expect(rejected.length).toBe(4);
+  expect(rejected.every((entry) => Number(entry.retryAfter) >= 1)).toBe(true);
 });

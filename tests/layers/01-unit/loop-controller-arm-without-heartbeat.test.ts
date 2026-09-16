@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -33,24 +32,18 @@ test("an arm whose timer cannot start leaves a readable record and no phantom lo
     };
     registerLoopController(pi as never);
     const run = tools.get("pstack_run");
-    assert.ok(run, "pstack_run registers without the heartbeat extension");
-    assert.equal(tools.has("pstack_loop"), false);
+    expect(run, "pstack_run registers without the heartbeat extension").toBeTruthy();
+    expect(tools.has("pstack_loop")).toBe(false);
     const ctx = { ui: { setStatus() {}, notify() {} } };
-    await assert.rejects(
-      () =>
+    await expect(() =>
         run.execute(
           "t",
           { action: "arm", runId: "run-no-heartbeat", predicate: "ci green", intervalSeconds: 30 },
           undefined,
           undefined,
           ctx,
-        ),
-      /armProgrammaticLoop requires a registered heartbeat runtime/,
-    );
-    assert.deepEqual(
-      listRuns().map((record) => `${record.runId} ${record.phase}`),
-      ["run-no-heartbeat WAIT_FOR_EVENT_OR_HEARTBEAT"],
-    );
+        )).rejects.toThrow(/armProgrammaticLoop requires a registered heartbeat runtime/);
+    expect(listRuns().map((record) => `${record.runId} ${record.phase}`)).toEqual(["run-no-heartbeat WAIT_FOR_EVENT_OR_HEARTBEAT"]);
   } finally {
     if (previous === undefined) Reflect.deleteProperty(process.env, "PSTACK_RUNS_DIR");
     else process.env.PSTACK_RUNS_DIR = previous;

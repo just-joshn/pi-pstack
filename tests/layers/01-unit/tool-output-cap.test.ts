@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { capToolOutput } from "../../../extensions/lib/tool-output.ts";
 
@@ -28,37 +27,31 @@ for (const keep of ["head", "tail"] as const) {
     test(`capToolOutput keeps ${name} within ${CAP} bytes (${keep})`, () => {
       const out = capToolOutput(body, { keep, label: `cap-${keep}` });
       const bytes = Buffer.byteLength(out.text, "utf8");
-      assert.equal(out.truncated, true);
-      assert.ok(bytes <= CAP, `${name}/${keep} returned ${bytes} bytes against the ${CAP}-byte cap`);
-      assert.ok(
-        bytes >= (SINGLE_LINE.has(name) ? CAP - 8 : CAP - 64),
-        `${name}/${keep} returned ${bytes} bytes and left the budget unfilled`,
-      );
+      expect(out.truncated).toBe(true);
+      expect(bytes <= CAP, `${name}/${keep} returned ${bytes} bytes against the ${CAP}-byte cap`).toBeTruthy();
+      expect(bytes >= (SINGLE_LINE.has(name) ? CAP - 8 : CAP - 64), `${name}/${keep} returned ${bytes} bytes and left the budget unfilled`).toBeTruthy();
       const { content, trailer } = frameOf(out.text);
-      assert.ok(trailer.startsWith(TRAILER), `${name}/${keep} lost the truncation trailer`);
-      assert.equal(typeof out.outputPath, "string");
-      assert.ok(
-        trailer.includes(out.outputPath as string),
-        `${name}/${keep} trailer does not name the full-output file`,
-      );
-      assert.equal(readFileSync(out.outputPath as string, "utf8"), body);
-      assert.equal(content.includes("\uFFFD"), false, `${name}/${keep} split a UTF-8 sequence`);
+      expect(trailer.startsWith(TRAILER), `${name}/${keep} lost the truncation trailer`).toBeTruthy();
+      expect(typeof out.outputPath).toBe("string");
+      expect(trailer.includes(out.outputPath as string), `${name}/${keep} trailer does not name the full-output file`).toBeTruthy();
+      expect(readFileSync(out.outputPath as string, "utf8")).toBe(body);
+      expect(content.includes("\uFFFD"), `${name}/${keep} split a UTF-8 sequence`).toBe(false);
     });
   }
 }
 
 test("capToolOutput fills the byte budget exactly when the body is ascii", () => {
   const out = capToolOutput("a".repeat(60000), { keep: "head", label: "cap-exact" });
-  assert.equal(Buffer.byteLength(out.text, "utf8"), CAP);
+  expect(Buffer.byteLength(out.text, "utf8")).toBe(CAP);
 });
 
 test("capToolOutput returns a body at or under the cap untouched", () => {
-  assert.deepEqual(capToolOutput("small", { keep: "head", label: "cap-small" }), {
+  expect(capToolOutput("small", { keep: "head", label: "cap-small" })).toEqual({
     text: "small",
     truncated: false,
   });
   const exact = "c".repeat(CAP);
-  assert.deepEqual(capToolOutput(exact, { keep: "head", label: "cap-exact-ok" }), {
+  expect(capToolOutput(exact, { keep: "head", label: "cap-exact-ok" })).toEqual({
     text: exact,
     truncated: false,
   });

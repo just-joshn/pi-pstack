@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { Check } from "typebox/value";
 import { registerCompanions } from "../../../extensions/companions/index.ts";
@@ -71,7 +70,7 @@ function companionEnv(handler: (call: ExecCall) => ExecResult = defaultExec): Co
   return {
     tool(name) {
       const found = tools.find((candidate) => candidate.name === name);
-      assert.ok(found, `${name} is registered`);
+      expect(found, `${name} is registered`).toBeTruthy();
       return found;
     },
     toolNames: () => tools.map((candidate) => candidate.name),
@@ -115,41 +114,31 @@ test("control-01 validates argv against the allowlist", async () => {
   const cli = env.tool("pstack_control_cli");
 
   const trusted = await cli.execute("t", { argv: ["git", "--version"] });
-  assert.equal(trusted.details.code, 0, "a trusted command passes the allowlist");
-  assert.equal(env.calls().at(-1)?.command, "git");
+  expect(trusted.details.code, "a trusted command passes the allowlist").toBe(0);
+  expect(env.calls().at(-1)?.command).toBe("git");
 
   for (const command of INTERPRETER_COMMANDS) {
-    await assert.rejects(
-      () => cli.execute("t", { argv: [command, "--version"] }),
-      { message: `interpreter '${command}' requires an explicit allowInterpreters opt-in` },
-      `${command} needs the explicit opt-in`,
-    );
+    await expect(() => cli.execute("t", { argv: [command, "--version"] }), `${command} needs the explicit opt-in`).rejects.toThrow(`interpreter '${command}' requires an explicit allowInterpreters opt-in`);
   }
 
   const reachedExec = env.calls().length;
-  await assert.rejects(() => cli.execute("t", { argv: ["rm", "-rf", "/"] }), {
-    message: `command 'rm' not in control_cli allowlist (${ALLOWLIST.join(", ")})`,
-  });
-  await assert.rejects(() => cli.execute("t", { argv: ["/tmp/rm"] }), {
-    message: `command 'rm' not in control_cli allowlist (${ALLOWLIST.join(", ")})`,
-  });
-  await assert.rejects(() => cli.execute("t", { argv: ["-v"] }), {
-    message: "argv[0] must be a command name/path",
-  });
-  assert.equal(env.calls().length, reachedExec, "rejected commands never reach exec");
+  await expect(() => cli.execute("t", { argv: ["rm", "-rf", "/"] })).rejects.toThrow(`command 'rm' not in control_cli allowlist (${ALLOWLIST.join(", ")})`);
+  await expect(() => cli.execute("t", { argv: ["/tmp/rm"] })).rejects.toThrow(`command 'rm' not in control_cli allowlist (${ALLOWLIST.join(", ")})`);
+  await expect(() => cli.execute("t", { argv: ["-v"] })).rejects.toThrow("argv[0] must be a command name/path");
+  expect(env.calls().length, "rejected commands never reach exec").toBe(reachedExec);
 
   process.env.PSTACK_CONTROL_CLI_INTERPRETERS = "1";
   try {
     const opted = await cli.execute("t", { argv: ["node", "--version"] });
-    assert.equal(opted.details.code, 0, "the documented opt-in reaches exec");
-    assert.equal(env.calls().at(-1)?.command, "node");
+    expect(opted.details.code, "the documented opt-in reaches exec").toBe(0);
+    expect(env.calls().at(-1)?.command).toBe("node");
   } finally {
     Reflect.deleteProperty(process.env, "PSTACK_CONTROL_CLI_INTERPRETERS");
   }
 
   const byPath = await cli.execute("t", { argv: ["/usr/local/bin/git", "status"] });
-  assert.equal(byPath.details.code, 0);
-  assert.equal(env.calls().at(-1)?.command, "/usr/local/bin/git");
+  expect(byPath.details.code).toBe(0);
+  expect(env.calls().at(-1)?.command).toBe("/usr/local/bin/git");
 });
 
 test("control-02 runs argv without a shell and caps output at the 50KB default limit", async () => {
@@ -160,23 +149,19 @@ test("control-02 runs argv without a shell and caps output at the 50KB default l
   const result = await cli.execute("t", { argv: ["git", "log", "--format=%h; echo pwned"] });
 
   const call = env.calls()[0];
-  assert.equal(call.command, "git");
-  assert.equal(Array.isArray(call.args), true);
-  assert.deepEqual(call.args, ["log", "--format=%h; echo pwned"]);
-  assert.equal(
-    env.calls().some((entry) => SHELL_NAMES.includes(entry.command)),
-    false,
-    "no shell interpreter is invoked",
-  );
+  expect(call.command).toBe("git");
+  expect(Array.isArray(call.args)).toBe(true);
+  expect(call.args).toEqual(["log", "--format=%h; echo pwned"]);
+  expect(env.calls().some((entry) => SHELL_NAMES.includes(entry.command)), "no shell interpreter is invoked").toBe(false);
 
-  assert.equal(result.details.code, 3);
+  expect(result.details.code).toBe(3);
   const header = "exit 3\n\n";
   const text = result.content[0].text;
-  assert.equal(text.startsWith(header), true);
-  assert.equal(text.includes("a".repeat(1000)), true);
-  assert.match(text, /\[Output truncated: \d+ of \d+ lines \([\d.]+KB of 58\.6KB\)\. Full output saved to: /);
-  assert.equal(typeof result.details.fullOutputPath, "string");
-  assert.equal(readFileSync(result.details.fullOutputPath as string, "utf8"), `${stdout}\n`);
+  expect(text.startsWith(header)).toBe(true);
+  expect(text.includes("a".repeat(1000))).toBe(true);
+  expect(text).toMatch(/\[Output truncated: \d+ of \d+ lines \([\d.]+KB of 58\.6KB\)\. Full output saved to: /);
+  expect(typeof result.details.fullOutputPath).toBe("string");
+  expect(readFileSync(result.details.fullOutputPath as string, "utf8")).toBe(`${stdout}\n`);
 
   const short = companionEnv(() => ({ code: 0, stdout: "all good", stderr: "warn" }));
   process.env.PSTACK_CONTROL_CLI_INTERPRETERS = "1";
@@ -184,7 +169,7 @@ test("control-02 runs argv without a shell and caps output at the 50KB default l
     const shortResult = await short.tool("pstack_control_cli").execute("t", {
       argv: ["make", "test"],
     });
-    assert.equal(shortResult.content[0].text, "exit 0\n\nall good\nwarn");
+    expect(shortResult.content[0].text).toBe("exit 0\n\nall good\nwarn");
   } finally {
     Reflect.deleteProperty(process.env, "PSTACK_CONTROL_CLI_INTERPRETERS");
   }
@@ -199,11 +184,11 @@ test("control-03 probes the URL with the requested method and expected status", 
       expectStatus: 503,
       allowHosts: ["127.0.0.1"],
     });
-    assert.deepEqual(env.fetchCalls(), [{ url: "http://127.0.0.1:65535/health", method: "HEAD" }]);
-    assert.equal(result.details.status, 503);
-    assert.equal(result.details.ok, true);
-    assert.equal(result.content[0].text, "HTTP 503 ok=true\n\nupstream down");
-    assert.deepEqual(env.toolNames(), COMPANION_TOOLS, "the probe registers no browser driver");
+    expect(env.fetchCalls()).toEqual([{ url: "http://127.0.0.1:65535/health", method: "HEAD" }]);
+    expect(result.details.status).toBe(503);
+    expect(result.details.ok).toBe(true);
+    expect(result.content[0].text).toBe("HTTP 503 ok=true\n\nupstream down");
+    expect(env.toolNames(), "the probe registers no browser driver").toEqual(COMPANION_TOOLS);
   } finally {
     env.restore();
   }
@@ -214,20 +199,20 @@ test("control-04 returns the HTTP status and a truncated body snippet", async ()
   const env = fakeFetchEnv(() => ({ status: 200, ok: true, body }));
   try {
     const result = await env.probe.execute("t", { url: "http://localhost:3000/", allowHosts: ["localhost"] });
-    assert.equal(result.details.status, 200);
-    assert.equal(result.details.ok, true);
+    expect(result.details.status).toBe(200);
+    expect(result.details.ok).toBe(true);
     const text = result.content[0].text;
     const header = "HTTP 200 ok=true\n\n";
-    assert.equal(text.startsWith(header), true);
-    assert.equal(text.includes(body.slice(0, 200)), true);
-    assert.match(text, /\[Output truncated: 1 of 1 lines \(\d+\.\dKB of 58\.6KB\)\./);
-    assert.equal(typeof result.details.fullOutputPath, "string");
-    assert.equal(readFileSync(result.details.fullOutputPath as string, "utf8"), body);
+    expect(text.startsWith(header)).toBe(true);
+    expect(text.includes(body.slice(0, 200))).toBe(true);
+    expect(text).toMatch(/\[Output truncated: 1 of 1 lines \(\d+\.\dKB of 58\.6KB\)\./);
+    expect(typeof result.details.fullOutputPath).toBe("string");
+    expect(readFileSync(result.details.fullOutputPath as string, "utf8")).toBe(body);
 
     const small = fakeFetchEnv(() => ({ status: 200, ok: true, body: "upstream down" }));
     try {
       const smallResult = await small.probe.execute("t", { url: "http://localhost:3000/", allowHosts: ["localhost"] });
-      assert.equal(smallResult.content[0].text, "HTTP 200 ok=true\n\nupstream down");
+      expect(smallResult.content[0].text).toBe("HTTP 200 ok=true\n\nupstream down");
     } finally {
       small.restore();
     }
@@ -240,16 +225,14 @@ test("control-05 requires argv to be a non-empty string array", async () => {
   const env = companionEnv();
   const cli = env.tool("pstack_control_cli");
 
-  assert.equal(Check(cli.parameters, { argv: [] }), false);
-  assert.equal(Check(cli.parameters, { argv: "git" }), false);
-  assert.equal(Check(cli.parameters, { argv: [7] }), false);
-  assert.equal(Check(cli.parameters, {}), false);
-  assert.equal(Check(cli.parameters, { argv: ["git"] }), true);
+  expect(Check(cli.parameters, { argv: [] })).toBe(false);
+  expect(Check(cli.parameters, { argv: "git" })).toBe(false);
+  expect(Check(cli.parameters, { argv: [7] })).toBe(false);
+  expect(Check(cli.parameters, {})).toBe(false);
+  expect(Check(cli.parameters, { argv: ["git"] })).toBe(true);
 
-  await assert.rejects(() => cli.execute("t", { argv: [] }), {
-    message: "argv[0] must be a command name/path",
-  });
-  assert.equal(env.calls().length, 0);
+  await expect(() => cli.execute("t", { argv: [] })).rejects.toThrow("argv[0] must be a command name/path");
+  expect(env.calls().length).toBe(0);
 });
 
 test("control-06 passes the optional cwd through to exec", async () => {
@@ -259,39 +242,36 @@ test("control-06 passes the optional cwd through to exec", async () => {
   await cli.execute("t", { argv: ["git", "log"], cwd: "/tmp/control-cwd" });
   await cli.execute("t", { argv: ["git", "log"] });
 
-  assert.equal(env.calls()[0].opts?.cwd, "/tmp/control-cwd");
-  assert.equal(env.calls()[1].opts?.cwd, undefined);
-  assert.equal(Check(cli.parameters, { argv: ["npm"], cwd: "/tmp/control-cwd" }), true);
-  assert.equal(Check(cli.parameters, { argv: ["npm"], cwd: 7 }), false);
+  expect(env.calls()[0].opts?.cwd).toBe("/tmp/control-cwd");
+  expect(env.calls()[1].opts?.cwd).toBe(undefined);
+  expect(Check(cli.parameters, { argv: ["npm"], cwd: "/tmp/control-cwd" })).toBe(true);
+  expect(Check(cli.parameters, { argv: ["npm"], cwd: 7 })).toBe(false);
 });
 
 test("control-07 bounds timeoutSeconds at 1..600 with a default of 120", async () => {
   const env = companionEnv();
   const cli = env.tool("pstack_control_cli");
 
-  assert.equal(Check(cli.parameters, { argv: ["git"], timeoutSeconds: 0 }), false);
-  assert.equal(Check(cli.parameters, { argv: ["git"], timeoutSeconds: 601 }), false);
-  assert.equal(Check(cli.parameters, { argv: ["git"], timeoutSeconds: 1.5 }), false);
-  assert.equal(Check(cli.parameters, { argv: ["git"], timeoutSeconds: "120" }), false);
-  assert.equal(Check(cli.parameters, { argv: ["git"], timeoutSeconds: 1 }), true);
-  assert.equal(Check(cli.parameters, { argv: ["git"], timeoutSeconds: 600 }), true);
+  expect(Check(cli.parameters, { argv: ["git"], timeoutSeconds: 0 })).toBe(false);
+  expect(Check(cli.parameters, { argv: ["git"], timeoutSeconds: 601 })).toBe(false);
+  expect(Check(cli.parameters, { argv: ["git"], timeoutSeconds: 1.5 })).toBe(false);
+  expect(Check(cli.parameters, { argv: ["git"], timeoutSeconds: "120" })).toBe(false);
+  expect(Check(cli.parameters, { argv: ["git"], timeoutSeconds: 1 })).toBe(true);
+  expect(Check(cli.parameters, { argv: ["git"], timeoutSeconds: 600 })).toBe(true);
 
   await cli.execute("t", { argv: ["git"] });
   await cli.execute("t", { argv: ["git"], timeoutSeconds: 1 });
   await cli.execute("t", { argv: ["git"], timeoutSeconds: 600 });
-  assert.deepEqual(
-    env.calls().map((call) => call.opts?.timeout),
-    [120_000, 1_000, 600_000],
-  );
+  expect(env.calls().map((call) => call.opts?.timeout)).toEqual([120_000, 1_000, 600_000]);
 });
 
 test("control-08 requires the url parameter", async () => {
   const env = companionEnv();
   const probe = env.tool("pstack_control_ui");
 
-  assert.equal(Check(probe.parameters, {}), false);
-  assert.equal(Check(probe.parameters, { url: 12 }), false);
-  assert.equal(Check(probe.parameters, { url: "http://localhost:3000/" }), true);
+  expect(Check(probe.parameters, {})).toBe(false);
+  expect(Check(probe.parameters, { url: 12 })).toBe(false);
+  expect(Check(probe.parameters, { url: "http://localhost:3000/" })).toBe(true);
 });
 
 test("control-09 defaults the ui method to GET", async () => {
@@ -303,10 +283,7 @@ test("control-09 defaults the ui method to GET", async () => {
       method: "POST",
       allowHosts: ["localhost"],
     });
-    assert.deepEqual(
-      env.fetchCalls().map((call) => call.method),
-      ["GET", "POST"],
-    );
+    expect(env.fetchCalls().map((call) => call.method)).toEqual(["GET", "POST"]);
   } finally {
     env.restore();
   }
@@ -327,19 +304,13 @@ test("control-10 honors the optional expectStatus parameter", async () => {
     });
     const omitted = await env.probe.execute("t", { url: "http://localhost:3000/", allowHosts: ["localhost"] });
 
-    assert.deepEqual(
-      [matched.details.ok, mismatched.details.ok, omitted.details.ok],
-      [true, false, false],
-    );
-    assert.deepEqual(
-      [matched.details.status, mismatched.details.status, omitted.details.status],
-      [503, 503, 503],
-    );
-    assert.equal(matched.content[0].text, "HTTP 503 ok=true\n\ndown");
-    assert.equal(mismatched.content[0].text, "HTTP 503 ok=false\n\ndown");
+    expect([matched.details.ok, mismatched.details.ok, omitted.details.ok]).toEqual([true, false, false]);
+    expect([matched.details.status, mismatched.details.status, omitted.details.status]).toEqual([503, 503, 503]);
+    expect(matched.content[0].text).toBe("HTTP 503 ok=true\n\ndown");
+    expect(mismatched.content[0].text).toBe("HTTP 503 ok=false\n\ndown");
 
-    assert.equal(Check(env.probe.parameters, { url: "http://x/", expectStatus: 200 }), true);
-    assert.equal(Check(env.probe.parameters, { url: "http://x/", expectStatus: "200" }), false);
+    expect(Check(env.probe.parameters, { url: "http://x/", expectStatus: 200 })).toBe(true);
+    expect(Check(env.probe.parameters, { url: "http://x/", expectStatus: "200" })).toBe(false);
   } finally {
     env.restore();
   }

@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import {
   createInitialPotetoState,
   reducePersistMatch,
@@ -25,7 +24,7 @@ const statusOf = (effects) => effects.find((effect) => effect.type === "setStatu
 const armedState = () => reduceSetEnabled(createInitialPotetoState(), true, { id: "why", score: 5 }).state;
 
 test("createInitialPotetoState starts disabled with no match and empty text", () => {
-  assert.deepEqual(createInitialPotetoState(), {
+  expect(createInitialPotetoState()).toEqual({
     enabled: false,
     matchedPlaybookId: null,
     matchedScore: 0,
@@ -36,65 +35,65 @@ test("createInitialPotetoState starts disabled with no match and empty text", ()
 
 test("reduceSetEnabled arms on a strong match with a sticky entry and matched status", () => {
   const result = reduceSetEnabled(createInitialPotetoState(), true, { id: "babysit", score: 7 });
-  assert.deepEqual(result.state, {
+  expect(result.state).toEqual({
     enabled: true,
     matchedPlaybookId: "babysit",
     matchedScore: 7,
     assignedThisTurn: true,
     lastUserText: "",
   });
-  assert.equal(appendOf(result.effects)?.entryType, "pstack-poteto-mode");
-  assert.equal(appendOf(result.effects)?.payload.enabled, true);
-  assert.equal(appendOf(result.effects)?.payload.matchedPlaybookId, "babysit");
-  assert.equal(appendOf(result.effects)?.payload.matchedScore, 7);
-  assert.equal(statusOf(result.effects)?.statusId, "pstack");
-  assert.equal(statusOf(result.effects)?.value, "poteto:babysit");
+  expect(appendOf(result.effects)?.entryType).toBe("pstack-poteto-mode");
+  expect(appendOf(result.effects)?.payload.enabled).toBe(true);
+  expect(appendOf(result.effects)?.payload.matchedPlaybookId).toBe("babysit");
+  expect(appendOf(result.effects)?.payload.matchedScore).toBe(7);
+  expect(statusOf(result.effects)?.statusId).toBe("pstack");
+  expect(statusOf(result.effects)?.value).toBe("poteto:babysit");
 });
 
 test("reduceSetEnabled without a match arms plain poteto and persists no playbook id", () => {
   const result = reduceSetEnabled(createInitialPotetoState(), true);
-  assert.equal(result.state.matchedPlaybookId, null);
-  assert.equal(appendOf(result.effects)?.payload.matchedPlaybookId, undefined);
-  assert.equal(statusOf(result.effects)?.value, "poteto");
+  expect(result.state.matchedPlaybookId).toBe(null);
+  expect(appendOf(result.effects)?.payload.matchedPlaybookId).toBe(undefined);
+  expect(statusOf(result.effects)?.value).toBe("poteto");
 });
 
 test("reduceSetEnabled is a no-op when the flag and match do not change", () => {
   const state = createInitialPotetoState();
   const result = reduceSetEnabled(state, false);
-  assert.equal(result.state, state);
-  assert.deepEqual(result.effects, []);
+  expect(result.state).toBe(state);
+  expect(result.effects).toEqual([]);
 });
 
 test("reduceSetEnabled with a null match clears the persisted playbook", () => {
   const result = reduceSetEnabled(armedState(), true, null);
-  assert.equal(result.state.matchedPlaybookId, null);
-  assert.equal(statusOf(result.effects)?.value, "poteto");
+  expect(result.state.matchedPlaybookId).toBe(null);
+  expect(statusOf(result.effects)?.value).toBe("poteto");
 });
 
 test("reduceSetEnabled(false) clears the match and hides the status", () => {
   const result = reduceSetEnabled(armedState(), false);
-  assert.deepEqual(result.state, {
+  expect(result.state).toEqual({
     enabled: false,
     matchedPlaybookId: null,
     matchedScore: 0,
     assignedThisTurn: false,
     lastUserText: "",
   });
-  assert.equal(statusOf(result.effects)?.value, undefined);
+  expect(statusOf(result.effects)?.value).toBe(undefined);
 });
 
 test("reducePersistMatch updates the playbook and emits one sticky entry", () => {
   const result = reducePersistMatch(armedState(), { id: "babysit", score: 3 });
-  assert.equal(result.state.enabled, true);
-  assert.equal(result.state.matchedPlaybookId, "babysit");
-  assert.equal(result.state.matchedScore, 3);
-  assert.equal(result.state.assignedThisTurn, true);
-  assert.equal(result.effects.length, 1);
-  assert.equal(appendOf(result.effects)?.payload.matchedPlaybookId, "babysit");
+  expect(result.state.enabled).toBe(true);
+  expect(result.state.matchedPlaybookId).toBe("babysit");
+  expect(result.state.matchedScore).toBe(3);
+  expect(result.state.assignedThisTurn).toBe(true);
+  expect(result.effects.length).toBe(1);
+  expect(appendOf(result.effects)?.payload.matchedPlaybookId).toBe("babysit");
 });
 
 test("reduceRecordText keeps the other fields and stores the text", () => {
-  assert.deepEqual(reduceRecordText(armedState(), "babysit PR 12"), {
+  expect(reduceRecordText(armedState(), "babysit PR 12")).toEqual({
     enabled: true,
     matchedPlaybookId: "why",
     matchedScore: 5,
@@ -104,24 +103,21 @@ test("reduceRecordText keeps the other fields and stores the text", () => {
 });
 
 test("reduceRestore folds custom entry data into the last sticky state", () => {
-  assert.deepEqual(
-    reduceRestore([
+  expect(reduceRestore([
       { enabled: true, matchedPlaybookId: "why" },
       { enabled: true, matchedPlaybookId: "babysit" },
-    ]),
-    { enabled: true, matchedPlaybookId: "babysit", matchedScore: 0, assignedThisTurn: false, lastUserText: "" },
-  );
+    ])).toEqual({ enabled: true, matchedPlaybookId: "babysit", matchedScore: 0, assignedThisTurn: false, lastUserText: "" });
 });
 
 test("reduceRestore ignores malformed entries and keeps a match after a disabled entry", () => {
-  assert.deepEqual(reduceRestore([null, "junk", { enabled: "yes" }]), {
+  expect(reduceRestore([null, "junk", { enabled: "yes" }])).toEqual({
     enabled: false,
     matchedPlaybookId: null,
     matchedScore: 0,
     assignedThisTurn: false,
     lastUserText: "",
   });
-  assert.deepEqual(reduceRestore([{ enabled: true, matchedPlaybookId: "why" }, { enabled: false }]), {
+  expect(reduceRestore([{ enabled: true, matchedPlaybookId: "why" }, { enabled: false }])).toEqual({
     enabled: false,
     matchedPlaybookId: "why",
     matchedScore: 0,

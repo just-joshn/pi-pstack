@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { registerPiOnlyCommands, registerSkillCommands } from "../../../extensions/commands/skill-commands.ts";
 import { registerCompanions } from "../../../extensions/companions/index.ts";
 
@@ -24,7 +23,7 @@ test("the modules that own commands register each name exactly once", () => {
 
   const registered = names();
   const duplicates = registered.filter((name, index) => registered.indexOf(name) !== index);
-  assert.deepEqual(duplicates, [], `duplicate command registrations: ${duplicates.join(", ")}`);
-  assert.ok(registered.includes("deslop"), "companions owns the deslop command");
-  assert.ok(registered.includes("babysit"), "the pi-only commands still register");
+  expect(duplicates, `duplicate command registrations: ${duplicates.join(", ")}`).toEqual([]);
+  expect(registered.includes("deslop"), "companions owns the deslop command").toBeTruthy();
+  expect(registered.includes("babysit"), "the pi-only commands still register").toBeTruthy();
 });

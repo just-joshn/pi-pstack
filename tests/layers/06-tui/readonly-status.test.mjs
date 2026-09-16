@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import { ok } from "node:assert/strict";
+import { expect, test } from "vitest";
 import { resolve } from "node:path";
 import { tmuxAvailable, withTmux } from "../../support/tmux-driver.mjs";
 import { makeTempRoot } from "../../support/temp-env.mjs";
@@ -20,7 +19,7 @@ test("readonly status: real TUI + real extension", { skip: !tmuxAvailable() }, a
 
         const readonlyPane = await fx.waitFor(/readonly/, 10000);
         const count = (readonlyPane.match(/readonly/g) || []).length;
-        ok(count >= 2);
+        expect(count >= 2).toBeTruthy();
 
         fx.sendLiteral("/pstack-readonly-off");
         fx.send("Enter");

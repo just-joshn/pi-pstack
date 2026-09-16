@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -247,12 +246,12 @@ test("spawn-02 rejects a spawn call with no task and requires the task string", 
   try {
     const h = makeHarness(cwd);
     const schema = h.tool("pstack_spawn").parameters;
-    assert.equal(Value.Check(schema, { task: "self-contained brief" }), true);
-    assert.equal(Value.Check(schema, { task: "self-contained brief", role: "general", timeoutMs: 1000 }), true);
-    assert.equal(Value.Check(schema, {}), false);
-    assert.equal(Value.Check(schema, { role: "general" }), false);
-    assert.equal(Value.Check(schema, { task: 42 }), false);
-    assert.equal(Value.Check(schema, { task: "" }), false, "an empty brief is not a task");
+    expect(Value.Check(schema, { task: "self-contained brief" })).toBe(true);
+    expect(Value.Check(schema, { task: "self-contained brief", role: "general", timeoutMs: 1000 })).toBe(true);
+    expect(Value.Check(schema, {})).toBe(false);
+    expect(Value.Check(schema, { role: "general" })).toBe(false);
+    expect(Value.Check(schema, { task: 42 })).toBe(false);
+    expect(Value.Check(schema, { task: "" }), "an empty brief is not a task").toBe(false);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -264,55 +263,52 @@ test("spawn-03 defaults the role to general and wraps per-role prompts", async (
     childRunner.__resetBackgroundJobsForTests();
     const h = makeHarness(cwd);
     const generalArgs = await spawnArgs(h, { task: "RAW BRIEF" });
-    assert.equal(generalArgs.at(-1), "RAW BRIEF");
-    assert.equal(lastSpawn().env.PSTACK_CHILD_ROLE, "general");
-    assert.equal(argAfter(generalArgs, "--append-system-prompt"), GENERAL_NOTE);
-    assert.equal((await spawnArgs(h, { task: "RAW BRIEF", role: "general" })).at(-1), "RAW BRIEF");
+    expect(generalArgs.at(-1)).toBe("RAW BRIEF");
+    expect(lastSpawn().env.PSTACK_CHILD_ROLE).toBe("general");
+    expect(argAfter(generalArgs, "--append-system-prompt")).toBe(GENERAL_NOTE);
+    expect((await spawnArgs(h, { task: "RAW BRIEF", role: "general" })).at(-1)).toBe("RAW BRIEF");
     const potetoArgs = await spawnArgs(h, { task: "RAW BRIEF", role: "poteto-agent" });
-    assert.equal(potetoArgs.at(-1), "/skill:poteto-mode RAW BRIEF");
-    assert.equal(argAfter(potetoArgs, "--skill"), resolve(REPO_ROOT, "skills", "poteto-mode", "SKILL.md"));
+    expect(potetoArgs.at(-1)).toBe("/skill:poteto-mode RAW BRIEF");
+    expect(argAfter(potetoArgs, "--skill")).toBe(resolve(REPO_ROOT, "skills", "poteto-mode", "SKILL.md"));
     const sickoArgs = await spawnArgs(h, { task: "RAW BRIEF", role: "comment-sicko" });
-    assert.equal(sickoArgs.at(-1), SICKO_PROMPT);
-    assert.equal(argAfter(sickoArgs, "--tools"), "read,grep,find,ls");
+    expect(sickoArgs.at(-1)).toBe(SICKO_PROMPT);
+    expect(argAfter(sickoArgs, "--tools")).toBe("read,grep,find,ls");
     const investigatorArgs = await spawnArgs(h, { task: "RAW BRIEF", role: "investigator" });
-    assert.equal(investigatorArgs.at(-1), INVESTIGATOR_PROMPT);
-    assert.equal(lastSpawn().env.PSTACK_CHILD_ROLE, "investigator");
+    expect(investigatorArgs.at(-1)).toBe(INVESTIGATOR_PROMPT);
+    expect(lastSpawn().env.PSTACK_CHILD_ROLE).toBe("investigator");
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
 });
 
 test("spawn-04 refuses a bare marketing slug and accepts provider/id, inherit-parent, and auto", async () => {
-  assert.deepEqual(modelsConfig.normalizeModelSelector("anthropic/claude-sonnet-4-5", PARENT_MODEL), {
+  expect(modelsConfig.normalizeModelSelector("anthropic/claude-sonnet-4-5", PARENT_MODEL)).toEqual({
     ok: true,
     model: "anthropic/claude-sonnet-4-5",
   });
-  assert.deepEqual(modelsConfig.normalizeModelSelector("inherit-parent", PARENT_MODEL), { ok: true, model: PARENT_MODEL });
-  assert.deepEqual(modelsConfig.normalizeModelSelector("auto", PARENT_MODEL), { ok: true, model: PARENT_MODEL });
-  assert.deepEqual(modelsConfig.normalizeModelSelector("grok-4.6-fast-xhigh", PARENT_MODEL), {
+  expect(modelsConfig.normalizeModelSelector("inherit-parent", PARENT_MODEL)).toEqual({ ok: true, model: PARENT_MODEL });
+  expect(modelsConfig.normalizeModelSelector("auto", PARENT_MODEL)).toEqual({ ok: true, model: PARENT_MODEL });
+  expect(modelsConfig.normalizeModelSelector("grok-4.6-fast-xhigh", PARENT_MODEL)).toEqual({
     ok: true,
     model: "xai/grok-4",
     mappedFrom: "grok-4.6-fast-xhigh",
   });
   const refused = modelsConfig.normalizeModelSelector("unmapped-bare-slug", PARENT_MODEL, { allowFallbackToParent: false });
-  assert.equal(refused.ok, false);
-  assert.match((refused as { error: string }).error, /Refused bare model slug 'unmapped-bare-slug'/);
+  expect(refused.ok).toBe(false);
+  expect((refused as { error: string }).error).toMatch(/Refused bare model slug 'unmapped-bare-slug'/);
 
   const cwd = tempCwd();
   try {
     childRunner.__resetBackgroundJobsForTests();
     const h = makeHarness(cwd);
     const before = recordedSpawns.length;
-    await assert.rejects(
-      runSpawn(h, { task: "brief", model: "unmapped-bare-slug", background: false }),
-      /Refused bare model slug 'unmapped-bare-slug'/,
-    );
-    assert.equal(recordedSpawns.length, before);
+    await expect(runSpawn(h, { task: "brief", model: "unmapped-bare-slug", background: false })).rejects.toThrow(/Refused bare model slug 'unmapped-bare-slug'/);
+    expect(recordedSpawns.length).toBe(before);
     const providerArgs = await spawnArgs(h, { task: "brief", model: "anthropic/claude-sonnet-4-5" });
-    assert.equal(argAfter(providerArgs, "--model"), "anthropic/claude-sonnet-4-5");
-    assert.equal(argAfter(await spawnArgs(h, { task: "brief", model: "inherit-parent" }), "--model"), PARENT_MODEL);
-    assert.equal(argAfter(await spawnArgs(h, { task: "brief", model: "auto" }), "--model"), PARENT_MODEL);
-    assert.equal(argAfter(await spawnArgs(h, { task: "brief", model: "grok-4.6-fast-xhigh" }), "--model"), "xai/grok-4");
+    expect(argAfter(providerArgs, "--model")).toBe("anthropic/claude-sonnet-4-5");
+    expect(argAfter(await spawnArgs(h, { task: "brief", model: "inherit-parent" }), "--model")).toBe(PARENT_MODEL);
+    expect(argAfter(await spawnArgs(h, { task: "brief", model: "auto" }), "--model")).toBe(PARENT_MODEL);
+    expect(argAfter(await spawnArgs(h, { task: "brief", model: "grok-4.6-fast-xhigh" }), "--model")).toBe("xai/grok-4");
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -331,16 +327,16 @@ test("spawn-05 resolves an omitted model from role config over the parent model"
     const h = makeHarness(cwd);
     setSpawnPlan({ stdout: messageLine("configured") });
     const configured = await runSpawn(h, { task: "brief", role: "contracts-role", background: false });
-    assert.equal(argAfter(lastSpawn().args, "--model"), "anthropic/configured-child");
+    expect(argAfter(lastSpawn().args, "--model")).toBe("anthropic/configured-child");
     const configuredResult = configured.details.result as Record<string, unknown>;
-    assert.equal(configuredResult.model, "anthropic/configured-child");
-    assert.equal(configured.content[0].text.startsWith("### pstack_spawn (contracts-role, anthropic/configured-child, exit 0"), true);
+    expect(configuredResult.model).toBe("anthropic/configured-child");
+    expect(configured.content[0].text.startsWith("### pstack_spawn (contracts-role, anthropic/configured-child, exit 0")).toBe(true);
 
     setSpawnPlan({ stdout: messageLine("parent") });
     const fallback = await runSpawn(h, { task: "brief", role: "contracts-unconfigured", background: false });
-    assert.equal(argAfter(lastSpawn().args, "--model"), PARENT_MODEL);
+    expect(argAfter(lastSpawn().args, "--model")).toBe(PARENT_MODEL);
     const fallbackResult = fallback.details.result as Record<string, unknown>;
-    assert.equal(fallbackResult.model, PARENT_MODEL);
+    expect(fallbackResult.model).toBe(PARENT_MODEL);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -356,29 +352,29 @@ test("spawn-09 accepts isolated or ephemeral and defaults an unknown sessionMode
     setSpawnPlan({ stdout: messageLine("iso") });
     const isolated = await runSpawn(h, { task: "brief", sessionMode: "isolated", background: false });
     const isolatedArgs = lastSpawn().args;
-    assert.equal(isolatedArgs.includes("--no-session"), false);
-    assert.equal(isolatedArgs.includes("--continue"), false);
+    expect(isolatedArgs.includes("--no-session")).toBe(false);
+    expect(isolatedArgs.includes("--continue")).toBe(false);
     const isolatedDir = argAfter(isolatedArgs, "--session-dir");
-    assert.equal(isolatedDir?.startsWith(join(cwd, ".pi", "pstack-child-sessions")), true);
-    assert.equal(isolated.details.sessionDir, isolatedDir);
+    expect(isolatedDir?.startsWith(join(cwd, ".pi", "pstack-child-sessions"))).toBe(true);
+    expect(isolated.details.sessionDir).toBe(isolatedDir);
     const isolatedResult = isolated.details.result as Record<string, unknown>;
-    assert.equal(isolatedResult.sessionDir, isolatedDir);
+    expect(isolatedResult.sessionDir).toBe(isolatedDir);
 
     setSpawnPlan({ stdout: messageLine("eph") });
     const ephemeral = await runSpawn(h, { task: "brief", sessionMode: "ephemeral", background: false });
-    assert.equal(lastSpawn().args.includes("--no-session"), true);
-    assert.equal(lastSpawn().args.includes("--session-dir"), false);
-    assert.equal(ephemeral.details.sessionDir, undefined);
+    expect(lastSpawn().args.includes("--no-session")).toBe(true);
+    expect(lastSpawn().args.includes("--session-dir")).toBe(false);
+    expect(ephemeral.details.sessionDir).toBe(undefined);
 
     setSpawnPlan({ stdout: messageLine("bogus") });
     await runSpawn(h, { task: "brief", sessionMode: "bogus", background: false });
-    assert.equal(lastSpawn().args.includes("--no-session"), false);
-    assert.equal(lastSpawn().args.includes("--session-dir"), true);
+    expect(lastSpawn().args.includes("--no-session")).toBe(false);
+    expect(lastSpawn().args.includes("--session-dir")).toBe(true);
 
     setSpawnPlan({ stdout: messageLine("unset") });
     await runSpawn(h, { task: "brief", background: false });
-    assert.equal(lastSpawn().args.includes("--no-session"), false);
-    assert.equal(lastSpawn().args.includes("--session-dir"), true);
+    expect(lastSpawn().args.includes("--no-session")).toBe(false);
+    expect(lastSpawn().args.includes("--session-dir")).toBe(true);
   } finally {
     if (previousSessionEnv === undefined) Reflect.deleteProperty(process.env, "PSTACK_CHILD_SESSION");
     else process.env.PSTACK_CHILD_SESSION = previousSessionEnv;
@@ -392,19 +388,19 @@ test("spawn-12 bounds timeoutMs to 1000..1800000 and defaults to 600000", async 
     childRunner.__resetBackgroundJobsForTests();
     const h = makeHarness(cwd);
     const schema = h.tool("pstack_spawn").parameters;
-    assert.equal(Value.Check(schema, { task: "brief", timeoutMs: 1000 }), true);
-    assert.equal(Value.Check(schema, { task: "brief", timeoutMs: 1_800_000 }), true);
-    assert.equal(Value.Check(schema, { task: "brief", timeoutMs: 999 }), false);
-    assert.equal(Value.Check(schema, { task: "brief", timeoutMs: 1_800_001 }), false);
-    assert.equal(childRunner.DEFAULT_TIMEOUT_MS, 600_000);
-    assert.equal(childRunner.MAX_TIMEOUT_MS, 1_800_000);
+    expect(Value.Check(schema, { task: "brief", timeoutMs: 1000 })).toBe(true);
+    expect(Value.Check(schema, { task: "brief", timeoutMs: 1_800_000 })).toBe(true);
+    expect(Value.Check(schema, { task: "brief", timeoutMs: 999 })).toBe(false);
+    expect(Value.Check(schema, { task: "brief", timeoutMs: 1_800_001 })).toBe(false);
+    expect(childRunner.DEFAULT_TIMEOUT_MS).toBe(600_000);
+    expect(childRunner.MAX_TIMEOUT_MS).toBe(1_800_000);
     setSpawnPlan({ stdout: messageLine("ack") });
     const defaulted = await runWithTimerCapture(() => runSpawn(h, { task: "brief", background: false }));
-    assert.equal(defaulted.includes(600_000), true);
+    expect(defaulted.includes(600_000)).toBe(true);
     const explicit = await runWithTimerCapture(() =>
       runSpawn(h, { task: "brief", timeoutMs: 1000, background: false }),
     );
-    assert.equal(explicit.includes(1000), true);
+    expect(explicit.includes(1000)).toBe(true);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -419,12 +415,12 @@ test("spawn-14 exports PSTACK_PARENT_MODEL and PSTACK_CHILD_ROLE to the child en
     const h = makeHarness(cwd);
     setSpawnPlan({ stdout: messageLine("ack") });
     await runSpawn(h, { task: "brief", role: "investigator", background: false });
-    assert.equal(lastSpawn().env.PSTACK_PARENT_MODEL, PARENT_MODEL);
-    assert.equal(lastSpawn().env.PSTACK_CHILD_ROLE, "investigator");
-    assert.equal(lastSpawn().env.PSTACK_CONTRACTS_PROBE, "probe-value");
+    expect(lastSpawn().env.PSTACK_PARENT_MODEL).toBe(PARENT_MODEL);
+    expect(lastSpawn().env.PSTACK_CHILD_ROLE).toBe("investigator");
+    expect(lastSpawn().env.PSTACK_CONTRACTS_PROBE).toBe("probe-value");
     await runSpawn(h, { task: "brief", background: false });
-    assert.equal(lastSpawn().env.PSTACK_PARENT_MODEL, PARENT_MODEL);
-    assert.equal(lastSpawn().env.PSTACK_CHILD_ROLE, "general");
+    expect(lastSpawn().env.PSTACK_PARENT_MODEL).toBe(PARENT_MODEL);
+    expect(lastSpawn().env.PSTACK_CHILD_ROLE).toBe("general");
   } finally {
     if (previousProbe === undefined) Reflect.deleteProperty(process.env, "PSTACK_CONTRACTS_PROBE");
     else process.env.PSTACK_CONTRACTS_PROBE = previousProbe;
@@ -440,23 +436,23 @@ test("spawn-15 never inherits the parent conversation history", async () => {
     setSpawnPlan({ stdout: messageLine("fresh") });
     await runSpawn(h, { task: "brief", background: false });
     const fresh = lastSpawn();
-    assert.equal(fresh.args.includes("--continue"), false);
-    assert.equal(fresh.args.includes("-c"), false);
-    assert.equal(fresh.args.includes("--resume"), false);
-    assert.equal(fresh.args.includes("-r"), false);
-    assert.equal(childRunner.argvHasContinueSemantics(fresh.args), false);
-    assert.equal(childRunner.argvIsDirOnlyResume(fresh.args), true);
-    assert.equal(argAfter(fresh.args, "--session-dir")?.startsWith(join(cwd, ".pi", "pstack-child-sessions")), true);
-    assert.deepEqual(fresh.args.filter((arg) => arg.includes(".jsonl")), []);
-    assert.equal(fresh.env.PSTACK_PARENT_SESSION, undefined);
-    assert.equal(fresh.env.PSTACK_PARENT_TRANSCRIPT, undefined);
+    expect(fresh.args.includes("--continue")).toBe(false);
+    expect(fresh.args.includes("-c")).toBe(false);
+    expect(fresh.args.includes("--resume")).toBe(false);
+    expect(fresh.args.includes("-r")).toBe(false);
+    expect(childRunner.argvHasContinueSemantics(fresh.args)).toBe(false);
+    expect(childRunner.argvIsDirOnlyResume(fresh.args)).toBe(true);
+    expect(argAfter(fresh.args, "--session-dir")?.startsWith(join(cwd, ".pi", "pstack-child-sessions"))).toBe(true);
+    expect(fresh.args.filter((arg) => arg.includes(".jsonl"))).toEqual([]);
+    expect(fresh.env.PSTACK_PARENT_SESSION).toBe(undefined);
+    expect(fresh.env.PSTACK_PARENT_TRANSCRIPT).toBe(undefined);
 
     const priorDir = join(cwd, "prior-child-session");
     mkdirSync(priorDir, { recursive: true });
     setSpawnPlan({ stdout: messageLine("resumed") });
     await runSpawn(h, { task: "brief", resumeSessionDir: priorDir, background: false });
-    assert.equal(childRunner.argvHasContinueSemantics(lastSpawn().args), true);
-    assert.equal(argAfter(lastSpawn().args, "--session-dir"), priorDir);
+    expect(childRunner.argvHasContinueSemantics(lastSpawn().args)).toBe(true);
+    expect(argAfter(lastSpawn().args, "--session-dir")).toBe(priorDir);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -471,14 +467,14 @@ test("spawn-16 never inherits the parent MCP bindings", async () => {
     await runSpawn(h, { task: "brief", background: false });
     const spawned = lastSpawn();
     const mcpFlags = spawned.args.filter((arg) => arg.startsWith("--mcp") || arg === "--extension");
-    assert.deepEqual(mcpFlags, []);
+    expect(mcpFlags).toEqual([]);
     const parentMcpKeys = Object.keys(process.env)
       .filter((key) => /mcp/i.test(key))
       .toSorted();
     const childMcpKeys = Object.keys(spawned.env)
       .filter((key) => /mcp/i.test(key))
       .toSorted();
-    assert.deepEqual(childMcpKeys, parentMcpKeys);
+    expect(childMcpKeys).toEqual(parentMcpKeys);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -497,16 +493,13 @@ test("spawn-18 delivers the background follow-up with job id, role, model, exit 
       background: true,
     });
     const jobId = started.details.jobId as string;
-    assert.match(jobId, /^bg-1-/);
-    assert.equal(started.details.background, true);
+    expect(jobId).toMatch(/^bg-1-/);
+    expect(started.details.background).toBe(true);
     const sessionDir = started.details.sessionDir as string;
-    assert.equal(sessionDir.startsWith(join(cwd, ".pi", "pstack-child-sessions")), true);
+    expect(sessionDir.startsWith(join(cwd, ".pi", "pstack-child-sessions"))).toBe(true);
     const followUp = await awaitFollowUp(h);
-    assert.equal(
-      followUp,
-      `### pstack_spawn background complete (${jobId}, general, test/probe-model, exit 0, status=done, sessionDir=${sessionDir})\n\nchild says hi`,
-    );
-    assert.equal(h.followUps.at(-1)?.options.deliverAs, "followUp");
+    expect(followUp).toBe(`### pstack_spawn background complete (${jobId}, general, test/probe-model, exit 0, status=done, sessionDir=${sessionDir})\n\nchild says hi`);
+    expect(h.followUps.at(-1)?.options.deliverAs).toBe("followUp");
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -525,18 +518,15 @@ test("spawn-19 returns the foreground reply with role, model, exit code, and ses
       updates.record,
     );
     const sessionDir = reply.details.sessionDir;
-    assert.equal(typeof sessionDir, "string");
-    assert.equal(
-      reply.content[0].text,
-      `### pstack_spawn (general, test/probe-model, exit 0, sessionDir=${sessionDir})\n\nchild says hi`,
-    );
+    expect(typeof sessionDir).toBe("string");
+    expect(reply.content[0].text).toBe(`### pstack_spawn (general, test/probe-model, exit 0, sessionDir=${sessionDir})\n\nchild says hi`);
     const result = reply.details.result as Record<string, unknown>;
-    assert.equal(result.role, "general");
-    assert.equal(result.model, "test/probe-model");
-    assert.equal(result.exitCode, 0);
-    assert.equal(result.sessionDir, sessionDir);
-    assert.equal(reply.details.readonly, false);
-    assert.equal(updates.messages.at(0), "Spawning general on test/probe-model\u2026");
+    expect(result.role).toBe("general");
+    expect(result.model).toBe("test/probe-model");
+    expect(result.exitCode).toBe(0);
+    expect(result.sessionDir).toBe(sessionDir);
+    expect(reply.details.readonly).toBe(false);
+    expect(updates.messages.at(0)).toBe("Spawning general on test/probe-model\u2026");
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

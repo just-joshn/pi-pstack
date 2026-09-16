@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { repoRoot } from "../../support/repo-root.mjs";
@@ -17,13 +16,13 @@ const BUNDLED_SCRIPTS = [
 test("bundled scripts keep the executable bit upstream ships", () => {
   for (const rel of BUNDLED_SCRIPTS) {
     const mode = statSync(resolve(ROOT, rel)).mode;
-    assert.ok((mode & 0o111) !== 0, `${rel} must be executable for direct invocation`);
+    expect((mode & 0o111) !== 0, `${rel} must be executable for direct invocation`).toBeTruthy();
   }
 });
 
 test("package.json declares the bun runtime the ported scripts need", () => {
   const pkg = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8"));
   const range = pkg.engines?.bun;
-  assert.equal(typeof range, "string", "engines.bun must be declared");
-  assert.ok(range.length > 0, "engines.bun must name a version range");
+  expect(typeof range, "engines.bun must be declared").toBe("string");
+  expect(range.length > 0, "engines.bun must name a version range").toBeTruthy();
 });

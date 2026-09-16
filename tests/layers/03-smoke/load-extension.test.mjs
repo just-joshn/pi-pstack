@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -24,9 +23,9 @@ test("extension loads with no error on closed stdin", () => {
   const tmp = makeTempRoot();
   try {
     const result = spawnPi(EXTENSION_PATH, tmp);
-    assert.equal(result.signal, null, `process killed by ${result.signal}`);
-    assert.equal(result.status, 0, `exit ${result.status}; stderr: ${result.stderr}`);
-    assert.doesNotMatch(result.stderr, /Failed to load extension/);
+    expect(result.signal, `process killed by ${result.signal}`).toBe(null);
+    expect(result.status, `exit ${result.status}; stderr: ${result.stderr}`).toBe(0);
+    expect(result.stderr).not.toMatch(/Failed to load extension/);
   } finally {
     tmp.cleanup();
   }
@@ -43,10 +42,10 @@ test("broken extension fails the same probe", () => {
     );
 
     const result = spawnPi(brokenPath, tmp);
-    assert.equal(result.signal, null, `process killed by ${result.signal}`);
-    assert.equal(result.status, 1, `exit ${result.status}; stderr: ${result.stderr}`);
-    assert.match(result.stderr, /Failed to load extension/);
-    assert.match(result.stderr, /BROKEN_EXTENSION/);
+    expect(result.signal, `process killed by ${result.signal}`).toBe(null);
+    expect(result.status, `exit ${result.status}; stderr: ${result.stderr}`).toBe(1);
+    expect(result.stderr).toMatch(/Failed to load extension/);
+    expect(result.stderr).toMatch(/BROKEN_EXTENSION/);
   } finally {
     tmp.cleanup();
   }
