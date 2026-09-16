@@ -30,6 +30,8 @@ stdout. `GET /healthz` is open. Every other route is authenticated.
 | `PSTACK_BENNY_STATE_DIR` | `~/.pi/agent/pstack/benny-events` | Event store root. |
 | `PSTACK_BENNY_WAKE_FILE` | `~/.pi/agent/pstack-benny-wakes.jsonl` | Wake file the agent drains. |
 | `PSTACK_BENNY_CONFIG_DIR` | `~/.pi/agent` | Directory holding `benny.json`. |
+| `PSTACK_BENNY_RATE_LIMIT_MAX` | `120` | Requests allowed per client per window on `/v1`. |
+| `PSTACK_BENNY_RATE_LIMIT_WINDOW_MS` | `60000` | Rate-limit window in milliseconds. |
 
 `~/.pi/agent/benny.json` holds the routes.
 
@@ -66,6 +68,20 @@ record keeps a SHA-256 key derived from source and source event id instead of th
 raw id. `services/benny/routing.mjs` derives the key and the event id from it, so
 a redelivery of the same source event resolves to the same record.
 
+## Limits
+
+Every `/v1` route is capped per client with a fixed window keyed on the peer
+address plus a SHA-256 fingerprint of the presented bearer token when that token
+authenticates. Anything unauthenticated, including a bad token, shares the
+address-only bucket, so rotating tokens cannot mint new keys. The default is
+120 requests per 60000 ms; exceeding it returns 429 with `Retry-After` in
+seconds. Configure with `rateLimit: { maxRequests, windowMs }` on
+`createBennyServer`, `PSTACK_BENNY_RATE_LIMIT_MAX`, or
+`PSTACK_BENNY_RATE_LIMIT_WINDOW_MS`.
+
+`GET /healthz` is exempt. It is an unauthenticated liveness probe and does no
+work, so throttling it would only cause false unhealthy verdicts.
+
 ## Endpoints
 
 | Method | Path | Success | Meaning |
@@ -80,8 +96,9 @@ a redelivery of the same source event resolves to the same record.
 | GET | `/healthz` | 200 `{status:"ok"}` | Liveness. Never requires auth. |
 
 Failures are 400 for malformed JSON or a bad shape, 401 for a bad credential, 404
-for an unknown event, 413 for a body over 256 KiB, and 503 when no credential is
-configured. A body that fails parsing or shape checking is never persisted.
+for an unknown event, 413 for a body over 256 KiB, 429 for a client over its
+request cap, and 503 when no credential is configured. A body that fails parsing
+or shape checking is never persisted.
 
 ## Send a test event
 

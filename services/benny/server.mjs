@@ -24,6 +24,7 @@ import {
   normalizeWebhookEvent,
 } from "./routing.mjs";
 import { createEventStore, isValidEventId } from "./store.mjs";
+import { clientKeyOf, createRateLimiter, rateLimitFromEnv } from "../worker/rate-limit.mjs";
 
 const DEFAULT_PORT = 8788;
 const MAX_BODY_BYTES = 256 * 1024;
@@ -31,11 +32,12 @@ const SIGNATURE_TOLERANCE_SECONDS = 300;
 const SOURCE_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
 const AUTH_UNCONFIGURED = "benny auth is not configured; refusing to accept events";
 
-function sendJson(res, status, body) {
+function sendJson(res, status, body, headers = {}) {
   const text = JSON.stringify(body);
   res.writeHead(status, {
     "content-type": "application/json",
     "content-length": Buffer.byteLength(text, "utf8"),
+    ...headers,
   });
   res.end(text);
 }
@@ -134,6 +136,17 @@ function authorizeRead(runtime, req) {
   return null;
 }
 
+/**
+ * Only an authenticated bearer token contributes its own bucket. Slack-signature
+ * traffic and anything unauthenticated share the address-only bucket, so an
+ * attacker cannot mint fresh keys with rotated credentials.
+ */
+function limiterKey(runtime, req) {
+  const presented = bearerToken(req);
+  const authenticated = presented !== null && runtime.token !== "" && safeEqual(presented, runtime.token);
+  return clientKeyOf(req, authenticated ? presented : "");
+}
+
 function ackBody(record) {
   return { eventId: record.eventId, state: record.state, intent: record.intent };
 }
@@ -229,6 +242,17 @@ function routeRequest(runtime, req, res, url) {
   if (url.pathname === "/healthz" && req.method === "GET") {
     return sendJson(res, 200, { status: "ok" });
   }
+  if (url.pathname.startsWith("/v1")) {
+    const decision = runtime.limiter.check(limiterKey(runtime, req));
+    if (!decision.allowed) {
+      return sendJson(
+        res,
+        429,
+        { error: "rate limit exceeded" },
+        { "retry-after": String(decision.retryAfterSeconds) },
+      );
+    }
+  }
   if (!runtime.token && !runtime.signingSecret) {
     return sendJson(res, 503, { error: AUTH_UNCONFIGURED });
   }
@@ -268,10 +292,12 @@ function createRuntime(options) {
       now,
     });
   const config = options.config ?? loadConfig({ dir: options.configDir }).config;
+  const limiter = createRateLimiter({ ...(options.rateLimit ?? {}), now });
   return {
     now,
     store,
     config,
+    limiter,
     token: options.token ?? process.env.PSTACK_BENNY_TOKEN ?? "",
     signingSecret: options.signingSecret ?? process.env.PSTACK_BENNY_SIGNING_SECRET ?? "",
   };
@@ -302,7 +328,11 @@ export function createBennyServer(options = {}) {
 export function main() {
   const rawPort = Number.parseInt(process.env.PSTACK_BENNY_PORT ?? String(DEFAULT_PORT), 10);
   const port = Number.isFinite(rawPort) ? rawPort : DEFAULT_PORT;
-  const server = createBennyServer({});
+  const rateLimit = rateLimitFromEnv(process.env, {
+    maxRequests: "PSTACK_BENNY_RATE_LIMIT_MAX",
+    windowMs: "PSTACK_BENNY_RATE_LIMIT_WINDOW_MS",
+  });
+  const server = createBennyServer({ rateLimit });
   if (!process.env.PSTACK_BENNY_TOKEN && !process.env.PSTACK_BENNY_SIGNING_SECRET) {
     process.stderr.write(
       "[pstack benny] neither PSTACK_BENNY_TOKEN nor PSTACK_BENNY_SIGNING_SECRET is set; non-health routes return 503.\n",

@@ -6,6 +6,8 @@
  * as a legacy alias because the pstack_task client emitted it before the hosted
  * protocol existed; validation reads either and normalizes to parentOwnership.
  */
+import { realpathSync } from "node:fs";
+import { isAbsolute, relative, resolve } from "node:path";
 import { isValidRunId } from "./store.mjs";
 
 export const MAX_BODY_BYTES = 256 * 1024;
@@ -87,6 +89,38 @@ function readOptionalString(value, fallback) {
   return isNonEmptyString(value) ? value : fallback;
 }
 
+const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}(?:\/[A-Za-z0-9][A-Za-z0-9._-]{0,63})?(?::[A-Za-z0-9-]{1,32})?$/;
+
+function withinRoot(real, root) {
+  if (real === root) return true;
+  const rel = relative(root, real);
+  return !rel.startsWith("..") && !isAbsolute(rel);
+}
+
+/**
+ * Contain the child cwd against the worker workspace root. Both sides are
+ * realpath-resolved so a symlink inside the root cannot point outside it, and a
+ * non-existent cwd is rejected before it reaches spawn.
+ */
+function validateWorkspaceCwd(cwd, workspaceRoot) {
+  let root;
+  try {
+    root = realpathSync(resolve(workspaceRoot));
+  } catch {
+    return invalid("the worker workspace root is not an accessible directory");
+  }
+  let real;
+  try {
+    real = realpathSync(resolve(cwd));
+  } catch {
+    return invalid("parentOwnership.cwd must be an existing directory inside the workspace root");
+  }
+  if (!withinRoot(real, root)) {
+    return invalid("parentOwnership.cwd must stay inside the worker workspace root");
+  }
+  return valid(real);
+}
+
 function validateIdentity(body) {
   if (!isValidRunId(body.runId)) {
     return invalid("runId must match /^[A-Za-z0-9._-]{1,64}$/");
@@ -96,7 +130,9 @@ function validateIdentity(body) {
   }
   if (!isNonEmptyString(body.task)) return invalid("task must be a non-empty string");
   if (!isNonEmptyString(body.role)) return invalid("role must be a non-empty string");
-  if (!isNonEmptyString(body.model)) return invalid("model must be a non-empty string");
+  if (!isNonEmptyString(body.model) || !MODEL_PATTERN.test(body.model)) {
+    return invalid("model must be a provider/model[:level] selector or an alias such as inherit-parent");
+  }
   return valid({ runId: body.runId, idempotencyKey: body.idempotencyKey });
 }
 
@@ -136,16 +172,18 @@ function validatePolicy(raw) {
   return valid({ ...enums.value, integrations: integrations.value, background: raw.background });
 }
 
-function validateParent(body) {
+function validateParent(body, workspaceRoot) {
   if (body.parentOwnership !== undefined && !isPlainObject(body.parentOwnership)) {
     return invalid("parentOwnership must be an object");
   }
   const ownership = body.parentOwnership ?? {};
-  const cwd = ownership.cwd ?? body.parentSessionCwd ?? process.cwd();
-  if (!isNonEmptyString(cwd)) return invalid("parentOwnership.cwd must be a non-empty string");
+  const requested = ownership.cwd ?? body.parentSessionCwd ?? workspaceRoot;
+  if (!isNonEmptyString(requested)) return invalid("parentOwnership.cwd must be a non-empty string");
   const sessionId = ownership.sessionId ?? "";
   if (typeof sessionId !== "string") return invalid("parentOwnership.sessionId must be a string");
-  return valid({ sessionId, cwd });
+  const cwd = validateWorkspaceCwd(requested, workspaceRoot);
+  if (!cwd.ok) return cwd;
+  return valid({ sessionId, cwd: cwd.value });
 }
 
 function validateTimeout(value) {
@@ -156,8 +194,8 @@ function validateTimeout(value) {
   return valid(value);
 }
 
-function validateOptionals(body, policy) {
-  const parent = validateParent(body);
+function validateOptionals(body, policy, workspaceRoot) {
+  const parent = validateParent(body, workspaceRoot);
   if (!parent.ok) return parent;
   const timeoutMs = validateTimeout(body.timeoutMs);
   if (!timeoutMs.ok) return timeoutMs;
@@ -184,7 +222,8 @@ function validateOptionals(body, policy) {
 }
 
 /** Validate an untrusted POST /v1/tasks body; return the normalized envelope or a 400 message. */
-export function validateTaskRequest(body) {
+export function validateTaskRequest(body, options = {}) {
+  const workspaceRoot = options.workspaceRoot ?? process.cwd();
   if (!isPlainObject(body)) return invalid("request body must be a JSON object");
   const unknown = Object.keys(body)
     .filter((key) => !ENVELOPE_KEYS.includes(key))
@@ -194,7 +233,7 @@ export function validateTaskRequest(body) {
   if (!identity.ok) return identity;
   const policy = validatePolicy(body.policy);
   if (!policy.ok) return policy;
-  const optionals = validateOptionals(body, policy.value);
+  const optionals = validateOptionals(body, policy.value, workspaceRoot);
   if (!optionals.ok) return optionals;
   const o = optionals.value;
   return valid({

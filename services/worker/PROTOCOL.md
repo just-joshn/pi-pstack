@@ -23,8 +23,8 @@ guarantees.
 
 Failures: 400 malformed body or invalid field, 401 missing or wrong bearer
 token, 404 unknown run, 409 `runId` reused with a different idempotency key,
-413 body over the cap, 500 corrupt record or unexpected error, 503 no token
-configured.
+413 body over the cap, 429 per-client request cap exceeded, 500 corrupt record
+or unexpected error, 503 no token configured or the worker is at capacity.
 
 ## Request body
 
@@ -60,6 +60,19 @@ configured.
 
 Unknown top-level fields are rejected with 400. The body cap is 256 KiB. The
 worker never executes a body it did not validate.
+
+`model` must match `provider/model[:level]`, a bare alias such as
+`inherit-parent`, or `auto`. A value with whitespace or shell metacharacters is
+rejected with 400 before it can reach `--model`.
+
+`parentOwnership.cwd` (and the legacy `parentSessionCwd`) must be an existing
+directory inside the worker's `workspaceRoot`, which defaults to
+`process.cwd()`. Both sides are realpath-resolved, so a symlink inside the root
+cannot point outside it. Anything else is a 400.
+
+A 500 response is always `{"error":"internal error"}`. The handler's real error
+is written to stderr, never to the client, because filesystem and spawn errors
+embed absolute host paths.
 
 `secretRefs` names are not resolved and not logged. The request token is never
 logged either.
@@ -105,6 +118,25 @@ Set `PSTACK_WORKER_TOKEN` on the worker and send `Authorization: Bearer <token>`
 With no configured token the worker returns 503 on every `/v1` route and runs
 nothing. `/healthz` is exempt so a liveness probe can reach the process.
 
+## Limits
+
+Two caps protect the worker. Both apply before the request does any work.
+
+- **Per-client request cap.** A fixed window keyed on the peer address plus a
+  SHA-256 fingerprint of the presented bearer token when that token
+  authenticates. An invalid or absent token shares the address-only bucket, so
+  rotating tokens cannot mint new keys and the raw token is never held. The
+  default is 120 requests per 60000 ms. Exceeding it returns 429 with
+  `Retry-After` in seconds.
+- **In-flight task cap.** `maxInFlight` bounds concurrent runs. The default is
+  8, matching the local child runner's `MAX_CONCURRENCY`. `POST /v1/tasks` past
+  the cap returns 503 with `Retry-After: 1`.
+
+`GET /healthz` is exempt from the request cap. It is an unauthenticated
+liveness probe an orchestrator calls at high frequency and it does no work, so
+throttling it would produce false unhealthy verdicts without protecting
+anything else.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -113,6 +145,14 @@ nothing. `/healthz` is exempt so a liveness probe can reach the process.
 | `PSTACK_WORKER_PORT` | `8787` | Listen port from `main()`. |
 | `PSTACK_WORKER_TOKEN` | unset | Bearer token; unset means fail closed. |
 | `PSTACK_WORKER_PI_BIN` | resolved `pi` | Override the pi binary path. |
+| `PSTACK_WORKER_RATE_LIMIT_MAX` | `120` | Requests allowed per client per window on `/v1`. |
+| `PSTACK_WORKER_RATE_LIMIT_WINDOW_MS` | `60000` | Rate-limit window in milliseconds. |
+| `PSTACK_WORKER_MAX_IN_FLIGHT` | `8` | Concurrent runs before `POST /v1/tasks` returns 503. |
+
+`workspaceRoot` is a `createWorkerServer` option, not an env var; it defaults
+to `process.cwd()`. The full option surface is `createWorkerServer({ token,
+stateDir, now, leaseMs, execute, workspaceRoot, maxInFlight, rateLimit })`,
+where `rateLimit` is `{ maxRequests, windowMs }`.
 
 ## Default executor
 
