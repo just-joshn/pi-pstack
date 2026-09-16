@@ -65,13 +65,13 @@ Totals over every row in `compat/parity.json` (ledger rows plus inventory rows).
 | Classification | Rows |
 | --- | --- |
 | `EXACT-CONTRACT` | 217 |
-| `ADAPTED-EQUIVALENT` | 220 |
+| `ADAPTED-EQUIVALENT` | 230 |
 | `HOSTED-CAPABILITY-REQUIRED` | 6 |
 | `APPROVED-EXCEPTION` | 3 |
 
 ## 6. Parity totals by verification status
 
-- unimplemented=6, implemented=0, verified=437, blocked=3
+- unimplemented=6, implemented=0, verified=447, blocked=3
 
 Capability rollup (`compat/capabilities.json`): 13 capabilities, 13 verified, 2 hosted-required.
 
