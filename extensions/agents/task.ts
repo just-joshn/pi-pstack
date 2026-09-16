@@ -20,6 +20,7 @@ import {
   type ChildToolReply,
   type SpawnOnUpdate,
 } from "../subagents/index.ts";
+import { buildTaskEnvelope, postTask } from "../hosted/client.ts";
 import { createIsolatedWorktree } from "../worktree/helpers.ts";
 import {
   compileTaskPolicy,
@@ -236,27 +237,18 @@ async function runHostedTask(
     );
   }
   const runId = `run-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`;
-  const response = await fetch(`${base.replace(/\/+$/, "")}/v1/tasks`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      runId,
-      parentSessionCwd: ctx.cwd,
-      task: params.prompt,
-      role,
-      policy,
-      model,
-      thinkingLevel,
-    }),
-    signal,
+  const envelope = buildTaskEnvelope({
+    runId,
+    task: params.prompt,
+    role,
+    model,
+    policy,
+    parentCwd: ctx.cwd,
+    thinkingLevel,
+    timeoutMs: params.timeoutMs,
   });
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(
-      `pstack_task hosted worker POST /v1/tasks failed: HTTP ${response.status} ${response.statusText}${text ? ` ${text.slice(0, 500)}` : ""}`,
-    );
-  }
-  return { runId, status: response.status, text };
+  const reply = await postTask(envelope, { base, signal });
+  return { runId, status: reply.status, text: reply.text };
 }
 
 function policyTrailer(policy: PstackTaskPolicy, thinkingLevel: string | undefined, worktree?: WorktreeAllocation): string {

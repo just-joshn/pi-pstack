@@ -54,6 +54,7 @@
     "test:conformance": "node tests/conformance.mjs",
     "test:bootstrap": "node tests/support/link-peers.mjs",
     "test:unit": "node tests/runner.mjs --layer 1",
+    "test:hosted": "node --test tests/hosted/*.test.mjs",
     "test:integration": "node tests/runner.mjs --layer 2",
     "test:smoke": "node tests/runner.mjs --layer 3",
     "test:reload": "node tests/runner.mjs --layer 4",

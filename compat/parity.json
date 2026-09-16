@@ -1069,7 +1069,7 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "durable-jobs",
-      "behavior": "Return the existing hosted worker run for a repeated idempotencyKey instead of starting a second execution, so duplicate delivery executes the task exactly once.",
+      "behavior": "test@tests/hosted/worker.test.mjs@a duplicate idempotency key returns the same attempt and executes once",
       "observableContract": [
         "gate@test:hosted"
       ],
@@ -1092,7 +1092,7 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "durable-jobs",
-      "behavior": "Reject a hosted worker completion whose attempt is older than the run record's current attempt, so a zombie execution cannot overwrite a newer attempt.",
+      "behavior": "test@tests/hosted/failure-modes.test.mjs@a completion from a stale attempt is rejected",
       "observableContract": [
         "gate@test:hosted"
       ],
@@ -1115,7 +1115,7 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "durable-jobs",
-      "behavior": "Cancel a running hosted worker run, fire the executor abort signal, and record the terminal cancelled state with exit code 130.",
+      "behavior": "test@tests/hosted/failure-modes.test.mjs@cancel during a hung execution records cancelled and fires the abort signal",
       "observableContract": [
         "gate@test:hosted"
       ],
@@ -1138,7 +1138,7 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "durable-jobs",
-      "behavior": "Terminate a hosted worker run that exceeds timeoutMs and record the terminal timed_out state with exit code 124.",
+      "behavior": "test@tests/hosted/failure-modes.test.mjs@a run past timeoutMs is marked timed_out",
       "observableContract": [
         "gate@test:hosted"
       ],
@@ -1161,7 +1161,7 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "durable-jobs",
-      "behavior": "Mark a non-terminal hosted worker run dead when its lease lapses so a restarted worker reconciles zombies while keeping the partial output file.",
+      "behavior": "test@tests/hosted/failure-modes.test.mjs@a restart reconciles a dead lease without losing the partial output",
       "observableContract": [
         "gate@test:hosted"
       ],
@@ -1184,7 +1184,7 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "durable-jobs",
-      "behavior": "Keep a hosted worker run durable and queryable in the run store when the parent client disconnects, so parent shutdown never cancels the run.",
+      "behavior": "test@tests/hosted/failure-modes.test.mjs@parent shutdown does not cancel a durable run",
       "observableContract": [
         "gate@test:hosted"
       ],

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { collectViolations } from "./support/conformance/collect.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const OWNED_ROOTS = ["extensions", "tests", "port", "spec", "compat"];
+const OWNED_ROOTS = ["extensions", "tests", "port", "spec", "compat", "services"];
 const PORTED_ROOTS = ["skills", "agents", "automations", "docs"];
 const args = process.argv.slice(2);
 

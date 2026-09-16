@@ -17,6 +17,7 @@ export const LAYERS = [
   { id: 7, name: "third-party", dir: "tests/layers/07-third-party", runner: "node-test", optIn: true, timeoutMs: 900000 },
   { id: 8, name: "user-journeys", dir: "tests/layers/08-user-journeys", runner: "node-test" },
   { id: 9, name: "inventory", dir: "tests/inventory", runner: "node-test" },
+  { id: 10, name: "hosted", dir: "tests/hosted", runner: "node-test" },
   {
     id: "legacy",
     name: "legacy",
