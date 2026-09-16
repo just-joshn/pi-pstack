@@ -23,6 +23,7 @@ npm run test:bootstrap    # create the peer symlink farm only
 | 5 | rpc | `tests/layers/05-rpc` | Dialogs, notifications, commands over the RPC protocol | `pi` |
 | 6 | tui | `tests/layers/06-tui` | Rendered TUI output and key handling via tmux panes | `pi`, `tmux` |
 | 7 | third-party | `tests/layers/07-third-party` | Opt-in `pi-test-harness` compatibility gate (see its README) | `bun` for the live check |
+| 8 | user-journeys | `tests/layers/08-user-journeys` | User-perspective journeys through the fake Pi host, gated as all-critical-journeys or 80% of the runtime behavior inventory | node |
 | legacy | legacy | `extensions/test`, `skills/poteto-mode/scripts` | The pre-existing suites, wrapped verbatim | `bun` |
 
 Layer 7 is opt-in. With no `--layer`, the runner prints `SKIP Layer 7 (third-party)` and keeps
