@@ -8,6 +8,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { withBudget } from "./budget.ts";
 
 export type RoleValue = string | string[];
 
@@ -132,7 +133,7 @@ export function normalizeModelSelector(
   };
 }
 
-/** Resolve a role to a model selector. Panel roles can use index. */
+/** Resolve a role to a model selector, carrying the configured reasoning budget. */
 export function resolveRoleModel(
   role: string,
   parentModel: string,
@@ -145,9 +146,9 @@ export function resolveRoleModel(
   const value = cfg.roles[key] ?? cfg.roles[role];
   if (value == null) return undefined;
   const pick = Array.isArray(value) ? value[Math.min(index, value.length - 1)] : value;
-  if (!pick || isInheritAlias(pick)) return parentModel;
+  if (!pick || isInheritAlias(pick)) return withBudget(parentModel, cfg.budget);
   const norm = normalizeModelSelector(pick, parentModel, { allowFallbackToParent: true });
-  return norm.ok ? norm.model : parentModel;
+  return norm.ok ? withBudget(norm.model, cfg.budget) : withBudget(parentModel, cfg.budget);
 }
 
 /**

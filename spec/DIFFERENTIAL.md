@@ -1,7 +1,8 @@
 # Differential conformance
 
-Two questions live here. What can this repo prove without a Cursor host, and what
-does the Cursor side need when a host is available.
+Three questions live here. What this repo proves without a Cursor host, what it
+executes directly against the pinned reference's own code, and what still needs a
+Cursor agent.
 
 ## Machine-checked without Cursor
 
@@ -20,7 +21,43 @@ does the Cursor side need when a host is available.
 These three gates compare Pi against the pinned Cursor *content* and against the
 Pi *contracts* it declares. They do not execute Cursor.
 
+## Executed against the pinned reference
+
+`npm run test:differential` (wired into `npm run spec:gate`) runs the pinned
+upstream file and the ported twin on identical fixtures with identical argv, env,
+and cwd, then compares exit code and normalized stdout. Only volatile tokens are
+normalized: timestamps, absolute temp paths, durations, and hex SHAs. A remaining
+difference fails the gate rather than being smoothed over. The run writes
+`spec/differential-results.json` with the upstream commit, the per-case verdict,
+and the normalization applied to each case.
+
+This executes the reference itself, which needs no Cursor account because the
+upstream scripts are plain Node or Bun programs. What it cannot exercise is the
+reference's *agent turn* behavior, which lives behind the Cursor host.
+
+When the upstream tree is absent or its HEAD does not match the pin, the suite
+prints a `SKIPPED` line and exits 0, so the gate stays honest about the pin
+rather than silently comparing against nothing.
+
 ## Requires a Cursor host
+
+### Status of the Cursor side, 2026-09-16
+
+Attempted on this machine. `cursor-agent` is installed (`2026.09.10-fd3934a`),
+the account is authenticated (`✓ Logged in as josh.rg.humphrey@proton.me`), and
+`cursor-agent models` lists `auto`, `gpt-5.3-codex-low`, `gpt-5.3-codex`, and the
+rest of the account's set. Any agent turn fails on quota:
+
+```text
+$ cursor-agent -p --force "Reply with exactly: ok"
+ActionRequiredError: You've hit your usage limit Get Cursor Pro for more Agent usage, unlimited Tab, and more.
+$ echo $?
+1
+```
+
+So no Cursor turn can run on this account today. The procedure below is the
+remaining work, and the reason the Cursor-side comparison is a procedure rather
+than a passing suite.
 
 Behavioral comparison against the running Cursor plugin needs a Cursor install
 with `pstack` 0.15.2 at the pinned commit. The reproducible procedure:
@@ -57,14 +94,17 @@ Deterministic surfaces and their Pi-side golden behavior:
 Cursor-side surfaces with no automated comparison here are the ones the ledger
 classes as `HOSTED-CAPABILITY-REQUIRED` or `APPROVED-EXCEPTION`: the marketplace
 install flow, cloud agent placement, the Automations and Slack bus, Grok Bot
-cards, MCP discovery, the sticky host chrome, native `/loop`, durable background
-jobs, IDE driving, the `.mdc` rules engine, the Cursor transcript format, and the
-host's own inheritance rules. Each names a twin surface in
-`spec/contracts/companions.tsv` and in `spec/mechanisms.tsv`.
+cards, MCP discovery, the sticky host chrome, durable background jobs, and IDE
+driving. Each names a twin surface in `spec/contracts/companions.tsv` and in
+`spec/mechanisms.tsv`. Four ceilings whose capability a verified twin reproduces
+(`/loop`, `mdc-rules`, `transcript-store`, `history-inheritance`) are
+`ADAPTED-EQUIVALENT` and their contracts are covered by the Pi-side rows above.
 
 ## Limits
 
-This environment has no Cursor host, so the second half of the differential suite
-is a written procedure rather than an executed suite. Running it requires a
-machine with Cursor installed. The first half runs on every `npm test` and every
-`npm run spec:gate`.
+The Cursor *agent* half of this suite has never been executed, because the
+available Cursor account is over its usage limit. That gap is real and is not
+papered over: the procedure above is reproducible, the failure evidence is
+recorded, and every deterministic surface it would cover has a Pi-side proof
+running in `npm test`. The reference *code* half executes on every gate through
+`npm run test:differential`.

@@ -210,8 +210,8 @@ function validateRowForm(rows) {
     if (!STATUS.has(row.status)) return [{ row, msg: `invalid status ${row.status}` }];
     if (!KINDS.has(row.kind)) return [{ row, msg: `invalid kind ${row.kind}` }];
     if (!CLASSES.has(row.cls)) return [{ row, msg: `invalid class ${row.cls}` }];
-    if (row.kind === "ceiling" && row.cls !== "HOSTED-CAPABILITY-REQUIRED" && row.cls !== "APPROVED-EXCEPTION") {
-      return [{ row, msg: "ceiling rows must be HOSTED-CAPABILITY-REQUIRED or APPROVED-EXCEPTION" }];
+    if (row.kind === "ceiling" && row.cls !== "HOSTED-CAPABILITY-REQUIRED" && row.cls !== "APPROVED-EXCEPTION" && !(row.cls === "ADAPTED-EQUIVALENT" && /^twin@/.test(row.verification))) {
+      return [{ row, msg: "ceiling rows must be HOSTED-CAPABILITY-REQUIRED, APPROVED-EXCEPTION, or ADAPTED-EQUIVALENT with a twin@ verification" }];
     }
     if (row.kind !== "ceiling" && row.cls !== "EXACT-CONTRACT" && row.cls !== "ADAPTED-EQUIVALENT") {
       return [{ row, msg: `${row.kind} rows must be EXACT-CONTRACT or ADAPTED-EQUIVALENT` }];
@@ -223,6 +223,9 @@ function validateRowForm(rows) {
     if (!obl.trim()) return [{ row, msg: "empty obligation" }];
     if (/\t/.test(obl)) return [{ row, msg: "obligation contains tab" }];
     if (/\r|\n/.test(obl)) return [{ row, msg: "obligation must be single line" }];
+    if (/\b(mostly works|similar|unsupported by Pi|probably equivalent)\b/i.test(obl)) {
+      return [{ row, msg: "obligation uses a vague parity phrase" }];
+    }
     if (row.reference !== "-") {
       const refErr = validateReference(row.reference);
       if (refErr) return [{ row, msg: refErr }];
@@ -412,6 +415,20 @@ function checkMechanisms(rows, requireComplete) {
   return errors;
 }
 
+function checkMechanismAttribution(rows) {
+  const mech = parseMechanisms();
+  if (mech.header == null) return [];
+  const labels = new Set(mech.rows.map((r) => r.cols[0]).filter(Boolean));
+  return rows
+    .map(parseLedgerRow)
+    .filter((r) => r.cls === "ADAPTED-EQUIVALENT")
+    .flatMap((r) => {
+      const m = String(r.upstream || "").match(/^mechanism:(.+)$/);
+      if (!m) return [`${r.id}: ADAPTED-EQUIVALENT must name a mechanism in upstream`];
+      return labels.has(m[1]) ? [] : [`${r.id}: unknown mechanism label ${m[1]}`];
+    });
+}
+
 function computeCoverage(rows) {
   const parsed = rows.map(parseLedgerRow);
   const total = parsed.length;
@@ -488,6 +505,7 @@ function buildAllErrors(rows, parsedContracts, missingDir, discovery, pkgScripts
   const toolCompletenessErrors = ledger0.rows.length ? checkToolCompleteness(ledger0.rows) : [];
   const surfaceErrors = checkSurfaceIntegrity(ledger0.rows);
   const mechanismErrors = checkMechanisms(ledger0.rows, requireComplete);
+  const attributionErrors = ledger0.rows.length ? checkMechanismAttribution(ledger0.rows) : [];
   const dirErrs = missingDir ? ["missing spec/contracts directory"] : [];
   return [
     ...dirErrs,
@@ -498,6 +516,7 @@ function buildAllErrors(rows, parsedContracts, missingDir, discovery, pkgScripts
     ...toolCompletenessErrors,
     ...surfaceErrors,
     ...mechanismErrors,
+    ...attributionErrors,
   ];
 }
 
