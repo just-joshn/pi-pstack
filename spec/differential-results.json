@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-16T00:29:42.018Z",
-  "upstreamDir": ".port-upstream/cursor-plugins-c1c0a32/pstack",
-  "upstreamCommit": "c1c0a32802223f4be824112dd83d33ad29a8b26c",
+  "generatedAt": "2026-09-16T02:32:44.474Z",
+  "upstreamDir": ".port-upstream/cursor-plugins-5bf2b15/pstack",
+  "upstreamCommit": "5bf2b1544db739998121a306340631963c2ff3de",
   "cases": [
     {
       "id": "watch-pr-help",
