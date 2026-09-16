@@ -7,14 +7,14 @@
   "totals": {
     "byClassification": {
       "EXACT-CONTRACT": 220,
-      "ADAPTED-EQUIVALENT": 208,
+      "ADAPTED-EQUIVALENT": 217,
       "HOSTED-CAPABILITY-REQUIRED": 6,
       "APPROVED-EXCEPTION": 3
     },
     "byStatus": {
       "unimplemented": 6,
       "implemented": 4,
-      "verified": 424,
+      "verified": 433,
       "blocked": 3
     }
   },
@@ -790,6 +790,231 @@
       "status": "verified",
       "evidence": [
         "extensions/benny/index.ts:21"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "benny-11",
+      "category": "integration",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "automations-slack",
+      "behavior": "The services/benny receiver returns 503 on every non-health route when neither a bearer token nor a signing secret is configured.",
+      "observableContract": [
+        "test@tests/hosted/benny-failure-modes.test.mjs@benny-failure-03 no configured credential fails closed with 503"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/benny/server.mjs:227"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/hosted/benny-failure-modes.test.mjs@benny-failure-03 no configured credential fails closed with 503"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/benny/server.mjs:227"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "benny-12",
+      "category": "integration",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "automations-slack",
+      "behavior": "The services/benny receiver verifies the v0 HMAC signature and a 300 second timestamp window on the Slack event route and answers 401 on a bad or stale signature.",
+      "observableContract": [
+        "test@tests/hosted/benny-failure-modes.test.mjs@benny-failure-01 rejects a bad slack signature"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/benny/server.mjs:102"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/hosted/benny-failure-modes.test.mjs@benny-failure-01 rejects a bad slack signature"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/benny/server.mjs:102"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "benny-13",
+      "category": "integration",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "automations-slack",
+      "behavior": "The services/benny receiver answers a repeated source event id with the existing event id and appends no second wake line.",
+      "observableContract": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-02 duplicate source event is idempotent"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/benny/server.mjs:151"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-02 duplicate source event is idempotent"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/benny/server.mjs:151"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "benny-14",
+      "category": "integration",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "automations-slack",
+      "behavior": "The services/benny receiver carries the source channel and thread coordinates into the wake payload, keeping thread_ts for a reply and falling back to ts for a top-level report.",
+      "observableContract": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-01 slack report persists pending with one wake line"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/benny/routing.mjs:158"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-01 slack report persists pending with one wake line"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/benny/routing.mjs:158"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "benny-15",
+      "category": "integration",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "automations-slack",
+      "behavior": "The services/benny receiver leaves an event pending when the wake append fails, redelivers it on the next delivery, and still lists it after a restart over the same state directory.",
+      "observableContract": [
+        "test@tests/hosted/benny-failure-modes.test.mjs@benny-failure-05 a failed wake append keeps the event pending and retries"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/benny/store.mjs:211"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/hosted/benny-failure-modes.test.mjs@benny-failure-05 a failed wake append keeps the event pending and retries"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/benny/store.mjs:211"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "benny-16",
+      "category": "integration",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "automations-slack",
+      "behavior": "The services/benny configuration writer merges only the routes and defaultIntent keys and leaves every other key in ~/.pi/agent/benny.json intact.",
+      "observableContract": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-03 config write preserves unknown user keys"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/benny/routing.mjs:104"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-03 config write preserves unknown user keys"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/benny/routing.mjs:104"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "benny-17",
+      "category": "integration",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "automations-slack",
+      "behavior": "The services/benny test-event route returns the normalized record and persists no event and no wake line.",
+      "observableContract": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-05 test event returns the normalized record without enqueuing"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/benny/server.mjs:237"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-05 test event returns the normalized record without enqueuing"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/benny/server.mjs:237"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "benny-18",
+      "category": "integration",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "grok-bot",
+      "behavior": "The services/benny generic receiver normalizes a POST /v1/hooks/:source body into the same record shape and enqueues it for the local agent.",
+      "observableContract": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-06 generic hook normalizes and enqueues"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/benny/routing.mjs:183"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-06 generic hook normalizes and enqueues"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/benny/routing.mjs:183"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "benny-19",
+      "category": "integration",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "automations-slack",
+      "behavior": "The services/benny receiver stores only a derived source event key and never returns, logs, or persists a configured token or signing secret.",
+      "observableContract": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-07 stored records and responses carry no secret"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/benny/store.mjs:61"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/hosted/benny-events.test.mjs@benny-events-07 stored records and responses carry no secret"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/benny/store.mjs:61"
       ],
       "divergences": [],
       "exceptionJustification": null
