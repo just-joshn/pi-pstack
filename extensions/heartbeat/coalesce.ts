@@ -47,17 +47,6 @@ export function shouldSkipSettleArm(
   return lastFireAt > 0 && now - lastFireAt < coalesceMs;
 }
 
-/** Apply a successful fire onto mutable state. */
-export function applyFire(state: CoalesceState, now: number): void {
-  state.fires += 1;
-  state.lastFireAt = now;
-}
-
-/** Clear/disarm (session_shutdown twin). */
-export function clearLoopState(state: CoalesceState): void {
-  state.armed = false;
-}
-
 /** Bundled watch-pr is TypeScript run by its declared bun shebang; never exec it via bash. */
 const WATCH_PR_SCRIPT = "skills/poteto-mode/scripts/watch-pr/watch-pr";
 
