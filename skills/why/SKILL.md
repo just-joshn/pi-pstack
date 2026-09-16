@@ -59,9 +59,9 @@ Capture this as seed context (file paths, symbols, commits, PR numbers, linked t
 
 ### Discovery
 
-Before spawning investigators, list the MCP servers available in this Pi session from the live tool list. If none are present, document the gap and run the source-control investigator anyway.
+Before spawning investigators, run `pstack_integrations` with `action: status` to enumerate the capability categories and their availability. Spawn one investigator per available category. An unavailable category is a coverage gap: report it as a null finding naming its missing prerequisite, never skip it and never substitute another capability.
 
-Map each available MCP to one evidence category:
+Map each available capability to one evidence category:
 
 1. Source control history
 2. Issue / ticket tracker
@@ -80,7 +80,7 @@ Launch all matching investigators in a single message so they run concurrently. 
 Subagent config (each):
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured why-investigators model (default `grok-4.6-fast-xhigh`)
-- `readonly`: `false` (agent mode). **Do not use readonly for MCP-backed investigators.** On Pi it restricts builtins to `read,grep,find,ls` and does not strip MCP tools. Investigators still shouldn't write anything.
+- `policy`: filesystem `read-only`, integrations `inherit` (via `pstack_task`, which compiles both axes independently). The read-only filesystem keeps the project untouched while the integration tools stay granted; readonly and integrations are not the same axis. Investigators still shouldn't write anything.
 
 Each investigator gets:
 1. The base prompt from `references/investigator-prompt.md`
@@ -124,7 +124,7 @@ Spawn one synthesizer subagent:
 
 - `role`: `general` via `pstack_spawn`
 - `model`: your configured why-synthesizer model (default `claude-fable-5-1-thinking-max`)
-- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access; on Pi, readonly restricts builtins to `read,grep,find,ls` and does not strip MCP tools.
+- `policy`: filesystem `read-only`, integrations `inherit` (via `pstack_task`). The synthesizer's quality check spot-verifies citations, which can require integration tools; a read-only filesystem does not withdraw them.
 
 The synthesizer gets:
 1. The investigator findings, including any null results and any categories skipped with justification

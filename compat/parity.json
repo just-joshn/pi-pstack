@@ -7,14 +7,14 @@
   "totals": {
     "byClassification": {
       "EXACT-CONTRACT": 220,
-      "ADAPTED-EQUIVALENT": 206,
+      "ADAPTED-EQUIVALENT": 208,
       "HOSTED-CAPABILITY-REQUIRED": 6,
       "APPROVED-EXCEPTION": 3
     },
     "byStatus": {
       "unimplemented": 6,
       "implemented": 4,
-      "verified": 422,
+      "verified": 424,
       "blocked": 3
     }
   },
@@ -1681,6 +1681,56 @@
       "status": "verified",
       "evidence": [
         "tests/acceptance/run.mjs:1"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "content-15",
+      "category": "dependency",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "mcp",
+      "behavior": "The why skill must discover integration capability categories through pstack_integrations status and report an unavailable category as a null finding naming its missing prerequisite rather than skipping it or substituting another capability.",
+      "observableContract": [
+        "test@tests/layers/01-unit/skill-integration-routing.test.ts@why discovery uses the integration registry"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "skills/why/SKILL.md:62"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/skill-integration-routing.test.ts@why discovery uses the integration registry"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "skills/why/SKILL.md:62"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "content-16",
+      "category": "dependency",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "mcp",
+      "behavior": "The why investigator and synthesizer stanzas must state the multidimensional policy: filesystem read-only with integrations inherited, because readonly and integrations are independent axes.",
+      "observableContract": [
+        "test@tests/layers/01-unit/skill-integration-routing.test.ts@investigators keep integrations"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "skills/why/SKILL.md:83"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/skill-integration-routing.test.ts@investigators keep integrations"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "skills/why/SKILL.md:83"
       ],
       "divergences": [],
       "exceptionJustification": null
