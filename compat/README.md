@@ -28,7 +28,8 @@ outside that table may appear.
 ## Check
 
     npm run compat:check    # schema, staleness, ledger coverage, vocabulary, dependencies
-    npm run compat:gate     # completion gate: spec-check, compat:check, npm test, parity:check
+    npm run compat:report   # regenerate compat/REPORT.md
+    npm run compat:gate     # completion gate: compat:check, report --check, spec-check, differential, npm test, parity:check
 
 The inventory layer of `npm test` (`tests/inventory/`) reads `parity.json` and the
 pinned clone and fails on an uncovered upstream artifact. Populate the clone with

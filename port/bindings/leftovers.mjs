@@ -1,5 +1,7 @@
-export const extras = {};
-// Local-only paths under the scoped dirs, declared with a reason. Empty today.
+export const extras = {
+  "docs/HOSTED.md": "Pi-only hosted-capability doc; upstream docs/ has no equivalent, and the compatibility report points here.",
+};
+// Local-only paths under the scoped dirs, declared with a reason.
 
 export const leftoverTokens = [
   { id: "run_in_background", re: /run_in_background/ },

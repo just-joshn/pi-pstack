@@ -6,15 +6,15 @@
   "generatedFrom": "spec/contracts/*.tsv",
   "totals": {
     "byClassification": {
-      "EXACT-CONTRACT": 220,
-      "ADAPTED-EQUIVALENT": 217,
+      "EXACT-CONTRACT": 217,
+      "ADAPTED-EQUIVALENT": 220,
       "HOSTED-CAPABILITY-REQUIRED": 6,
       "APPROVED-EXCEPTION": 3
     },
     "byStatus": {
       "unimplemented": 6,
-      "implemented": 4,
-      "verified": 433,
+      "implemented": 0,
+      "verified": 437,
       "blocked": 3
     }
   },
@@ -2865,3496 +2865,3502 @@
       "category": "agent",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "agents/comment-sicko.md",
-      "behavior": "The pinned upstream artifact agents/comment-sicko.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact agents/comment-sicko.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-agents-poteto-agent-md",
       "category": "agent",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "agents/poteto-agent.md",
-      "behavior": "The pinned upstream artifact agents/poteto-agent.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact agents/poteto-agent.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-assets-logo-png",
       "category": "config",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "assets/logo.png",
-      "behavior": "The root artifact assets/logo.png ships in the package and is covered by the parity matrix.",
       "observableContract": [
         "content manifest"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "package.json"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
-      "status": "implemented",
-      "evidence": [
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The root artifact assets/logo.png is byte-identical to the pinned upstream asset.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
         "package.json"
       ],
-      "divergences": [],
-      "exceptionJustification": null
+      "status": "verified",
+      "evidence": [
+        "tests/inventory/root-artifacts.test.mjs"
+      ]
     },
     {
       "id": "inv-automations-benny-for-agents-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/FOR_AGENTS.md",
-      "behavior": "The pinned upstream artifact automations/benny/FOR_AGENTS.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/FOR_AGENTS.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-readme-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/README.md",
-      "behavior": "The pinned upstream artifact automations/benny/README.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/README.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-skills-reproduce-and-fix-issues-references-control-adapter-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md",
-      "behavior": "The pinned upstream artifact automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-skills-reproduce-and-fix-issues-references-feature-map-example-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/skills/reproduce-and-fix-issues/references/feature-map.example.md",
-      "behavior": "The pinned upstream artifact automations/benny/skills/reproduce-and-fix-issues/references/feature-map.example.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/skills/reproduce-and-fix-issues/references/feature-map.example.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-skills-reproduce-and-fix-issues-references-verify-existing-fix-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/skills/reproduce-and-fix-issues/references/verify-existing-fix.md",
-      "behavior": "The pinned upstream artifact automations/benny/skills/reproduce-and-fix-issues/references/verify-existing-fix.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/skills/reproduce-and-fix-issues/references/verify-existing-fix.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-skills-reproduce-and-fix-issues-skill-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/skills/reproduce-and-fix-issues/SKILL.md",
-      "behavior": "The pinned upstream artifact automations/benny/skills/reproduce-and-fix-issues/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/skills/reproduce-and-fix-issues/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-skills-setup-benny-skill-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/skills/setup-benny/SKILL.md",
-      "behavior": "The pinned upstream artifact automations/benny/skills/setup-benny/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/skills/setup-benny/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-skills-triage-issue-reports-references-routing-example-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/skills/triage-issue-reports/references/routing.example.md",
-      "behavior": "The pinned upstream artifact automations/benny/skills/triage-issue-reports/references/routing.example.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/skills/triage-issue-reports/references/routing.example.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-skills-triage-issue-reports-skill-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/skills/triage-issue-reports/SKILL.md",
-      "behavior": "The pinned upstream artifact automations/benny/skills/triage-issue-reports/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/skills/triage-issue-reports/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-templates-configuration-example-yaml",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/templates/configuration.example.yaml",
-      "behavior": "The pinned upstream artifact automations/benny/templates/configuration.example.yaml is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/templates/configuration.example.yaml is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-templates-reproduce-automation-prompt-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/templates/reproduce-automation-prompt.md",
-      "behavior": "The pinned upstream artifact automations/benny/templates/reproduce-automation-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/templates/reproduce-automation-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-automations-benny-templates-triage-automation-prompt-md",
       "category": "integration",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations/benny/templates/triage-automation-prompt.md",
-      "behavior": "The pinned upstream artifact automations/benny/templates/triage-automation-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact automations/benny/templates/triage-automation-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-cursor-plugin-plugin-json",
       "category": "config",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": ".cursor-plugin/plugin.json",
-      "behavior": "The root artifact .cursor-plugin/plugin.json ships in the package and is covered by the parity matrix.",
       "observableContract": [
         "content manifest"
-      ],
-      "classification": "APPROVED-EXCEPTION",
-      "piMechanism": [
-        "package.json"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": "Cursor's .cursor-plugin loader has no Pi equivalent; the Pi package manifest replaces it and the content surface is the twin.",
+      "behavior": "The root artifact .cursor-plugin/plugin.json ships in the package and is covered by the parity matrix.",
+      "classification": "APPROVED-EXCEPTION",
+      "piMechanism": [
+        "package.json"
+      ],
       "status": "blocked",
       "evidence": [
         "package.json"
-      ],
-      "divergences": [],
-      "exceptionJustification": "Cursor's .cursor-plugin loader has no Pi equivalent; the Pi package manifest replaces it and the content surface is the twin."
+      ]
     },
     {
       "id": "inv-docs-guide-01-setup-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/01-setup.md",
-      "behavior": "The pinned upstream artifact docs/guide/01-setup.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/01-setup.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-docs-guide-02-poteto-mode-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/02-poteto-mode.md",
-      "behavior": "The pinned upstream artifact docs/guide/02-poteto-mode.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/02-poteto-mode.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-docs-guide-03-understand-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/03-understand.md",
-      "behavior": "The pinned upstream artifact docs/guide/03-understand.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/03-understand.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-docs-guide-04-design-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/04-design.md",
-      "behavior": "The pinned upstream artifact docs/guide/04-design.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/04-design.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-docs-guide-05-build-and-clean-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/05-build-and-clean.md",
-      "behavior": "The pinned upstream artifact docs/guide/05-build-and-clean.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/05-build-and-clean.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-docs-guide-06-verify-and-ship-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/06-verify-and-ship.md",
-      "behavior": "The pinned upstream artifact docs/guide/06-verify-and-ship.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/06-verify-and-ship.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-docs-guide-07-overnight-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/07-overnight.md",
-      "behavior": "The pinned upstream artifact docs/guide/07-overnight.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/07-overnight.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-docs-guide-08-principles-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/08-principles.md",
-      "behavior": "The pinned upstream artifact docs/guide/08-principles.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/08-principles.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-docs-guide-09-make-it-yours-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/09-make-it-yours.md",
-      "behavior": "The pinned upstream artifact docs/guide/09-make-it-yours.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/09-make-it-yours.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-docs-guide-10-recipes-and-pitfalls-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/10-recipes-and-pitfalls.md",
-      "behavior": "The pinned upstream artifact docs/guide/10-recipes-and-pitfalls.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/10-recipes-and-pitfalls.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-docs-guide-readme-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "docs/guide/README.md",
-      "behavior": "The pinned upstream artifact docs/guide/README.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact docs/guide/README.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-gitignore",
       "category": "config",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": ".gitignore",
-      "behavior": "The root artifact .gitignore ships in the package and is covered by the parity matrix.",
       "observableContract": [
         "content manifest"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "package.json"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
-      "status": "implemented",
-      "evidence": [
+      "divergences": [
+        "Line-wise superset of upstream: node_modules/, .DS_Store, and *.log are retained; .pi/, .port-upstream/, and .pstack-worktrees/ are added."
+      ],
+      "exceptionJustification": null,
+      "behavior": "The root artifact .gitignore keeps every non-empty upstream line and adds the Pi-port entries .pi/, .port-upstream/, and .pstack-worktrees/.",
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
         "package.json"
       ],
-      "divergences": [],
-      "exceptionJustification": null
+      "status": "verified",
+      "evidence": [
+        "tests/inventory/root-artifacts.test.mjs"
+      ]
     },
     {
       "id": "inv-license",
       "category": "config",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "LICENSE",
-      "behavior": "The root artifact LICENSE ships in the package and is covered by the parity matrix.",
       "observableContract": [
         "content manifest"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "package.json"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
-      "status": "implemented",
-      "evidence": [
+      "divergences": [
+        "Upstream line 3 `Copyright (c) 2026 Lauren Tan` becomes two lines: `Copyright (c) 2026 Lauren Tan (original pstack)` and `Copyright (c) 2026 Pi port contributors`."
+      ],
+      "exceptionJustification": null,
+      "behavior": "The root artifact LICENSE keeps the upstream MIT text and adds a second copyright line for the Pi port contributors.",
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
         "package.json"
       ],
-      "divergences": [],
-      "exceptionJustification": null
+      "status": "verified",
+      "evidence": [
+        "tests/inventory/root-artifacts.test.mjs"
+      ]
     },
     {
       "id": "inv-readme-md",
       "category": "config",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "README.md",
-      "behavior": "The root artifact README.md ships in the package and is covered by the parity matrix.",
       "observableContract": [
         "content manifest"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "package.json"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
-      "status": "implemented",
-      "evidence": [
+      "divergences": [
+        "Pi rewrite; upstream README describes the Cursor plugin install."
+      ],
+      "exceptionJustification": null,
+      "behavior": "The root artifact README.md is the Pi package README, not the Cursor plugin README.",
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
         "package.json"
       ],
-      "divergences": [],
-      "exceptionJustification": null
+      "status": "verified",
+      "evidence": [
+        "tests/inventory/root-artifacts.test.mjs"
+      ]
     },
     {
       "id": "inv-skills-architect-references-design-red-flags-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/architect/references/design-red-flags.md",
-      "behavior": "The pinned upstream artifact skills/architect/references/design-red-flags.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/architect/references/design-red-flags.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-architect-references-rationale-template-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/architect/references/rationale-template.md",
-      "behavior": "The pinned upstream artifact skills/architect/references/rationale-template.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/architect/references/rationale-template.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-architect-references-runner-prompt-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/architect/references/runner-prompt.md",
-      "behavior": "The pinned upstream artifact skills/architect/references/runner-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/architect/references/runner-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-architect-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/architect/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/architect/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/architect/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-arena-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/arena/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/arena/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/arena/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-automate-me-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/automate-me/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/automate-me/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/automate-me/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-blast-radius-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/blast-radius/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/blast-radius/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/blast-radius/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-bro-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/bro/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/bro/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/bro/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-create-verification-skill-references-feature-map-example-create-note-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/create-verification-skill/references/feature-map-example/create-note.md",
-      "behavior": "The pinned upstream artifact skills/create-verification-skill/references/feature-map-example/create-note.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/create-verification-skill/references/feature-map-example/create-note.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-create-verification-skill-references-feature-map-example-readme-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/create-verification-skill/references/feature-map-example/README.md",
-      "behavior": "The pinned upstream artifact skills/create-verification-skill/references/feature-map-example/README.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/create-verification-skill/references/feature-map-example/README.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-create-verification-skill-references-feature-map-example-search-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/create-verification-skill/references/feature-map-example/search.md",
-      "behavior": "The pinned upstream artifact skills/create-verification-skill/references/feature-map-example/search.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/create-verification-skill/references/feature-map-example/search.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-create-verification-skill-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/create-verification-skill/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/create-verification-skill/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/create-verification-skill/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-figure-it-out-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/figure-it-out/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/figure-it-out/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/figure-it-out/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-how-references-explainer-prompt-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/how/references/explainer-prompt.md",
-      "behavior": "The pinned upstream artifact skills/how/references/explainer-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/how/references/explainer-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-how-references-explorer-prompt-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/how/references/explorer-prompt.md",
-      "behavior": "The pinned upstream artifact skills/how/references/explorer-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/how/references/explorer-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-how-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/how/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/how/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/how/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-interrogate-references-code-quality-review-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/interrogate/references/code-quality-review.md",
-      "behavior": "The pinned upstream artifact skills/interrogate/references/code-quality-review.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/interrogate/references/code-quality-review.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-interrogate-references-lead-judgment-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/interrogate/references/lead-judgment.md",
-      "behavior": "The pinned upstream artifact skills/interrogate/references/lead-judgment.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/interrogate/references/lead-judgment.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-interrogate-references-reviewer-prompt-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/interrogate/references/reviewer-prompt.md",
-      "behavior": "The pinned upstream artifact skills/interrogate/references/reviewer-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/interrogate/references/reviewer-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-interrogate-references-rubric-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/interrogate/references/rubric.md",
-      "behavior": "The pinned upstream artifact skills/interrogate/references/rubric.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/interrogate/references/rubric.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-interrogate-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/interrogate/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/interrogate/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/interrogate/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-maintain-verification-skill-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/maintain-verification-skill/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/maintain-verification-skill/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/maintain-verification-skill/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-make-bot-ui-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/make-bot-ui/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/make-bot-ui/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/make-bot-ui/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-no-comments-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/no-comments/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/no-comments/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/no-comments/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-authoring-a-skill-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/authoring-a-skill.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/authoring-a-skill.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/authoring-a-skill.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-autonomous-run-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/autonomous-run.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/autonomous-run.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/autonomous-run.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-autopilot-full-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/autopilot-full.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/autopilot-full.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/autopilot-full.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-autopilot-stack-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/autopilot-stack.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/autopilot-stack.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/autopilot-stack.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-babysit-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/babysit.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/babysit.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/babysit.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-bug-fix-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/bug-fix.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/bug-fix.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/bug-fix.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-eval-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/eval.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/eval.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/eval.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-feature-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/feature.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/feature.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/feature.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-hillclimb-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/hillclimb.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/hillclimb.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/hillclimb.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-investigation-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/investigation.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/investigation.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/investigation.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-multi-phase-plan-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/multi-phase-plan.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/multi-phase-plan.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/multi-phase-plan.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-opening-a-pr-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/opening-a-pr.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/opening-a-pr.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/opening-a-pr.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-orchestrate-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/orchestrate.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/orchestrate.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/orchestrate.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-pause-safely-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/pause-safely.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/pause-safely.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/pause-safely.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-perf-issue-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/perf-issue.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/perf-issue.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/perf-issue.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-prototype-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/prototype.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/prototype.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/prototype.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-refactoring-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/refactoring.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/refactoring.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/refactoring.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-runtime-forensics-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/runtime-forensics.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/runtime-forensics.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/runtime-forensics.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-session-pickup-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/session-pickup.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/session-pickup.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/session-pickup.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-shipping-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/shipping.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/shipping.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/shipping.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-trace-forensics-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/trace-forensics.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/trace-forensics.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/trace-forensics.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-visual-parity-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/visual-parity.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/visual-parity.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/visual-parity.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-playbooks-worktree-cleanup-md",
       "category": "playbook",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/playbooks/worktree-cleanup.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/worktree-cleanup.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/playbooks/worktree-cleanup.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-references-bugbot-triage-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/references/bugbot-triage.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/references/bugbot-triage.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/references/bugbot-triage.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-bootstrap-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/bootstrap.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/bootstrap.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/bootstrap.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-bun-lock",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/bun.lock",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/bun.lock is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/bun.lock is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-check-plan-mjs",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/check-plan.mjs",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/check-plan.mjs is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/check-plan.mjs is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-orch-orch-test-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/orch/orch.test.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/orch/orch.test.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/orch/orch.test.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-orch-orch-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/orch/orch.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/orch/orch.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/orch/orch.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-orch-store-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/orch/store.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/orch/store.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/orch/store.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-package-json",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/package.json",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/package.json is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/package.json is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-cli-test-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/cli.test.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/cli.test.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/cli.test.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-cli-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/cli.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/cli.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/cli.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-fakes-test-helper-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/fakes.test-helper.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/fakes.test-helper.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/fakes.test-helper.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-github-test-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/github.test.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/github.test.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/github.test.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-github-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/github.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/github.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/github.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-policy-test-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/policy.test.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/policy.test.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/policy.test.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-policy-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/policy.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/policy.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/policy.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-render-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/render.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/render.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/render.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-tsconfig-json",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/tsconfig.json",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/tsconfig.json is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/tsconfig.json is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-types-compile-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/types.compile.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/types.compile.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/types.compile.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-types-ts",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/types.ts",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/types.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/types.ts is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-watch-pr-watch-pr",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/watch-pr/watch-pr",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/watch-pr is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/watch-pr/watch-pr is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-scripts-worktree-audit-sh",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/scripts/worktree-audit.sh",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/worktree-audit.sh is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/scripts/worktree-audit.sh is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-poteto-mode-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/poteto-mode/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/poteto-mode/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/poteto-mode/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-attack-the-premise-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-attack-the-premise/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-attack-the-premise/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-attack-the-premise/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-boundary-discipline-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-boundary-discipline/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-boundary-discipline/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-boundary-discipline/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-build-the-lever-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-build-the-lever/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-build-the-lever/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-build-the-lever/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-encode-lessons-in-structure-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-encode-lessons-in-structure/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-encode-lessons-in-structure/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-encode-lessons-in-structure/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-exhaust-the-design-space-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-exhaust-the-design-space/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-exhaust-the-design-space/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-exhaust-the-design-space/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-experience-first-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-experience-first/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-experience-first/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-experience-first/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-fix-root-causes-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-fix-root-causes/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-fix-root-causes/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-fix-root-causes/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-foundational-thinking-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-foundational-thinking/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-foundational-thinking/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-foundational-thinking/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-guard-the-context-window-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-guard-the-context-window/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-guard-the-context-window/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-guard-the-context-window/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-laziness-protocol-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-laziness-protocol/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-laziness-protocol/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-laziness-protocol/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-make-operations-idempotent-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-make-operations-idempotent/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-make-operations-idempotent/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-make-operations-idempotent/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-migrate-callers-then-delete-legacy-apis-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-minimize-reader-load-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-minimize-reader-load/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-minimize-reader-load/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-minimize-reader-load/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-model-the-domain-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-model-the-domain/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-model-the-domain/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-model-the-domain/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-never-block-on-the-human-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-never-block-on-the-human/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-never-block-on-the-human/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-never-block-on-the-human/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-outcome-oriented-execution-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-outcome-oriented-execution/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-outcome-oriented-execution/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-outcome-oriented-execution/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-prove-it-works-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-prove-it-works/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-prove-it-works/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-prove-it-works/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-redesign-from-first-principles-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-redesign-from-first-principles/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-redesign-from-first-principles/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-redesign-from-first-principles/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-separate-before-serializing-shared-state-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-separate-before-serializing-shared-state/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-separate-before-serializing-shared-state/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-separate-before-serializing-shared-state/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-sequence-verifiable-units-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-sequence-verifiable-units/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-sequence-verifiable-units/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-sequence-verifiable-units/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-subtract-before-you-add-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-subtract-before-you-add/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-subtract-before-you-add/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-subtract-before-you-add/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-test-behavior-not-implementation-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-test-behavior-not-implementation/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-test-behavior-not-implementation/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-test-behavior-not-implementation/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-principle-type-system-discipline-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/principle-type-system-discipline/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/principle-type-system-discipline/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/principle-type-system-discipline/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-recall-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/recall/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/recall/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/recall/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-reflect-references-divergent-reviewer-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/reflect/references/divergent-reviewer.md",
-      "behavior": "The pinned upstream artifact skills/reflect/references/divergent-reviewer.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/reflect/references/divergent-reviewer.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-reflect-references-judgment-reviewer-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/reflect/references/judgment-reviewer.md",
-      "behavior": "The pinned upstream artifact skills/reflect/references/judgment-reviewer.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/reflect/references/judgment-reviewer.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-reflect-references-synthesizer-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/reflect/references/synthesizer.md",
-      "behavior": "The pinned upstream artifact skills/reflect/references/synthesizer.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/reflect/references/synthesizer.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-reflect-references-tooling-reviewer-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/reflect/references/tooling-reviewer.md",
-      "behavior": "The pinned upstream artifact skills/reflect/references/tooling-reviewer.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/reflect/references/tooling-reviewer.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-reflect-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/reflect/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/reflect/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/reflect/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-setup-pstack-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/setup-pstack/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/setup-pstack/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/setup-pstack/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-show-me-your-work-references-decision-log-template-tsv",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/show-me-your-work/references/decision-log-template.tsv",
-      "behavior": "The pinned upstream artifact skills/show-me-your-work/references/decision-log-template.tsv is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/show-me-your-work/references/decision-log-template.tsv is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-show-me-your-work-scripts-log-sh",
       "category": "dependency",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/show-me-your-work/scripts/log.sh",
-      "behavior": "The pinned upstream artifact skills/show-me-your-work/scripts/log.sh is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/show-me-your-work/scripts/log.sh is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-show-me-your-work-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/show-me-your-work/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/show-me-your-work/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/show-me-your-work/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-swarm-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/swarm/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/swarm/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/swarm/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-tdd-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/tdd/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/tdd/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/tdd/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-teach-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/teach/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/teach/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/teach/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-technical-writing-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/technical-writing/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/technical-writing/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/technical-writing/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-typescript-best-practices-references-patterns-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/typescript-best-practices/references/patterns.md",
-      "behavior": "The pinned upstream artifact skills/typescript-best-practices/references/patterns.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/typescript-best-practices/references/patterns.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-typescript-best-practices-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/typescript-best-practices/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/typescript-best-practices/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/typescript-best-practices/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-unslop-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/unslop/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/unslop/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/unslop/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-epistemics-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/epistemics.md",
-      "behavior": "The pinned upstream artifact skills/why/references/epistemics.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/epistemics.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-investigator-prompt-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/investigator-prompt.md",
-      "behavior": "The pinned upstream artifact skills/why/references/investigator-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/investigator-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-source-playbook-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/source-playbook.md",
-      "behavior": "The pinned upstream artifact skills/why/references/source-playbook.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/source-playbook.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-sources-code-archaeology-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/sources/code-archaeology.md",
-      "behavior": "The pinned upstream artifact skills/why/references/sources/code-archaeology.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/sources/code-archaeology.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-sources-databricks-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/sources/databricks.md",
-      "behavior": "The pinned upstream artifact skills/why/references/sources/databricks.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/sources/databricks.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-sources-datadog-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/sources/datadog.md",
-      "behavior": "The pinned upstream artifact skills/why/references/sources/datadog.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/sources/datadog.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-sources-incident-postmortem-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/sources/incident-postmortem.md",
-      "behavior": "The pinned upstream artifact skills/why/references/sources/incident-postmortem.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/sources/incident-postmortem.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-sources-linear-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/sources/linear.md",
-      "behavior": "The pinned upstream artifact skills/why/references/sources/linear.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/sources/linear.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-sources-notion-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/sources/notion.md",
-      "behavior": "The pinned upstream artifact skills/why/references/sources/notion.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/sources/notion.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-sources-sentry-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/sources/sentry.md",
-      "behavior": "The pinned upstream artifact skills/why/references/sources/sentry.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/sources/sentry.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-sources-slack-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/sources/slack.md",
-      "behavior": "The pinned upstream artifact skills/why/references/sources/slack.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/sources/slack.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-references-synthesizer-prompt-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/references/synthesizer-prompt.md",
-      "behavior": "The pinned upstream artifact skills/why/references/synthesizer-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/references/synthesizer-prompt.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "inv-skills-why-skill-md",
       "category": "skill",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "skills/why/SKILL.md",
-      "behavior": "The pinned upstream artifact skills/why/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
       "observableContract": [
-        "gate@parity:check"
-      ],
-      "classification": "EXACT-CONTRACT",
-      "piMechanism": [
-        "port/port.mjs"
+        "content manifest"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
+      "divergences": [],
+      "exceptionJustification": null,
+      "behavior": "The pinned upstream artifact skills/why/SKILL.md is byte-equal to the declared bindings applied to the pin and covered by the parity matrix.",
+      "classification": "EXACT-CONTRACT",
+      "piMechanism": [
+        "port/port.mjs"
+      ],
       "status": "verified",
       "evidence": [
         "port/port.mjs"
-      ],
-      "divergences": [],
-      "exceptionJustification": null
+      ]
     },
     {
       "id": "jobs-01",

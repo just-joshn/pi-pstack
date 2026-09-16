@@ -113,7 +113,7 @@ coverage = V / eligible
 
 At completion every `EXCLUDED` row's `twin@<surface>` names a surface with a `VERIFIED` row.
 
-As implemented, the ledger gives `T = 239` with `V = 227`, `U = 0`, `D = 0`, `E = 12`, so `eligible = 227` and `coverage = 100%`. Class split: `ADAPTED-EQUIVALENT = 162`, `EXACT-CONTRACT = 69`, `APPROVED-EXCEPTION = 2`, `HOSTED-CAPABILITY-REQUIRED = 6`. The checker is the authority for these numbers.
+The checker is the authority for the counts. Run `node spec/spec-check.mjs` and read the coverage line it prints, which names `T`, `V`, `U`, `D`, `E`, `eligible`, `coverage`, and the class split. Never hardcode those numbers in this document or anywhere else; they change as rows are added, and a copied count drifts. At completion, coverage is 100 percent when `U == 0` and `D == 0`, and the class split sums to `T`.
 
 ## 4. Host ceilings and exclusions
 

@@ -13,32 +13,32 @@
       "id": "cloud-agents",
       "upstreamEvidence": "environment:\"cloud\", cloud_base_branch, cloud VM, dashboard agent status; named only, no in-tree spec",
       "disposition": "hosted",
-      "piMechanism": "hosted: services/worker worker protocol",
-      "verification": "spec-check twin@worktree",
+      "piMechanism": "hosted: services/worker (worker protocol)",
+      "verification": "tests/hosted/worker.test.mjs",
       "notes": "Isolated local worktrees are the fallback; the remote worker is the mandated future path."
     },
     {
       "id": "automations-slack",
       "upstreamEvidence": "Automations editor and Slack bus; FOR_AGENTS.md:67-89 settings merge; placeholder Slack action names at configuration.example.yaml:11-14",
       "disposition": "hosted",
-      "piMechanism": "hosted: services/benny receiver",
-      "verification": "spec-check twin@benny",
+      "piMechanism": "hosted: services/benny (receiver)",
+      "verification": "tests/hosted/benny-events.test.mjs",
       "notes": "pstack_benny_wake plus pstack_loop is the local fallback; the receiver is the mandated future path."
     },
     {
       "id": "grok-bot",
       "upstreamEvidence": "update_state, SendToUser secret cards, api2.cursor.sh webhook; make-bot-ui SKILL.md:15-113",
       "disposition": "hosted",
-      "piMechanism": "hosted: services/benny receiver",
-      "verification": "spec-check twin@benny",
+      "piMechanism": "hosted: services/benny (receiver)",
+      "verification": "tests/hosted/benny-events.test.mjs",
       "notes": "The benny webhook twin is the local fallback; the receiver is the mandated future path."
     },
     {
       "id": "mcp",
       "upstreamEvidence": "mcps/ directory and mcp_auth; why SKILL.md:62,83; no tool/URI/schema spec",
       "disposition": "hosted",
-      "piMechanism": "hosted: services/worker worker protocol",
-      "verification": "spec-check twin@spawn",
+      "piMechanism": "hosted: services/worker (MCP-capable host)",
+      "verification": "tests/hosted/worker.test.mjs",
       "notes": "Child tool grants are the local twin; a provisioned MCP-capable host is the mandated future path."
     },
     {
@@ -61,16 +61,16 @@
       "id": "durable-jobs",
       "upstreamEvidence": "run_in_background and is_background flags; no spec; Pi registry is an in-process Map whose jobs are aborted on session_shutdown and dropped with the process",
       "disposition": "hosted",
-      "piMechanism": "hosted: services/worker worker protocol",
-      "verification": "spec-check twin@jobs",
+      "piMechanism": "hosted: services/worker (durable run store)",
+      "verification": "tests/hosted/failure-modes.test.mjs",
       "notes": "Session-scoped jobs are the local fallback; durable jobs are the mandated future path."
     },
     {
       "id": "ide-driving",
       "upstreamEvidence": "full Electron and IDE driving via control-ui; cursor-team-kit skill, not in pstack",
       "disposition": "hosted",
-      "piMechanism": "hosted: services/worker worker protocol",
-      "verification": "spec-check twin@control",
+      "piMechanism": "hosted: services/worker (IDE-driving host)",
+      "verification": "tests/hosted/worker.test.mjs",
       "notes": "pstack_control_cli and pstack_control_ui are the local fallback; IDE driving is the mandated future path."
     },
     {

@@ -2,13 +2,17 @@
 
 Native [Pi](https://pi.dev) package porting [Cursor pstack](https://github.com/cursor/plugins/tree/main/pstack) (v0.15.2) as a **local Pi twin**.
 
-**Parity target: pstack 0.15.2 @ `c1c0a32802223f4be824112dd83d33ad29a8b26c`** (pinned in `port/upstream.json`). Every ledger row is `VERIFIED` with a proof that runs in `npm test`, and every row carries one DoD class. `node spec/spec-check.mjs --require-complete` and `npm run spec:gate` are the release gates; the class split and the Cursor-side comparison procedure live in [`spec/SPEC.md`](./spec/SPEC.md) and [`spec/DIFFERENTIAL.md`](./spec/DIFFERENTIAL.md).
+**Parity target: pstack 0.15.2 @ `5bf2b1544db739998121a306340631963c2ff3de`** (the normative pin in [`upstream.lock.json`](./upstream.lock.json); `port/upstream.json` is the machine-consumed copy). The lock file records that this revision is content-verified equivalent to `c1c0a32802223f4be824112dd83d33ad29a8b26c`: zero commits touch `pstack/` between the two, and the `pstack/` tree SHA is identical at both. Every non-excluded ledger row is `VERIFIED` with a proof that runs in `npm test`, and every row carries one DoD class. `node spec/spec-check.mjs --require-complete` and `npm run spec:gate` are the release gates; the class split and the Cursor-side comparison procedure live in [`spec/SPEC.md`](./spec/SPEC.md) and [`spec/DIFFERENTIAL.md`](./spec/DIFFERENTIAL.md).
 
 This is **not** Cursor-equivalence theater: skill/playbook *files* match upstream, and extensions implement the closest executable Pi-native behavior.
 
 **Content parity is machine-checked.** Every file under `skills/`, `agents/`, `automations/`, and `docs/` is `apply(declared Cursor→Pi bindings, upstream pstack@v0.15.2)`. `npm run parity:check` fails on any drift, any unmigrated Cursor mechanism, any unknown `pstack_*` tool, or any dead `scripts/...` path. 103 of 153 upstream files are byte-identical; 48 differ only where a binding names a Cursor mechanism; 2 whole-mechanism files are declared overrides: each override's must list pins named upstream sections, the leftover scan rejects Cursor mechanisms, and the override is hand-maintained and reviewed. See [port/README.md](./port/README.md).
 
 **Status is not kept in this file.** The live contract and per-obligation ledger are [`spec/SPEC.md`](./spec/SPEC.md) and [`spec/contracts/`](./spec/contracts/). The coverage command is `npm run spec:check`. [PARITY.md](./PARITY.md) is the historical snapshot.
+
+**Parity matrix.** The generated compatibility matrix and the completion report are [`compat/REPORT.md`](./compat/REPORT.md), generated from `compat/parity.json`. Regenerate with `npm run compat:report`; `npm run compat:gate` fails when the report is stale.
+
+**Hosted capabilities.** The capabilities that need hosted infrastructure, their environment variables, and their local twins are in [`docs/HOSTED.md`](./docs/HOSTED.md).
 
 if you want to go fast, go deep first. pstack helps you write less, but higher quality code — rigorous agent workflows you can parallelize with confidence.
 
@@ -36,6 +40,16 @@ Try without installing:
 
 ```bash
 pi -e /absolute/path/to/pi-pstack
+```
+
+### Verify
+
+```bash
+npm run compat:gate        # the single completion gate
+node spec/spec-check.mjs   # ledger coverage and integrity
+npm run compat:check       # parity matrix schema, staleness, and dependency coverage
+npm run parity:check       # content parity against the pinned upstream tree
+npm run test:hosted        # hosted worker and benny service tests
 ```
 
 ## Parity check (contributors)
