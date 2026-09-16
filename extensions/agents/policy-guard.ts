@@ -5,6 +5,10 @@
  * and the child's extension host registers this hook. argv is a hint; this guard
  * is the boundary, so a child cannot escalate by calling a tool the policy
  * excludes. A malformed policy fails closed instead of silently allowing writes.
+ *
+ * A shell command is inspected as a flat list of executions (see shell-parse.ts).
+ * A construct the parser cannot decompose blocks whenever any axis it feeds is
+ * restrictive, so the guard never allows an uninspected command.
  */
 import type { ExtensionAPI, ToolCallEvent } from "@earendil-works/pi-coding-agent";
 import {
@@ -13,6 +17,13 @@ import {
   type GitPolicy,
   type PstackTaskPolicy,
 } from "./policy.ts";
+import {
+  parseShellCommand,
+  subcommandOf,
+  type ShellArg,
+  type ShellExecution,
+  type ShellParse,
+} from "./shell-parse.ts";
 
 export interface GuardEvent {
   toolName: string;
@@ -29,224 +40,87 @@ export interface GuardPolicyState {
 /** Filesystem read-only blocks exactly the two Pi mutation builtins. */
 const FILESYSTEM_WRITE_TOOLS: ReadonlySet<string> = new Set(["write", "edit"]);
 
+function setOf(source: string): ReadonlySet<string> {
+  return new Set(source.split(/\s+/).filter((token) => token.length > 0));
+}
+
 /** Tools a child keeps when its policy could not be parsed: reads cannot mutate. */
 const UNPARSEABLE_SAFE_TOOLS: ReadonlySet<string> = new Set(["read", "grep", "find", "ls"]);
 
-const GIT_READ_BLOCKED: ReadonlySet<string> = new Set([
-  "push",
-  "commit",
-  "merge",
-  "rebase",
-  "cherry-pick",
-  "reset",
-  "checkout",
-  "switch",
-  "branch",
-  "tag",
-  "remote",
-  "config",
-  "apply",
-  "am",
-  "stash",
-  "clean",
-  "restore",
-]);
+const GIT_READ_BLOCKED: ReadonlySet<string> = setOf(
+  "push commit merge rebase cherry-pick reset checkout switch branch tag remote config apply am stash clean restore",
+);
 
 /** branch-write covers local branch mutation only; publishing and rewrites stay blocked. */
-const GIT_BRANCH_WRITE_BLOCKED: ReadonlySet<string> = new Set([
-  "push",
-  "merge",
-  "rebase",
-  "cherry-pick",
-  "reset",
-  "tag",
-  "remote",
-  "config",
-  "apply",
-  "am",
-  "stash",
-  "clean",
-  "restore",
-]);
+const GIT_BRANCH_WRITE_BLOCKED: ReadonlySet<string> = setOf(
+  "push merge rebase cherry-pick reset tag remote config apply am stash clean restore",
+);
 
-const GIT_PUSH_BLOCKED: ReadonlySet<string> = new Set(["merge"]);
+const GIT_PUSH_BLOCKED: ReadonlySet<string> = setOf("merge");
 
-const GIT_FETCH_SUBCOMMANDS: ReadonlySet<string> = new Set(["clone", "fetch", "pull"]);
+/** Subcommands that only read the object store and the working tree. */
+const GIT_TREE_READ_SUBCOMMANDS: ReadonlySet<string> = setOf(
+  "log status diff show blame grep ls-files rev-parse describe cat-file ls-tree show-ref for-each-ref " +
+    "shortlog name-rev merge-base rev-list symbolic-ref whatchanged show-branch version help reflog " +
+    "count-objects check-ignore check-attr check-ref-format diff-tree diff-index diff-files var " +
+    "verify-commit verify-tag",
+);
 
-const GIT_VALUE_FLAGS: ReadonlySet<string> = new Set([
-  "-C",
-  "-c",
-  "--git-dir",
-  "--work-tree",
-  "--namespace",
-  "--exec-path",
-  "--config-env",
-]);
+const GIT_FETCH_SUBCOMMANDS: ReadonlySet<string> = setOf("clone fetch pull");
 
-const NETWORK_COMMANDS: ReadonlySet<string> = new Set([
-  "curl",
-  "wget",
-  "nc",
-  "ncat",
-  "ssh",
-  "scp",
-  "sftp",
-  "rsync",
-]);
+const GIT_VALUE_FLAGS: ReadonlySet<string> = setOf(
+  "-C -c --git-dir --work-tree --namespace --exec-path --config-env",
+);
 
-const PACKAGE_MANAGERS: ReadonlySet<string> = new Set(["npm", "pnpm", "yarn", "bun", "pip", "pip3", "uv"]);
+const NETWORK_COMMANDS: ReadonlySet<string> = setOf("curl wget nc ncat ssh scp sftp rsync");
 
-const PACKAGE_WRITE_SUBCOMMANDS: ReadonlySet<string> = new Set([
-  "install",
-  "i",
-  "ci",
-  "add",
-  "update",
-  "up",
-  "upgrade",
-  "remove",
-  "rm",
-  "uninstall",
-  "publish",
-]);
+const PACKAGE_MANAGERS: ReadonlySet<string> = setOf("npm pnpm yarn bun pip pip3 uv");
 
-const PACKAGE_MANAGER_VALUE_FLAGS: ReadonlySet<string> = new Set([
-  "-C",
-  "-p",
-  "-w",
-  "-F",
-  "--prefix",
-  "--cwd",
-  "--dir",
-  "--workspace",
-  "--filter",
-  "--registry",
-  "--tag",
-]);
+const PACKAGE_WRITE_SUBCOMMANDS: ReadonlySet<string> = setOf(
+  "install i ci add update up upgrade remove rm uninstall publish",
+);
 
-const GH_WRITE_VERBS: ReadonlySet<string> = new Set([
-  "create",
-  "merge",
-  "close",
-  "reopen",
-  "edit",
-  "delete",
-  "comment",
-  "review",
-  "sync",
-  "fork",
-  "clone",
-  "push",
-  "transfer",
-  "lock",
-  "unlock",
-  "rerun",
-  "cancel",
-  "enable",
-  "disable",
-  "set",
-  "add",
-  "remove",
-  "import",
-  "publish",
-]);
+const PACKAGE_MANAGER_VALUE_FLAGS: ReadonlySet<string> = setOf(
+  "-C -p -w -F --prefix --cwd --dir --workspace --filter --registry --tag",
+);
 
-const GH_READ_VERBS: ReadonlySet<string> = new Set([
-  "view",
-  "list",
-  "status",
-  "diff",
-  "search",
-  "checks",
-  "help",
-  "version",
-  "browse",
-  "show",
-]);
+const GH_READ_VERBS: ReadonlySet<string> = setOf("view list status diff search checks help version browse show");
 
-/** Commands that only wrap another command, so the real name follows them. */
-const COMMAND_PREFIXES: ReadonlySet<string> = new Set([
-  "sudo",
-  "doas",
-  "env",
-  "command",
-  "nice",
-  "nohup",
-  "time",
-  "xargs",
-]);
+/** Commands that mutate the filesystem whenever they run. */
+const FILESYSTEM_WRITE_COMMANDS: ReadonlySet<string> = setOf(
+  "rm rmdir unlink mv cp install dd truncate fallocate touch mkdir mknod mkfifo chmod chown chgrp ln tee " +
+    "patch zip unzip gzip gunzip bzip2 xz tar rsync scp sftp shred mktemp cpio split csplit rename " +
+    "setfacl chattr chflags",
+);
 
-const SHELL_SEGMENT = /(?:&&|\|\||[;|&])/;
+/** Commands that mutate only when one of these flags is present. */
+const FILESYSTEM_WRITE_FLAGS: Readonly<Record<string, ReadonlySet<string>>> = Object.freeze({
+  sed: setOf("-i --in-place"),
+  find: setOf("-delete -exec -execdir -ok -okdir -fprint -fprint0 -fls"),
+  curl: setOf("-o --output -O --remote-name"),
+  wget: setOf("-O --output-document"),
+  sort: setOf("-o --output"),
+});
 
-export interface BashSegment {
-  readonly name: string;
-  readonly args: readonly string[];
-}
+/**
+ * Commands that run caller-supplied code, so no argument table can bound what
+ * they write. Read-only filesystems refuse them rather than guess.
+ */
+const FILESYSTEM_OPAQUE_INTERPRETERS: ReadonlySet<string> = setOf(
+  "python python2 python3 node nodejs deno bun perl perl5 ruby irb php lua luajit awk gawk mawk nawk " +
+    "tclsh wish rscript r julia make cargo go rustc cc gcc clang javac java dotnet mvn gradle groovy " +
+    "elixir mix erl escript expect ghc cabal stack nix nix-shell busybox docker podman kubectl " +
+    "terraform vim nvim vi ed ex emacs nano",
+);
 
 function block(reason: string): GuardDecision {
   return { block: true, reason: `pstack policy guard: ${reason}` };
 }
 
-function tokenName(token: string): string {
-  const slash = token.lastIndexOf("/");
-  return slash >= 0 ? token.slice(slash + 1) : token;
-}
-
-function normalizeToken(token: string): string {
-  return token.replace(/^[('"`]+/, "").replace(/[)'"`;,&|]+$/, "");
-}
-
-function segmentWithCommand(segment: string[]): BashSegment | undefined {
-  let index = 0;
-  let remaining = segment.length;
-  while (remaining > 0) {
-    const token = segment[index];
-    const isAssignment = token.includes("=") && !token.startsWith("-") && index === 0;
-    const name = tokenName(token);
-    const isPrefix = COMMAND_PREFIXES.has(name) && remaining > 1;
-    if (isAssignment || isPrefix) {
-      index += 1;
-      remaining = segment.length - index;
-      continue;
-    }
-    return { name, args: segment.slice(index + 1) };
-  }
-  return undefined;
-}
-
-/** Split a bash command line into per-segment command names so operands never match. */
-export function bashSegments(command: string): BashSegment[] {
-  return command
-    .split(SHELL_SEGMENT)
-    .map((segment) =>
-      segment
-        .split(/\s+/)
-        .map(normalizeToken)
-        .filter((token) => token.length > 0),
-    )
-    .filter((tokens) => tokens.length > 0)
-    .flatMap((tokens) => segmentWithCommand(tokens) ?? []);
-}
-
-function subcommandFromArgs(args: readonly string[], valueFlags: ReadonlySet<string>): string | undefined {
-  let index = 0;
-  let remaining = args.length;
-  while (remaining > 0) {
-    const token = args[index];
-    if (!token.startsWith("-")) return token.toLowerCase();
-    index += valueFlags.has(token) ? 2 : 1;
-    remaining = args.length - index;
-  }
-  return undefined;
-}
-
-function gitSubcommands(segments: readonly BashSegment[]): string[] {
-  return segments
-    .filter((segment) => segment.name === "git")
-    .flatMap((segment) => {
-      const sub = subcommandFromArgs(segment.args, GIT_VALUE_FLAGS);
-      return sub ? [sub] : [];
-    });
+function gitInvocations(executions: readonly ShellExecution[]): readonly { sub?: string; dynamic: boolean }[] {
+  return executions
+    .filter((execution) => execution.name === "git")
+    .map((execution) => subcommandOf(execution.args, GIT_VALUE_FLAGS));
 }
 
 function blockedGitSubcommands(git: GitPolicy): ReadonlySet<string> | undefined {
@@ -256,43 +130,96 @@ function blockedGitSubcommands(git: GitPolicy): ReadonlySet<string> | undefined 
   return undefined;
 }
 
-function gitGuard(policy: PstackTaskPolicy, segments: readonly BashSegment[]): GuardDecision | undefined {
+function gitGuard(policy: PstackTaskPolicy, executions: readonly ShellExecution[]): GuardDecision | undefined {
   const blocked = blockedGitSubcommands(policy.git);
   if (!blocked) return undefined;
-  const hit = gitSubcommands(segments).find((sub) => blocked.has(sub));
+  const invocations = gitInvocations(executions);
+  if (invocations.some((invocation) => invocation.dynamic)) {
+    return block(`git policy ${policy.git} cannot verify a git subcommand built from a variable`);
+  }
+  const hit = invocations.map((invocation) => invocation.sub).find((sub) => sub !== undefined && blocked.has(sub));
   return hit ? block(`git policy ${policy.git} blocks 'git ${hit}'`) : undefined;
 }
 
-function packageWriterFor(segment: BashSegment): string | undefined {
-  if (!PACKAGE_MANAGERS.has(segment.name)) return undefined;
-  const sub = subcommandFromArgs(segment.args, PACKAGE_MANAGER_VALUE_FLAGS);
-  return sub && PACKAGE_WRITE_SUBCOMMANDS.has(sub) ? `${segment.name} ${sub}` : undefined;
+function gitTreeGuard(policy: PstackTaskPolicy, executions: readonly ShellExecution[]): GuardDecision | undefined {
+  if (policy.filesystem !== "read-only") return undefined;
+  const invocations = gitInvocations(executions);
+  if (invocations.some((invocation) => invocation.dynamic)) {
+    return block("filesystem read-only cannot verify a git subcommand built from a variable");
+  }
+  const hit = invocations
+    .map((invocation) => invocation.sub)
+    .find((sub) => sub !== undefined && !GIT_TREE_READ_SUBCOMMANDS.has(sub));
+  return hit ? block(`filesystem read-only blocks 'git ${hit}', which writes the tree or the object store`) : undefined;
 }
 
-function ghCulprit(segments: readonly BashSegment[]): string | undefined {
-  const gh = segments.find((segment) => segment.name === "gh");
+function packageWriterFor(execution: ShellExecution): string | undefined {
+  if (!PACKAGE_MANAGERS.has(execution.name)) return undefined;
+  const resolved = subcommandOf(execution.args, PACKAGE_MANAGER_VALUE_FLAGS);
+  if (resolved.dynamic) return `${execution.name} <variable>`;
+  return resolved.sub && PACKAGE_WRITE_SUBCOMMANDS.has(resolved.sub)
+    ? `${execution.name} ${resolved.sub}`
+    : undefined;
+}
+
+function ghCulprit(executions: readonly ShellExecution[]): string | undefined {
+  const gh = executions.find((execution) => execution.name === "gh");
   if (!gh) return undefined;
-  const words = gh.args.map((arg) => arg.toLowerCase()).filter((arg) => !arg.startsWith("-"));
+  const operands = gh.args.filter((arg) => !arg.value.startsWith("-"));
+  if (operands.some((arg) => arg.dynamic)) return "gh <variable>";
+  const words = operands.map((arg) => arg.value.toLowerCase());
   if (words.some((word) => GH_READ_VERBS.has(word))) return undefined;
   return `gh ${words.slice(0, 2).join(" ")}`.trim();
 }
 
-function networkCulprit(segments: readonly BashSegment[]): string | undefined {
-  const direct = segments.find((segment) => NETWORK_COMMANDS.has(segment.name));
+function networkCulprit(executions: readonly ShellExecution[]): string | undefined {
+  const direct = executions.find((execution) => NETWORK_COMMANDS.has(execution.name));
   if (direct) return direct.name;
-  const fetch = gitSubcommands(segments).find((sub) => GIT_FETCH_SUBCOMMANDS.has(sub));
+  const invocations = gitInvocations(executions);
+  if (invocations.some((invocation) => invocation.dynamic)) return "git <variable>";
+  const fetch = invocations
+    .map((invocation) => invocation.sub)
+    .find((sub) => sub !== undefined && GIT_FETCH_SUBCOMMANDS.has(sub));
   if (fetch) return `git ${fetch}`;
-  const writer = segments.map(packageWriterFor).find((hit) => hit !== undefined);
-  return writer ?? ghCulprit(segments);
+  const writer = executions.map(packageWriterFor).find((hit) => hit !== undefined);
+  return writer ?? ghCulprit(executions);
 }
 
-function networkGuard(policy: PstackTaskPolicy, segments: readonly BashSegment[]): GuardDecision | undefined {
+function networkGuard(policy: PstackTaskPolicy, executions: readonly ShellExecution[]): GuardDecision | undefined {
   if (policy.network !== "none") return undefined;
-  const hit = networkCulprit(segments);
+  const hit = networkCulprit(executions);
   return hit ? block(`network none blocks '${hit}'`) : undefined;
 }
 
-function filesystemGuard(policy: PstackTaskPolicy, toolName: string): GuardDecision | undefined {
+function matchesWriteFlag(value: string, flag: string): boolean {
+  if (value === flag || value.startsWith(`${flag}=`)) return true;
+  return flag.length === 2 && flag.startsWith("-") && value.startsWith(flag) && value.length > 2;
+}
+
+function writeFlagCulprit(execution: ShellExecution): string | undefined {
+  const flags = FILESYSTEM_WRITE_FLAGS[execution.name];
+  if (!flags) return undefined;
+  const hit = execution.args.find((arg) => [...flags].some((flag) => matchesWriteFlag(arg.value, flag)));
+  if (hit) return `${execution.name} ${hit.value}`;
+  return execution.args.some((arg) => arg.dynamic) ? `${execution.name} <variable>` : undefined;
+}
+
+function writeCulprit(execution: ShellExecution): string | undefined {
+  if (FILESYSTEM_WRITE_COMMANDS.has(execution.name)) return execution.name;
+  if (FILESYSTEM_OPAQUE_INTERPRETERS.has(execution.name)) return execution.name;
+  return packageWriterFor(execution) ?? writeFlagCulprit(execution);
+}
+
+function filesystemBashGuard(policy: PstackTaskPolicy, parse: ShellParse): GuardDecision | undefined {
+  if (policy.filesystem !== "read-only") return undefined;
+  const redirect = parse.redirects.find((entry) => entry.write);
+  if (redirect) return block(`filesystem read-only blocks '${redirect.operator} ${redirect.target}'`);
+  const hit = parse.executions.map(writeCulprit).find((culprit) => culprit !== undefined);
+  if (hit) return block(`filesystem read-only blocks '${hit}'`);
+  return gitTreeGuard(policy, parse.executions);
+}
+
+function filesystemToolGuard(policy: PstackTaskPolicy, toolName: string): GuardDecision | undefined {
   if (policy.filesystem !== "read-only" || !FILESYSTEM_WRITE_TOOLS.has(toolName)) return undefined;
   return block(`filesystem read-only blocks ${toolName}`);
 }
@@ -307,19 +234,39 @@ function integrationsGuard(policy: PstackTaskPolicy, toolName: string): GuardDec
   return block(`integrations grant [${grants.join(", ")}] excludes ${category}, needed by ${toolName}`);
 }
 
-function shellGuard(policy: PstackTaskPolicy, input: Record<string, unknown>): GuardDecision | undefined {
+/** Axes whose verdict depends on having parsed the command line. */
+function parsingIsRestricted(policy: PstackTaskPolicy): boolean {
+  return (
+    policy.filesystem === "read-only" ||
+    policy.shell === "restricted" ||
+    policy.network === "none" ||
+    policy.git !== "merge"
+  );
+}
+
+function refusalGuard(policy: PstackTaskPolicy, parse: ShellParse): GuardDecision | undefined {
+  if (parse.refusals.length === 0 || !parsingIsRestricted(policy)) return undefined;
+  return block(`cannot enforce this policy on ${parse.refusals.join("; ")}`);
+}
+
+function bashGuard(policy: PstackTaskPolicy, command: string): GuardDecision | undefined {
   if (policy.shell === "none") return block("shell none blocks bash");
-  const command = typeof input.command === "string" ? input.command : "";
-  const segments = bashSegments(command);
-  return gitGuard(policy, segments) ?? networkGuard(policy, segments);
+  const parse = parseShellCommand(command);
+  return (
+    refusalGuard(policy, parse) ??
+    filesystemBashGuard(policy, parse) ??
+    gitGuard(policy, parse.executions) ??
+    networkGuard(policy, parse.executions)
+  );
 }
 
 export function evaluateGuard(policy: PstackTaskPolicy, event: GuardEvent): GuardDecision | undefined {
-  const filesystem = filesystemGuard(policy, event.toolName);
-  if (filesystem) return filesystem;
-  const integrations = integrationsGuard(policy, event.toolName);
-  if (integrations) return integrations;
-  return event.toolName === "bash" ? shellGuard(policy, event.input) : undefined;
+  if (event.toolName === "bash") {
+    const command = event.input.command;
+    if (typeof command !== "string") return block("bash tool call without a string command");
+    return bashGuard(policy, command);
+  }
+  return filesystemToolGuard(policy, event.toolName) ?? integrationsGuard(policy, event.toolName);
 }
 
 function errorText(err: unknown): string {
@@ -355,10 +302,14 @@ export function decideGuardEvent(event: GuardEvent): GuardDecision | undefined {
   return evaluateGuard(guard.policy, event);
 }
 
-/** No-op when PSTACK_CHILD_POLICY is absent; the parent decides whether to attach a policy. */
+/**
+ * No-op when PSTACK_CHILD_POLICY is absent; the parent decides whether to attach
+ * a policy. An already-injected policy wins, so the test seam cannot be clobbered
+ * by an inherited child policy.
+ */
 export function registerPolicyGuard(pi: ExtensionAPI): void {
   const raw = process.env.PSTACK_CHILD_POLICY;
-  if (raw) activeGuard = parseGuardPolicy(raw);
+  if (raw && activeGuard === undefined) activeGuard = parseGuardPolicy(raw);
   if (!activeGuard) return;
   pi.on("tool_call", (event: ToolCallEvent) =>
     decideGuardEvent({ toolName: event.toolName, input: event.input as Record<string, unknown> }),

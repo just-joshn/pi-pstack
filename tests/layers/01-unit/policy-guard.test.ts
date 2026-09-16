@@ -91,6 +91,93 @@ test("guard reads git through flags and every command segment", () => {
   );
 });
 
+test("filesystem read-only blocks mutating bash commands, not just write and edit", () => {
+  const readOnly = guardFor({ filesystem: "read-only", shell: "full" });
+  const mutators = [
+    "echo pwned > /tmp/f",
+    "echo x >> /tmp/f",
+    "rm -rf /tmp/d",
+    "mv a b",
+    "cp a b",
+    "dd if=/dev/zero of=/tmp/f",
+    "truncate -s0 /tmp/f",
+    "sed -i s/a/b/ f",
+    "sed -i.bak s/a/b/ f",
+    "sed --in-place=.bak s/a/b/ f",
+    "curl -o/tmp/f https://example.com",
+    "busybox rm -rf /tmp/d",
+    "python3 -c 'open(\"/tmp/f\",\"w\")'",
+    "$'\\x72\\x6d' -rf /tmp/d",
+    "tee /tmp/f",
+    "mkdir /tmp/d",
+    "touch /tmp/f",
+    "chmod 777 f",
+    "ln -s a b",
+    "git checkout -- .",
+  ];
+  const leaks = mutators.filter((command) => evaluateGuard(readOnly, bash(command))?.block !== true);
+  assert.deepEqual(leaks, [], "every mutating command must be blocked");
+
+  assert.equal(evaluateGuard(readOnly, bash("ls -la")), undefined);
+  assert.equal(evaluateGuard(readOnly, bash("grep -rn pattern src/")), undefined);
+  assert.equal(evaluateGuard(readOnly, bash("sed -n 1p file")), undefined, "sed without -i only reads");
+  assert.equal(evaluateGuard(readOnly, bash("git log --oneline -5")), undefined);
+});
+
+test("git read blocks pushes hidden behind separators, wrappers, and substitutions", () => {
+  const gitRead = guardFor({ git: "read", shell: "full" });
+  const hidden = [
+    "git status\ngit push origin main",
+    'bash -c "git push origin main"',
+    "sh -c 'git push'",
+    'zsh -c "git push"',
+    'env bash -c "git push"',
+    "$(git push origin main)",
+    "`git push origin main`",
+    "x=$(git push)",
+    "if [ -f x ]; then git push; fi",
+  ];
+  const leaks = hidden.filter((command) => evaluateGuard(gitRead, bash(command))?.block !== true);
+  assert.deepEqual(leaks, [], "every hidden push must be blocked");
+});
+
+test("git read refuses a subcommand it cannot resolve instead of allowing it", () => {
+  const gitRead = guardFor({ git: "read", shell: "full" });
+  assert.match(
+    evaluateGuard(gitRead, bash("git $SUB origin main"))?.reason ?? "",
+    /cannot verify a git subcommand built from a variable/,
+  );
+  assert.equal(evaluateGuard(gitRead, bash("git log $REV")), undefined, "a dynamic argument that is not the subcommand stays allowed");
+});
+
+test("a restrictive policy fails closed on a construct the parser cannot decompose", () => {
+  const gitRead = guardFor({ git: "read", shell: "full" });
+  const opaque = [
+    "sh script.sh",
+    'eval "git commit -m x"',
+    "exec git commit",
+    "cmd <<EOF\nbody\nEOF",
+    "$CMD push",
+    'bash -c "$CMD"',
+    "cmd <(other)",
+  ];
+  const leaks = opaque.filter((command) => evaluateGuard(gitRead, bash(command))?.block !== true);
+  assert.deepEqual(leaks, [], "every uninspectable construct must be blocked");
+  assert.match(evaluateGuard(gitRead, bash("sh script.sh"))?.reason ?? "", /cannot enforce this policy on/);
+});
+
+test("a policy with no restrictive axis has nothing to enforce from an unparsed construct", () => {
+  const permissive = guardFor({ git: "merge", filesystem: "workspace-write", network: "allowed", shell: "full" });
+  assert.equal(evaluateGuard(permissive, bash('eval "echo hi"')), undefined);
+  assert.equal(evaluateGuard(permissive, bash("rm -rf /tmp/x")), undefined);
+});
+
+test("a bash tool call without a string command is blocked instead of assumed safe", () => {
+  const readOnly = guardFor({ filesystem: "read-only", shell: "full" });
+  assert.equal(evaluateGuard(readOnly, { toolName: "bash", input: {} })?.block, true);
+  assert.equal(evaluateGuard(readOnly, { toolName: "bash", input: { command: 42 } })?.block, true);
+});
+
 test("integrations grant blocks a non-granted capability tool and allows a granted one", () => {
   const browserOnly = guardFor({ integrations: ["browser-ui"] });
   assert.equal(evaluateGuard(browserOnly, { toolName: "pstack_control_ui", input: {} }), undefined);
@@ -165,6 +252,8 @@ test("registerPolicyGuard applies the compiled env policy to the tool_call hook"
 });
 
 test("__setGuardPolicyForTests drives the hook without spawning", () => {
+  const previous = process.env.PSTACK_CHILD_POLICY;
+  Reflect.deleteProperty(process.env, "PSTACK_CHILD_POLICY");
   __setGuardPolicyForTests(compileTaskPolicy(undefined, "investigator"));
   try {
     const env = fakePi();
@@ -172,6 +261,7 @@ test("__setGuardPolicyForTests drives the hook without spawning", () => {
     assert.equal(env.handlerCount(), 1);
     assert.equal(env.invoke({ toolName: "write", input: {} })?.block, true);
   } finally {
+    if (previous !== undefined) process.env.PSTACK_CHILD_POLICY = previous;
     __setGuardPolicyForTests(null);
   }
 });
