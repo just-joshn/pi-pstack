@@ -79,9 +79,19 @@ export type RunEffect =
   | { type: "stop" }
   | { type: "handoff"; endpoint: string };
 
+/**
+ * An event the phase refused. The record is untouched, so without this marker a
+ * caller cannot tell a handled event from a dropped one.
+ */
+export interface IgnoredEvent {
+  event: RunEvent["type"];
+  phase: RunPhase;
+}
+
 export interface RunReduction {
   record: RunRecord;
   effects: RunEffect[];
+  ignored?: IgnoredEvent[];
 }
 
 export const DEFAULT_MAX_FIRES = 50;
@@ -140,8 +150,8 @@ function payload<T extends RunEvent["type"]>(event: RunEvent, type: T): Extract<
   return event as Extract<RunEvent, { type: T }>;
 }
 
-function ignored(record: RunRecord): RunReduction {
-  return { record, effects: [] };
+function ignored(record: RunRecord, event: RunEvent): RunReduction {
+  return { record, effects: [], ignored: [{ event: event.type, phase: record.phase }] };
 }
 
 function plateauReason(record: RunRecord): string {
@@ -150,6 +160,7 @@ function plateauReason(record: RunRecord): string {
 
 function verdictReduction(
   record: RunRecord,
+  event: RunEvent,
   now: number,
   verdict: RunVerdict,
   patch: Partial<RunIteration>,
@@ -157,7 +168,7 @@ function verdictReduction(
 ): RunReduction {
   const open = record.iterations.at(-1);
   const wrongPhase = record.phase !== "ACT" && record.phase !== "VERIFY";
-  if (wrongPhase || !open || open.endedAt !== undefined) return ignored(record);
+  if (wrongPhase || !open || open.endedAt !== undefined) return ignored(record, event);
   const closed: RunIteration = { ...open, endedAt: now, verdict, ...patch };
   const advanced = verdict === "advanced";
   const consecutiveDiscards = advanced ? 0 : record.consecutiveDiscards + 1;
@@ -196,7 +207,7 @@ const HANDLERS: Record<string, Handler> = {
   },
 
   heartbeat: (record, event, now) => {
-    if (record.phase !== "WAIT_FOR_EVENT_OR_HEARTBEAT") return ignored(record);
+    if (record.phase !== "WAIT_FOR_EVENT_OR_HEARTBEAT") return ignored(record, event);
     return {
       record: progressed(record, now, { phase: "RESUME_OR_START_ITERATION", fires: record.fires + 1 }),
       effects: [{ type: "wake", reason: "heartbeat" }],
@@ -205,8 +216,8 @@ const HANDLERS: Record<string, Handler> = {
 
   event_wake: (record, event, now) => {
     const { eventId, reason } = payload(event, "event_wake");
-    if (eventId !== undefined && record.eventIds.includes(eventId)) return ignored(record);
-    if (record.phase !== "WAIT_FOR_EVENT_OR_HEARTBEAT") return ignored(record);
+    if (eventId !== undefined && record.eventIds.includes(eventId)) return ignored(record, event);
+    if (record.phase !== "WAIT_FOR_EVENT_OR_HEARTBEAT") return ignored(record, event);
     const label = reason ?? eventId ?? "event";
     const seen = eventId === undefined ? record.eventIds : [...record.eventIds, eventId];
     return {
@@ -224,7 +235,7 @@ const HANDLERS: Record<string, Handler> = {
     const { action } = payload(event, "iteration_started");
     const trimmed = action.trim();
     if (!trimmed) return { record, effects: [notify("iteration_started ignored: action required")] };
-    if (record.phase !== "RESUME_OR_START_ITERATION") return ignored(record);
+    if (record.phase !== "RESUME_OR_START_ITERATION") return ignored(record, event);
     const n = record.iterations.length + 1;
     const iteration: RunIteration = {
       n,
@@ -241,7 +252,7 @@ const HANDLERS: Record<string, Handler> = {
   },
 
   verification_started: (record, event, now) => {
-    if (record.phase !== "ACT") return ignored(record);
+    if (record.phase !== "ACT") return ignored(record, event);
     return { record: progressed(record, now, { phase: "VERIFY" }), effects: [] };
   },
 
@@ -250,23 +261,23 @@ const HANDLERS: Record<string, Handler> = {
     const trimmed = evidence.trim();
     if (!trimmed) return { record, effects: [notify("iteration_verified ignored: evidence required")] };
     const report = [notify(`run ${record.runId} iteration ${record.iterations.length} advanced`)];
-    return verdictReduction(record, now, "advanced", { verification, evidence: trimmed, ...(commit ? { commit } : {}) }, report);
+    return verdictReduction(record, event, now, "advanced", { verification, evidence: trimmed, ...(commit ? { commit } : {}) }, report);
   },
 
   iteration_discarded: (record, event, now) => {
     const { reason, evidence } = payload(event, "iteration_discarded");
     const report = [notify(`run ${record.runId} iteration ${record.iterations.length} discarded: ${reason}`)];
-    return verdictReduction(record, now, "discarded", { evidence }, report);
+    return verdictReduction(record, event, now, "discarded", { evidence }, report);
   },
 
   iteration_inconclusive: (record, event, now) => {
     const { reason, evidence } = payload(event, "iteration_inconclusive");
     const report = [notify(`run ${record.runId} iteration ${record.iterations.length} inconclusive: ${reason}`)];
-    return verdictReduction(record, now, "inconclusive", { evidence }, report);
+    return verdictReduction(record, event, now, "inconclusive", { evidence }, report);
   },
 
   checkpoint: (record, event, now) => {
-    if (record.phase !== "COMMIT_IF_ADVANCED_OR_DISCARD") return ignored(record);
+    if (record.phase !== "COMMIT_IF_ADVANCED_OR_DISCARD") return ignored(record, event);
     return {
       record: progressed(record, now, { phase: "CHECKPOINT" }),
       effects: [notify(`run ${record.runId} checkpoint written at iteration ${record.iterations.length}`)],
@@ -274,13 +285,13 @@ const HANDLERS: Record<string, Handler> = {
   },
 
   predicate_checked: (record, event, now) => {
-    if (record.phase !== "CHECKPOINT") return ignored(record);
+    if (record.phase !== "CHECKPOINT") return ignored(record, event);
     return { record: progressed(record, now, { phase: "CHECK_PREDICATE" }), effects: [] };
   },
 
   predicate_met: (record, event, now) => {
     const { evidence } = payload(event, "predicate_met");
-    if (record.phase !== "CHECK_PREDICATE") return ignored(record);
+    if (record.phase !== "CHECK_PREDICATE") return ignored(record, event);
     const trimmed = evidence.trim();
     if (!trimmed) {
       return { record, effects: [notify(`run ${record.runId} predicate_met ignored: evidence required to claim completion`)] };
@@ -292,7 +303,7 @@ const HANDLERS: Record<string, Handler> = {
   },
 
   predicate_unmet: (record, event, now) => {
-    if (record.phase !== "CHECK_PREDICATE") return ignored(record);
+    if (record.phase !== "CHECK_PREDICATE") return ignored(record, event);
     return {
       record: progressed(record, now, { phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }),
       effects: [notify(`run ${record.runId} predicate unresolved; waiting for event or heartbeat`)],
@@ -340,9 +351,9 @@ const HANDLERS: Record<string, Handler> = {
 
 export function reduceRun(record: RunRecord, event: RunEvent, now: number): RunReduction {
   if (isTerminalPhase(record.phase)) {
-    return event.type === "stop" ? { record, effects: [{ type: "stop" }] } : { record, effects: [] };
+    return event.type === "stop" ? { record, effects: [{ type: "stop" }] } : ignored(record, event);
   }
   if (event.type === "stop") return { record, effects: [{ type: "stop" }] };
   const handler = HANDLERS[event.type];
-  return handler ? handler(record, event, now) : { record, effects: [] };
+  return handler ? handler(record, event, now) : ignored(record, event);
 }

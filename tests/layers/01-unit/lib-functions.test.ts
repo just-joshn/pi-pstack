@@ -249,7 +249,8 @@ test("capToolOutput writes the full text and reports the degenerate and tail tru
   const longLine = "x".repeat(60000);
   const head = capToolOutput(longLine, { keep: "head", label: "lib-head" });
   assert.equal(head.truncated, true);
-  assert.match(head.text, /\[Output truncated: 1 of 1 lines \(50\.0KB of 58\.6KB\)\./);
+  assert.match(head.text, /\[Output truncated: 1 of 1 lines \(\d+\.\dKB of 58\.6KB\)\./);
+  assert.ok(Buffer.byteLength(head.text, "utf8") <= 51200);
   assert.equal(existsSync(head.outputPath), true);
   assert.equal(readFileSync(head.outputPath, "utf8"), longLine);
   const lines = Array.from({ length: 6000 }, (_unused, index) => `line-${index}`).join("\n");

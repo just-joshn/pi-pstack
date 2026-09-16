@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { withSession } from "../../support/session.mjs";
 import { initialRecord, reduceRun } from "../../../extensions/loop/fsm.ts";
@@ -62,6 +63,23 @@ test("loaded instance rejects the documented invalid arm inputs with literal mes
   });
 });
 
+test("loaded instance refuses a traversal runId without arming a loop or writing a record", async () => {
+  await withSession(async (f) => {
+    const { call, dir } = calls(f);
+    await assert.rejects(
+      () => call({ action: "arm", runId: "../evil", predicate: "ci green", intervalSeconds: 30 }),
+      /invalid runId: \.\.\/evil/,
+    );
+    const loop = f.tool("pstack_loop");
+    const status = await loop.definition.execute("probe", { action: "status" }, undefined, undefined, {
+      ui: f.ui.context,
+    });
+    assert.equal(status.content[0].text, "(no active loops)");
+    const stored = existsSync(dir) ? readdirSync(dir).filter((name) => name.endsWith(".json")) : [];
+    assert.deepEqual(stored, []);
+  });
+});
+
 test("loaded instance iterate on a freshly armed run is ignored and advances once resumed", async () => {
   await withSession(async (f) => {
     const { call } = calls(f);
@@ -69,11 +87,37 @@ test("loaded instance iterate on a freshly armed run is ignored and advances onc
     const ignored = await call({ action: "iterate", runId: "it-wait", step: "try" });
     assert.equal(ignored.details.run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
     assert.equal(ignored.details.run.iterations.length, 0);
+    assert.deepEqual(ignored.details.effects, []);
+    assert.deepEqual(ignored.details.ignored, [
+      { event: "iteration_started", phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" },
+    ]);
+    assert.match(ignored.content[0].text, /ignored iteration_started in phase WAIT_FOR_EVENT_OR_HEARTBEAT/);
     saveRun(seeded("it-go", RESUMED));
     const opened = await call({ action: "iterate", runId: "it-go", step: "patch the reducer" });
     assert.equal(opened.details.run.phase, "ACT");
     assert.equal(opened.details.run.iterations[0].action, "patch the reducer");
     assert.equal(opened.details.run.iterations[0].n, 1);
+    assert.deepEqual(opened.details.ignored, []);
+  });
+});
+
+test("loaded instance names the ignored event and phase for every out-of-phase action", async () => {
+  await withSession(async (f) => {
+    const { call } = calls(f);
+    const cases = [
+      [{ action: "iterate", step: "try" }, "iteration_started"],
+      [{ action: "verify", evidence: "green" }, "iteration_verified"],
+      [{ action: "discard", reason: "flat" }, "iteration_discarded"],
+      [{ action: "inconclusive", reason: "unclear" }, "iteration_inconclusive"],
+      [{ action: "checkpoint" }, "checkpoint"],
+    ];
+    for (const [params, event] of cases) {
+      await call({ action: "arm", runId: "it-ignore", predicate: "ci green", intervalSeconds: 30 });
+      const result = await call({ runId: "it-ignore", ...params });
+      assert.equal(result.details.run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
+      assert.deepEqual(result.details.ignored, [{ event, phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
+      assert.match(result.content[0].text, new RegExp(`ignored ${event} in phase WAIT_FOR_EVENT_OR_HEARTBEAT`));
+    }
   });
 });
 

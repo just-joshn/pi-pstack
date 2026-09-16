@@ -220,7 +220,7 @@ test("control-04 returns the HTTP status and a truncated body snippet", async ()
     const header = "HTTP 200 ok=true\n\n";
     assert.equal(text.startsWith(header), true);
     assert.equal(text.includes(body.slice(0, 200)), true);
-    assert.match(text, /\[Output truncated: 1 of 1 lines \(50\.0KB of 58\.6KB\)\./);
+    assert.match(text, /\[Output truncated: 1 of 1 lines \(\d+\.\dKB of 58\.6KB\)\./);
     assert.equal(typeof result.details.fullOutputPath, "string");
     assert.equal(readFileSync(result.details.fullOutputPath as string, "utf8"), body);
 

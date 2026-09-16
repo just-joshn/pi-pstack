@@ -82,8 +82,16 @@ function textOf(result: LooseResult): string {
   return result.content[0]?.text ?? "";
 }
 
-function runOf(result: LooseResult): { run: RunRecord; effects: Array<{ type: string }> } {
-  return result.details as unknown as { run: RunRecord; effects: Array<{ type: string }> };
+function runOf(result: LooseResult): {
+  run: RunRecord;
+  effects: Array<{ type: string; message?: string }>;
+  ignored: Array<{ event: string; phase: string }>;
+} {
+  return result.details as unknown as {
+    run: RunRecord;
+    effects: Array<{ type: string; message?: string }>;
+    ignored: Array<{ event: string; phase: string }>;
+  };
 }
 
 function seeded(runId: string, steps: RunEvent[], now = 1000): RunRecord {
@@ -95,7 +103,8 @@ const DEFINED: RunEvent[] = [{ type: "predicate_defined", predicate: "ci green" 
 const RESUMED: RunEvent[] = [...DEFINED, { type: "heartbeat" }];
 const ACTING: RunEvent[] = [...RESUMED, { type: "iteration_started", action: "smallest change" }];
 const VERIFYING: RunEvent[] = [...ACTING, { type: "verification_started" }];
-const CHECKPOINTED: RunEvent[] = [...VERIFYING, { type: "iteration_verified", verification: "npm test", evidence: "exit 0" }, { type: "checkpoint" }, { type: "predicate_checked" }];
+const COMMITTED: RunEvent[] = [...VERIFYING, { type: "iteration_verified", verification: "npm test", evidence: "exit 0" }];
+const CHECKPOINTED: RunEvent[] = [...COMMITTED, { type: "checkpoint" }, { type: "predicate_checked" }];
 
 test("arm records the predicate, the limits, and the literal arming notification", async () => {
   const cleanup = scopedRuns();
@@ -234,16 +243,21 @@ test("state with no runs recorded refuses instead of inventing a record", async 
   }
 });
 
-test("iterate is a no-op on a freshly armed run because the phase is still WAIT", async () => {
+test("iterate from WAIT reports the ignored event and phase instead of a silent no-op", async () => {
   const cleanup = scopedRuns();
   try {
     const env = fakeEnv();
     await env.run({ action: "arm", runId: "run-wait", predicate: "ci green", intervalSeconds: 30 });
     const result = await env.run({ action: "iterate", runId: "run-wait", step: "smallest change" });
-    const { run, effects } = runOf(result);
+    const { run, effects, ignored } = runOf(result);
     assert.equal(run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
     assert.equal(run.iterations.length, 0);
     assert.deepEqual(effects, []);
+    assert.deepEqual(ignored, [{ event: "iteration_started", phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
+    assert.equal(
+      textOf(result),
+      "run-wait phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/50 predicate=ci green\nignored iteration_started in phase WAIT_FOR_EVENT_OR_HEARTBEAT",
+    );
   } finally {
     cleanup();
   }
@@ -343,8 +357,17 @@ test("verify predicateMet runs the checkpoint chain to COMPLETE and stops the lo
     assert.equal(typeof run.completedAt, "number");
     assert.deepEqual(
       effects.map((effect) => effect.type),
-      ["notify", "stop"],
+      ["notify", "notify", "notify", "stop"],
     );
+    assert.deepEqual(
+      effects.filter((effect) => effect.type === "notify").map((effect) => effect.message),
+      [
+        "run run-done iteration 1 advanced",
+        "run run-done checkpoint written at iteration 1",
+        "run run-done COMPLETE: predicate met with evidence",
+      ],
+    );
+    assert.deepEqual(runOf(result).ignored, []);
     assert.equal(run.iterations[0]?.verdict, "advanced");
     assert.match(textOf(result), /run run-done COMPLETE: predicate met with evidence/);
     const listed = await env.loopTool.execute("t", { action: "list" }, undefined, undefined, env.ctx);
@@ -423,6 +446,90 @@ test("checkpoint walks COMMIT to CHECKPOINT to CHECK_PREDICATE to WAIT and then 
     const fourth = await env.run({ action: "checkpoint", runId: "run-cp" });
     assert.equal(runOf(fourth).run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
     assert.deepEqual(runOf(fourth).effects, []);
+    assert.deepEqual(runOf(fourth).ignored, [{ event: "checkpoint", phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
+    assert.match(textOf(fourth), /ignored checkpoint in phase WAIT_FOR_EVENT_OR_HEARTBEAT/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("every out-of-phase action names the ignored event and the phase without raising", async () => {
+  const cleanup = scopedRuns();
+  try {
+    const env = fakeEnv();
+    const cases: Array<[Record<string, unknown>, string]> = [
+      [{ action: "iterate", step: "try" }, "iteration_started"],
+      [{ action: "verify", evidence: "green" }, "iteration_verified"],
+      [{ action: "discard", reason: "flat" }, "iteration_discarded"],
+      [{ action: "inconclusive", reason: "unclear" }, "iteration_inconclusive"],
+      [{ action: "checkpoint" }, "checkpoint"],
+    ];
+    const summary = "run-ignore phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/50 predicate=ci green";
+    for (const [params, event] of cases) {
+      await env.run({ action: "arm", runId: "run-ignore", predicate: "ci green", intervalSeconds: 30 });
+      const result = await env.run({ runId: "run-ignore", ...params });
+      assert.equal(runOf(result).run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
+      assert.deepEqual(runOf(result).effects, []);
+      assert.deepEqual(runOf(result).ignored, [{ event, phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
+      assert.equal(textOf(result), `${summary}\nignored ${event} in phase WAIT_FOR_EVENT_OR_HEARTBEAT`);
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test("a terminal run names the terminal phase for every action it refuses", async () => {
+  const cleanup = scopedRuns();
+  try {
+    const env = fakeEnv();
+    saveRun(seeded("run-over", [...CHECKPOINTED, { type: "predicate_met", evidence: "ci green" }]));
+    assert.equal(loadRun("run-over")?.phase, "COMPLETE");
+    const cases: Array<[Record<string, unknown>, string]> = [
+      [{ action: "iterate", step: "again" }, "iteration_started"],
+      [{ action: "verify", evidence: "green" }, "iteration_verified"],
+      [{ action: "discard", reason: "flat" }, "iteration_discarded"],
+      [{ action: "inconclusive", reason: "unclear" }, "iteration_inconclusive"],
+      [{ action: "checkpoint" }, "checkpoint"],
+      [{ action: "blocked", reason: "gave up" }, "mark_blocked"],
+      [{ action: "handoff", endpoint: "https://worker.example" }, "handoff_requested"],
+    ];
+    for (const [params, event] of cases) {
+      const result = await env.run({ runId: "run-over", ...params });
+      assert.equal(runOf(result).run.phase, "COMPLETE");
+      assert.deepEqual(runOf(result).effects, []);
+      assert.deepEqual(runOf(result).ignored, [{ event, phase: "COMPLETE" }]);
+    }
+    const last = await env.run({ action: "iterate", runId: "run-over", step: "again" });
+    assert.equal(
+      textOf(last),
+      "run-over phase=COMPLETE iterations=1 discards=0 fires=1/50 predicate=ci green\nignored iteration_started in phase COMPLETE",
+    );
+  } finally {
+    cleanup();
+  }
+});
+
+test("verify predicateMet from CHECKPOINT completes and groups the ignored events by phase", async () => {
+  const cleanup = scopedRuns();
+  try {
+    const env = fakeEnv();
+    saveRun(seeded("run-cp-verify", [...VERIFYING, { type: "iteration_verified", verification: "npm test", evidence: "exit 0" }, { type: "checkpoint" }]));
+    assert.equal(loadRun("run-cp-verify")?.phase, "CHECKPOINT");
+    const result = await env.run({
+      action: "verify",
+      runId: "run-cp-verify",
+      evidence: "checks green",
+      predicateMet: true,
+    });
+    assert.equal(runOf(result).run.phase, "COMPLETE");
+    assert.deepEqual(runOf(result).ignored, [
+      { event: "iteration_verified", phase: "CHECKPOINT" },
+      { event: "checkpoint", phase: "CHECKPOINT" },
+    ]);
+    assert.equal(
+      textOf(result),
+      "run-cp-verify phase=COMPLETE iterations=1 discards=0 fires=1/50 predicate=ci green\nrun run-cp-verify COMPLETE: predicate met with evidence\nignored iteration_verified, checkpoint in phase CHECKPOINT",
+    );
   } finally {
     cleanup();
   }
@@ -499,6 +606,46 @@ test("stop reports whether an armed loop existed and list renders every stored r
       "run-stop phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/50 predicate=ci green",
     );
     assert.equal(listed.details.count, 1);
+  } finally {
+    cleanup();
+  }
+});
+
+test("no action is a silent no-op in any phase", async () => {
+  const cleanup = scopedRuns();
+  try {
+    const env = fakeEnv();
+    const actions: Array<[string, Record<string, unknown>]> = [
+      ["iterate", { action: "iterate", step: "try" }],
+      ["verify", { action: "verify", evidence: "green" }],
+      ["discard", { action: "discard", reason: "flat" }],
+      ["inconclusive", { action: "inconclusive", reason: "unclear" }],
+      ["checkpoint", { action: "checkpoint" }],
+      ["blocked", { action: "blocked", reason: "give up" }],
+      ["handoff", { action: "handoff", endpoint: "https://worker.example" }],
+    ];
+    const seeds: Array<[string, RunEvent[]]> = [
+      ["DEFINE_PREDICATE", []],
+      ["WAIT_FOR_EVENT_OR_HEARTBEAT", DEFINED],
+      ["RESUME_OR_START_ITERATION", RESUMED],
+      ["ACT", ACTING],
+      ["VERIFY", VERIFYING],
+      ["COMMIT_IF_ADVANCED_OR_DISCARD", COMMITTED],
+      ["CHECKPOINT", COMMITTED.concat([{ type: "checkpoint" }])],
+      ["CHECK_PREDICATE", CHECKPOINTED],
+      ["COMPLETE", CHECKPOINTED.concat([{ type: "predicate_met", evidence: "ci green" }])],
+      ["BLOCKED", [{ type: "mark_blocked", reason: "upstream gone" }]],
+    ];
+    for (const [phase, steps] of seeds) {
+      for (const [name, params] of actions) {
+        saveRun(seeded("run-matrix", steps));
+        assert.equal(loadRun("run-matrix")?.phase, phase);
+        const result = await env.run({ runId: "run-matrix", ...params });
+        const advanced = runOf(result).run.phase !== phase;
+        const reported = runOf(result).effects.length + runOf(result).ignored.length;
+        assert.ok(advanced || reported > 0, `${name} from ${phase} was a silent no-op`);
+      }
+    }
   } finally {
     cleanup();
   }

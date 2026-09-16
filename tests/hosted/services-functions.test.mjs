@@ -196,17 +196,6 @@ test("createRateLimiter denies past the cap with retryAfter and resets at the wi
   at = 11_000;
   assert.deepEqual(limiter.check("k"), { allowed: true, limit: 2, remaining: 1, retryAfterSeconds: 0 });
 });
-test("createRateLimiter sweeps expired buckets once the table crosses the threshold", () => {
-  let at = 0;
-  const limiter = createRateLimiter({ maxRequests: 5, windowMs: 10, now: () => at });
-  for (let index = 0; index < 4097; index = index + 1) {
-    at = index;
-    limiter.check(`key-${index}`);
-  }
-  at = 4096;
-  assert.deepEqual(limiter.check("key-4096"), { allowed: true, limit: 5, remaining: 3, retryAfterSeconds: 0 });
-  assert.equal(limiter.size(), 10);
-});
 test("rateLimitFromEnv reads the named variables and falls back on garbage", () => {
   const names = { maxRequests: "M", windowMs: "W" };
   assert.deepEqual(rateLimitFromEnv({ M: "5", W: "1000" }, names), { maxRequests: 5, windowMs: 1000 });

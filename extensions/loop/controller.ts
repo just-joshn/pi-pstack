@@ -8,16 +8,19 @@ import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { armProgrammaticLoop, stopProgrammaticLoop } from "../heartbeat/index.ts";
+import { isLoopMode, validateWatcherArgv, type LoopMode } from "../heartbeat/state.ts";
 import {
   initialRecord,
   isTerminalPhase,
   reduceRun,
+  type IgnoredEvent,
   type RunEffect,
   type RunEvent,
+  type RunPhase,
   type RunRecord,
   type RunReduction,
 } from "./fsm.ts";
-import { latestRun, listRuns, loadRun, saveRun } from "./run-store.ts";
+import { latestRun, listRuns, loadRun, runPath, saveRun } from "./run-store.ts";
 import { createArmedRunsCell } from "./armed-runs.ts";
 
 const MANDATED_ACTIONS = [
@@ -87,6 +90,15 @@ function requireEvidence(params: RunToolParams): string {
   return evidence;
 }
 
+/**
+ * runPath applies the exact check saveRun applies, so a rejected id is caught
+ * before any side effect instead of by the store write afterwards.
+ */
+function requireStorableRunId(runId: string): string {
+  runPath(runId);
+  return runId;
+}
+
 function armPrompt(record: RunRecord): string {
   return [
     `[pstack_run ${record.runId}] predicate: ${record.predicate}`,
@@ -112,14 +124,37 @@ function describeRun(record: RunRecord): string {
   ].join(" ");
 }
 
-function formatRun(record: RunRecord, effects: RunEffect[]): string {
+function formatRun(record: RunRecord, effects: RunEffect[], ignored: readonly IgnoredEvent[]): string {
   const notes = effects.filter((effect) => effect.type === "notify").map((effect) => effect.message);
-  const lines = [describeRun(record), ...(record.blockedReason ? [`blockedReason: ${record.blockedReason}`] : []), ...notes];
+  const lines = [
+    describeRun(record),
+    ...(record.blockedReason ? [`blockedReason: ${record.blockedReason}`] : []),
+    ...notes,
+    ...ignoredLines(ignored),
+  ];
   return lines.join("\n");
 }
 
-function runResult(record: RunRecord, effects: RunEffect[]): AgentToolResult<unknown> {
-  return { content: [{ type: "text", text: formatRun(record, effects) }], details: { run: record, effects } };
+function ignoredLines(ignored: readonly IgnoredEvent[]): string[] {
+  const groups = ignored.reduce<Array<{ phase: RunPhase; events: string[] }>>((acc, entry) => {
+    const last = acc.at(-1);
+    if (last?.phase === entry.phase) {
+      return [...acc.slice(0, -1), { phase: last.phase, events: [...last.events, entry.event] }];
+    }
+    return [...acc, { phase: entry.phase, events: [entry.event] }];
+  }, []);
+  return groups.map((group) => `ignored ${group.events.join(", ")} in phase ${group.phase}`);
+}
+
+function runResult(
+  record: RunRecord,
+  effects: RunEffect[],
+  ignored: readonly IgnoredEvent[],
+): AgentToolResult<unknown> {
+  return {
+    content: [{ type: "text", text: formatRun(record, effects, ignored) }],
+    details: { run: record, effects, ignored },
+  };
 }
 
 /**
@@ -152,17 +187,29 @@ function applyEffect(
   }
 }
 
-function reduceAndSave(params: RunToolParams, eventsFor: EventsFor): RunReduction {
+interface RunStep {
+  record: RunRecord;
+  effects: RunEffect[];
+  ignored: IgnoredEvent[];
+}
+
+function reduceAndSave(params: RunToolParams, eventsFor: EventsFor): RunStep {
   const runId = requireRunId(params);
   const record = loadRun(runId);
   if (!record) throw new Error(`unknown run ${runId}`);
   const now = Date.now();
-  const events = eventsFor(record);
-  const reduced = events.reduce<RunReduction>(
-    (acc, event) => reduceRun(acc.record, event, now),
-    { record, effects: [] },
+  const reduced = eventsFor(record).reduce<RunReduction>(
+    (acc, event) => {
+      const step = reduceRun(acc.record, event, now);
+      return {
+        record: step.record,
+        effects: [...acc.effects, ...step.effects],
+        ignored: [...(acc.ignored ?? []), ...(step.ignored ?? [])],
+      };
+    },
+    { record, effects: [], ignored: [] },
   );
-  return { record: saveRun(reduced.record), effects: reduced.effects };
+  return { record: saveRun(reduced.record), effects: reduced.effects, ignored: reduced.ignored ?? [] };
 }
 
 function iterateEvents(params: RunToolParams): RunEvent[] {
@@ -192,7 +239,9 @@ function checkpointEvents(record: RunRecord): RunEvent[] {
   if (record.phase === "COMMIT_IF_ADVANCED_OR_DISCARD") return [{ type: "checkpoint" }];
   if (record.phase === "CHECKPOINT") return [{ type: "predicate_checked" }];
   if (record.phase === "CHECK_PREDICATE") return [{ type: "predicate_unmet" }];
-  return [];
+  // The reducer refuses this in any other phase, which is how an out-of-phase
+  // checkpoint reports itself instead of reading as a state change.
+  return [{ type: "checkpoint" }];
 }
 
 function blockedEvents(params: RunToolParams): RunEvent[] {
@@ -207,10 +256,27 @@ function handoffEvents(params: RunToolParams): RunEvent[] {
   return [{ type: "handoff_requested", endpoint }];
 }
 
-function armRun(pi: ExtensionAPI, params: RunToolParams): AgentToolResult<unknown> {
-  const runId = params.runId?.trim() || generateRunId();
+interface PreparedArm {
+  record: RunRecord;
+  effects: RunEffect[];
+  mode: LoopMode;
+  intervalSeconds: number;
+}
+
+/**
+ * Arm is validate-then-commit: every input is checked here, before the loop
+ * store or the run store is touched, so a rejected arm cannot leave a live
+ * timer behind. The commit then runs durable record, timer, process registry.
+ * A residual failure leaves an inspectable run row, never an invisible loop.
+ */
+function prepareArm(params: RunToolParams): PreparedArm {
+  const runId = requireStorableRunId(params.runId?.trim() || generateRunId());
   const predicate = requirePredicate(params);
   const intervalSeconds = requireInterval(params);
+  const watchArgv = params.watchArgv ?? [];
+  const mode = params.mode ?? (watchArgv.length ? "dynamic" : "interval");
+  if (!isLoopMode(mode)) throw new Error("mode must be interval|settle|watcher|dynamic");
+  validateWatcherArgv(mode, watchArgv);
   const now = Date.now();
   const base = initialRecord({
     runId,
@@ -220,25 +286,29 @@ function armRun(pi: ExtensionAPI, params: RunToolParams): AgentToolResult<unknow
     remoteRequired: params.remoteRequired,
   });
   const defined = reduceRun(base, { type: "predicate_defined", predicate }, now);
-  const mode = params.mode ?? (params.watchArgv?.length ? "dynamic" : "interval");
+  return { record: defined.record, effects: defined.effects, mode, intervalSeconds };
+}
+
+function armRun(params: RunToolParams): AgentToolResult<unknown> {
+  const prepared = prepareArm(params);
+  saveRun(prepared.record);
   armProgrammaticLoop({
-    id: runId,
-    mode,
-    prompt: armPrompt(defined.record),
-    intervalSeconds,
-    maxFires: defined.record.maxFires,
+    id: prepared.record.runId,
+    mode: prepared.mode,
+    prompt: armPrompt(prepared.record),
+    intervalSeconds: prepared.intervalSeconds,
+    maxFires: prepared.record.maxFires,
     watchArgv: params.watchArgv,
   });
-  armedRunIds.arm(runId);
-  saveRun(defined.record);
-  return runResult(defined.record, defined.effects);
+  armedRunIds.arm(prepared.record.runId);
+  return runResult(prepared.record, prepared.effects, []);
 }
 
 function stateRun(params: RunToolParams): AgentToolResult<unknown> {
   const runId = params.runId?.trim();
   const record = runId ? loadRun(runId) : latestRun();
   if (!record) throw new Error(runId ? `unknown run ${runId}` : "no runs recorded");
-  return runResult(record, []);
+  return runResult(record, [], []);
 }
 
 function listRun(): AgentToolResult<unknown> {
@@ -262,11 +332,11 @@ async function applyEvents(
 ): Promise<AgentToolResult<unknown>> {
   const reduced = reduceAndSave(params, eventsFor);
   for (const effect of reduced.effects) applyEffect(pi, ctx, reduced.record, effect);
-  return runResult(reduced.record, reduced.effects);
+  return runResult(reduced.record, reduced.effects, reduced.ignored);
 }
 
 const ACTION_HANDLERS: Record<string, ActionHandler> = {
-  arm: (pi, params) => Promise.resolve(armRun(pi, params)),
+  arm: (_pi, params) => Promise.resolve(armRun(params)),
   state: (_pi, params) => Promise.resolve(stateRun(params)),
   list: () => Promise.resolve(listRun()),
   iterate: (pi, params, ctx) => applyEvents(pi, ctx, params, () => iterateEvents(params)),
