@@ -7,10 +7,14 @@ export default defineConfig({
     projects: DEFAULT_PROJECTS.map(projectFor),
     coverage: {
       provider: "v8",
-      include: ["extensions/**", "services/**"],
+      include: ["extensions/**/*.{ts,mjs}", "services/**/*.mjs"],
       exclude: ["extensions/test/**"],
       reporter: ["text"],
-      thresholds: { branches: 80, functions: 80 },
+      thresholds: {
+        branches: 80,
+        functions: 80,
+        perFile: { branches: 80, functions: 80 },
+      },
     },
   },
 });

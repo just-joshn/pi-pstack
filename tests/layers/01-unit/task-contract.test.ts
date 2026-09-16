@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
 import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import { Value } from "typebox/value";
 
@@ -81,6 +81,37 @@ const SPAWN_SKIP =
     ? false
     : "node:child_process ESM facade was already materialized (peer-deps preload); run node --test without --import";
 
+/**
+ * Real git through the CommonJS binding. Only `spawn` is patched above, so
+ * execFileSync still launches a real process and the worktree is real.
+ */
+interface SyncGitRunner {
+  execFileSync: (command: string, args: string[], options: { cwd: string; encoding: "utf8" }) => string;
+}
+
+const { execFileSync } = childProcessModule as unknown as SyncGitRunner;
+
+function git(cwd: string, args: string[]): string {
+  return execFileSync("git", args, { cwd, encoding: "utf8" });
+}
+
+function gitIdentity(): string[] {
+  return ["-c", "user.email=harness@example.com", "-c", "user.name=harness"];
+}
+
+function initGitRepo(cwd: string): string {
+  git(cwd, ["init", "-q", "-b", "main"]);
+  git(cwd, [...gitIdentity(), "commit", "-q", "--allow-empty", "-m", "base"]);
+  return git(cwd, ["rev-parse", "HEAD"]).trim();
+}
+
+function commitFile(cwd: string, name: string, message: string): string {
+  writeFileSync(join(cwd, name), `${message}\n`, "utf8");
+  git(cwd, ["add", name]);
+  git(cwd, [...gitIdentity(), "commit", "-q", "-m", message]);
+  return git(cwd, ["rev-parse", "HEAD"]).trim();
+}
+
 // Imported after the spawn patch so the child runner binds the fake, matching spawn-contracts.test.ts.
 const { compilePolicyFromParams, registerTask } = await import("../../../extensions/agents/task.ts");
 
@@ -96,19 +127,22 @@ interface CapturedTool {
   ) => Promise<{ content: Array<{ type: string; text: string }>; details: Record<string, unknown> }>;
 }
 
-function makeHarness(cwd: string) {
+function makeHarness(cwd: string, options: { withoutGetActiveTools?: boolean } = {}) {
   // Shadow any developer model config so model resolution is deterministic here.
   mkdirSync(join(cwd, ".pi"), { recursive: true });
   writeFileSync(join(cwd, ".pi", "pstack-models.json"), JSON.stringify({ version: 1, roles: {} }), "utf8");
   const tools = new Map<string, CapturedTool>();
+  const parentTools = {
+    getActiveTools() {
+      return ["read", "bash", "write", "edit"];
+    },
+  };
   const pi = {
     on() {},
     registerTool(definition: CapturedTool) {
       tools.set(definition.name, definition);
     },
-    getActiveTools() {
-      return ["read", "bash", "write", "edit"];
-    },
+    ...(options.withoutGetActiveTools ? {} : parentTools),
     sendUserMessage() {},
   };
   registerTask(pi as never);
@@ -299,6 +333,122 @@ test("hosted environment with PSTACK_HOSTED_URL posts the envelope to /v1/tasks"
     globalThis.fetch = realFetch;
     if (previous === undefined) Reflect.deleteProperty(process.env, "PSTACK_HOSTED_URL");
     else process.env.PSTACK_HOSTED_URL = previous;
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("inheritParentTools false drops the inherited child tool allowlist", { skip: SPAWN_SKIP }, async () => {
+  const cwd = tempCwd();
+  try {
+    const h = makeHarness(cwd);
+    await h.tool.execute(
+      "call-inherit",
+      { prompt: "RAW BRIEF", subagent_type: "general", run_in_background: false },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    expect(argAfter(lastSpawn().args, "--tools")).toBe("read,bash,write,edit");
+    await h.tool.execute(
+      "call-no-inherit",
+      { prompt: "RAW BRIEF", subagent_type: "general", run_in_background: false, inheritParentTools: false },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    expect(lastSpawn().args.includes("--tools"), "no allowlist means the child keeps its own discovery").toBe(false);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("a parent pi without getActiveTools runs the child without an allowlist", { skip: SPAWN_SKIP }, async () => {
+  const cwd = tempCwd();
+  try {
+    const h = makeHarness(cwd, { withoutGetActiveTools: true });
+    const reply = await h.tool.execute(
+      "call-no-active-tools",
+      { prompt: "RAW BRIEF", subagent_type: "general", run_in_background: false },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    expect(lastSpawn().args.includes("--tools"), "an absent getActiveTools yields no allowlist").toBe(false);
+    expect(reply.details.policy).toEqual({
+      filesystem: "workspace-write",
+      shell: "full",
+      git: "branch-write",
+      network: "allowed",
+      integrations: "inherit",
+      environment: "local",
+      background: false,
+      isolation: "session",
+    });
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("a context without an active parent model fails before any child spawns", async () => {
+  const cwd = tempCwd();
+  try {
+    const h = makeHarness(cwd);
+    const before = recordedSpawns.length;
+    await expect(
+      h.tool.execute("call-no-model", { prompt: "RAW BRIEF" }, undefined, undefined, {
+        cwd,
+        model: undefined,
+        isProjectTrusted: () => true,
+      }),
+    ).rejects.toThrow("pstack_task requires an active parent model");
+    expect(recordedSpawns.length, "no child starts without a parent model").toBe(before);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("worktree true branches the child tree from HEAD and runs the child inside it", { skip: SPAWN_SKIP }, async () => {
+  const cwd = tempCwd();
+  try {
+    const head = initGitRepo(cwd);
+    const h = makeHarness(cwd);
+    const reply = await h.tool.execute(
+      "call-worktree",
+      { prompt: "RAW BRIEF", subagent_type: "general", run_in_background: false, worktree: true },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    const tree = reply.details.worktree as string;
+    expect(existsSync(tree), "the worktree exists on disk").toBe(true);
+    expect(lastSpawn().cwd).toBe(tree);
+    expect(git(cwd, ["-C", tree, "rev-parse", "HEAD"]).trim()).toBe(head);
+    expect(reply.details.worktreeBranch).toBe(`pstack/${basename(tree)}`);
+    expect(reply.content.at(-1)?.text).toContain(`worktree=${tree}`);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("worktree true honors a trimmed cloud_base_branch instead of HEAD", { skip: SPAWN_SKIP }, async () => {
+  const cwd = tempCwd();
+  try {
+    const pinned = initGitRepo(cwd);
+    git(cwd, ["branch", "pinned"]);
+    const tip = commitFile(cwd, "next.txt", "next");
+    expect(tip).not.toBe(pinned);
+    const h = makeHarness(cwd);
+    const reply = await h.tool.execute(
+      "call-worktree-base",
+      { prompt: "RAW BRIEF", subagent_type: "general", run_in_background: false, worktree: true, cloud_base_branch: " pinned " },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    const tree = reply.details.worktree as string;
+    expect(lastSpawn().cwd).toBe(tree);
+    expect(git(cwd, ["-C", tree, "rev-parse", "HEAD"]).trim()).toBe(pinned);
+  } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
 });

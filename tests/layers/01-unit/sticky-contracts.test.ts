@@ -1,4 +1,4 @@
-import { afterAll, expect, test } from "vitest";
+import { afterAll, expect, test, vi } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,9 +6,40 @@ import { createPotetoRuntime } from "../../../extensions/poteto-state/index.ts";
 import { loadPlaybookBody } from "../../../extensions/sticky-playbook.ts";
 import {
   POTETO_SKILL,
+  buildPotetoStickyPrompt,
+  clearPotetoStickyCache,
+  loadPotetoReminder,
   loadPotetoStickyBody,
   stripFrontmatter,
 } from "../../../extensions/sticky-poteto.ts";
+
+// The real skill file exists on disk and carries a reminder, and its body is under
+// the 48000-byte cap, so three arms only run when node:fs reports otherwise. The
+// module exports no seam to redirect the path, so the fs read is wrapped here and
+// driven by these flags. Everything else still delegates to the real module.
+let skillFileMissing = false;
+let skillRawOverride: string | undefined;
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  const targetsPotetoSkill = (path: unknown): boolean =>
+    String(path).endsWith("skills/poteto-mode/SKILL.md");
+  return {
+    ...actual,
+    default: actual,
+    existsSync: (path: string): boolean =>
+      skillFileMissing && targetsPotetoSkill(path) ? false : actual.existsSync(path),
+    readFileSync: (path: string, options?: unknown): unknown =>
+      skillRawOverride !== undefined && targetsPotetoSkill(path)
+        ? skillRawOverride
+        : (actual.readFileSync as (file: string, opts?: unknown) => unknown)(path, options),
+  };
+});
+
+// The real missing-file message the module returns; asserted as an exact value so a
+// change to the fallback text fails the test instead of silently matching a prefix.
+const MISSING_SKILL_BODY =
+  "Poteto mode is active (pi-pstack). Skill file missing \u2014 apply /skill:poteto-mode when a playbook matches. Use pstack_spawn / pstack_swarm / pstack_arena.";
 
 const SKILL_HEADER = "## Poteto mode (sticky \u2014 re-injected each turn)";
 // A pstack child process sets PSTACK_CHILD_ROLE, which disables sticky arming for
@@ -25,6 +56,8 @@ const RESTORED_HEADER = "## Restored sticky playbook (steps reinjected)";
 const PLAYBOOK_TRAILER = "(End matched playbook babysit.)";
 const SKILL_TRUNCATION_MARKER =
   "[\u2026poteto-mode skill truncated for sticky inject; full file: skills/poteto-mode/SKILL.md]";
+const MATCHED_PLAYBOOK_HEADER = "## Matched playbook (sticky routing \u2014 forced)";
+const ROUTING_NOTE_HEADER = "## Sticky playbook routing";
 
 type PromptHandler = (event: { systemPrompt: string }, ctx: unknown) => { systemPrompt?: string } | undefined;
 type InputHandler = (
@@ -170,14 +203,13 @@ test("sticky-01 /poteto-mode enables sticky mode and matches the playbook for th
   expect(state.assignedThisTurn, "the command records the text for the next turn").toBe(false);
   expect(state.lastUserText).toBe("babysit PR 12");
   expect(env.statuses().at(-1)).toEqual(["pstack", "poteto:babysit"]);
-  expect(env.entries().at(-1)).toEqual({
-    entryType: "pstack-poteto-mode",
-    payload: {
-      enabled: true,
-      matchedPlaybookId: "babysit",
-      matchedScore: 2,
-      updatedAt: env.entries().at(-1)?.payload.updatedAt,
-    },
+  const entry = env.entries().at(-1);
+  expect(entry?.entryType).toBe("pstack-poteto-mode");
+  expect(entry?.payload).toEqual({
+    enabled: true,
+    matchedPlaybookId: "babysit",
+    matchedScore: 2,
+    updatedAt: expect.any(Number),
   });
   expect(env.messages()).toEqual([
     { text: "/skill:poteto-mode playbooks/babysit babysit PR 12", opts: { expandPromptTemplates: true, deliverAs: "followUp" } },
@@ -251,4 +283,55 @@ test("sticky-08 the input hook bypasses matching and force-invocation in a child
     "/skill:poteto-mode playbooks/investigation why is the build slow",
   );
   expect(investigation, "a child session must not arm readonly").toEqual({ result: undefined, matchedPlaybookId: null, assignedThisTurn: false, armed: [] });
+});
+
+test("sticky-09 falls back to the routing body and drops the reminder when the skill file is absent", () => {
+  clearPotetoStickyCache();
+  skillFileMissing = true;
+  try {
+    expect(loadPotetoReminder(), "a missing skill file yields no reminder").toBe(undefined);
+    const body = loadPotetoStickyBody();
+    expect(body, "a missing skill file yields the routing fallback").toBe(MISSING_SKILL_BODY);
+
+    const prompt = buildPotetoStickyPrompt("BASE");
+    expect(prompt.includes(MISSING_SKILL_BODY), "the fallback body is injected").toBe(true);
+    expect(prompt.includes("Reminder:"), "no reminder line is injected").toBe(false);
+    expect(prompt.includes(ROUTING_NOTE_HEADER), "the no-match routing tail is injected").toBe(true);
+  } finally {
+    skillFileMissing = false;
+    clearPotetoStickyCache();
+  }
+});
+
+test("sticky-10 truncates an oversized skill body for the sticky inject", () => {
+  clearPotetoStickyCache();
+  const raw = `---\nreminder: oversized reminder\n---\n${"x".repeat(50_000)}`;
+  skillRawOverride = raw;
+  try {
+    const body = loadPotetoStickyBody();
+    expect(body.includes(SKILL_TRUNCATION_MARKER), "an over-cap body is truncated").toBe(true);
+    expect(
+      Buffer.byteLength(body, "utf8") <= 48_000 + Buffer.byteLength(SKILL_TRUNCATION_MARKER, "utf8") + 2,
+      "the truncated body stays within the cap plus the marker",
+    ).toBe(true);
+    expect(body.startsWith("x".repeat(1_000)), "the routing-critical head is kept").toBe(true);
+    expect(body.length < raw.length, "the truncation drops content").toBe(true);
+  } finally {
+    skillRawOverride = undefined;
+    clearPotetoStickyCache();
+  }
+});
+
+test("sticky-11 honors an explicit null match and an explicit min score", () => {
+  const nullMatch = buildPotetoStickyPrompt("BASE", { match: null });
+  expect(nullMatch.includes(MATCHED_PLAYBOOK_HEADER), "a null match injects no playbook block").toBe(false);
+  expect(nullMatch.includes(ROUTING_NOTE_HEADER), "a null match falls through to the routing note").toBe(true);
+
+  const matched = buildPotetoStickyPrompt("BASE", { userText: "babysit PR 12" });
+  expect(matched.includes(MATCHED_PLAYBOOK_HEADER), "user text is matched into a playbook block").toBe(true);
+  expect(matched.includes("Matched **babysit** (score=2)"), "the default min score accepts a score-2 match").toBe(true);
+
+  const raised = buildPotetoStickyPrompt("BASE", { userText: "babysit PR 12", minScore: 99 });
+  expect(raised.includes(MATCHED_PLAYBOOK_HEADER), "a raised min score rejects the same match").toBe(false);
+  expect(raised.includes(ROUTING_NOTE_HEADER), "the rejected match falls through to the routing note").toBe(true);
 });

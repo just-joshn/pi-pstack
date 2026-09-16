@@ -154,6 +154,31 @@ function lastGhCall(bin: string): string {
   return lines.at(-1) ?? "";
 }
 
+interface FakeGit {
+  stdout?: string;
+  stderr?: string;
+  code?: number;
+}
+
+// recallGitLog pipes stdout/stderr through one expression, so the stderr-only and
+// empty-output arms only run when a git on PATH answers with that shape. A real
+// repo cannot produce either with a zero exit, hence the shim.
+function installFakeGit(bin: string, options: FakeGit = {}): void {
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, "git-stdout.txt"), options.stdout ?? "", "utf8");
+  writeFileSync(join(bin, "git-stderr.txt"), options.stderr ?? "", "utf8");
+  const lines = [
+    "#!/bin/sh",
+    `cat ${JSON.stringify(join(bin, "git-stderr.txt"))} 1>&2`,
+    `cat ${JSON.stringify(join(bin, "git-stdout.txt"))}`,
+    `exit ${options.code ?? 0}`,
+    "",
+  ];
+  const script = join(bin, "git");
+  writeFileSync(script, lines.join("\n"), "utf8");
+  chmodSync(script, 0o755);
+}
+
 async function withPath<T>(bin: string, run: () => Promise<T>): Promise<T> {
   const saved = process.env.PATH ?? "";
   process.env.PATH = `${bin}:${saved}`;
@@ -496,4 +521,32 @@ test("sessions-functions-13 reports empty results and the no-hit grep message", 
     expect(grepped.details.hitCount).toBe(0);
     expect(grepped.content[0].text).toBe("(no hits for absentmarker)");
   });
+});
+
+test("sessions-functions-14 prefers git stderr, then the no-hits marker, when stdout is empty", async () => {
+  const bin = tempDir("pstack-sessions-git-");
+  const cwd = tempDir("pstack-sessions-gitcwd-");
+  try {
+    installFakeGit(bin, { stdout: "", stderr: "warning: no git output" });
+    expect(await withPath(bin, () => recallGitLog(cwd, ""))).toBe("warning: no git output");
+
+    installFakeGit(bin, { stdout: "", stderr: "" });
+    expect(await withPath(bin, () => recallGitLog(cwd, ""))).toBe("(no git log hits)");
+  } finally {
+    rmSync(bin, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("sessions-functions-15 parses empty gh stdout as an empty PR list", async () => {
+  const bin = tempDir("pstack-sessions-gh-");
+  const cwd = tempDir("pstack-sessions-ghcwd-");
+  try {
+    installFakeGh(bin, { stdout: "", stderr: "" });
+    expect(await withPath(bin, () => recallGhPrs(cwd, "topic"))).toBe("(no matching PRs)");
+    expect(lastGhCall(bin)).toBe("pr list --limit 10 --search topic --json number,title,state,updatedAt,url,headRefName");
+  } finally {
+    rmSync(bin, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });

@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import {
   initialRecord,
+  isRunPhase,
   reduceRun,
   RUN_PHASES,
   type RunEvent,
@@ -235,6 +236,131 @@ test("handoff_requested stores the endpoint and blocks the run locally", () => {
   expect(result.record.remote.handedOff).toBe(true);
   expect(result.record.remote.endpoint).toBe("https://worker.example/runs/1");
   expect(result.effects.at(0)).toEqual({ type: "handoff", endpoint: "https://worker.example/runs/1" });
+});
+
+test("initialRecord stores a hosted endpoint only when one is supplied", () => {
+  const remote = initialRecord({ runId: "run-test", now: NOW, endpoint: "https://worker.example/runs/9" });
+  expect(remote.remote).toEqual({ required: false, handedOff: false, endpoint: "https://worker.example/runs/9" });
+  const local = initialRecord({ runId: "run-test", now: NOW });
+  expect(local.remote).toEqual({ required: false, handedOff: false });
+  expect("endpoint" in local.remote).toBe(false);
+});
+
+test("isRunPhase accepts known phases and rejects unknown names and non-strings", () => {
+  expect(isRunPhase("ACT")).toBe(true);
+  expect(isRunPhase("CHECK_PREDICATE")).toBe(true);
+  expect(isRunPhase("RUNNING")).toBe(false);
+  expect(isRunPhase(7)).toBe(false);
+  expect(isRunPhase(undefined)).toBe(false);
+});
+
+test("phase-scoped events are ignored with a marker when the run is in the wrong phase", () => {
+  const base = fresh();
+  const cases: Array<[RunEvent, RunRecord]> = [
+    [{ type: "heartbeat" }, base],
+    [{ type: "event_wake", eventId: "evt-1", reason: "ci" }, base],
+    [{ type: "iteration_started", action: "change" }, defined()],
+    [{ type: "verification_started" }, defined()],
+    [{ type: "checkpoint" }, defined()],
+    [{ type: "predicate_checked" }, defined()],
+    [{ type: "predicate_met", evidence: "ci green" }, defined()],
+    [{ type: "predicate_unmet" }, defined()],
+  ];
+  for (const [event, record] of cases) {
+    const result = reduceRun(record, event, NOW + 1);
+    expect(result.record).toBe(record);
+    expect(result.effects).toEqual([]);
+    expect(result.ignored).toEqual([{ event: event.type, phase: record.phase }]);
+  }
+});
+
+test("iteration verdicts are ignored when the run is not in ACT or VERIFY", () => {
+  const waiting = defined();
+  const result = reduceRun(waiting, { type: "iteration_discarded", reason: "flat", evidence: "no gain" }, NOW + 1);
+  expect(result.record).toBe(waiting);
+  expect(result.effects).toEqual([]);
+  expect(result.ignored).toEqual([{ event: "iteration_discarded", phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
+});
+
+test("predicate_defined rejects a blank predicate and stays in DEFINE_PREDICATE", () => {
+  const base = fresh();
+  const result = reduceRun(base, { type: "predicate_defined", predicate: "   " }, NOW + 1);
+  expect(result.record).toBe(base);
+  expect(result.record.phase).toBe("DEFINE_PREDICATE");
+  expect(result.effects).toEqual([{ type: "notify", message: "predicate_defined ignored: predicate required" }]);
+});
+
+test("event_wake falls back to the event id then to a generic label when no reason is given", () => {
+  const byId = reduceRun(defined(), { type: "event_wake", eventId: "evt-9" }, NOW + 1);
+  expect(byId.effects).toEqual([{ type: "wake", reason: "evt-9" }]);
+  expect(byId.record.lastEventId).toBe("evt-9");
+  expect(byId.record.eventIds).toEqual(["evt-9"]);
+  const anonymous = reduceRun(defined(), { type: "event_wake" }, NOW + 1);
+  expect(anonymous.effects).toEqual([{ type: "wake", reason: "event" }]);
+  expect(anonymous.record.eventIds).toEqual([]);
+  expect(anonymous.record.lastEventId).toBe(undefined);
+});
+
+test("iteration_started rejects a blank action and stays in RESUME_OR_START_ITERATION", () => {
+  const ready = resumed(defined());
+  expect(ready.phase).toBe("RESUME_OR_START_ITERATION");
+  const result = reduceRun(ready, { type: "iteration_started", action: "  " }, NOW + 1);
+  expect(result.record).toBe(ready);
+  expect(result.record.iterations.length).toBe(0);
+  expect(result.effects).toEqual([{ type: "notify", message: "iteration_started ignored: action required" }]);
+});
+
+test("iteration_verified rejects blank evidence and stays in VERIFY", () => {
+  const verify = acting(defined());
+  const result = reduceRun(verify, { type: "iteration_verified", verification: "npm test", evidence: "  " }, NOW + 1);
+  expect(result.record).toBe(verify);
+  expect(result.record.phase).toBe("VERIFY");
+  expect(result.record.iterations.at(-1)?.endedAt).toBe(undefined);
+  expect(result.effects).toEqual([{ type: "notify", message: "iteration_verified ignored: evidence required" }]);
+});
+
+test("iteration_verified stores the commit reference when the event carries one", () => {
+  const verify = acting(defined());
+  const event: RunEvent = { type: "iteration_verified", verification: "npm test", evidence: "exit 0", commit: "abc123" };
+  const result = reduceRun(verify, event, NOW + 1);
+  expect(result.record.phase).toBe("COMMIT_IF_ADVANCED_OR_DISCARD");
+  expect(result.record.iterations.at(-1)?.commit).toBe("abc123");
+  expect(result.record.iterations.at(-1)?.verdict).toBe("advanced");
+});
+
+test("mark_blocked labels a blank reason as unspecified and stops the run", () => {
+  const result = reduceRun(defined(), { type: "mark_blocked", reason: "   " }, NOW + 1);
+  expect(result.record.phase).toBe("BLOCKED");
+  expect(result.record.blockedReason).toBe("unspecified");
+  expect(result.effects).toEqual([
+    { type: "notify", message: "run run-test BLOCKED: unspecified" },
+    { type: "stop" },
+  ]);
+});
+
+test("handoff_requested rejects a blank endpoint without blocking the run", () => {
+  const waiting = defined();
+  const result = reduceRun(waiting, { type: "handoff_requested", endpoint: "   " }, NOW + 1);
+  expect(result.record).toBe(waiting);
+  expect(result.record.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+  expect(result.record.remote.handedOff).toBe(false);
+  expect(result.effects).toEqual([{ type: "notify", message: "handoff_requested ignored: endpoint required" }]);
+});
+
+test("stop on a non-terminal run emits a stop effect and leaves the record alone", () => {
+  const waiting = defined();
+  const result = reduceRun(waiting, { type: "stop" }, NOW + 1);
+  expect(result.record).toBe(waiting);
+  expect(result.effects).toEqual([{ type: "stop" }]);
+});
+
+test("an event type the controller does not know is ignored with a marker", () => {
+  const waiting = defined();
+  const unknown = { type: "warp_drive" } as unknown as RunEvent;
+  const result = reduceRun(waiting, unknown, NOW + 1);
+  expect(result.record).toBe(waiting);
+  expect(result.effects).toEqual([]);
+  expect(result.ignored).toEqual([{ event: "warp_drive", phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
 });
 
 test("reduceRun never mutates the input record", () => {
