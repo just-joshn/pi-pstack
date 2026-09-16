@@ -15,6 +15,7 @@ export const LAYERS = [
   { id: 5, name: "rpc", dir: "tests/layers/05-rpc", runner: "node-test", requires: ["pi"] },
   { id: 6, name: "tui", dir: "tests/layers/06-tui", runner: "node-test", requires: ["pi", "tmux"] },
   { id: 7, name: "third-party", dir: "tests/layers/07-third-party", runner: "node-test", optIn: true, timeoutMs: 900000 },
+  { id: 8, name: "user-journeys", dir: "tests/layers/08-user-journeys", runner: "node-test" },
   {
     id: "legacy",
     name: "legacy",
