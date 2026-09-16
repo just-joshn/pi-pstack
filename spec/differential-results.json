@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T17:42:29.233Z",
+  "generatedAt": "2026-09-16T19:50:32.796Z",
   "upstreamDir": ".port-upstream/cursor-plugins-5bf2b15/pstack",
   "upstreamCommit": "5bf2b1544db739998121a306340631963c2ff3de",
   "cases": [
@@ -54,7 +54,7 @@
     },
     {
       "id": "worktree-audit",
-      "equal": true,
+      "equal": false,
       "upstreamRc": 0,
       "portedRc": 0,
       "normalization": "tmp-path, size, age, last-chat date; rows compared per worktree"
@@ -90,7 +90,7 @@
   ],
   "summary": {
     "cases": 12,
-    "equal": 12,
-    "differ": 0
+    "equal": 11,
+    "differ": 1
   }
 }

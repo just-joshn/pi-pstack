@@ -66,13 +66,13 @@ Totals over every row in `compat/parity.json` (ledger rows plus inventory rows).
 | Classification | Rows |
 | --- | --- |
 | `EXACT-CONTRACT` | 217 |
-| `ADAPTED-EQUIVALENT` | 242 |
+| `ADAPTED-EQUIVALENT` | 243 |
 | `HOSTED-CAPABILITY-REQUIRED` | 6 |
-| `APPROVED-EXCEPTION` | 3 |
+| `APPROVED-EXCEPTION` | 2 |
 
 ## 6. Parity totals by verification status
 
-- unimplemented=6, implemented=0, verified=459, blocked=3
+- unimplemented=6, implemented=0, verified=460, blocked=2
 
 Capability rollup (`compat/capabilities.json`): 13 capabilities, 9 verified, 2 hosted-required.
 
@@ -117,7 +117,6 @@ Every `APPROVED-EXCEPTION` row carries a non-null `exceptionJustification`.
 | Row | Upstream path | Justification |
 | --- | --- | --- |
 | `ceiling-01` | `marketplace` | Cursor marketplace installs need Cursor's own registry and .cursor-plugin loader, and no Pi API registers a marketplace, so the package installs from the Pi manifest and the content surface stays the twin. |
-| `ceiling-06` | `sticky-host` | Cursor renders reminder, mode, icon, and color from skill frontmatter through its host skill loader. Pi's skill loader consumes only name, description, and disable-model-invocation, so this tree reads those keys from SKILL.md (extensions/lib/skill-chrome.ts) and renders them through the extension: the sticky prompt carries the reminder and the status line carries icon and color, while the sticky extension reproduces the mode bit; the residual exception is the host render path, not a dropped field. |
 | `inv-cursor-plugin-plugin-json` | `.cursor-plugin/plugin.json` | Cursor's .cursor-plugin loader has no Pi equivalent; the Pi package manifest replaces it and the content surface is the twin. |
 
 ## 9. Differential and conformance test results
@@ -140,12 +139,11 @@ Rows with status `blocked` or `unimplemented` in `compat/parity.json`. These are
 | `ceiling-03` | `automations-slack` | HOSTED-CAPABILITY-REQUIRED | unimplemented |
 | `ceiling-04` | `grok-bot` | HOSTED-CAPABILITY-REQUIRED | unimplemented |
 | `ceiling-05` | `mcp` | HOSTED-CAPABILITY-REQUIRED | unimplemented |
-| `ceiling-06` | `sticky-host` | APPROVED-EXCEPTION | blocked |
 | `ceiling-08` | `durable-jobs` | HOSTED-CAPABILITY-REQUIRED | unimplemented |
 | `ceiling-09` | `ide-driving` | HOSTED-CAPABILITY-REQUIRED | unimplemented |
 | `inv-cursor-plugin-plugin-json` | `.cursor-plugin/plugin.json` | APPROVED-EXCEPTION | blocked |
 
-Grouped by reason: 6 unimplemented hosted ceiling row(s) wait on a hosted service, and 3 blocked approved-exception row(s) stand in for absent host chrome or a Cursor-only loader.
+Grouped by reason: 6 unimplemented hosted ceiling row(s) wait on a hosted service, and 2 blocked approved-exception row(s) stand in for absent host chrome or a Cursor-only loader.
 
 ## 11. Migration instructions
 

@@ -7,15 +7,15 @@
   "totals": {
     "byClassification": {
       "EXACT-CONTRACT": 217,
-      "ADAPTED-EQUIVALENT": 242,
+      "ADAPTED-EQUIVALENT": 243,
       "HOSTED-CAPABILITY-REQUIRED": 6,
-      "APPROVED-EXCEPTION": 3
+      "APPROVED-EXCEPTION": 2
     },
     "byStatus": {
       "unimplemented": 6,
       "implemented": 0,
-      "verified": 459,
-      "blocked": 3
+      "verified": 460,
+      "blocked": 2
     }
   },
   "rows": [
@@ -1147,19 +1147,23 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "sticky-host",
-      "behavior": "Cursor renders reminder, mode, icon, and color from skill frontmatter through its host skill loader. Pi's skill loader consumes only name, description, and disable-model-invocation, so this tree reads those keys from SKILL.md (extensions/lib/skill-chrome.ts) and renders them through the extension: the sticky prompt carries the reminder and the status line carries icon and color, while the sticky extension reproduces the mode bit; the residual exception is the host render path, not a dropped field.",
+      "behavior": "Cursor renders reminder, mode, icon, and color from skill frontmatter natively. Pi's skill loader reads only name, description, and disable-model-invocation, so this tree parses those chrome keys from the SKILL.md itself in extensions/lib/skill-chrome.ts and renders icon and color through ctx.ui.setStatus, with the reminder carried by the sticky inject.",
       "observableContract": [
         "twin@sticky"
       ],
-      "classification": "APPROVED-EXCEPTION",
-      "piMechanism": [],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
-      "status": "blocked",
-      "evidence": [],
+      "status": "verified",
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
       "divergences": [],
-      "exceptionJustification": "Cursor renders reminder, mode, icon, and color from skill frontmatter through its host skill loader. Pi's skill loader consumes only name, description, and disable-model-invocation, so this tree reads those keys from SKILL.md (extensions/lib/skill-chrome.ts) and renders them through the extension: the sticky prompt carries the reminder and the status line carries icon and color, while the sticky extension reproduces the mode bit; the residual exception is the host render path, not a dropped field."
+      "exceptionJustification": null
     },
     {
       "id": "ceiling-07",

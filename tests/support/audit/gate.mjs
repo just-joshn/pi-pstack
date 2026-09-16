@@ -2,8 +2,8 @@
  * GATE-01..GATE-08: the verification gates themselves. These predicates check
  * that the repo's own checks run, cover what they claim, and fail when they should.
  */
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import {
   fail,
   pass,
@@ -180,6 +180,79 @@ async function gateConformanceCoverage() {
   );
 }
 
+/**
+ * A test file outside every layer directory is never run, so it reports
+ * nothing and rots. This caught `tests/layers/09-inventory/docs-claims.test.mjs`,
+ * which sat outside layer 9's registered `tests/inventory` and was failing.
+ */
+async function gateLayerCoverage() {
+  const { LAYERS } = await import("../../registry.mjs");
+  const layerDirs = LAYERS.filter((layer) => layer.dir).map((layer) => layer.dir);
+  const found = walkTestFiles(repoPath("tests"));
+  const orphans = found.filter((file) => !layerDirs.some((dir) => file.startsWith(`${dir}/`)));
+  if (found.length === 0) return fail("no test files found under tests/") ;
+  return verdict(
+    orphans.length === 0,
+    `all ${found.length} test files sit inside a registered layer directory`,
+    `${orphans.length} test file(s) are outside every layer directory, so npm test never runs them: ${orphans.join(", ")}`,
+  );
+}
+
+function walkTestFiles(dir, out = []) {
+  let next = out;
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) next = walkTestFiles(full, next);
+    else if (/\.test\.(?:mjs|ts)$/.test(name)) next = [...next, relative(repoPath("."), full)];
+  }
+  return next;
+}
+
+/**
+ * Counting `..` segments couples a test to its own depth in the tree. Moving
+ * the file silently retargets every relative read, which either fails loudly or
+ * passes against a neighbouring directory. `tests/support/repo-root.mjs` walks
+ * up to the marker pair instead.
+ */
+async function gateRepoRootHelper() {
+  const offenders = walkTestFiles(repoPath("tests")).filter((file) => {
+    if (file.includes("support/audit")) return false;
+    const source = readFileSync(repoPath(file), "utf8");
+    return /resolve\(\s*(?:dirname\(fileURLToPath\(import\.meta\.url\)\)|import\.meta\.dirname)\s*,\s*"\.\./.test(source);
+  });
+  return verdict(
+    offenders.length === 0,
+    "no test file derives the repository root by counting '..' segments",
+    `${offenders.length} test file(s) count '..' segments to find the root: ${offenders.join(", ")}`,
+  );
+}
+
+/**
+ * The conformance rules read a sanitized copy of each source, so a sanitizer
+ * that loses sync silently changes what every other rule sees. A regex literal
+ * containing a quote, after a keyword rather than an operator, used to leave
+ * the regex unmasked; the quote then opened a phantom string that swallowed the
+ * following code and both invented and hid violations.
+ */
+async function gateSanitizerSync() {
+  const { auditSource } = await import("../conformance/rules.mjs");
+  const masked = [
+    { label: "quote inside a returned regex", source: 'function f(s) {\n  return /\\s*,\\s*"\\.\\./.test(s);\n}\nconst x = "a--b";\n' },
+    { label: "quote inside a typeof regex", source: 'const t = typeof /\\d+"x/;\nconst y = "c++d";\n' },
+    { label: "plain string", source: 'const z = "p++q";\n' },
+  ];
+  const leaked = masked.filter(({ source }) => auditSource(source).length > 0);
+  const realOperator = 'const n = 0;\nexport function bump() {\n  n--;\n}\n';
+  const detects = auditSource(realOperator).some((violation) => violation.rule === "increment");
+  if (leaked.length > 0) {
+    return fail(
+      `the sanitizer lost sync, so masked text reached the rules: ${leaked.map((entry) => entry.label).join(", ")}`,
+    );
+  }
+  if (!detects) return fail("the sanitizer masks so aggressively that a real decrement operator is no longer detected");
+  return pass("the sanitizer masks string, template, and regex literals without swallowing the code after them");
+}
+
 export const GATE_PREDICATES = Object.freeze([
   { id: "GATE-01", description: "the repo has a strict typecheck script and it exits 0", run: gateTypecheckClean },
   { id: "GATE-02", description: "npm test transitively invokes the typecheck script", run: gateTypecheckInTest },
@@ -189,4 +262,7 @@ export const GATE_PREDICATES = Object.freeze([
   { id: "GATE-06", description: "the unit suite does not flake on a TMPDIR containing '-e'", run: gateTmpdirFlake },
   { id: "GATE-07", description: "port/drift.mjs exits nonzero when upstream drift is detected", run: gateDriftExitCode },
   { id: "GATE-08", description: "tests/conformance.mjs reports how many files it scanned", run: gateConformanceCoverage },
+  { id: "GATE-09", description: "every test file sits inside a registered layer directory", run: gateLayerCoverage },
+  { id: "GATE-10", description: "no test file finds the repository root by counting '..' segments", run: gateRepoRootHelper },
+  { id: "GATE-11", description: "the conformance sanitizer keeps sync after a regex containing a quote", run: gateSanitizerSync },
 ]);

@@ -5,7 +5,15 @@
 import { readFileSync } from "node:fs";
 import { fail, pass, repoPath, runProcess, verdict } from "./harness.mjs";
 
-const MAX_EXTENSION_LINES = 400;
+/**
+ * AGENTS.md states the file-size rule as "200-400 lines typical, 800 max" and
+ * repeats the hard boundary in its checklist as "Files are focused (<800 lines)".
+ * 800 is therefore the enforced cap and 400 is the target a file should aim for,
+ * so this predicate fails above the cap and reports the files that miss the
+ * target without failing them.
+ */
+const MAX_EXTENSION_LINES = 800;
+const TARGET_EXTENSION_LINES = 400;
 
 const MUTATION_CASES = Object.freeze([
   { label: "property assignment", source: "const obj = {};\nexport function f() {\n  obj.prop = 1;\n}\n" },
@@ -45,15 +53,22 @@ async function ownedExtensionFiles() {
 async function agentsFileSize() {
   const files = await ownedExtensionFiles();
   if (files.length === 0) return fail("git ls-files listed no owned extension sources");
-  const offenders = files
+  const sized = files
     .map((relative) => ({ relative, lines: readFileSync(repoPath(relative), "utf8").split("\n").length }))
-    .filter((entry) => entry.lines > MAX_EXTENSION_LINES)
     .toSorted((a, b) => b.lines - a.lines);
-  return verdict(
-    offenders.length === 0,
-    `all ${files.length} owned extension files are at or under ${MAX_EXTENSION_LINES} lines`,
-    `${offenders.length}/${files.length} owned extension files exceed ${MAX_EXTENSION_LINES} lines: ${offenders.map((o) => `${o.relative} (${o.lines})`).join(", ")}`,
-  );
+  const overCap = sized.filter((entry) => entry.lines > MAX_EXTENSION_LINES);
+  const overTarget = sized.filter((entry) => entry.lines > TARGET_EXTENSION_LINES && entry.lines <= MAX_EXTENSION_LINES);
+  const describe = (entries) => entries.map((o) => `${o.relative} (${o.lines})`).join(", ");
+  if (overCap.length > 0) {
+    return fail(
+      `${overCap.length}/${files.length} owned extension files exceed the ${MAX_EXTENSION_LINES}-line AGENTS.md cap: ${describe(overCap)}`,
+    );
+  }
+  const advisory =
+    overTarget.length === 0
+      ? `no file exceeds the ${TARGET_EXTENSION_LINES}-line target`
+      : `${overTarget.length} above the ${TARGET_EXTENSION_LINES}-line target and within the cap: ${describe(overTarget)}`;
+  return pass(`all ${files.length} owned extension files are under the ${MAX_EXTENSION_LINES}-line cap; ${advisory}`);
 }
 
 function floatingPromises(relative) {
@@ -79,6 +94,6 @@ async function agentsFloatingPromises() {
 
 export const AGENTS_PREDICATES = Object.freeze([
   { id: "AGENTS-01", description: "conformance auditSource catches broader shared-state mutation", run: agentsMutationRules },
-  { id: "AGENTS-02", description: `no owned extension file exceeds ${MAX_EXTENSION_LINES} lines`, run: agentsFileSize },
+  { id: "AGENTS-02", description: `no owned extension file exceeds the ${MAX_EXTENSION_LINES}-line AGENTS.md cap`, run: agentsFileSize },
   { id: "AGENTS-03", description: "child-runner and heartbeat attach .catch() to every floating promise", run: agentsFloatingPromises },
 ]);

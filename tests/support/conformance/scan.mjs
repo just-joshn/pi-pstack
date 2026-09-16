@@ -63,55 +63,81 @@ function endOfRegex(src, start) {
   return start;
 }
 
-function looksLikeRegex(prev) {
-  return prev !== "" && /[=(,:;[!&|?{}]/.test(prev);
+/**
+ * A `/` starts a regular expression only where a value may begin. An operator
+ * character is one such place. A keyword is the other, and missing it is not a
+ * cosmetic gap: `return /a\"/` leaves the regex unmasked, the quote inside it
+ * opens a string that swallows the code after it, and every later rule reads
+ * shifted text. That both invents violations and hides real ones.
+ */
+const REGEX_PRECEDING_KEYWORDS = new Set([
+  "return",
+  "typeof",
+  "instanceof",
+  "in",
+  "of",
+  "new",
+  "delete",
+  "void",
+  "case",
+  "do",
+  "else",
+  "yield",
+  "await",
+]);
+
+function looksLikeRegex(prev, prevWord) {
+  if (prev !== "" && /[=(,:;[!&|?{}]/.test(prev)) return true;
+  return prevWord !== undefined && REGEX_PRECEDING_KEYWORDS.has(prevWord);
+}
+
+function lineCommentEnd(src, start) {
+  const end = src.indexOf("\n", start);
+  return end === -1 ? src.length : end;
+}
+
+function blockCommentEnd(src, start) {
+  const end = src.indexOf("*/", start + 2);
+  return end === -1 ? src.length : end + 2;
+}
+
+/** The end offset of the maskable token at `start`, or null when none starts there. */
+function maskableAt(src, start, prev, word) {
+  const c = src[start];
+  const n = src[start + 1];
+  if (c === "/" && n === "/") return lineCommentEnd(src, start);
+  if (c === "/" && n === "*") return blockCommentEnd(src, start);
+  if (c === '"' || c === "'") return endOfString(src, start);
+  if (c === "`") return endOfTemplate(src, start);
+  if (c === "/" && looksLikeRegex(prev, word)) {
+    const stop = endOfRegex(src, start);
+    if (stop > start) return stop;
+  }
+  return null;
+}
+
+function isWordChar(c) {
+  return /[A-Za-z0-9_$]/.test(c);
 }
 
 export function sanitize(src) {
   let out = "";
   let i = 0;
   let prev = "";
+  let word = "";
   while (i < src.length) {
+    const stop = maskableAt(src, i, prev, word);
+    if (stop !== null && stop > i) {
+      out += maskRange(src.slice(i, stop));
+      i = stop;
+      prev = src[stop - 1];
+      word = "";
+      continue;
+    }
     const c = src[i];
-    const n = src[i + 1];
-    if (c === "/" && n === "/") {
-      const end = src.indexOf("\n", i);
-      const stop = end === -1 ? src.length : end;
-      out += maskRange(src.slice(i, stop));
-      i = stop;
-      continue;
-    }
-    if (c === "/" && n === "*") {
-      const end = src.indexOf("*/", i + 2);
-      const stop = end === -1 ? src.length : end + 2;
-      out += maskRange(src.slice(i, stop));
-      i = stop;
-      continue;
-    }
-    if (c === '"' || c === "'") {
-      const stop = endOfString(src, i);
-      out += maskRange(src.slice(i, stop));
-      i = stop;
-      prev = c;
-      continue;
-    }
-    if (c === "`") {
-      const stop = endOfTemplate(src, i);
-      out += maskRange(src.slice(i, stop));
-      i = stop;
-      prev = c;
-      continue;
-    }
-    if (c === "/" && looksLikeRegex(prev)) {
-      const stop = endOfRegex(src, i);
-      if (stop > i) {
-        out += maskRange(src.slice(i, stop));
-        i = stop;
-        prev = "/";
-        continue;
-      }
-    }
     out += c;
+    if (isWordChar(c)) word += c;
+    else if (!/\s/.test(c)) word = "";
     if (!/\s/.test(c)) prev = c;
     i += 1;
   }

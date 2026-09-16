@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   INTEGRATION_CATEGORIES,
   INTEGRATION_CAPABILITIES,
+  integrationToolsFor,
   type IntegrationCategory,
 } from "../../../extensions/agents/policy.ts";
 import {
@@ -293,4 +294,24 @@ test("integrations-registry-08 builds source-control argv and plans the query gr
 
   assert.throws(() => assertSafePath("-x", "git log pathspec"), /unsafe path/);
   assert.throws(() => assertArgv(["-rf"], "command adapter"), /argv\[0\] must be a command name, not an option/);
+});
+
+test("integrations-registry-09 advertises only real surfaces and dedupes the shared bridge", () => {
+  assert.deepEqual(integrationToolsFor("inherit"), [
+    "pstack_integrations",
+    "pstack_control_ui",
+    "pstack_control_cli",
+  ]);
+  assert.deepEqual(integrationToolsFor(["issue-tracker"]), ["pstack_integrations"]);
+  assert.deepEqual(integrationToolsFor(["team-chat", "analytics"]), ["pstack_integrations"]);
+  assert.deepEqual(integrationToolsFor(["cli-tui"]), ["pstack_control_cli"]);
+  assert.deepEqual(integrationToolsFor("none"), []);
+
+  for (const entry of integrationEntries()) {
+    assert.equal(
+      entry.toolName === "pstack_integrations" || entry.toolName.startsWith("pstack_control_"),
+      true,
+      `${entry.id} must name a registered surface, got ${entry.toolName}`,
+    );
+  }
 });
