@@ -122,7 +122,19 @@ function runResult(record: RunRecord, effects: RunEffect[]): AgentToolResult<unk
   return { content: [{ type: "text", text: formatRun(record, effects) }], details: { run: record, effects } };
 }
 
-function applyEffect(pi: ExtensionAPI, ctx: ExtensionContext, record: RunRecord, effect: RunEffect): void {
+/**
+ * The run reducer emits a `wake` effect from its `heartbeat` and `event_wake`
+ * transitions, and it is what tells the agent that a run waiting on an event has
+ * resumed. Dropping it here would leave the record advanced and the agent
+ * unwoken, which is the silent local downgrade the run contract forbids, so the
+ * consumer keeps pace with the producer.
+ */
+function applyEffect(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  record: RunRecord,
+  effect: RunEffect,
+): void {
   if (effect.type === "wake") {
     pi.sendUserMessage(wakePrompt(record, effect.reason), { deliverAs: "followUp" });
     return;
@@ -135,7 +147,9 @@ function applyEffect(pi: ExtensionAPI, ctx: ExtensionContext, record: RunRecord,
     stopProgrammaticLoop(record.runId);
     return;
   }
-  ctx.ui.notify(`run ${record.runId} hosted handoff recorded for ${effect.endpoint}; no local continuation`, "info");
+  if (effect.type === "handoff") {
+    ctx.ui.notify(`run ${record.runId} hosted handoff recorded for ${effect.endpoint}; no local continuation`, "info");
+  }
 }
 
 function reduceAndSave(params: RunToolParams, eventsFor: EventsFor): RunReduction {
