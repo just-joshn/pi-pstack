@@ -78,7 +78,7 @@ Aim for a complete **coverage map**, not a minimal one. Document the null, don't
 Launch all matching investigators in a single message so they run concurrently. Don't ask one agent to cover multiple MCPs.
 
 Subagent config (each):
-- `role`: `general` via `pstack_spawn`
+- `role`: `general` via `pstack_task`
 - `model`: your configured why-investigators model (default `grok-4.6-fast-xhigh`)
 - `policy`: filesystem `read-only`, integrations `inherit` (via `pstack_task`, which compiles both axes independently). The read-only filesystem keeps the project untouched while the integration tools stay granted; readonly and integrations are not the same axis. Investigators still shouldn't write anything.
 
@@ -122,7 +122,7 @@ If your scope assessment suggests a single-commit trivial target where the PR de
 
 Spawn one synthesizer subagent:
 
-- `role`: `general` via `pstack_spawn`
+- `role`: `general` via `pstack_task`
 - `model`: your configured why-synthesizer model (default `claude-fable-5-1-thinking-max`)
 - `policy`: filesystem `read-only`, integrations `inherit` (via `pstack_task`). The synthesizer's quality check spot-verifies citations, which can require integration tools; a read-only filesystem does not withdraw them.
 

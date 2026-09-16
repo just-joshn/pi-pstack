@@ -21,7 +21,7 @@ Open a todolist with one entry per phase before launching anything.
 
 1. State the done predicate and the artifact or report the swarm must return.
 2. Choose the shape. Partition into slices, race N workers on identical briefs, or mix both. For a race or mixed shape, declare `first pass`, `rank all`, or `best-of` before spawning.
-3. Set N from the user or derive it from the shape. N is total workers; `pstack_swarm` accepts at most 8 per call (the Pi concurrency cap), so batch larger N or use N× `pstack_spawn` + `pstack_jobs`.
+3. Set N from the user or derive it from the shape. N is total workers; the Pi concurrency cap is 8, and `pstack_swarm` batches a larger N in waves up to that cap.
 4. Pick the worker model from `swarm workers` in `~/.pi/agent/pstack-models.json` when present. Otherwise use `grok-4.6-fast-xhigh`. For a model race, name each arm's model up front.
 5. Give each worker its own writable output when it writes. Multi-writer runs must not share the parent dirty cwd: omit `cwd` so `pstack_swarm` allocates one worktree per writer, or pass a unique `cwd` per worker.
 
