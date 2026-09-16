@@ -123,7 +123,28 @@ export function prerequisitesFor(row, mechanism) {
   const service = SERVICE_BY_MECHANISM[mechanism];
   if (!service) return [];
   const twin = row.verification.startsWith("twin@") ? row.verification.slice("twin@".length) : "local";
-  return [service, `twin surface ${twin} is the local fallback until ${service} ships`];
+  return [service, `twin surface ${twin} is the local fallback; the hosted path is ${service}, proven by tests/hosted`];
+}
+
+/**
+ * Authored corrections for ledger obligations that rest on a premise the code
+ * contradicts. The ledger TSV is frozen against the pinned upstream here, so the
+ * projection carries the corrected sentence while the ledger row stays the
+ * follow-up at the source. A correction applies only while `stalePremise` is
+ * still present, so fixing the ledger retires it automatically.
+ */
+const OBLIGATION_CORRECTIONS_BY_ID = {
+  "ceiling-06": {
+    stalePremise: "frontmatter schema is closed",
+    replacement:
+      "Cursor renders reminder, mode, icon, and color from skill frontmatter through its host skill loader. Pi's skill loader consumes only name, description, and disable-model-invocation, so this tree reads those keys from SKILL.md (extensions/lib/skill-chrome.ts) and renders them through the extension: the sticky prompt carries the reminder and the status line carries icon and color, while the sticky extension reproduces the mode bit; the residual exception is the host render path, not a dropped field.",
+  },
+};
+
+export function obligationFor(row) {
+  const correction = OBLIGATION_CORRECTIONS_BY_ID[row.id];
+  if (!correction || !row.obligation.includes(correction.stalePremise)) return row.obligation;
+  return correction.replacement;
 }
 
 export function normalizationFor(row) {

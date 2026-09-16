@@ -22,6 +22,7 @@ import {
   mechanismName,
   normalizationFor,
   observableContractFor,
+  obligationFor,
   prerequisitesFor,
   referenceList,
   statusFor,
@@ -61,7 +62,7 @@ export function buildBehavioralRow(row, lock) {
     category: categorize(row),
     upstreamRevision: lock.commit.sha,
     upstreamPath: upstreamPathFor(row),
-    behavior: row.obligation,
+    behavior: obligationFor(row),
     observableContract: observableContractFor(row),
     classification: row.class,
     piMechanism: referenceList(row.reference),
@@ -71,7 +72,7 @@ export function buildBehavioralRow(row, lock) {
     status: statusFor(row.status, row.class),
     evidence: referenceList(row.reference),
     divergences: divergencesFor(row.id),
-    exceptionJustification: row.class === "APPROVED-EXCEPTION" ? row.obligation : null,
+    exceptionJustification: row.class === "APPROVED-EXCEPTION" ? obligationFor(row) : null,
   };
 }
 
@@ -103,6 +104,39 @@ function capabilityNumbers(surfaces) {
   return [...new Set(numbers)].toSorted((a, b) => a - b);
 }
 
+/**
+ * The behavioral grades from the PARITY.md scorecard, keyed by capability
+ * number. capabilities.json folds these into `status`, so a capability whose
+ * ledger rows are all verified but whose runtime behavior is partial or absent
+ * cannot claim "verified". The scorecard is hand-maintained, so this map is
+ * authored data and a drift between the two fails the audit gate.
+ */
+const BEHAVIORAL_SCORECARD = {
+  1: "EQUIVALENT",
+  2: "EQUIVALENT",
+  3: "EQUIVALENT",
+  4: "EQUIVALENT",
+  5: "EQUIVALENT",
+  6: "PARTIAL",
+  7: "EQUIVALENT",
+  8: "EQUIVALENT",
+  9: "NOT",
+  10: "NOT",
+  11: "EQUIVALENT",
+  12: "NOT",
+};
+
+const STATUS_BY_SCORECARD = {
+  EQUIVALENT: "verified",
+  PARTIAL: "partial",
+  NOT: "not-equivalent",
+};
+
+function capabilityStatus(ledgerRollup, behavioralScore) {
+  if (ledgerRollup !== "verified") return "implemented";
+  return behavioralScore ? STATUS_BY_SCORECARD[behavioralScore] : "verified";
+}
+
 function capabilityEntry(number, surfaces, rows) {
   const owned = surfaces.filter((surface) => splitList(surface.capability).includes(String(number)));
   const slugs = owned.map((surface) => surface.slug);
@@ -110,20 +144,31 @@ function capabilityEntry(number, surfaces, rows) {
   const live = surfaceRows.filter((row) => row.status !== "EXCLUDED");
   const verified = live.filter((row) => row.status === "VERIFIED");
   const excluded = surfaceRows.length - live.length;
+  const ledgerRollup = live.length > 0 && verified.length === live.length ? "verified" : "implemented";
+  const behavioralScore = BEHAVIORAL_SCORECARD[number] ?? null;
+  const excludedNote = excluded > 0 ? `, ${excluded} EXCLUDED row(s) excluded from the rollup` : "";
   return {
     id: String(number),
     title: CAPABILITY_TITLES[number] ?? `capability ${number}`,
     surfaces: slugs,
-    status: live.length > 0 && verified.length === live.length ? "verified" : "implemented",
+    status: capabilityStatus(ledgerRollup, behavioralScore),
+    ledgerRollup,
+    behavioralScore,
+    counts: { ledgerRows: surfaceRows.length, inScope: live.length, verified: verified.length, excluded },
     hostedRequired: surfaceRows.some((row) => row.class === "HOSTED-CAPABILITY-REQUIRED"),
-    notes: `${surfaceRows.length} ledger row(s), ${verified.length} verified, ${excluded} excluded`,
+    notes: `ledger rollup ${verified.length}/${live.length} in-scope row(s) verified${excludedNote}; PARITY.md behavioral scorecard ${behavioralScore ?? "none"}`,
   };
 }
 
 export function buildCapabilities(ledger) {
   const { rows, surfaces } = ledger;
   const capabilities = capabilityNumbers(surfaces).map((number) => capabilityEntry(number, surfaces, rows));
-  return { schemaVersion: 1, generatedFrom: "spec/surfaces.tsv", capabilities };
+  return {
+    schemaVersion: 1,
+    generatedFrom: "spec/surfaces.tsv (row counts) and PARITY.md (behavioral scorecard)",
+    statusBasis: "status folds the ledger rollup with the PARITY.md behavioral scorecard",
+    capabilities,
+  };
 }
 
 export function buildArtifacts(repoRoot, ledger) {

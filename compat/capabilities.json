@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedFrom": "spec/surfaces.tsv",
+  "generatedFrom": "spec/surfaces.tsv (row counts) and PARITY.md (behavioral scorecard)",
+  "statusBasis": "status folds the ledger rollup with the PARITY.md behavioral scorecard",
   "capabilities": [
     {
       "id": "0",
@@ -12,8 +13,16 @@
         "host"
       ],
       "status": "verified",
+      "ledgerRollup": "verified",
+      "behavioralScore": null,
+      "counts": {
+        "ledgerRows": 48,
+        "inScope": 48,
+        "verified": 48,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "48 ledger row(s), 48 verified, 0 excluded"
+      "notes": "ledger rollup 48/48 in-scope row(s) verified; PARITY.md behavioral scorecard none"
     },
     {
       "id": "1",
@@ -22,8 +31,16 @@
         "sticky"
       ],
       "status": "verified",
+      "ledgerRollup": "verified",
+      "behavioralScore": "EQUIVALENT",
+      "counts": {
+        "ledgerRows": 12,
+        "inScope": 12,
+        "verified": 12,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "12 ledger row(s), 12 verified, 0 excluded"
+      "notes": "ledger rollup 12/12 in-scope row(s) verified; PARITY.md behavioral scorecard EQUIVALENT"
     },
     {
       "id": "2",
@@ -35,8 +52,16 @@
         "arena"
       ],
       "status": "verified",
+      "ledgerRollup": "verified",
+      "behavioralScore": "EQUIVALENT",
+      "counts": {
+        "ledgerRows": 49,
+        "inScope": 49,
+        "verified": 49,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "49 ledger row(s), 49 verified, 0 excluded"
+      "notes": "ledger rollup 49/49 in-scope row(s) verified; PARITY.md behavioral scorecard EQUIVALENT"
     },
     {
       "id": "3",
@@ -45,8 +70,16 @@
         "loop"
       ],
       "status": "verified",
+      "ledgerRollup": "verified",
+      "behavioralScore": "EQUIVALENT",
+      "counts": {
+        "ledgerRows": 50,
+        "inScope": 50,
+        "verified": 50,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "50 ledger row(s), 50 verified, 0 excluded"
+      "notes": "ledger rollup 50/50 in-scope row(s) verified; PARITY.md behavioral scorecard EQUIVALENT"
     },
     {
       "id": "4",
@@ -55,8 +88,16 @@
         "worktree"
       ],
       "status": "verified",
+      "ledgerRollup": "verified",
+      "behavioralScore": "EQUIVALENT",
+      "counts": {
+        "ledgerRows": 15,
+        "inScope": 15,
+        "verified": 15,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "15 ledger row(s), 15 verified, 0 excluded"
+      "notes": "ledger rollup 15/15 in-scope row(s) verified; PARITY.md behavioral scorecard EQUIVALENT"
     },
     {
       "id": "5",
@@ -67,8 +108,16 @@
         "gates"
       ],
       "status": "verified",
+      "ledgerRollup": "verified",
+      "behavioralScore": "EQUIVALENT",
+      "counts": {
+        "ledgerRows": 39,
+        "inScope": 39,
+        "verified": 39,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "39 ledger row(s), 39 verified, 0 excluded"
+      "notes": "ledger rollup 39/39 in-scope row(s) verified; PARITY.md behavioral scorecard EQUIVALENT"
     },
     {
       "id": "6",
@@ -77,9 +126,17 @@
         "deslop",
         "control"
       ],
-      "status": "verified",
+      "status": "partial",
+      "ledgerRollup": "verified",
+      "behavioralScore": "PARTIAL",
+      "counts": {
+        "ledgerRows": 26,
+        "inScope": 26,
+        "verified": 26,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "26 ledger row(s), 26 verified, 0 excluded"
+      "notes": "ledger rollup 26/26 in-scope row(s) verified; PARITY.md behavioral scorecard PARTIAL"
     },
     {
       "id": "7",
@@ -88,8 +145,16 @@
         "models"
       ],
       "status": "verified",
+      "ledgerRollup": "verified",
+      "behavioralScore": "EQUIVALENT",
+      "counts": {
+        "ledgerRows": 9,
+        "inScope": 9,
+        "verified": 9,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "9 ledger row(s), 9 verified, 0 excluded"
+      "notes": "ledger rollup 9/9 in-scope row(s) verified; PARITY.md behavioral scorecard EQUIVALENT"
     },
     {
       "id": "8",
@@ -98,8 +163,16 @@
         "sessions"
       ],
       "status": "verified",
+      "ledgerRollup": "verified",
+      "behavioralScore": "EQUIVALENT",
+      "counts": {
+        "ledgerRows": 17,
+        "inScope": 17,
+        "verified": 17,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "17 ledger row(s), 17 verified, 0 excluded"
+      "notes": "ledger rollup 17/17 in-scope row(s) verified; PARITY.md behavioral scorecard EQUIVALENT"
     },
     {
       "id": "9",
@@ -107,9 +180,17 @@
       "surfaces": [
         "ceiling"
       ],
-      "status": "verified",
+      "status": "not-equivalent",
+      "ledgerRollup": "verified",
+      "behavioralScore": "NOT",
+      "counts": {
+        "ledgerRows": 18,
+        "inScope": 6,
+        "verified": 6,
+        "excluded": 12
+      },
       "hostedRequired": true,
-      "notes": "18 ledger row(s), 6 verified, 12 excluded"
+      "notes": "ledger rollup 6/6 in-scope row(s) verified, 12 EXCLUDED row(s) excluded from the rollup; PARITY.md behavioral scorecard NOT"
     },
     {
       "id": "10",
@@ -117,9 +198,17 @@
       "surfaces": [
         "benny"
       ],
-      "status": "verified",
+      "status": "not-equivalent",
+      "ledgerRollup": "verified",
+      "behavioralScore": "NOT",
+      "counts": {
+        "ledgerRows": 19,
+        "inScope": 19,
+        "verified": 19,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "19 ledger row(s), 19 verified, 0 excluded"
+      "notes": "ledger rollup 19/19 in-scope row(s) verified; PARITY.md behavioral scorecard NOT"
     },
     {
       "id": "11",
@@ -128,8 +217,16 @@
         "readonly"
       ],
       "status": "verified",
+      "ledgerRollup": "verified",
+      "behavioralScore": "EQUIVALENT",
+      "counts": {
+        "ledgerRows": 14,
+        "inScope": 14,
+        "verified": 14,
+        "excluded": 0
+      },
       "hostedRequired": false,
-      "notes": "14 ledger row(s), 14 verified, 0 excluded"
+      "notes": "ledger rollup 14/14 in-scope row(s) verified; PARITY.md behavioral scorecard EQUIVALENT"
     },
     {
       "id": "12",
@@ -137,9 +234,17 @@
       "surfaces": [
         "ceiling"
       ],
-      "status": "verified",
+      "status": "not-equivalent",
+      "ledgerRollup": "verified",
+      "behavioralScore": "NOT",
+      "counts": {
+        "ledgerRows": 18,
+        "inScope": 6,
+        "verified": 6,
+        "excluded": 12
+      },
       "hostedRequired": true,
-      "notes": "18 ledger row(s), 6 verified, 12 excluded"
+      "notes": "ledger rollup 6/6 in-scope row(s) verified, 12 EXCLUDED row(s) excluded from the rollup; PARITY.md behavioral scorecard NOT"
     }
   ]
 }

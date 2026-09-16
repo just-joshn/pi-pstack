@@ -45,9 +45,9 @@
       "id": "sticky-host",
       "upstreamEvidence": "reminder, mode, icon, color frontmatter; poteto-mode SKILL.md:5-8; Pi ignores unknown frontmatter",
       "disposition": "exception",
-      "piMechanism": "exception: Pi frontmatter schema is closed",
+      "piMechanism": "exception: extension reads SKILL.md chrome (extensions/lib/skill-chrome.ts)",
       "verification": "spec-check twin@sticky",
-      "notes": "Pi ignores unknown frontmatter; the sticky surface reproduces the mode and the chrome stays a Cursor exception."
+      "notes": "Pi's loader consumes name, description, and disable-model-invocation only; the extension reads icon, color, and reminder from SKILL.md (extensions/lib/skill-chrome.ts) and renders them (sticky prompt plus status line) while the sticky extension reproduces the mode bit. The exception is the host render path, not a dropped field."
     },
     {
       "id": "/loop",

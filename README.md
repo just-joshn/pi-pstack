@@ -18,6 +18,12 @@ if you want to go fast, go deep first. pstack helps you write less, but higher q
 
 ## Install
 
+### Prerequisites
+
+- **bun** `>=1.0.0` on `PATH`, the `engines` requirement in [`package.json`](./package.json). The four `pstack_babysit` `watch-pr-*` recipes spawn `skills/poteto-mode/scripts/watch-pr/watch-pr` (shebang `#!/usr/bin/env bun`), and `skills/poteto-mode/scripts/orch/orch.ts` does the same. Without bun the first `pstack_babysit` call fails its `bun --version` precheck with a message naming the missing binary.
+- **gh** on `PATH` for `pstack_babysit` and `pstack_ship`; the `gh-checks-watch` and `gh-view-json` recipes call it directly.
+- **pi** on `PATH` for `pi install`, and **npm** to run the repo scripts.
+
 From a local checkout (this package):
 
 ```bash

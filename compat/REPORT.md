@@ -74,7 +74,7 @@ Totals over every row in `compat/parity.json` (ledger rows plus inventory rows).
 
 - unimplemented=6, implemented=0, verified=459, blocked=3
 
-Capability rollup (`compat/capabilities.json`): 13 capabilities, 13 verified, 2 hosted-required.
+Capability rollup (`compat/capabilities.json`): 13 capabilities, 9 verified, 2 hosted-required.
 
 ## 7. Hosted prerequisites
 
@@ -82,22 +82,22 @@ Rows classified `HOSTED-CAPABILITY-REQUIRED` need a service that does not run lo
 
 | Row | Upstream path | Prerequisites |
 | --- | --- | --- |
-| `ceiling-02` | `cloud-agents` | services/worker; twin surface worktree is the local fallback until services/worker ships |
-| `ceiling-03` | `automations-slack` | services/benny; twin surface benny is the local fallback until services/benny ships |
-| `ceiling-04` | `grok-bot` | services/benny; twin surface benny is the local fallback until services/benny ships |
-| `ceiling-05` | `mcp` | services/worker; twin surface spawn is the local fallback until services/worker ships |
-| `ceiling-08` | `durable-jobs` | services/worker; twin surface jobs is the local fallback until services/worker ships |
-| `ceiling-09` | `ide-driving` | services/worker; twin surface control is the local fallback until services/worker ships |
+| `ceiling-02` | `cloud-agents` | services/worker; twin surface worktree is the local fallback; the hosted path is services/worker, proven by tests/hosted |
+| `ceiling-03` | `automations-slack` | services/benny; twin surface benny is the local fallback; the hosted path is services/benny, proven by tests/hosted |
+| `ceiling-04` | `grok-bot` | services/benny; twin surface benny is the local fallback; the hosted path is services/benny, proven by tests/hosted |
+| `ceiling-05` | `mcp` | services/worker; twin surface spawn is the local fallback; the hosted path is services/worker, proven by tests/hosted |
+| `ceiling-08` | `durable-jobs` | services/worker; twin surface jobs is the local fallback; the hosted path is services/worker, proven by tests/hosted |
+| `ceiling-09` | `ide-driving` | services/worker; twin surface control is the local fallback; the hosted path is services/worker, proven by tests/hosted |
 
 **Every prerequisite named in rows**
 
 - services/benny
 - services/worker
-- twin surface benny is the local fallback until services/benny ships
-- twin surface control is the local fallback until services/worker ships
-- twin surface jobs is the local fallback until services/worker ships
-- twin surface spawn is the local fallback until services/worker ships
-- twin surface worktree is the local fallback until services/worker ships
+- twin surface benny is the local fallback; the hosted path is services/benny, proven by tests/hosted
+- twin surface control is the local fallback; the hosted path is services/worker, proven by tests/hosted
+- twin surface jobs is the local fallback; the hosted path is services/worker, proven by tests/hosted
+- twin surface spawn is the local fallback; the hosted path is services/worker, proven by tests/hosted
+- twin surface worktree is the local fallback; the hosted path is services/worker, proven by tests/hosted
 
 **Authored hosted dispositions (`compat/dependencies.json`)**
 
@@ -117,7 +117,7 @@ Every `APPROVED-EXCEPTION` row carries a non-null `exceptionJustification`.
 | Row | Upstream path | Justification |
 | --- | --- | --- |
 | `ceiling-01` | `marketplace` | Cursor marketplace installs need Cursor's own registry and .cursor-plugin loader, and no Pi API registers a marketplace, so the package installs from the Pi manifest and the content surface stays the twin. |
-| `ceiling-06` | `sticky-host` | Cursor renders reminder, mode, icon, and color from skill frontmatter; Pi's frontmatter schema is closed and exposes no hook to register host chrome, so those four fields drop while the sticky surface reproduces the mode. |
+| `ceiling-06` | `sticky-host` | Cursor renders reminder, mode, icon, and color from skill frontmatter through its host skill loader. Pi's skill loader consumes only name, description, and disable-model-invocation, so this tree reads those keys from SKILL.md (extensions/lib/skill-chrome.ts) and renders them through the extension: the sticky prompt carries the reminder and the status line carries icon and color, while the sticky extension reproduces the mode bit; the residual exception is the host render path, not a dropped field. |
 | `inv-cursor-plugin-plugin-json` | `.cursor-plugin/plugin.json` | Cursor's .cursor-plugin loader has no Pi equivalent; the Pi package manifest replaces it and the content surface is the twin. |
 
 ## 9. Differential and conformance test results
@@ -125,7 +125,7 @@ Every `APPROVED-EXCEPTION` row carries a non-null `exceptionJustification`.
 Committed summary from `spec/differential-results.json`. This report never executes tests and reports only the stable fields; the runner stamps its own `generatedAt`.
 
 - Upstream commit: 5bf2b1544db739998121a306340631963c2ff3de
-- Cases: 12, equal: 12, differ: 0
+- Cases: 12, equal: 11, differ: 1
 
 Named scripts: `npm run test:differential` executes the differential fixtures, `npm run conformance` runs the AGENTS.md conformance layer, and `npm test` runs the full layered suite.
 
