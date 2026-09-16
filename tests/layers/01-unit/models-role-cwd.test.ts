@@ -7,7 +7,10 @@ import { resolveRoleModel } from "../../../extensions/models/config.ts";
 
 test("resolveRoleModel reads the project model config when given a cwd", () => {
   const dir = mkdtempSync(join(tmpdir(), "pstack-models-"));
+  const savedHome = process.env.HOME;
   try {
+    process.env.HOME = join(dir, "home");
+    mkdirSync(process.env.HOME, { recursive: true });
     mkdirSync(join(dir, ".pi"), { recursive: true });
     writeFileSync(
       join(dir, ".pi", "pstack-models.json"),
@@ -24,6 +27,8 @@ test("resolveRoleModel reads the project model config when given a cwd", () => {
       "without a cwd the project config is invisible",
     );
   } finally {
+    if (savedHome === undefined) Reflect.deleteProperty(process.env, "HOME");
+    else process.env.HOME = savedHome;
     rmSync(dir, { recursive: true, force: true });
   }
 });
