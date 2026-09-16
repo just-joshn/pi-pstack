@@ -182,3 +182,49 @@ test("session_shutdown blocks every run armed in this process", async () => {
   assert.equal(record?.phase, "BLOCKED");
   assert.match(record?.blockedReason ?? "", /local runtime session ended without completion/);
 });
+
+function shutdownEnv() {
+  let shutdown: (() => void) | undefined;
+  let tool: CapturedTool | undefined;
+  const pi = {
+    on(event: string, handler: () => void) {
+      if (event === "session_shutdown") shutdown = handler;
+    },
+    registerCommand() {},
+    registerTool(definition: CapturedTool) {
+      tool = definition;
+    },
+    sendUserMessage() {},
+    exec() {
+      return new Promise(() => {});
+    },
+  };
+  const ctx = { ui: { setStatus() {}, notify() {} } };
+  registerHeartbeat(pi as never);
+  registerLoopController(pi as never);
+  if (!tool || !shutdown) throw new Error("the controller registers pstack_run and a shutdown handler");
+  return { tool, shutdown, ctx };
+}
+
+function armRun(env: ReturnType<typeof shutdownEnv>, runId: string): Promise<unknown> {
+  return env.tool.execute(
+    "t",
+    { action: "arm", runId, predicate: "ci green", intervalSeconds: 60 },
+    undefined,
+    undefined,
+    env.ctx,
+  );
+}
+
+test("a run armed after a shutdown is still tracked and blocked by the next shutdown", async () => {
+  const first = shutdownEnv();
+  await armRun(first, "run-after-1");
+  first.shutdown();
+  assert.equal(loadRun("run-after-1")?.phase, "BLOCKED");
+
+  const second = shutdownEnv();
+  await armRun(second, "run-after-2");
+  assert.equal(loadRun("run-after-2")?.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
+  second.shutdown();
+  assert.equal(loadRun("run-after-2")?.phase, "BLOCKED");
+});
