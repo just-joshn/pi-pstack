@@ -230,12 +230,9 @@ test("integrations-registry-06 derives tool names and kinds from the policy capa
 
 test("integrations-registry-07 never prints configured argv in the status line", () => {
   const dir = tempDir("registry-secret-");
+  const argv = ["node", "-e", "process.stdout.write('SECRET-TOKEN-xyz')"];
   writeConfig(dir, {
-    "team-chat": {
-      adapter: "command",
-      command: ["node", "-e", "process.stdout.write('SECRET-TOKEN-xyz')"],
-      description: "team chat adapter",
-    },
+    "team-chat": { adapter: "command", command: argv, description: "team chat adapter" },
   });
   const config = loadIntegrationsConfig(dir);
   const status = decideStatus(integrationEntry("team-chat"), {
@@ -246,8 +243,13 @@ test("integrations-registry-07 never prints configured argv in the status line",
 
   assert.equal(status.availability, "available");
   const line = formatStatusLine(status);
-  assert.equal(line.includes("command adapter 'node' (2 args)"), true);
-  assert.equal(line.includes("-e"), false);
+  const withoutConfigPath = line.split(config.source).join("<config>");
+
+  assert.equal(withoutConfigPath.includes("command adapter 'node' (2 args)"), true);
+  assert.equal(withoutConfigPath.includes("<config>"), true, "status line names the config source");
+  for (const arg of argv.slice(1)) {
+    assert.equal(withoutConfigPath.includes(arg), false, `status line leaks argv element ${arg}`);
+  }
   assert.equal(line.includes("SECRET-TOKEN"), false);
 });
 
