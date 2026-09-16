@@ -213,12 +213,17 @@ function walkTestFiles(dir, out = []) {
  * the file silently retargets every relative read, which either fails loudly or
  * passes against a neighbouring directory. `tests/support/repo-root.mjs` walks
  * up to the marker pair instead.
+ *
+ * Both `resolve(...)` and `join(...)` forms count, and both the `dirname(...)`
+ * and `import.meta.dirname` spellings appear in the tree. An earlier version of
+ * this predicate anchored on `resolve(` alone and missed two `join(` files.
  */
+const DEPTH_COUNTING_ROOT = /\b(?:resolve|join)\(\s*(?:dirname\(\s*fileURLToPath\(\s*import\.meta\.url\s*\)\s*\)|import\.meta\.dirname|fileURLToPath\(\s*import\.meta\.url\s*\))\s*,\s*"\.\./;
+
 async function gateRepoRootHelper() {
   const offenders = walkTestFiles(repoPath("tests")).filter((file) => {
     if (file.includes("support/audit")) return false;
-    const source = readFileSync(repoPath(file), "utf8");
-    return /resolve\(\s*(?:dirname\(fileURLToPath\(import\.meta\.url\)\)|import\.meta\.dirname)\s*,\s*"\.\./.test(source);
+    return DEPTH_COUNTING_ROOT.test(readFileSync(repoPath(file), "utf8"));
   });
   return verdict(
     offenders.length === 0,

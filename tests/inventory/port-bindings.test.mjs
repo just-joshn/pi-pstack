@@ -7,13 +7,13 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { dirname, extname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { extname, join } from "node:path";
 import test from "node:test";
+import { repoRoot } from "../support/repo-root.mjs";
 import { leftoverTokens } from "../../port/bindings/index.mjs";
 import { resolveUpstreamRoot, walkArtifacts } from "../../compat/lib/inventory.mjs";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const ROOT = repoRoot(import.meta.url);
 const LOCK = JSON.parse(readFileSync(join(ROOT, "upstream.lock.json"), "utf8"));
 const upstream = resolveUpstreamRoot(ROOT, LOCK);
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");

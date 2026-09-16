@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { repoRoot } from "../../support/repo-root.mjs";
 import {
   READONLY_TOOL_POLICIES,
   computeReadonlyTools,
@@ -11,7 +11,7 @@ import {
 } from "../../../extensions/readonly-state/index.ts";
 import { READONLY_TOOLS } from "../../../extensions/subagents/child-runner.ts";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const ROOT = repoRoot(import.meta.url);
 
 const ALL = ["read", "grep", "find", "ls", "write", "bash", "pstack_spawn", "pstack_ship"];
 const WRITE_BLOCKED = new Set(["write", "bash", "pstack_ship"]);

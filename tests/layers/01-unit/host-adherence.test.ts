@@ -6,8 +6,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, relative, sep } from "node:path";
+import { repoRoot } from "../../support/repo-root.mjs";
 import piPstack from "../../../extensions/index.ts";
 import { computeReadonlyTools } from "../../../extensions/readonly-state/index.ts";
 import { capToolOutput } from "../../../extensions/lib/tool-output.ts";
@@ -23,7 +23,7 @@ import { registerBenny } from "../../../extensions/benny/index.ts";
 import { registerCompanions } from "../../../extensions/companions/index.ts";
 import { loadRun } from "../../../extensions/loop/run-store.ts";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const ROOT = repoRoot(import.meta.url);
 
 interface CapturedTool {
   name: string;

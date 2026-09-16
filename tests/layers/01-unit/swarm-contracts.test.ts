@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { repoRoot } from "../../support/repo-root.mjs";
 import { registerSwarm, MAX_SWARM_WORKERS } from "../../../extensions/orchestration/swarm.ts";
 
 const WORKTREE_DIR = ".pstack-worktrees";
-const ROOT = resolve(import.meta.dirname, "../../..");
+const ROOT = repoRoot(import.meta.url);
 
 interface ToolTextPart {
   type: string;

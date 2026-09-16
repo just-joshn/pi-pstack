@@ -10,9 +10,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { basename, join, resolve } from "node:path";
 import { Check } from "typebox/value";
+import { repoRoot } from "../../support/repo-root.mjs";
 
 const ORIGINAL_HOME = process.env.HOME;
 const TEMP_HOME = mkdtempSync(join(tmpdir(), "pstack-benny-home-"));
@@ -21,7 +21,7 @@ process.env.HOME = TEMP_HOME;
 const { registerBenny } = await import("../../../extensions/benny/index.ts");
 const { registerHeartbeat } = await import("../../../extensions/heartbeat/index.ts");
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const REPO_ROOT = repoRoot(import.meta.url);
 const WAKE_DIR = join(TEMP_HOME, ".pi", "agent");
 const WAKE_FILE = join(WAKE_DIR, "pstack-benny-wakes.jsonl");
 

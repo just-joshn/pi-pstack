@@ -6,8 +6,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { repoRoot } from "../../support/repo-root.mjs";
 import { readSkillCommands, registerSkillCommands } from "../../../extensions/commands/skill-commands.ts";
 import { createPotetoRuntime } from "../../../extensions/poteto-state/index.ts";
 
@@ -26,7 +26,7 @@ interface RecordedNotification {
   level: string;
 }
 
-const SKILLS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../../../skills");
+const SKILLS_DIR = join(repoRoot(import.meta.url), "skills");
 
 function writeSkill(root: string, folder: string, lines: string[]): void {
   const dir = join(root, folder);

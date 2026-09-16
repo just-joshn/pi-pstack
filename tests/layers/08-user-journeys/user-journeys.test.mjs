@@ -8,14 +8,14 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { createJourneyBench } from "../../user-journeys/harness.mjs";
 import { formatCoverage, summarizeCoverage } from "../../user-journeys/coverage.mjs";
 import { JOURNEYS } from "../../user-journeys/registry.mjs";
+import { repoRoot } from "../../support/repo-root.mjs";
 import piPstack from "../../../extensions/index.ts";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const ROOT = repoRoot(import.meta.url);
 
 function ledgerSurfaces() {
   const rows = readFileSync(join(ROOT, "spec/surfaces.tsv"), "utf8").trimEnd().split("\n").slice(1);

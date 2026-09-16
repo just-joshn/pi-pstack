@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
 import { auditSource } from "../../support/conformance/rules.mjs";
 import { collectViolations } from "../../support/conformance/collect.mjs";
 import { scanFrames, sanitize } from "../../support/conformance/scan.mjs";
+import { repoRoot } from "../../support/repo-root.mjs";
 
-const TESTS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const TESTS_DIR = join(repoRoot(import.meta.url), "tests");
 
 test("scanFrames reports declaration, arrow, and method spans", () => {
   const source = [

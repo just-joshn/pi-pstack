@@ -6,13 +6,13 @@
  */
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import test from "node:test";
+import { repoRoot } from "../support/repo-root.mjs";
 import { isUpstreamPath } from "../../compat/lib/mapping.mjs";
 import { matchesAggregateGlob, resolveUpstreamRoot, walkArtifacts } from "../../compat/lib/inventory.mjs";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const ROOT = repoRoot(import.meta.url);
 const PARITY = JSON.parse(readFileSync(join(ROOT, "compat", "parity.json"), "utf8"));
 const LOCK = JSON.parse(readFileSync(join(ROOT, "upstream.lock.json"), "utf8"));
 
