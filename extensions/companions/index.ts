@@ -11,8 +11,8 @@ import { Type } from "typebox";
 import { capToolOutput } from "../lib/tool-output.ts";
 import { execOptions } from "../lib/exec-options.ts";
 import { stripAtPrefix, stripAtPrefixes } from "../lib/paths.ts";
-import { resolveTrustedCommand } from "../lib/exec-allowlist.ts";
-import { fetchFollowingSafeRedirects, validateProbeTarget } from "../lib/url-policy.ts";
+import { resolveTrustedCommand, DEFAULT_TRUSTED_BIN_DIRS } from "../lib/exec-allowlist.ts";
+import { fetchFollowingSafeRedirects, normalizedHostname, ipv4ToInt, validateProbeTarget } from "../lib/url-policy.ts";
 import {
   SLOP_PATTERNS,
   applySafeDeletes,
@@ -24,6 +24,11 @@ import {
 
 export { applySafeDeletes, scanAddedLinesForSlop, type FixSuggestion } from "./deslop-core.ts";
 
+/**
+ * Command names the tool may run. The interpreter names stay here for the opt-in
+ * path, but they are unreachable while `allowInterpreters` is off, because the
+ * interpreter check runs before the allowlist check.
+ */
 const ALLOWED_CONTROL_COMMANDS = new Set([
   "npm",
   "pnpm",
@@ -82,23 +87,59 @@ const CONTROL_UI_PARAMETERS = Type.Object({
   allowHosts: Type.Optional(
     Type.Array(Type.String(), {
       description:
-        "Explicit opt-in hostnames (exact match) that may bypass the private-address check, e.g. localhost while developing a UI. Off by default; metadata hostnames and .internal/.local stay blocked.",
+        "Explicit opt-in hostnames (exact match) that may bypass the private-address check for a dev server, e.g. localhost or 127.0.0.1:5173. The caller may only name a loopback host; a wider network is the operator's call through PSTACK_CONTROL_UI_ALLOW_HOSTS. Metadata hostnames and .internal/.local stay blocked.",
     }),
   ),
 });
 
 const ALLOWED_CONTROL_COMMAND_LIST = Object.freeze([...ALLOWED_CONTROL_COMMANDS]);
 
+/**
+ * PSTACK_CONTROL_CLI_INTERPRETERS=1 grants arbitrary code execution: an
+ * interpreter runs whatever the caller puts in argv. It is off unless the
+ * operator opts in, and argv can never set it.
+ */
 function interpretersAllowed(): boolean {
-  return (process.env.PSTACK_CONTROL_CLI_INTERPRETERS ?? "1") !== "0";
+  return process.env.PSTACK_CONTROL_CLI_INTERPRETERS === "1";
 }
 
-function uiAllowHosts(extra?: readonly string[]): string[] {
+/**
+ * Extra binary directories the operator trusts, absolute paths only. Every command
+ * the tool runs must resolve inside this list or the built-in one; argv cannot
+ * reach either. A toolchain outside them (mise, nvm, ~/.cargo) needs this set.
+ */
+function trustedBinDirs(): readonly string[] {
+  const extra = (process.env.PSTACK_CONTROL_CLI_TRUSTED_DIRS ?? "")
+    .split(":")
+    .map((dir) => dir.trim())
+    .filter((dir) => dir.startsWith("/"));
+  return extra.length === 0 ? DEFAULT_TRUSTED_BIN_DIRS : [...DEFAULT_TRUSTED_BIN_DIRS, ...extra];
+}
+
+/** `host[:port]`, the shape a dev server is written in. */
+function isLoopbackEntry(entry: string): boolean {
+  let host: string;
+  try {
+    host = normalizedHostname(new URL(`http://${entry.trim()}`));
+  } catch {
+    return false;
+  }
+  if (host === "localhost" || host === "::1") return true;
+  const value = ipv4ToInt(host);
+  return value !== undefined && (value >>> 24) === 127;
+}
+
+/**
+ * A caller-supplied host may only open loopback, because the caller is the model.
+ * Reaching any wider network is the operator's decision, through
+ * PSTACK_CONTROL_UI_ALLOW_HOSTS.
+ */
+function uiAllowHosts(extra?: readonly string[]): readonly string[] {
   const fromEnv = (process.env.PSTACK_CONTROL_UI_ALLOW_HOSTS ?? "")
     .split(",")
     .map((host) => host.trim())
     .filter((host) => host !== "");
-  return [...fromEnv, ...(extra ?? [])];
+  return [...fromEnv, ...(extra ?? []).filter(isLoopbackEntry)];
 }
 
 function buildGitDiffArgs(base: string, paths?: string[]): string[] {
@@ -358,6 +399,7 @@ function registerControlCliTool(pi: ExtensionAPI): void {
       const resolution = resolveTrustedCommand(command, {
         commandAllowlist: ALLOWED_CONTROL_COMMAND_LIST,
         allowInterpreters: interpretersAllowed(),
+        trustedDirs: trustedBinDirs(),
       });
       if (!resolution.ok) throw new Error(resolution.reason);
       const result = await pi.exec(resolution.command, args, execOptions({

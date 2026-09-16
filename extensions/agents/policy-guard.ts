@@ -9,6 +9,11 @@
  * A shell command is inspected as a flat list of executions (see shell-parse.ts).
  * A construct the parser cannot decompose blocks whenever any axis it feeds is
  * restrictive, so the guard never allows an uninspected command.
+ *
+ * Executing a command is a capability, not a tool name. Tools that run a
+ * caller-supplied command are registered in COMMAND_TOOLS and put through the
+ * same parser as bash, so `shell: "none"` and `filesystem: "read-only"` gate
+ * every route to a subprocess rather than only the `bash` tool.
  */
 import type { ExtensionAPI, ToolCallEvent } from "@earendil-works/pi-coding-agent";
 import {
@@ -102,16 +107,59 @@ const FILESYSTEM_WRITE_FLAGS: Readonly<Record<string, ReadonlySet<string>>> = Ob
   sort: setOf("-o --output"),
 });
 
-/**
- * Commands that run caller-supplied code, so no argument table can bound what
+/** Commands that run caller-supplied code, so no argument table can bound what
  * they write. Read-only filesystems refuse them rather than guess.
  */
 const FILESYSTEM_OPAQUE_INTERPRETERS: ReadonlySet<string> = setOf(
   "python python2 python3 node nodejs deno bun perl perl5 ruby irb php lua luajit awk gawk mawk nawk " +
     "tclsh wish rscript r julia make cargo go rustc cc gcc clang javac java dotnet mvn gradle groovy " +
     "elixir mix erl escript expect ghc cabal stack nix nix-shell busybox docker podman kubectl " +
-    "terraform vim nvim vi ed ex emacs nano",
+    "terraform vim nvim vi ed ex emacs nano tsx pytest",
 );
+
+/** Package-manager subcommands that run code no argument table can bound. */
+const PACKAGE_EXEC_SUBCOMMANDS: ReadonlySet<string> = setOf("exec x dlx create init run run-script");
+
+/**
+ * Tools that execute a caller-supplied command, each with the reader for its own
+ * command input. A tool registered here is shell execution under a different
+ * label, so the shell and filesystem axes apply to it exactly as they do to bash.
+ */
+const COMMAND_TOOLS: Readonly<Record<string, CommandExtractor>> = Object.freeze({
+  pstack_control_cli: (input) => argvCommandLine(input.argv),
+});
+
+/** Tools that reach the network on their own, with no command line to inspect. */
+const NETWORK_TOOLS: ReadonlySet<string> = setOf("pstack_control_ui");
+
+type CommandExtraction =
+  | { readonly ok: true; readonly command: string }
+  | { readonly ok: false; readonly reason: string };
+
+/** Reads one tool's caller-supplied command line, or refuses the call. */
+type CommandExtractor = (input: Record<string, unknown>) => CommandExtraction;
+
+/** POSIX single-quote escaping, so an argv element reaches the tokenizer verbatim. */
+function shellQuote(value: string): string {
+  return `'${value.split("'").join("'\\''")}'`;
+}
+
+function argvCommandLine(argv: unknown): CommandExtraction {
+  if (!Array.isArray(argv) || argv.length === 0) {
+    return { ok: false, reason: "argv must be a non-empty array of strings" };
+  }
+  if (!argv.every((part): part is string => typeof part === "string")) {
+    return { ok: false, reason: "every argv element must be a string" };
+  }
+  const program = argv[0];
+  if (program === undefined || program === "") {
+    return { ok: false, reason: "argv[0] must be a non-empty command name" };
+  }
+  if (argv.some((part) => part.includes("\0"))) {
+    return { ok: false, reason: "argv elements must not contain a NUL byte" };
+  }
+  return { ok: true, command: argv.map(shellQuote).join(" ") };
+}
 
 function block(reason: string): GuardDecision {
   return { block: true, reason: `pstack policy guard: ${reason}` };
@@ -207,7 +255,13 @@ function writeFlagCulprit(execution: ShellExecution): string | undefined {
 function writeCulprit(execution: ShellExecution): string | undefined {
   if (FILESYSTEM_WRITE_COMMANDS.has(execution.name)) return execution.name;
   if (FILESYSTEM_OPAQUE_INTERPRETERS.has(execution.name)) return execution.name;
-  return packageWriterFor(execution) ?? writeFlagCulprit(execution);
+  return packageWriterFor(execution) ?? packageExecCulprit(execution) ?? writeFlagCulprit(execution);
+}
+
+function packageExecCulprit(execution: ShellExecution): string | undefined {
+  if (!PACKAGE_MANAGERS.has(execution.name)) return undefined;
+  const { sub } = subcommandOf(execution.args, PACKAGE_MANAGER_VALUE_FLAGS);
+  return sub !== undefined && PACKAGE_EXEC_SUBCOMMANDS.has(sub) ? `${execution.name} ${sub}` : undefined;
 }
 
 function filesystemBashGuard(policy: PstackTaskPolicy, parse: ShellParse): GuardDecision | undefined {
@@ -249,8 +303,8 @@ function refusalGuard(policy: PstackTaskPolicy, parse: ShellParse): GuardDecisio
   return block(`cannot enforce this policy on ${parse.refusals.join("; ")}`);
 }
 
-function bashGuard(policy: PstackTaskPolicy, command: string): GuardDecision | undefined {
-  if (policy.shell === "none") return block("shell none blocks bash");
+/** The axes that apply to any command line, whatever tool produced it. */
+function commandGuard(policy: PstackTaskPolicy, command: string): GuardDecision | undefined {
   const parse = parseShellCommand(command);
   return (
     refusalGuard(policy, parse) ??
@@ -260,13 +314,48 @@ function bashGuard(policy: PstackTaskPolicy, command: string): GuardDecision | u
   );
 }
 
+function bashGuard(policy: PstackTaskPolicy, command: string): GuardDecision | undefined {
+  if (policy.shell === "none") return block("shell none blocks bash");
+  return commandGuard(policy, command);
+}
+
+/**
+ * A registered command-executing tool is a subprocess, so any shell policy but
+ * `full` refuses it outright; there is no command line a `none` policy could
+ * inspect and permit.
+ */
+function executingToolGuard(
+  policy: PstackTaskPolicy,
+  toolName: string,
+  input: Record<string, unknown>,
+): GuardDecision | undefined {
+  const extract = COMMAND_TOOLS[toolName];
+  if (!extract) return undefined;
+  if (policy.shell !== "full") {
+    return block(`shell ${policy.shell} blocks ${toolName}, which executes a caller-supplied command`);
+  }
+  const extracted = extract(input);
+  if (!extracted.ok) return block(`${toolName} was called with a malformed command: ${extracted.reason}`);
+  return commandGuard(policy, extracted.command);
+}
+
+function networkToolGuard(policy: PstackTaskPolicy, toolName: string): GuardDecision | undefined {
+  if (policy.network !== "none" || !NETWORK_TOOLS.has(toolName)) return undefined;
+  return block(`network none blocks ${toolName}`);
+}
+
 export function evaluateGuard(policy: PstackTaskPolicy, event: GuardEvent): GuardDecision | undefined {
   if (event.toolName === "bash") {
     const command = event.input.command;
     if (typeof command !== "string") return block("bash tool call without a string command");
     return bashGuard(policy, command);
   }
-  return filesystemToolGuard(policy, event.toolName) ?? integrationsGuard(policy, event.toolName);
+  return (
+    filesystemToolGuard(policy, event.toolName) ??
+    networkToolGuard(policy, event.toolName) ??
+    integrationsGuard(policy, event.toolName) ??
+    executingToolGuard(policy, event.toolName, event.input)
+  );
 }
 
 function errorText(err: unknown): string {

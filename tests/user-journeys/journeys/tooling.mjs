@@ -250,11 +250,11 @@ async function assertControlCli(user) {
   const cli = { calls: [] };
   user.setExec(execStub(cli));
   const result = textOf(
-    await user.tool("pstack_control_cli", { argv: ["tsx", "probe"], cwd: "/tmp/probe" }),
+    await user.tool("pstack_control_cli", { argv: ["git", "probe"], cwd: "/tmp/probe" }),
   );
   assert.equal(result, "exit 3\n\nline one\n\nline two\n");
   assert.equal(cli.calls.length, 1);
-  assert.equal(cli.calls[0].command, "tsx");
+  assert.equal(cli.calls[0].command, "git");
   assert.deepEqual(cli.calls[0].args, ["probe"]);
   assert.equal(cli.calls[0].opts.cwd, "/tmp/probe");
   assert.equal(cli.calls[0].opts.timeout, 120000);

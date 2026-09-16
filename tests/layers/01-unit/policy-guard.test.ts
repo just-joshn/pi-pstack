@@ -194,7 +194,15 @@ test("integrations grant blocks a non-granted capability tool and allows a grant
   );
 
   const inherited = guardFor({ integrations: "inherit" });
-  assert.equal(evaluateGuard(inherited, { toolName: "pstack_control_cli", input: {} }), undefined);
+  assert.equal(
+    evaluateGuard(inherited, { toolName: "pstack_control_cli", input: { argv: ["git", "status"] } }),
+    undefined,
+  );
+  assert.match(
+    evaluateGuard(inherited, { toolName: "pstack_control_cli", input: {} })?.reason ?? "",
+    /malformed command/,
+    "a call with no argv is refused instead of assumed safe",
+  );
 });
 
 test("malformed PSTACK_CHILD_POLICY blocks writes instead of silently allowing them", () => {
@@ -274,4 +282,68 @@ test("parseGuardPolicy reports schema failures without throwing", () => {
   const good = parseGuardPolicy(JSON.stringify(compileTaskPolicy(undefined, "comment-sicko")));
   assert.equal(good.blockReason, undefined);
   assert.equal(good.policy?.integrations, "none");
+});
+
+function cliCall(argv: unknown) {
+  return { toolName: "pstack_control_cli", input: { argv } };
+}
+
+test("a command-executing tool is gated by the shell axis, not only by its name", () => {
+  for (const shell of ["none", "restricted"] as const) {
+    const policy = guardFor({ shell });
+    const reason = evaluateGuard(policy, cliCall(["git", "status"]))?.reason ?? "";
+    assert.match(reason, new RegExp(`shell ${shell} blocks pstack_control_cli`));
+  }
+  const full = guardFor({ shell: "full", git: "read" });
+  assert.equal(evaluateGuard(full, cliCall(["git", "status"])), undefined);
+  assert.match(evaluateGuard(full, cliCall(["git", "push"]))?.reason ?? "", /git policy read blocks 'git push'/);
+});
+
+test("an argv command line is analyzed exactly as the equivalent bash command", () => {
+  const readOnly = guardFor({ filesystem: "read-only", shell: "full" });
+  const mutations = [
+    ["git push", ["git", "push"]],
+    ["git commit -m x", ["git", "commit", "-m", "x"]],
+    ["rm -rf /tmp/x", ["rm", "-rf", "/tmp/x"]],
+    ["sed -i s/a/b/ f", ["sed", "-i", "s/a/b/", "f"]],
+    ["truncate -s0 /tmp/f", ["truncate", "-s0", "/tmp/f"]],
+    ["curl -o /tmp/f https://example.com", ["curl", "-o", "/tmp/f", "https://example.com"]],
+    ["npm run test:unit", ["npm", "run", "test:unit"]],
+    ["node -e 1", ["node", "-e", "1"]],
+    ["bash -c 'rm -rf /tmp/x'", ["bash", "-c", "rm -rf /tmp/x"]],
+  ] as const;
+  const mismatches = mutations.filter(
+    ([command, argv]) =>
+      evaluateGuard(readOnly, bash(command))?.block !== true ||
+      evaluateGuard(readOnly, cliCall(argv))?.block !== true,
+  );
+  assert.deepEqual(mismatches, [], "both routes must reach the same verdict");
+
+  const reads = [
+    ["git status", ["git", "status"]],
+    ["grep -rn nc src/", ["grep", "-rn", "nc", "src/"]],
+    ["sed -n 1p f", ["sed", "-n", "1p", "f"]],
+  ] as const;
+  const refusals = reads.filter(
+    ([command, argv]) =>
+      evaluateGuard(readOnly, bash(command)) !== undefined || evaluateGuard(readOnly, cliCall(argv)) !== undefined,
+  );
+  assert.deepEqual(refusals, [], "both routes must leave the read path open");
+
+  assert.equal(
+    evaluateGuard(readOnly, cliCall(["echo", "pwned", ">", "/tmp/f"])),
+    undefined,
+    "argv carries no redirection surface, so a redirect-looking operand is a plain argument",
+  );
+});
+
+test("a network-only tool is gated by the network axis before its capability grant", () => {
+  const browserOnly = guardFor({ integrations: ["browser-ui"], network: "allowed" });
+  assert.equal(evaluateGuard(browserOnly, { toolName: "pstack_control_ui", input: {} }), undefined);
+  const noNetwork = guardFor({ integrations: ["browser-ui"], network: "none" });
+  assert.match(
+    evaluateGuard(noNetwork, { toolName: "pstack_control_ui", input: {} })?.reason ?? "",
+    /network none blocks pstack_control_ui/,
+  );
+  assert.equal(evaluateGuard(noNetwork, { toolName: "read", input: {} }), undefined);
 });

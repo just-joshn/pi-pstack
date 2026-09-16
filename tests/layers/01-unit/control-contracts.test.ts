@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Check } from "typebox/value";
 import { registerCompanions } from "../../../extensions/companions/index.ts";
+import { INTERPRETER_COMMANDS } from "../../../extensions/lib/exec-allowlist.ts";
 
 const ALLOWLIST = [
   "npm",
@@ -113,15 +114,19 @@ test("control-01 validates argv against the allowlist", async () => {
   const env = companionEnv();
   const cli = env.tool("pstack_control_cli");
 
-  for (const command of ALLOWLIST) {
-    const result = await cli.execute("t", { argv: [command, "--version"] });
-    assert.equal(result.details.code, 0, `${command} passes the allowlist`);
-  }
-  assert.deepEqual(
-    env.calls().map((call) => call.command),
-    ALLOWLIST,
-  );
+  const trusted = await cli.execute("t", { argv: ["git", "--version"] });
+  assert.equal(trusted.details.code, 0, "a trusted command passes the allowlist");
+  assert.equal(env.calls().at(-1)?.command, "git");
 
+  for (const command of INTERPRETER_COMMANDS) {
+    await assert.rejects(
+      () => cli.execute("t", { argv: [command, "--version"] }),
+      { message: `interpreter '${command}' requires an explicit allowInterpreters opt-in` },
+      `${command} needs the explicit opt-in`,
+    );
+  }
+
+  const reachedExec = env.calls().length;
   await assert.rejects(() => cli.execute("t", { argv: ["rm", "-rf", "/"] }), {
     message: `command 'rm' not in control_cli allowlist (${ALLOWLIST.join(", ")})`,
   });
@@ -131,7 +136,16 @@ test("control-01 validates argv against the allowlist", async () => {
   await assert.rejects(() => cli.execute("t", { argv: ["-v"] }), {
     message: "argv[0] must be a command name/path",
   });
-  assert.equal(env.calls().length, ALLOWLIST.length, "rejected commands never reach exec");
+  assert.equal(env.calls().length, reachedExec, "rejected commands never reach exec");
+
+  process.env.PSTACK_CONTROL_CLI_INTERPRETERS = "1";
+  try {
+    const opted = await cli.execute("t", { argv: ["node", "--version"] });
+    assert.equal(opted.details.code, 0, "the documented opt-in reaches exec");
+    assert.equal(env.calls().at(-1)?.command, "node");
+  } finally {
+    Reflect.deleteProperty(process.env, "PSTACK_CONTROL_CLI_INTERPRETERS");
+  }
 
   const byPath = await cli.execute("t", { argv: ["/usr/local/bin/git", "status"] });
   assert.equal(byPath.details.code, 0);
@@ -165,10 +179,15 @@ test("control-02 runs argv without a shell and caps output at the 50KB default l
   assert.equal(readFileSync(result.details.fullOutputPath as string, "utf8"), `${stdout}\n`);
 
   const short = companionEnv(() => ({ code: 0, stdout: "all good", stderr: "warn" }));
-  const shortResult = await short.tool("pstack_control_cli").execute("t", {
-    argv: ["make", "test"],
-  });
-  assert.equal(shortResult.content[0].text, "exit 0\n\nall good\nwarn");
+  process.env.PSTACK_CONTROL_CLI_INTERPRETERS = "1";
+  try {
+    const shortResult = await short.tool("pstack_control_cli").execute("t", {
+      argv: ["make", "test"],
+    });
+    assert.equal(shortResult.content[0].text, "exit 0\n\nall good\nwarn");
+  } finally {
+    Reflect.deleteProperty(process.env, "PSTACK_CONTROL_CLI_INTERPRETERS");
+  }
 });
 
 test("control-03 probes the URL with the requested method and expected status", async () => {
@@ -237,8 +256,8 @@ test("control-06 passes the optional cwd through to exec", async () => {
   const env = companionEnv();
   const cli = env.tool("pstack_control_cli");
 
-  await cli.execute("t", { argv: ["npm", "run", "build"], cwd: "/tmp/control-cwd" });
-  await cli.execute("t", { argv: ["npm", "run", "build"] });
+  await cli.execute("t", { argv: ["git", "log"], cwd: "/tmp/control-cwd" });
+  await cli.execute("t", { argv: ["git", "log"] });
 
   assert.equal(env.calls()[0].opts?.cwd, "/tmp/control-cwd");
   assert.equal(env.calls()[1].opts?.cwd, undefined);
