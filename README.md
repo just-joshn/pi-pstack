@@ -118,6 +118,10 @@ Tests are hermetic (temp `HOME` and agent dirs, `PI_OFFLINE=1`, no ports) and ne
 
 Cursor `Task` / `subagent_type` map to these tools. Built-in Pi tools remain `read` / `write` / `edit` / `bash`. Parallel fleets use **local** `pstack_spawn` + `pstack_worktree` (not Cursor cloud VMs).
 
+### Child cwd containment
+
+`pstack_spawn` and `pstack_task` accept a `cwd` and a `resumeSessionDir`. Both are resolved through `realpath` and must stay inside the workspace root (the parent tool's cwd); the same rule keeps `pstack_decision_log` writes under `.pi`. A path that escapes through a symlink or an absolute path is refused with an error naming the requested path and the resolved location. For an intentional second workspace, set `PSTACK_ALLOWED_CWD` to a `path.delimiter`-separated root list; that escape hatch applies to spawn cwd and `resumeSessionDir`, never to the decision log.
+
 ## Commands
 
 - `/poteto-mode` [task] — sticky poteto-mode on (+ optional task)

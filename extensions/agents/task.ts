@@ -16,6 +16,7 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { MAX_TIMEOUT_MS, wantsBackground, type ChildTaskInput } from "../subagents/child-runner.ts";
 import {
+  containSpawnPath,
   prepareChildInput,
   runPreparedChild,
   type ChildToolReply,
@@ -349,7 +350,7 @@ async function executeTask(
     ...prepared.childInput,
     policy,
     thinkingLevel,
-    ...(worktree ? { cwd: worktree.path } : {}),
+    ...(worktree ? { cwd: containSpawnPath(worktree.path, ctx.cwd, "pstack_task worktree cwd") } : {}),
   };
   const reply = await runPreparedChild({
     prepared: { ...prepared, childInput },

@@ -245,7 +245,7 @@ test("host-08 benny and control_ui error paths throw", async () => {
   globalThis.fetch = (() => Promise.reject(new Error("connection refused"))) as typeof fetch;
   try {
     await assert.rejects(
-      () => probe.execute("t", { url: "http://127.0.0.1:1/" }),
+      () => probe.execute("t", { url: "http://127.0.0.1:1/", allowHosts: ["127.0.0.1"] }),
       /pstack_control_ui failed: connection refused/,
     );
   } finally {

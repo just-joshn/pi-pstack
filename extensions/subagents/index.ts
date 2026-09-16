@@ -13,6 +13,7 @@ import { DEFAULT_MAX_LINES } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { stripAtPrefix } from "../lib/paths.ts";
+import { allowedCwdRoots, assertPathContainment } from "../lib/path-contain.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   MAX_CONCURRENCY,
@@ -98,6 +99,12 @@ function resolveChildToolList(params: SpawnParams, role: string, pi: ExtensionAP
   return resolveTools(role, params, parentTools);
 }
 
+/** Resolve a caller-supplied spawn path against the workspace root, honoring the documented allowlist. */
+export function containSpawnPath(requested: string | undefined, root: string, label: string): string | undefined {
+  if (requested === undefined) return undefined;
+  return assertPathContainment(requested, { root, label, allowedRoots: allowedCwdRoots(root) });
+}
+
 /**
  * Shared prepare step for pstack_spawn and pstack_task. Refactored from
  * prepareChildInputFromParams so both tools call one implementation; observable
@@ -122,17 +129,18 @@ export function prepareChildInput(
     params.sessionMode === "isolated" || params.sessionMode === "ephemeral"
       ? params.sessionMode
       : undefined;
-  const resumeSessionDir = resolveResumeSessionDirParam({
+  const requestedResumeDir = resolveResumeSessionDirParam({
     resumeSessionDir: stripAtPrefix(params.resumeSessionDir),
     resumeJobId: params.resumeJobId,
     sessionMode,
   });
+  const resumeSessionDir = containSpawnPath(requestedResumeDir, ctx.cwd, "resumeSessionDir");
   const background = wantsBackground(params.background, poteto);
 
   const childInput = {
     task: params.task,
     model,
-    cwd: stripAtPrefix(params.cwd),
+    cwd: containSpawnPath(stripAtPrefix(params.cwd), ctx.cwd, "pstack_spawn cwd"),
     role,
     poteto,
     tools,

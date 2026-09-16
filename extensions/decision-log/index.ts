@@ -8,18 +8,23 @@ import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-
 import { CONFIG_DIR_NAME, withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { stripAtPrefix } from "../lib/paths.ts";
+import { assertPathContainment } from "../lib/path-contain.ts";
 
 const HEADER = "ts\tphase\tdecision\twhy\tevidence\tresult\n";
 
 function assertAllowlistedLogPath(cwd: string, requested: string): string {
   const root = resolve(cwd, CONFIG_DIR_NAME);
   const path = resolve(cwd, requested);
+  const refusal = `pstack_decision_log path must stay under ${root} (got ${path}). Use .pi/decisions.tsv or .pi/audit/<slug>.tsv`;
   if (path === root || !path.startsWith(root + sep)) {
-    throw new Error(
-      `pstack_decision_log path must stay under ${root} (got ${path}). Use .pi/decisions.tsv or .pi/audit/<slug>.tsv`,
-    );
+    throw new Error(refusal);
   }
-  return path;
+  try {
+    return assertPathContainment(path, { root, label: "pstack_decision_log path" });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`${refusal} ${detail}`);
+  }
 }
 
 type DecisionLogParams = {

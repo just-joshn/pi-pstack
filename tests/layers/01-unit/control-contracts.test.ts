@@ -178,6 +178,7 @@ test("control-03 probes the URL with the requested method and expected status", 
       url: "http://127.0.0.1:65535/health",
       method: "HEAD",
       expectStatus: 503,
+      allowHosts: ["127.0.0.1"],
     });
     assert.deepEqual(env.fetchCalls(), [{ url: "http://127.0.0.1:65535/health", method: "HEAD" }]);
     assert.equal(result.details.status, 503);
@@ -193,7 +194,7 @@ test("control-04 returns the HTTP status and a truncated body snippet", async ()
   const body = `prefix-${'b'.repeat(60_000)}`;
   const env = fakeFetchEnv(() => ({ status: 200, ok: true, body }));
   try {
-    const result = await env.probe.execute("t", { url: "http://localhost:3000/" });
+    const result = await env.probe.execute("t", { url: "http://localhost:3000/", allowHosts: ["localhost"] });
     assert.equal(result.details.status, 200);
     assert.equal(result.details.ok, true);
     const text = result.content[0].text;
@@ -206,7 +207,7 @@ test("control-04 returns the HTTP status and a truncated body snippet", async ()
 
     const small = fakeFetchEnv(() => ({ status: 200, ok: true, body: "upstream down" }));
     try {
-      const smallResult = await small.probe.execute("t", { url: "http://localhost:3000/" });
+      const smallResult = await small.probe.execute("t", { url: "http://localhost:3000/", allowHosts: ["localhost"] });
       assert.equal(smallResult.content[0].text, "HTTP 200 ok=true\n\nupstream down");
     } finally {
       small.restore();
@@ -277,8 +278,12 @@ test("control-08 requires the url parameter", async () => {
 test("control-09 defaults the ui method to GET", async () => {
   const env = fakeFetchEnv(() => ({ status: 200, ok: true, body: "ok" }));
   try {
-    await env.probe.execute("t", { url: "http://localhost:3000/one" });
-    await env.probe.execute("t", { url: "http://localhost:3000/two", method: "POST" });
+    await env.probe.execute("t", { url: "http://localhost:3000/one", allowHosts: ["localhost"] });
+    await env.probe.execute("t", {
+      url: "http://localhost:3000/two",
+      method: "POST",
+      allowHosts: ["localhost"],
+    });
     assert.deepEqual(
       env.fetchCalls().map((call) => call.method),
       ["GET", "POST"],
@@ -294,12 +299,14 @@ test("control-10 honors the optional expectStatus parameter", async () => {
     const matched = await env.probe.execute("t", {
       url: "http://localhost:3000/",
       expectStatus: 503,
+      allowHosts: ["localhost"],
     });
     const mismatched = await env.probe.execute("t", {
       url: "http://localhost:3000/",
       expectStatus: 200,
+      allowHosts: ["localhost"],
     });
-    const omitted = await env.probe.execute("t", { url: "http://localhost:3000/" });
+    const omitted = await env.probe.execute("t", { url: "http://localhost:3000/", allowHosts: ["localhost"] });
 
     assert.deepEqual(
       [matched.details.ok, mismatched.details.ok, omitted.details.ok],

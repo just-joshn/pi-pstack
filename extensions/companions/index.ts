@@ -10,6 +10,8 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { capToolOutput } from "../lib/tool-output.ts";
 import { stripAtPrefix, stripAtPrefixes } from "../lib/paths.ts";
+import { resolveTrustedCommand } from "../lib/exec-allowlist.ts";
+import { fetchFollowingSafeRedirects, validateProbeTarget } from "../lib/url-policy.ts";
 import {
   SLOP_PATTERNS,
   applySafeDeletes,
@@ -76,7 +78,27 @@ const CONTROL_UI_PARAMETERS = Type.Object({
   url: Type.String(),
   method: Type.Optional(Type.String()),
   expectStatus: Type.Optional(Type.Integer()),
+  allowHosts: Type.Optional(
+    Type.Array(Type.String(), {
+      description:
+        "Explicit opt-in hostnames (exact match) that may bypass the private-address check, e.g. localhost while developing a UI. Off by default; metadata hostnames and .internal/.local stay blocked.",
+    }),
+  ),
 });
+
+const ALLOWED_CONTROL_COMMAND_LIST = Object.freeze([...ALLOWED_CONTROL_COMMANDS]);
+
+function interpretersAllowed(): boolean {
+  return (process.env.PSTACK_CONTROL_CLI_INTERPRETERS ?? "1") !== "0";
+}
+
+function uiAllowHosts(extra?: readonly string[]): string[] {
+  const fromEnv = (process.env.PSTACK_CONTROL_UI_ALLOW_HOSTS ?? "")
+    .split(",")
+    .map((host) => host.trim())
+    .filter((host) => host !== "");
+  return [...fromEnv, ...(extra ?? [])];
+}
 
 function buildGitDiffArgs(base: string, paths?: string[]): string[] {
   const args = ["diff", "-U3", `${base}...HEAD`];
@@ -332,16 +354,11 @@ function registerControlCliTool(pi: ExtensionAPI): void {
     parameters: CONTROL_CLI_PARAMETERS,
     async execute(_id, params, signal) {
       const [command, ...args] = params.argv;
-      if (!command || command.startsWith("-")) {
-        throw new Error("argv[0] must be a command name/path");
-      }
-      const parts = command.split("/");
-      const base = parts.length > 0 ? parts[parts.length - 1] : command;
-      if (!ALLOWED_CONTROL_COMMANDS.has(base)) {
-        throw new Error(
-          `command '${base}' not in control_cli allowlist (${[...ALLOWED_CONTROL_COMMANDS].join(", ")})`,
-        );
-      }
+      const resolution = resolveTrustedCommand(command, {
+        commandAllowlist: ALLOWED_CONTROL_COMMAND_LIST,
+        allowInterpreters: interpretersAllowed(),
+      });
+      if (!resolution.ok) throw new Error(resolution.reason);
       const result = await pi.exec(command, args, {
         signal,
         timeout: (params.timeoutSeconds ?? 120) * 1000,
@@ -374,9 +391,18 @@ function registerControlUiTool(pi: ExtensionAPI): void {
     promptSnippet: "HTTP-probe a UI surface for proof",
     parameters: CONTROL_UI_PARAMETERS,
     async execute(_id, params, signal) {
+      const allowHosts = uiAllowHosts(params.allowHosts);
+      const validated = await validateProbeTarget(params.url, { allowHosts });
+      if (!validated.ok) {
+        throw new Error(`pstack_control_ui refused ${params.url}: ${validated.reason}`);
+      }
       const method = params.method ?? "GET";
       try {
-        const res = await fetch(params.url, { method, signal: signal ?? null });
+        const res = await fetchFollowingSafeRedirects(fetch, validated.target, {
+          method,
+          signal: signal ?? null,
+          allowHosts,
+        });
         const capped = capToolOutput(await res.text(), { keep: "head", label: "control-ui" });
         const expect = params.expectStatus;
         const ok = expect == null ? res.ok : res.status === expect;
