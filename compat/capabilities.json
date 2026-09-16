@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "spec/surfaces.tsv",
+  "capabilities": [
+    {
+      "id": "0",
+      "title": "infrastructure",
+      "surfaces": [
+        "content",
+        "commands",
+        "decision"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "24 ledger row(s), 24 verified, 0 excluded"
+    },
+    {
+      "id": "1",
+      "title": "poteto-mode sticky + playbook routing",
+      "surfaces": [
+        "sticky"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "12 ledger row(s), 12 verified, 0 excluded"
+    },
+    {
+      "id": "2",
+      "title": "Task / subagent → spawn / swarm / arena",
+      "surfaces": [
+        "spawn",
+        "jobs",
+        "swarm",
+        "arena"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "43 ledger row(s), 43 verified, 0 excluded"
+    },
+    {
+      "id": "3",
+      "title": "/loop → pstack_loop",
+      "surfaces": [
+        "loop"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "50 ledger row(s), 50 verified, 0 excluded"
+    },
+    {
+      "id": "4",
+      "title": "worktrees isolation",
+      "surfaces": [
+        "worktree"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "15 ledger row(s), 15 verified, 0 excluded"
+    },
+    {
+      "id": "5",
+      "title": "shipping / babysit (gh)",
+      "surfaces": [
+        "ship",
+        "babysit",
+        "gates"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "39 ledger row(s), 39 verified, 0 excluded"
+    },
+    {
+      "id": "6",
+      "title": "deslop / control companions",
+      "surfaces": [
+        "deslop",
+        "control"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "26 ledger row(s), 26 verified, 0 excluded"
+    },
+    {
+      "id": "7",
+      "title": "model role routing",
+      "surfaces": [
+        "models"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "9 ledger row(s), 9 verified, 0 excluded"
+    },
+    {
+      "id": "8",
+      "title": "recall",
+      "surfaces": [
+        "sessions"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "17 ledger row(s), 17 verified, 0 excluded"
+    },
+    {
+      "id": "9",
+      "title": "make-bot-ui",
+      "surfaces": [
+        "ceiling"
+      ],
+      "status": "implemented",
+      "hostedRequired": true,
+      "notes": "12 ledger row(s), 0 verified, 12 excluded"
+    },
+    {
+      "id": "10",
+      "title": "Benny",
+      "surfaces": [
+        "benny"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "10 ledger row(s), 10 verified, 0 excluded"
+    },
+    {
+      "id": "11",
+      "title": "Ask-mode / readonly semantics",
+      "surfaces": [
+        "readonly"
+      ],
+      "status": "verified",
+      "hostedRequired": false,
+      "notes": "14 ledger row(s), 14 verified, 0 excluded"
+    },
+    {
+      "id": "12",
+      "title": "Automations / cloud agents / marketplace",
+      "surfaces": [
+        "ceiling"
+      ],
+      "status": "implemented",
+      "hostedRequired": true,
+      "notes": "12 ledger row(s), 0 verified, 12 excluded"
+    }
+  ]
+}

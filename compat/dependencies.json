@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "dependencies": [
+    {
+      "id": "marketplace",
+      "upstreamEvidence": ".cursor-plugin manifest and /add-plugin; schema only at repo-root schemas/marketplace.schema.json; zero marketplace hits inside pstack",
+      "disposition": "exception",
+      "piMechanism": "exception: package.json pi manifest replaces the Cursor marketplace",
+      "verification": "spec-check twin@content",
+      "notes": "Catalog plus install flow live in Cursor; Pi installs from the package manifest and the content surface is the twin."
+    },
+    {
+      "id": "cloud-agents",
+      "upstreamEvidence": "environment:\"cloud\", cloud_base_branch, cloud VM, dashboard agent status; named only, no in-tree spec",
+      "disposition": "hosted",
+      "piMechanism": "hosted: services/worker worker protocol",
+      "verification": "spec-check twin@worktree",
+      "notes": "Isolated local worktrees are the fallback; the remote worker is the mandated future path."
+    },
+    {
+      "id": "automations-slack",
+      "upstreamEvidence": "Automations editor and Slack bus; FOR_AGENTS.md:67-89 settings merge; placeholder Slack action names at configuration.example.yaml:11-14",
+      "disposition": "hosted",
+      "piMechanism": "hosted: services/benny receiver",
+      "verification": "spec-check twin@benny",
+      "notes": "pstack_benny_wake plus pstack_loop is the local fallback; the receiver is the mandated future path."
+    },
+    {
+      "id": "grok-bot",
+      "upstreamEvidence": "update_state, SendToUser secret cards, api2.cursor.sh webhook; make-bot-ui SKILL.md:15-113",
+      "disposition": "hosted",
+      "piMechanism": "hosted: services/benny receiver",
+      "verification": "spec-check twin@benny",
+      "notes": "The benny webhook twin is the local fallback; the receiver is the mandated future path."
+    },
+    {
+      "id": "mcp",
+      "upstreamEvidence": "mcps/ directory and mcp_auth; why SKILL.md:62,83; no tool/URI/schema spec",
+      "disposition": "hosted",
+      "piMechanism": "hosted: services/worker worker protocol",
+      "verification": "spec-check twin@spawn",
+      "notes": "Child tool grants are the local twin; a provisioned MCP-capable host is the mandated future path."
+    },
+    {
+      "id": "sticky-host",
+      "upstreamEvidence": "reminder, mode, icon, color frontmatter; poteto-mode SKILL.md:5-8; Pi ignores unknown frontmatter",
+      "disposition": "exception",
+      "piMechanism": "exception: Pi frontmatter schema is closed",
+      "verification": "spec-check twin@sticky",
+      "notes": "Pi ignores unknown frontmatter; the sticky surface reproduces the mode and the chrome stays a Cursor exception."
+    },
+    {
+      "id": "/loop",
+      "upstreamEvidence": "named in 15 places; guide 07:24 calls it Cursor's built-in wake mechanism; no cadence or stop spec",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/heartbeat/index.ts",
+      "verification": "tests/layers/01-unit/loop-contracts.test.ts",
+      "notes": "pstack_loop reproduces the wake contract across interval, settle, watcher, and dynamic modes."
+    },
+    {
+      "id": "durable-jobs",
+      "upstreamEvidence": "run_in_background and is_background flags; no spec; Pi registry is an in-process Map whose jobs are aborted on session_shutdown and dropped with the process",
+      "disposition": "hosted",
+      "piMechanism": "hosted: services/worker worker protocol",
+      "verification": "spec-check twin@jobs",
+      "notes": "Session-scoped jobs are the local fallback; durable jobs are the mandated future path."
+    },
+    {
+      "id": "ide-driving",
+      "upstreamEvidence": "full Electron and IDE driving via control-ui; cursor-team-kit skill, not in pstack",
+      "disposition": "hosted",
+      "piMechanism": "hosted: services/worker worker protocol",
+      "verification": "spec-check twin@control",
+      "notes": "pstack_control_cli and pstack_control_ui are the local fallback; IDE driving is the mandated future path."
+    },
+    {
+      "id": "mdc-rules",
+      "upstreamEvidence": "~/.cursor/rules/*.mdc alwaysApply; setup-pstack:39-44 example only; no rule-engine spec",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/models/budget.ts",
+      "verification": "tests/layers/01-unit/models-budget.test.ts",
+      "notes": "The roles section is injected on every before_agent_start, reproducing the always-applied rule effect."
+    },
+    {
+      "id": "transcript-store",
+      "upstreamEvidence": "~/.cursor/projects/<slug>/agent-transcripts/<uuid>/<uuid>.jsonl; recall:15 and reflect:19-22",
+      "disposition": "prerequisite",
+      "piMechanism": "prerequisite: Pi session store (ctx.sessionManager, PI_SESSION_DIR)",
+      "verification": "tests/layers/01-unit/sessions-contracts.test.ts",
+      "notes": "Needs a host session corpus at runtime; Pi supplies one and pstack_sessions rebuilds recall over it."
+    },
+    {
+      "id": "history-inheritance",
+      "upstreamEvidence": "parent conversation history and MCP inheritance to children; no API; children get argv and env only",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/subagents/child-runner.ts (argv + env only)",
+      "verification": "tests/layers/01-unit/child-runner-units.test.ts",
+      "notes": "Pi passes argv and env only, matching the upstream contract that children get no parent history."
+    },
+    {
+      "id": "task",
+      "upstreamEvidence": "Task tool and subagent_type; params run_in_background, readonly, model, environment, cloud_base_branch, is_background; no schema; poteto-mode:89-95 fixes defaults",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/subagents/index.ts (pstack_spawn)",
+      "verification": "tests/layers/01-unit/spawn-contracts.test.ts",
+      "notes": "pstack_spawn adopts the Task defaults, roles, model resolution, and background contract."
+    },
+    {
+      "id": "/deslop",
+      "upstreamEvidence": "cursor-team-kit skill; README:233; poteto-mode:28; opening-a-pr:9,33",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/companions/deslop-core.ts",
+      "verification": "tests/layers/01-unit/deslop-contracts.test.ts",
+      "notes": "Native pstack_deslop replaces the cursor-team-kit skill; prose cleanup pairs with unslop."
+    },
+    {
+      "id": "control-cli",
+      "upstreamEvidence": "cursor-team-kit skill; README:234; poteto-mode:30; orchestrate:17; shipping:7",
+      "disposition": "prerequisite",
+      "piMechanism": "prerequisite: host CLI/TUI on PATH driven through pi.exec",
+      "verification": "tests/layers/01-unit/control-contracts.test.ts",
+      "notes": "Needs a runnable CLI target at runtime; pstack_control_cli drives it when present."
+    },
+    {
+      "id": "control-ui",
+      "upstreamEvidence": "cursor-team-kit skill; Pi twin is the pstack_control_ui HTTP probe",
+      "disposition": "prerequisite",
+      "piMechanism": "prerequisite: reachable HTTP URL or browser target",
+      "verification": "tests/layers/01-unit/control-contracts.test.ts",
+      "notes": "Needs a reachable UI target at runtime; pstack_control_ui probes it when present."
+    },
+    {
+      "id": "ask-mode",
+      "upstreamEvidence": "why SKILL.md:83 and reflect SKILL.md:31 say readonly or Ask mode strips MCP access; the mode itself is host chrome with no in-tree spec",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/readonly-state/index.ts",
+      "verification": "tests/layers/01-unit/readonly-state.test.ts",
+      "notes": "Pi has no host Ask mode, so the extension owns the readonly policy for writing and exec tools."
+    },
+    {
+      "id": "slash-commands",
+      "upstreamEvidence": "README.md skill table names the slash surface and every SKILL.md frontmatter carries a name; the invocation mechanism is host-provided",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/commands/skill-commands.ts",
+      "verification": "tests/layers/01-unit/commands-contracts.test.ts",
+      "notes": "Each skill registers a /name shim that expands arguments, mirroring the host slash surface."
+    },
+    {
+      "id": "content-parity",
+      "upstreamEvidence": "the pinned upstream tree under skills/, agents/, automations/, and docs/; port/README.md documents the binding mechanism",
+      "disposition": "reproduced",
+      "piMechanism": "port/port.mjs",
+      "verification": "gate@parity:check",
+      "notes": "The ported tree equals the declared bindings applied to the pinned upstream commit."
+    },
+    {
+      "id": "plan-mode",
+      "upstreamEvidence": "README:241 only, no semantics; upstream says /poteto-mode covers planning",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/sticky-playbook.ts",
+      "verification": "tests/layers/01-unit/runtime-wiring.test.ts",
+      "notes": "Upstream says /poteto-mode covers planning; the playbook matcher reproduces that routing."
+    },
+    {
+      "id": "bugbot",
+      "upstreamEvidence": "external reviewer service; bugbot-triage.md policy ported; watch-pr identifies it by author substring",
+      "disposition": "prerequisite",
+      "piMechanism": "prerequisite: gh CLI and the bugbot review service",
+      "verification": "tests/layers/01-unit/babysit-contracts.test.ts",
+      "notes": "Needs gh and the external reviewer at runtime; watch-pr identifies bugbot by author substring."
+    },
+    {
+      "id": "tailscale",
+      "upstreamEvidence": "make-bot-ui runbook only; preserved by the make-bot-ui override must-pins",
+      "disposition": "prerequisite",
+      "piMechanism": "prerequisite: tailscale CLI on the host",
+      "verification": "gate@parity:check",
+      "notes": "The runbook is preserved verbatim and needs the tailscale CLI at runtime."
+    },
+    {
+      "id": "origin-gt",
+      "upstreamEvidence": "Origin CLI and Graphite gt; shipping.md:7 says never require Graphite; preserved verbatim",
+      "disposition": "prerequisite",
+      "piMechanism": "prerequisite: gh CLI (Origin/Graphite never required)",
+      "verification": "gate@parity:check",
+      "notes": "Preserved verbatim; the shipping surface uses gh and never requires Graphite."
+    },
+    {
+      "id": "askquestion",
+      "upstreamEvidence": "AskQuestion dialog; setup-pstack:22,31 and automate-me:44; semantics undefined in-tree",
+      "disposition": "reproduced",
+      "piMechanism": "binding:askquestion",
+      "verification": "port/port.mjs check",
+      "notes": "The binding rewrites AskQuestion to a structured chat question."
+    },
+    {
+      "id": "create-skill",
+      "upstreamEvidence": "Cursor built-in create-skill; no in-tree counterpart; Pi authors SKILL.md",
+      "disposition": "reproduced",
+      "piMechanism": "binding:create-skill-authoring",
+      "verification": "port/port.mjs check",
+      "notes": "The binding rewrites create-skill to Pi skill authoring per the Agent Skills standard."
+    },
+    {
+      "id": "cursor-babysit",
+      "upstreamEvidence": "Cursor built-in /babysit collision; README:235 and playbooks/babysit.md:3",
+      "disposition": "reproduced",
+      "piMechanism": "binding:cursor-builtin-babysit-poteto",
+      "verification": "port/port.mjs check",
+      "notes": "The binding disambiguates the built-in /babysit collision from the Babysit playbook."
+    },
+    {
+      "id": "cursor-team-kit",
+      "upstreamEvidence": "cursor-team-kit plugin ships /deslop and control-cli/control-ui; sibling directory, not in pstack",
+      "disposition": "reproduced",
+      "piMechanism": "binding:deslop-team-kit",
+      "verification": "port/port.mjs check",
+      "notes": "The binding rewrites cursor-team-kit references to native pstack_deslop and control tools."
+    },
+    {
+      "id": "automate",
+      "upstreamEvidence": "Cursor built-in /automate and Automations editor; benny FOR_AGENTS.md references",
+      "disposition": "reproduced",
+      "piMechanism": "binding:benny-first-time-creation",
+      "verification": "port/port.mjs check",
+      "notes": "The binding rewrites the built-in /automate flow to the benny skills."
+    },
+    {
+      "id": "playbook-routing",
+      "upstreamEvidence": "skills/poteto-mode/SKILL.md playbook table plus the routing cues in playbooks/*.md; the host provides no router, so each implementation matches task text to a playbook",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/sticky-playbook.ts",
+      "verification": "tests/layers/01-unit/runtime-wiring.test.ts",
+      "notes": "The matcher scores playbook cues and routes task text to one playbook, as the host has no router."
+    },
+    {
+      "id": "model-picker",
+      "upstreamEvidence": "skills/setup-pstack/SKILL.md:22-38 four budget labels and the effort-token rewrite over the ladder max>xhigh>high>medium>low; Cursor carries effort in the model name",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/models/config.ts",
+      "verification": "tests/layers/01-unit/models-contracts.test.ts",
+      "notes": "Budget labels and the effort-token rewrite are resolved into Pi thinking levels."
+    },
+    {
+      "id": "worktree-isolation",
+      "upstreamEvidence": "how, arena, swarm, autopilot, and orchestrate playbooks instruct one isolated worktree per worker; no host API exists, so each implementation allocates and cleans up its own",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/worktree/index.ts",
+      "verification": "tests/layers/01-unit/worktree-contracts.test.ts",
+      "notes": "Each worker allocates and cleans up its own git worktree because no host API exists."
+    }
+  ]
+}
