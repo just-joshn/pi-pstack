@@ -83,6 +83,18 @@ export function forcePotetoSkillMessage(
     : `/skill:poteto-mode ${t}`;
 }
 
+/** A playbook is assigned when none is set yet, or when the match is at least this strong. */
+export const PLAYBOOK_ASSIGN_SCORE = 5;
+
+/**
+ * Casual turns during an ongoing task must not reassign the playbook. A playbook
+ * that is already assigned only changes when the new match clears
+ * PLAYBOOK_ASSIGN_SCORE.
+ */
+export function shouldAssignPlaybook(currentPlaybookId: string | null, score: number): boolean {
+  return currentPlaybookId === null || score >= PLAYBOOK_ASSIGN_SCORE;
+}
+
 /** Playbooks that should auto-arm session readonly when sticky-matched. */
 export const AUTO_READONLY_PLAYBOOKS = new Set(["investigation"]);
 

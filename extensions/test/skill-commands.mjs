@@ -56,7 +56,7 @@ await check("readSkillCommands covers every skill directory, deduped and sorted"
 await check("registerSkillCommands skips the reserved set", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/commands/skill-commands.ts")).href);
   const pi = fakePi();
-  mod.registerSkillCommands(pi);
+  mod.registerSkillCommands(pi, { shadowed: [] });
   for (const reserved of mod.RESERVED_COMMAND_NAMES) {
     assert.ok(!pi.registered.has(reserved), `must not register reserved name ${reserved}`);
   }
@@ -79,11 +79,11 @@ await check("registered handler forwards args verbatim into /skill:<name> <args>
   assert.equal(pi.calls[1].content, "/skill:unslop", "empty args must not leave a trailing space");
 });
 
-await check("registerPiOnlyCommands registers babysit/ship/deslop and forwards args", async () => {
+await check("registerPiOnlyCommands registers babysit/ship and forwards args", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/commands/skill-commands.ts")).href);
   const pi = fakePi();
   mod.registerPiOnlyCommands(pi);
-  assert.deepEqual([...pi.registered.keys()].toSorted(), ["babysit", "deslop", "ship"]);
+  assert.deepEqual([...pi.registered.keys()].toSorted(), ["babysit", "ship"]);
   const babysit = pi.registered.get("babysit");
   await babysit.handler("PR 42", {});
   assert.ok(pi.calls[0].content.startsWith("Follow poteto-mode playbooks/babysit.md"));

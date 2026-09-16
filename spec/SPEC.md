@@ -21,7 +21,7 @@ The ledger is portable. Each row states an obligation. The `status` column descr
 The ledger lives in `spec/contracts/`. Every `.tsv` file in that directory is part of the ledger, and the union of those files is the ledger. A row lives in exactly one file. Every file carries the same header line.
 
 ```
-id	surface	status	kind	name	obligation	verification	upstream	reference	finding
+id	surface	status	kind	name	obligation	verification	upstream	reference	finding	class
 ```
 
 Columns and their rules.
@@ -33,9 +33,10 @@ Columns and their rules.
 - `name`. The exact registered name for `tool` and `command` rows. A dash otherwise.
 - `obligation`. One imperative sentence stating the contract. No tabs. Testable.
 - `verification`. Per the grammar below.
-- `upstream`. An upstream file path relative to the upstream `pstack/` root, or `mechanism:<label>` when no in-tree spec exists.
+- `upstream`. An upstream file path relative to the upstream `pstack/` root, or `mechanism:<label>` when no in-tree spec exists. Every `ADAPTED-EQUIVALENT` row names a mechanism here; a row classified by its surface alone does not satisfy the checker.
 - `reference`. Repo-relative path and line of the current implementation, or a dash.
 - `finding`. `#<n>` from `.pi/audit-findings.md`, or a dash.
+- `class`. Exactly one of `EXACT-CONTRACT`, `ADAPTED-EQUIVALENT`, `HOSTED-CAPABILITY-REQUIRED`, `APPROVED-EXCEPTION`. `EXACT-CONTRACT` means Pi reproduces the contract directly. `ADAPTED-EQUIVALENT` means a Pi mechanism stands in for a Cursor mechanism while the contract holds, and every such row names the Cursor mechanism in `upstream` as `mechanism:<label>` with a label that exists in `spec/mechanisms.tsv`. `HOSTED-CAPABILITY-REQUIRED` and `APPROVED-EXCEPTION` are allowed only on `kind=ceiling` rows, and a ceiling row is `ADAPTED-EQUIVALENT` only when its verification is `twin@<surface>` and that surface carries the contract. Every other kind must be `EXACT-CONTRACT` or `ADAPTED-EQUIVALENT`. The checker enforces the mapping, the mechanism label, and rejects vague parity phrases such as `mostly works` or `unsupported by Pi`.
 
 Status state machine.
 
@@ -87,12 +88,13 @@ The 20 surfaces and what each owns.
 - `readonly`. `/pstack-readonly(-off)`, tool policy, auto-arm, status.
 - `sessions`. `pstack_sessions` list/grep/current/recall, ranking.
 - `benny`. `pstack_benny_wake`, `/setup-benny`, `/benny-triage`, `/benny-repro`.
-- `ceiling`. EXCLUDED rows only, each naming its twin surface. The ceiling rows live in `spec/contracts/companions.tsv` with the companion surfaces.
+- `ceiling`. EXCLUDED rows only, each naming its twin surface. A ceiling is `HOSTED-CAPABILITY-REQUIRED`, `APPROVED-EXCEPTION`, or `ADAPTED-EQUIVALENT` when a verified twin reproduces the capability. The ceiling rows live in `spec/contracts/companions.tsv` with the companion surfaces.
 
 Completeness directions, and the honest limit of each.
 
 - Tools both ways. Every `name: "pstack_*"` literal in `extensions/**/*.ts` has a `kind=tool` row, and every `kind=tool` row's name exists. Limit: this proves tool registration, not behavior. It matches literal `name:` fields, so a tool registered through a variable or a computed name would not be found.
 - Mechanisms via `spec/mechanisms.tsv`. Every mechanism the host-mechanism sweep names has exactly one row. Limit: the sweep is a grep over the pinned upstream. A mechanism absent from the sweep is not covered.
+- Mechanism attribution. Every `ADAPTED-EQUIVALENT` row names a mechanism that resolves to a `mechanisms.tsv` row. Limit: this proves the label resolves, not that each attribution is the best available one.
 - Commands via the alias gate. `port/alias.mjs` proves reserved and skill names register once and the arg-forwarding helpers are present. Limit: the gate proves registration shape, not argument semantics.
 
 ## 3. Coverage rule
@@ -111,11 +113,13 @@ coverage = V / eligible
 
 At completion every `EXCLUDED` row's `twin@<surface>` names a surface with a `VERIFIED` row.
 
-As of authoring, the ledger gives `T = 228` with `V = 57`, `U = 144`, `D = 15`, `E = 12`, so `eligible = 216` and `coverage = 57 / 216`. The checker is the authority for these numbers.
+As implemented, the ledger gives `T = 239` with `V = 227`, `U = 0`, `D = 0`, `E = 12`, so `eligible = 227` and `coverage = 100%`. Class split: `ADAPTED-EQUIVALENT = 162`, `EXACT-CONTRACT = 69`, `APPROVED-EXCEPTION = 2`, `HOSTED-CAPABILITY-REQUIRED = 6`. The checker is the authority for these numbers.
 
 ## 4. Host ceilings and exclusions
 
 An exclusion must name its twin surface. Never claim parity there. Each ceiling row is `EXCLUDED` and its twin must have a `VERIFIED` row at `--require-complete`.
+
+A ceiling whose capability a verified twin reproduces is `ADAPTED-EQUIVALENT` rather than `APPROVED-EXCEPTION`. Four rows sit there today: `/loop`, `mdc-rules`, `transcript-store`, and `history-inheritance`. The ceiling record stays so the chrome or storage being stood in for remains visible.
 
 The Pi install prefix below is `PI`. It is the installed `@earendil-works/pi-coding-agent` package root. Resolve it with `node -e "console.log(require.resolve('@earendil-works/pi-coding-agent/package.json'))"` and drop the trailing `/package.json`. The path recorded here is the one this spec was authored against.
 
@@ -135,6 +139,8 @@ The Pi install prefix below is `PI`. It is the installed `@earendil-works/pi-cod
 | mdc-rules | `PI/docs/skills.md:140-152` (no rules engine) | `models` |
 | transcript-store | `PI/docs/session-format.md:380-430` (SessionManager is SDK-only) | `sessions` |
 | history-inheritance | `PI/README.md` Philosophy (no sub-agents) | `spawn` |
+
+The reasoning budget is applied at resolution, not only at setup. `/setup-pstack` writes the budget label into `pstack-models.json`, and `resolveRoleModel` turns it into a Pi thinking level on the selector it returns (`unlimited` becomes `max`, `large` `xhigh`, `medium` `high`, `small` `medium`). An explicit effort token written for a role wins over the budget, and an unrecognized budget leaves the selector untouched. Proven by `models-09`.
 
 Some Pi behaviors deliberately differ from the ported policy. They are not ceilings and not defects. The ledger rows state the Pi contract.
 
@@ -193,7 +199,8 @@ Documented host limits from `PI/README.md` Philosophy: no MCP, no sub-agents, no
 - `spec/SPEC.md`. The contract frame, coverage rule, ceilings, and builder path.
 - `spec/surfaces.tsv`. The surface list and ownership.
 - `spec/mechanisms.tsv`. Upstream mechanism dispositions.
-- `spec/contracts/*.tsv`. The behavioral ledger. The live contract and reference status.
+- `spec/contracts/*.tsv`. The behavioral ledger. The live contract, reference status, and DoD class per row.
+- `spec/DIFFERENTIAL.md`. What the repo proves without a Cursor host, and the procedure and fixtures for the Cursor-side comparison.
 - `PARITY.md`. Historical scorecard. A banner names `spec/SPEC.md` and `spec/contracts/` as the live contract.
 - `README.md`. Install and usage. Replaces the inline status sentence with a pointer to `spec/SPEC.md`.
 - `port/README.md`. Content parity mechanics. One line states the behavioral contract lives in `spec/SPEC.md`.

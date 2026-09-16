@@ -25,6 +25,7 @@ export default function piPstack(pi: ExtensionAPI) {
   let readonlyRuntime: ReadonlyRuntime | undefined;
   createPotetoRuntime(pi, {
     armReadonly: (ctx: EffectContext, reason: string) => readonlyRuntime?.setEnabled(true, ctx, reason),
+    releaseReadonly: (ctx: EffectContext) => readonlyRuntime?.releasePlaybookArm(ctx),
   });
   readonlyRuntime = createReadonlyRuntime(pi);
 

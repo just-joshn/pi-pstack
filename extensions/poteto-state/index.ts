@@ -4,8 +4,10 @@
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
+  PLAYBOOK_ASSIGN_SCORE,
   STICKY_ENTRY_TYPE,
   forcePotetoSkillMessage,
+  shouldAssignPlaybook,
   shouldAutoArmFromPlaybookMatch,
   shouldAutoArmFromSkillText,
   shouldAutoArmReadonly,
@@ -23,11 +25,13 @@ const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 export interface PotetoState {
   readonly enabled: boolean;
   readonly matchedPlaybookId: string | null;
+  readonly matchedScore: number;
+  readonly assignedThisTurn: boolean;
   readonly lastUserText: string;
 }
 
 export function createInitialPotetoState(): PotetoState {
-  return { enabled: false, matchedPlaybookId: null, lastUserText: "" };
+  return { enabled: false, matchedPlaybookId: null, matchedScore: 0, assignedThisTurn: false, lastUserText: "" };
 }
 
 export function reduceSetEnabled(
@@ -47,9 +51,12 @@ export function reduceSetEnabled(
   if (state.enabled === enabled && !playbookChanged && match === undefined) {
     return { state, effects: [] };
   }
+  const nextScore = match === null ? 0 : match?.score ?? state.matchedScore;
   const nextState: PotetoState = {
     enabled,
     matchedPlaybookId: enabled ? nextPlaybook : null,
+    matchedScore: enabled ? nextScore : 0,
+    assignedThisTurn: enabled ? Boolean(match?.id) : false,
     lastUserText: state.lastUserText,
   };
   const effects: Effect[] = [
@@ -78,6 +85,8 @@ export function reducePersistMatch(
   const nextState: PotetoState = {
     ...state,
     matchedPlaybookId: match.id,
+    matchedScore: match.score,
+    assignedThisTurn: true,
   };
   const effects: Effect[] = [
     {
@@ -90,20 +99,22 @@ export function reducePersistMatch(
 }
 
 export function reduceRecordText(state: PotetoState, text: string): PotetoState {
-  return { ...state, lastUserText: text };
+  return { ...state, lastUserText: text, assignedThisTurn: false };
 }
 
 export function reduceRestore(entries: readonly unknown[]): PotetoState {
   let enabled = false;
   let matchedPlaybookId: string | null = null;
+  let matchedScore = 0;
   for (const entry of entries) {
     const data = parseStickyEntry(entry);
     enabled = data.enabled;
     if (data.matchedPlaybookId) {
       matchedPlaybookId = data.matchedPlaybookId;
+      matchedScore = data.matchedScore ?? 0;
     }
   }
-  return { enabled, matchedPlaybookId, lastUserText: "" };
+  return { enabled, matchedPlaybookId, matchedScore, assignedThisTurn: false, lastUserText: "" };
 }
 
 export interface PotetoRuntime {
@@ -113,6 +124,7 @@ export interface PotetoRuntime {
 
 interface PotetoRuntimeOptions {
   armReadonly: (ctx: EffectContext, reason: string) => void;
+  releaseReadonly?: (ctx: EffectContext) => void;
 }
 
 interface PotetoStateRef {
@@ -145,6 +157,46 @@ function registerPotetoSessionStart(pi: ExtensionAPI, stateRef: PotetoStateRef):
   });
 }
 
+/** Assign this turn's playbook when the match allows it; return the forced text when routed. */
+function applyMatchedPlaybook(
+  pi: ExtensionAPI,
+  stateRef: PotetoStateRef,
+  options: PotetoRuntimeOptions,
+  setEnabled: PotetoSetEnabled,
+  text: string,
+  ctx: EffectContext,
+): string | undefined {
+  const matched = matchStickyPlaybook(text);
+  if (!matched || matched.score < 2) return undefined;
+  const assigns = shouldAssignPlaybook(stateRef.state.matchedPlaybookId, matched.score);
+  if (!stateRef.state.enabled && matched.score >= PLAYBOOK_ASSIGN_SCORE) {
+    setEnabled(true, ctx, { id: matched.id, score: matched.score });
+    ctx.ui.notify?.(`Poteto sticky armed via playbook match: ${matched.id}`, "info");
+  } else if (stateRef.state.enabled && assigns) {
+    const result = reducePersistMatch(stateRef.state, { id: matched.id, score: matched.score });
+    stateRef.state = result.state;
+    applyEffects(pi, ctx, result.effects);
+    ctx.ui.setStatus("pstack", `poteto:${matched.id}`);
+  }
+  const armFromMatch = shouldAutoArmFromPlaybookMatch(
+    matched.id,
+    stateRef.state.enabled,
+    matched.score,
+    text,
+  );
+  if (armFromMatch) {
+    options.armReadonly(ctx, `playbook:${matched.id}`);
+  }
+  if (assigns && matched.score >= PLAYBOOK_ASSIGN_SCORE && !shouldAutoArmReadonly(matched.id)) {
+    options.releaseReadonly?.(ctx);
+  }
+  const forces = assigns && (stateRef.state.enabled || matched.score >= PLAYBOOK_ASSIGN_SCORE);
+  if (forces && !text.startsWith("/skill:poteto-mode")) {
+    return forcePotetoSkillMessage(text, matched.id);
+  }
+  return undefined;
+}
+
 function registerPotetoInput(
   pi: ExtensionAPI,
   stateRef: PotetoStateRef,
@@ -152,44 +204,22 @@ function registerPotetoInput(
   setEnabled: PotetoSetEnabled,
 ): void {
   pi.on("input", (event, ctx) => {
+    // Child sessions get poteto-mode through --append-system-prompt; never re-enter sticky routing.
+    if (process.env.PSTACK_CHILD_ROLE) return;
     if (!shouldMatchStickyInput(event.source)) return;
-    stateRef.state = reduceRecordText(stateRef.state, event.text ?? "");
-    if (event.text.startsWith("/skill:poteto-mode") || event.text.startsWith("/poteto-mode")) {
+    const text = event.text ?? "";
+    stateRef.state = reduceRecordText(stateRef.state, text);
+    if (text.startsWith("/skill:poteto-mode") || text.startsWith("/poteto-mode")) {
       setEnabled(true, ctx);
     }
-    let transformText: string | undefined;
-    const matched = matchStickyPlaybook(event.text);
-    if (matched && matched.score >= 2) {
-      if (!stateRef.state.enabled && matched.score >= 5) {
-        setEnabled(true, ctx, { id: matched.id, score: matched.score });
-        ctx.ui.notify?.(`Poteto sticky armed via playbook match: ${matched.id}`, "info");
-      } else if (stateRef.state.enabled) {
-        const result = reducePersistMatch(stateRef.state, { id: matched.id, score: matched.score });
-        stateRef.state = result.state;
-        applyEffects(pi, ctx, result.effects);
-        ctx.ui.setStatus("pstack", `poteto:${matched.id}`);
-      }
-      if ((stateRef.state.enabled || matched.score >= 5) && !event.text.startsWith("/skill:poteto-mode")) {
-        transformText = forcePotetoSkillMessage(event.text, matched.id);
-      }
-      if (
-        !process.env.PSTACK_CHILD_ROLE &&
-        shouldAutoArmFromPlaybookMatch(
-          matched.id,
-          stateRef.state.enabled,
-          matched.score,
-          event.text,
-        )
-      ) {
-        options.armReadonly(ctx, `playbook:${matched.id}`);
-      }
-    }
-    if (!process.env.PSTACK_CHILD_ROLE && shouldAutoArmFromSkillText(event.text)) {
+    const transformText = applyMatchedPlaybook(pi, stateRef, options, setEnabled, text, ctx);
+    if (shouldAutoArmFromSkillText(text)) {
       options.armReadonly(ctx, "skill:investigation");
     }
     if (transformText) {
       return { action: "transform", text: transformText };
     }
+    return undefined;
   });
 }
 
@@ -197,11 +227,10 @@ function registerPotetoPrompt(pi: ExtensionAPI, stateRef: PotetoStateRef): void 
   pi.on("before_agent_start", (event) => {
     let prompt = event.systemPrompt;
     if (stateRef.state.enabled) {
-      const live = stateRef.state.lastUserText ? matchStickyPlaybook(stateRef.state.lastUserText) : undefined;
       prompt = buildPotetoStickyPrompt(prompt, {
-        userText: stateRef.state.lastUserText,
-        match: live ?? null,
-        restoredPlaybookId: live ? null : stateRef.state.matchedPlaybookId,
+        assignedPlaybookId: stateRef.state.assignedThisTurn ? stateRef.state.matchedPlaybookId : null,
+        assignedScore: stateRef.state.matchedScore,
+        restoredPlaybookId: stateRef.state.assignedThisTurn ? null : stateRef.state.matchedPlaybookId,
       });
     }
     if (prompt === event.systemPrompt) return;

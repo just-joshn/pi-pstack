@@ -289,7 +289,7 @@ function registerDeslopTool(pi: ExtensionAPI): void {
     parameters: DESLOP_PARAMETERS,
     async execute(_id, params, signal, _onUpdate, ctx) {
       const base = params.base ?? "main";
-      if (base.startsWith("-") || base.includes("..") || /\s/.test(base)) {
+      if (base.startsWith("-") || base.startsWith(".") || base.includes("..") || /\s/.test(base)) {
         throw new Error("invalid git diff base");
       }
       const { ranked, suggestions, addedLineCount } = await scanDiffForSlop(

@@ -146,11 +146,13 @@ test("shouldPersistOutput resolves explicit, env, and timeout defaults", () => {
   }
 });
 
-test("wantsBackground defaults to background and honors explicit false", () => {
-  assert.equal(wantsBackground(undefined), true);
-  assert.equal(wantsBackground(), true);
-  assert.equal(wantsBackground(false), false);
-  assert.equal(wantsBackground(true), true);
+test("wantsBackground is role-aware: only poteto-agent detaches by default", () => {
+  assert.equal(wantsBackground(undefined), false);
+  assert.equal(wantsBackground(), false);
+  assert.equal(wantsBackground(undefined, false), false);
+  assert.equal(wantsBackground(undefined, true), true);
+  assert.equal(wantsBackground(true, false), true);
+  assert.equal(wantsBackground(false, true), false);
 });
 
 test("resolveTools follows explicit, readonly, auto-readonly, and inherit order", () => {

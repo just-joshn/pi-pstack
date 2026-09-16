@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  assertBunAvailable,
   decideFire,
   shouldSkipSettleArm,
   materializeWatchArgv,
+  watchPrInvocation,
   BABYSIT_WATCH_RECIPES,
   DYNAMIC_COALESCE_MS,
 } from "../../../extensions/heartbeat/coalesce.ts";
@@ -56,8 +58,9 @@ test("shouldSkipSettleArm returns false after window", () => {
 test("materializeWatchArgv for watch-pr-status", () => {
   const result = materializeWatchArgv("watch-pr-status", "123");
   assert.deepEqual(result, [
-    "bash",
+    "bun",
     "skills/poteto-mode/scripts/watch-pr/watch-pr",
+    "--pr",
     "123",
     "--status-only",
   ]);
@@ -66,10 +69,44 @@ test("materializeWatchArgv for watch-pr-status", () => {
 test("materializeWatchArgv for watch-pr-drive", () => {
   const result = materializeWatchArgv("watch-pr-drive", "#456");
   assert.deepEqual(result, [
-    "bash",
+    "bun",
     "skills/poteto-mode/scripts/watch-pr/watch-pr",
+    "--pr",
     "456",
   ]);
+});
+
+test("no babysit recipe executes the bundled watcher through bash", () => {
+  for (const [recipeId, recipe] of Object.entries(BABYSIT_WATCH_RECIPES)) {
+    assert.equal(recipe.argvTemplate.includes("bash"), false, `${recipeId} must not use bash`);
+  }
+});
+
+test("materializeWatchArgv for watch-pr-queued-stack threads the frozen stack", () => {
+  const result = materializeWatchArgv("watch-pr-queued-stack", "7", { stackPrs: ["3", "5", "7"] });
+  assert.deepEqual(result, [
+    "bun",
+    "skills/poteto-mode/scripts/watch-pr/watch-pr",
+    "--queued-stack",
+    "--stack-prs",
+    "3,5,7",
+  ]);
+  assert.throws(() => materializeWatchArgv("watch-pr-queued-stack", "7"), /stackPrs/);
+});
+
+test("watchPrInvocation runs the watcher with bun and its path", () => {
+  assert.deepEqual(watchPrInvocation("/abs/watch-pr", ["--pr", "9"]), {
+    command: "bun",
+    args: ["/abs/watch-pr", "--pr", "9"],
+  });
+});
+
+test("assertBunAvailable names the missing runtime instead of a bare ENOENT", async () => {
+  await assertBunAvailable(async () => ({ code: 0 }));
+  await assert.rejects(
+    () => assertBunAvailable(async () => ({ code: 1 })),
+    /bun is required.*not found on PATH/,
+  );
 });
 
 test("materializeWatchArgv throws on unknown recipe", () => {

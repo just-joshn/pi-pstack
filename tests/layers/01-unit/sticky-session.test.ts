@@ -2,15 +2,25 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   AUTO_READONLY_PLAYBOOKS,
+  PLAYBOOK_ASSIGN_SCORE,
   forcePotetoSkillMessage,
   parseReadonlyEntry,
   parseStickyEntry,
+  shouldAssignPlaybook,
   shouldAutoArmFromPlaybookMatch,
   shouldAutoArmFromSkillText,
   shouldAutoArmReadonly,
   shouldMatchStickyInput,
   stickyEntryPayload,
 } from "../../../extensions/sticky-session.ts";
+
+test("shouldAssignPlaybook keeps an ongoing playbook until a strong match arrives", () => {
+  assert.equal(shouldAssignPlaybook(null, 2), true, "first assignment may be weak");
+  assert.equal(shouldAssignPlaybook("babysit", 2), false, "a casual turn must not reassign");
+  assert.equal(shouldAssignPlaybook("babysit", PLAYBOOK_ASSIGN_SCORE - 1), false);
+  assert.equal(shouldAssignPlaybook("babysit", PLAYBOOK_ASSIGN_SCORE), true);
+  assert.equal(shouldAssignPlaybook("babysit", 9), true);
+});
 
 test("stickyEntryPayload round-trips enabled match through parseStickyEntry", () => {
   const payload = stickyEntryPayload(true, { id: "bug-fix", score: 7 });

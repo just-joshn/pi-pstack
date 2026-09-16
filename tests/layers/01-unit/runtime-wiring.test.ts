@@ -127,6 +127,8 @@ test("matchPlaybook matches by cue and by explicit playbook path", () => {
   assert.equal(matchPlaybook("babysit this PR")?.id, "babysit");
   assert.equal(matchPlaybook("check on PR #12")?.id, "babysit");
   assert.equal(matchPlaybook("follow playbooks/bug-fix now")?.id, "bug-fix");
+  assert.equal(matchPlaybook("bugbot"), undefined, "a bare bugbot mention is not a PR-status request");
+  assert.equal(matchPlaybook("bugbot commented on the PR")?.id, "babysit");
 });
 
 test("playbook lookup helpers report known and unknown ids", () => {
@@ -189,7 +191,13 @@ test("poteto runtime restores a persisted playbook on session_start", () => {
     { type: "custom", customType: "pstack-poteto-mode", data: { enabled: true, matchedPlaybookId: "why" } },
   ];
   env.handler("session_start")({}, { sessionManager: { getBranch: () => branch }, ui: env.ui });
-  assert.deepEqual(runtime.getState(), { enabled: true, matchedPlaybookId: "why", lastUserText: "" });
+  assert.deepEqual(runtime.getState(), {
+    enabled: true,
+    matchedPlaybookId: "why",
+    matchedScore: 0,
+    assignedThisTurn: false,
+    lastUserText: "",
+  });
   assert.deepEqual(env.statuses, [["pstack", "poteto:why"]]);
 });
 
@@ -213,6 +221,50 @@ test("poteto input transforms a strong match and arms readonly for investigation
   );
   assert.equal(armed.all().includes("skill:investigation"), true);
   assert.equal(investigation === undefined || investigation.action === "transform", true);
+});
+
+test("a casual turn keeps the ongoing playbook and a strong match reassigns it", () => {
+  const env = fakeEnvironment();
+  const runtime = createPotetoRuntime(env.pi, { armReadonly: () => {} });
+  const ctx = { ui: env.ui };
+  env.handler("input")({ source: "interactive", text: "babysit this PR and get it green" }, ctx);
+  assert.equal(runtime.getState().matchedPlaybookId, "babysit");
+
+  const casual = env.handler("input")({ source: "interactive", text: "maybe refactor this later" }, ctx);
+  assert.equal(runtime.getState().matchedPlaybookId, "babysit", "casual turn must not reassign");
+  assert.equal(casual, undefined, "casual turn must not force another playbook");
+
+  const strong = env.handler("input")(
+    { source: "interactive", text: "refactor and rename these helpers, behavior-preserving" },
+    ctx,
+  );
+  assert.equal(runtime.getState().matchedPlaybookId, "refactoring");
+  assert.equal(strong?.action, "transform");
+});
+
+test("a strong non-investigation task releases a playbook-armed readonly session", () => {
+  const env = fakeEnvironment();
+  const armed = liveList<string>();
+  const released = liveList<string>();
+  createPotetoRuntime(env.pi, {
+    armReadonly: (_ctx: unknown, reason: string) => armed.add(reason),
+    releaseReadonly: () => released.add("released"),
+  });
+  const ctx = { ui: env.ui };
+  env.handler("input")(
+    { source: "interactive", text: "/skill:poteto-mode playbooks/investigation why is the build slow" },
+    ctx,
+  );
+  assert.equal(armed.all().includes("skill:investigation"), true);
+
+  env.handler("input")({ source: "interactive", text: "investigate why the builds are slow" }, ctx);
+  assert.deepEqual(released.all(), [], "an investigation match keeps readonly armed");
+
+  env.handler("input")(
+    { source: "interactive", text: "refactor and rename these helpers, behavior-preserving" },
+    ctx,
+  );
+  assert.deepEqual(released.all(), ["released"], "a strong new task releases the arm");
 });
 
 test("poteto input ignores non-user provenance", () => {
@@ -262,6 +314,7 @@ test("readonly runtime strips write tools and restores them on disable", () => {
   assert.deepEqual(runtime.getState(), {
     enabled: true,
     toolsBefore: ["read", "write", "bash", "pstack_spawn"],
+    reason: "command",
   });
   assert.deepEqual(env.activeTools.at(-1), ["read", "grep", "find", "ls", "pstack_spawn"]);
   assert.deepEqual(env.entries.at(-1), {
@@ -271,7 +324,7 @@ test("readonly runtime strips write tools and restores them on disable", () => {
   assert.equal(env.statuses.some(([id, value]) => id === "pstack-ro" && value === "readonly"), true);
 
   env.commands.get("pstack-readonly-off").handler("", { ui: env.ui });
-  assert.deepEqual(runtime.getState(), { enabled: false, toolsBefore: undefined });
+  assert.deepEqual(runtime.getState(), { enabled: false, toolsBefore: undefined, reason: undefined });
   assert.deepEqual(env.activeTools.at(-1), ["read", "write", "bash", "pstack_spawn"]);
   assert.equal(env.statuses.some(([id, value]) => id === "pstack-ro" && value === undefined), true);
 });

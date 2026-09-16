@@ -38,12 +38,18 @@ const ROOT = repoRoot();
 const SPEC_DIR = join(ROOT, "spec");
 const CONTRACTS_DIR = join(SPEC_DIR, "contracts");
 
-const LEDGER_HEADER = "id\tsurface\tstatus\tkind\tname\tobligation\tverification\tupstream\treference\tfinding";
+const LEDGER_HEADER = "id\tsurface\tstatus\tkind\tname\tobligation\tverification\tupstream\treference\tfinding\tclass";
 const SURFACES_HEADER = "slug\tcapability\towns\tupstream_basis";
 const MECHANISMS_HEADER = "mechanism\tupstream_evidence\tdisposition\tref\ttwin_surface";
 
 const STATUS = new Set(["VERIFIED", "UNVERIFIED", "DEFECT", "EXCLUDED"]);
 const KINDS = new Set(["tool", "command", "behavior", "ceiling"]);
+const CLASSES = new Set([
+  "EXACT-CONTRACT",
+  "ADAPTED-EQUIVALENT",
+  "HOSTED-CAPABILITY-REQUIRED",
+  "APPROVED-EXCEPTION",
+]);
 
 function listFilesRecursive(dir) {
   if (!existsSync(dir)) return [];
@@ -174,8 +180,25 @@ function validateLedger(parsedFiles) {
 }
 
 function parseLedgerRow(r) {
-  const [id, surface, status, kind, name, obligation, verification, upstream, reference, finding] = r.cols;
-  return { id, surface, status, kind, name, obligation, verification, upstream, reference, finding, file: r.file, line: r.line };
+  const [id, surface, status, kind, name, obligation, verification, upstream, reference, finding, cls] = r.cols;
+  return { id, surface, status, kind, name, obligation, verification, upstream, reference, finding, cls, file: r.file, line: r.line };
+}
+
+function validateReference(reference) {
+  const m = String(reference).match(/^([^:\s]+)(?::(\d+)(?:-(\d+))?)?$/);
+  if (!m) return `bad reference form: ${reference}`;
+  const abs = toAbsMaybe(m[1]);
+  if (!existsSync(abs)) return `reference file missing: ${m[1]}`;
+  const lines = lineCountOf(abs);
+  if (lines == null) return `reference file unreadable: ${m[1]}`;
+  if (m[2] && Number(m[2]) > lines) return `reference line out of range: ${reference}`;
+  if (m[3] && Number(m[3]) > lines) return `reference range out of range: ${reference}`;
+  return null;
+}
+
+function lineCountOf(path) {
+  const text = readUtf8(path);
+  return text == null ? null : splitLines(text).length;
 }
 
 function validateRowForm(rows) {
@@ -186,6 +209,13 @@ function validateRowForm(rows) {
     if (idM[1] !== row.surface) return [{ row, msg: `id prefix ${idM[1]} != surface ${row.surface}` }];
     if (!STATUS.has(row.status)) return [{ row, msg: `invalid status ${row.status}` }];
     if (!KINDS.has(row.kind)) return [{ row, msg: `invalid kind ${row.kind}` }];
+    if (!CLASSES.has(row.cls)) return [{ row, msg: `invalid class ${row.cls}` }];
+    if (row.kind === "ceiling" && row.cls !== "HOSTED-CAPABILITY-REQUIRED" && row.cls !== "APPROVED-EXCEPTION" && !(row.cls === "ADAPTED-EQUIVALENT" && /^twin@/.test(row.verification))) {
+      return [{ row, msg: "ceiling rows must be HOSTED-CAPABILITY-REQUIRED, APPROVED-EXCEPTION, or ADAPTED-EQUIVALENT with a twin@ verification" }];
+    }
+    if (row.kind !== "ceiling" && row.cls !== "EXACT-CONTRACT" && row.cls !== "ADAPTED-EQUIVALENT") {
+      return [{ row, msg: `${row.kind} rows must be EXACT-CONTRACT or ADAPTED-EQUIVALENT` }];
+    }
     const isNameDashOk = row.kind === "behavior" || row.kind === "ceiling";
     if (isNameDashOk && row.name !== "-") return [{ row, msg: `name must be '-' for ${row.kind}` }];
     if (!isNameDashOk && (!row.name || row.name === "-")) return [{ row, msg: `name required for ${row.kind}` }];
@@ -193,6 +223,13 @@ function validateRowForm(rows) {
     if (!obl.trim()) return [{ row, msg: "empty obligation" }];
     if (/\t/.test(obl)) return [{ row, msg: "obligation contains tab" }];
     if (/\r|\n/.test(obl)) return [{ row, msg: "obligation must be single line" }];
+    if (/\b(mostly works|similar|unsupported by Pi|probably equivalent)\b/i.test(obl)) {
+      return [{ row, msg: "obligation uses a vague parity phrase" }];
+    }
+    if (row.reference !== "-") {
+      const refErr = validateReference(row.reference);
+      if (refErr) return [{ row, msg: refErr }];
+    }
     return [];
   });
   const msgs = issues.map((i) => `${toRel(i.row.file)}:${i.row.line} ${i.msg}`);
@@ -378,6 +415,20 @@ function checkMechanisms(rows, requireComplete) {
   return errors;
 }
 
+function checkMechanismAttribution(rows) {
+  const mech = parseMechanisms();
+  if (mech.header == null) return [];
+  const labels = new Set(mech.rows.map((r) => r.cols[0]).filter(Boolean));
+  return rows
+    .map(parseLedgerRow)
+    .filter((r) => r.cls === "ADAPTED-EQUIVALENT")
+    .flatMap((r) => {
+      const m = String(r.upstream || "").match(/^mechanism:(.+)$/);
+      if (!m) return [`${r.id}: ADAPTED-EQUIVALENT must name a mechanism in upstream`];
+      return labels.has(m[1]) ? [] : [`${r.id}: unknown mechanism label ${m[1]}`];
+    });
+}
+
 function computeCoverage(rows) {
   const parsed = rows.map(parseLedgerRow);
   const total = parsed.length;
@@ -393,12 +444,16 @@ function computeCoverage(rows) {
   );
   const eligible = total - counts.E;
   const cov = eligible > 0 ? counts.V / eligible : 0;
-  return { total, ...counts, eligible, coverage: cov };
+  const classes = parsed.reduce(
+    (acc, r) => ({ ...acc, [r.cls]: (acc[r.cls] ?? 0) + 1 }),
+    {},
+  );
+  return { total, ...counts, eligible, coverage: cov, classes };
 }
 
 function formatCoverage(cov) {
   const pct = cov.eligible > 0 ? Math.round((cov.coverage * 100 + Number.EPSILON) * 100) / 100 : 0;
-  return `total=${cov.total} VERIFIED=${cov.V} UNVERIFIED=${cov.U} DEFECT=${cov.D} EXCLUDED=${cov.E} eligible=${cov.eligible} coverage=${pct}%`;
+  return `total=${cov.total} VERIFIED=${cov.V} UNVERIFIED=${cov.U} DEFECT=${cov.D} EXCLUDED=${cov.E} eligible=${cov.eligible} coverage=${pct}% classes=${JSON.stringify(cov.classes)}`;
 }
 
 function openWorkQueue(rows) {
@@ -450,6 +505,7 @@ function buildAllErrors(rows, parsedContracts, missingDir, discovery, pkgScripts
   const toolCompletenessErrors = ledger0.rows.length ? checkToolCompleteness(ledger0.rows) : [];
   const surfaceErrors = checkSurfaceIntegrity(ledger0.rows);
   const mechanismErrors = checkMechanisms(ledger0.rows, requireComplete);
+  const attributionErrors = ledger0.rows.length ? checkMechanismAttribution(ledger0.rows) : [];
   const dirErrs = missingDir ? ["missing spec/contracts directory"] : [];
   return [
     ...dirErrs,
@@ -460,6 +516,7 @@ function buildAllErrors(rows, parsedContracts, missingDir, discovery, pkgScripts
     ...toolCompletenessErrors,
     ...surfaceErrors,
     ...mechanismErrors,
+    ...attributionErrors,
   ];
 }
 
