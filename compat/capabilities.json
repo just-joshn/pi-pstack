@@ -35,7 +35,7 @@
       ],
       "status": "verified",
       "hostedRequired": false,
-      "notes": "43 ledger row(s), 43 verified, 0 excluded"
+      "notes": "49 ledger row(s), 49 verified, 0 excluded"
     },
     {
       "id": "3",
@@ -106,9 +106,9 @@
       "surfaces": [
         "ceiling"
       ],
-      "status": "implemented",
+      "status": "verified",
       "hostedRequired": true,
-      "notes": "12 ledger row(s), 0 verified, 12 excluded"
+      "notes": "18 ledger row(s), 6 verified, 12 excluded"
     },
     {
       "id": "10",
@@ -136,9 +136,9 @@
       "surfaces": [
         "ceiling"
       ],
-      "status": "implemented",
+      "status": "verified",
       "hostedRequired": true,
-      "notes": "12 ledger row(s), 0 verified, 12 excluded"
+      "notes": "18 ledger row(s), 6 verified, 12 excluded"
     }
   ]
 }

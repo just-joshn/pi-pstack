@@ -231,6 +231,13 @@ function bennyWakePolicy(input: unknown): ReadonlyPolicyDecision {
   return { action: "block", reason: "pstack session readonly: blocked pstack_benny_wake write." };
 }
 
+/** Capability inventory is read-safe; a query spawns git/gh or a configured adapter. */
+function integrationsPolicy(input: unknown): ReadonlyPolicyDecision {
+  const action = actionOf(input);
+  if (action === "list" || action === "status" || action === "probe") return { action: "allow" };
+  return { action: "block", reason: "pstack session readonly: blocked pstack_integrations query." };
+}
+
 /**
  * One policy per tool the extension registers. A tool absent from the table is
  * allowed. The census in tests/layers/01-unit/readonly-state.test.ts fails when
@@ -255,6 +262,7 @@ export const READONLY_TOOL_POLICIES: Record<string, ReadonlyToolPolicy> = {
   pstack_benny_wake: bennyWakePolicy,
   pstack_control_cli: blockPolicy("pstack session readonly: blocked pstack_control_cli."),
   pstack_control_ui: allowPolicy,
+  pstack_integrations: integrationsPolicy,
   pstack_sessions: allowPolicy,
   pstack_jobs: allowPolicy,
 };

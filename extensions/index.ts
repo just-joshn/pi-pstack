@@ -11,6 +11,7 @@ import { registerOrchestration } from "./orchestration/index.ts";
 import { registerSpawn } from "./subagents/index.ts";
 import { registerWorktree } from "./worktree/index.ts";
 import { registerHeartbeat } from "./heartbeat/index.ts";
+import { registerIntegrations } from "./integrations/index.ts";
 import { registerLoopController } from "./loop/controller.ts";
 import { registerCompanions } from "./companions/index.ts";
 import { registerSessions } from "./sessions/index.ts";
@@ -42,6 +43,7 @@ export default function piPstack(pi: ExtensionAPI) {
   registerWorktree(pi);
   registerHeartbeat(pi);
   registerLoopController(pi);
+  registerIntegrations(pi);
   registerCompanions(pi);
   registerSessions(pi);
   registerShipping(pi);

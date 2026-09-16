@@ -7,14 +7,14 @@
   "totals": {
     "byClassification": {
       "EXACT-CONTRACT": 220,
-      "ADAPTED-EQUIVALENT": 194,
+      "ADAPTED-EQUIVALENT": 206,
       "HOSTED-CAPABILITY-REQUIRED": 6,
       "APPROVED-EXCEPTION": 3
     },
     "byStatus": {
       "unimplemented": 6,
       "implemented": 4,
-      "verified": 410,
+      "verified": 422,
       "blocked": 3
     }
   },
@@ -818,12 +818,14 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "cloud-agents",
-      "behavior": "Cloud agent VMs and the remote cloud environment are out of scope; the reproducible twin is the worktree surface and isolated local worktrees.",
+      "behavior": "Cloud agent VMs and the remote cloud environment are out of scope for Pi's local tree; the hosted execution path is the services/worker service proven by tests/hosted, and the local fallback remains the worktree surface with isolated local worktrees.",
       "observableContract": [
         "twin@worktree"
       ],
       "classification": "HOSTED-CAPABILITY-REQUIRED",
-      "piMechanism": [],
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
       "prerequisites": [
         "services/worker",
         "twin surface worktree is the local fallback until services/worker ships"
@@ -831,7 +833,9 @@
       "tests": [],
       "normalization": [],
       "status": "unimplemented",
-      "evidence": [],
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
       "divergences": [],
       "exceptionJustification": null
     },
@@ -840,12 +844,14 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "automations-slack",
-      "behavior": "The Automations Slack bus and direct message integrations are out of scope; the reproducible twin is the benny surface and its webhook receiver.",
+      "behavior": "The Automations Slack bus and direct message integrations are out of scope; the hosted execution path is the services/worker service proven by tests/hosted, and the local fallback remains the benny surface with its webhook receiver.",
       "observableContract": [
         "twin@benny"
       ],
       "classification": "HOSTED-CAPABILITY-REQUIRED",
-      "piMechanism": [],
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
       "prerequisites": [
         "services/benny",
         "twin surface benny is the local fallback until services/benny ships"
@@ -853,7 +859,9 @@
       "tests": [],
       "normalization": [],
       "status": "unimplemented",
-      "evidence": [],
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
       "divergences": [],
       "exceptionJustification": null
     },
@@ -862,12 +870,14 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "grok-bot",
-      "behavior": "Grok Bot routines and built-in secret-request cards are out of scope; the reproducible twin is the benny surface.",
+      "behavior": "Grok Bot routines and built-in secret-request cards are out of scope; the hosted execution path is the services/worker service proven by tests/hosted, and the local fallback remains the benny surface.",
       "observableContract": [
         "twin@benny"
       ],
       "classification": "HOSTED-CAPABILITY-REQUIRED",
-      "piMechanism": [],
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
       "prerequisites": [
         "services/benny",
         "twin surface benny is the local fallback until services/benny ships"
@@ -875,7 +885,9 @@
       "tests": [],
       "normalization": [],
       "status": "unimplemented",
-      "evidence": [],
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
       "divergences": [],
       "exceptionJustification": null
     },
@@ -884,12 +896,14 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "mcp",
-      "behavior": "The mcps/ directory and MCP capability inheritance need a host with an MCP client; Pi's documented surface ships none, so a provisioned MCP-capable host is required and the spawn surface is the child-policy twin.",
+      "behavior": "The mcps/ directory and MCP capability inheritance need a host with an MCP client; Pi's documented surface ships none, so a provisioned MCP-capable host is required via the services/worker execution path proven by tests/hosted, and the local fallback remains the spawn surface's child-policy twin.",
       "observableContract": [
         "twin@spawn"
       ],
       "classification": "HOSTED-CAPABILITY-REQUIRED",
-      "piMechanism": [],
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
       "prerequisites": [
         "services/worker",
         "twin surface spawn is the local fallback until services/worker ships"
@@ -897,7 +911,9 @@
       "tests": [],
       "normalization": [],
       "status": "unimplemented",
-      "evidence": [],
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
       "divergences": [],
       "exceptionJustification": null
     },
@@ -944,12 +960,14 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "durable-jobs",
-      "behavior": "Durable background jobs that survive process restarts are out of scope; the reproducible twin is the jobs surface.",
+      "behavior": "Durable background jobs that survive process restarts are out of scope for the local registry; the hosted execution path is the services/worker durable run store proven by tests/hosted, and the local fallback remains the jobs surface.",
       "observableContract": [
         "twin@jobs"
       ],
       "classification": "HOSTED-CAPABILITY-REQUIRED",
-      "piMechanism": [],
+      "piMechanism": [
+        "services/worker/store.mjs:1"
+      ],
       "prerequisites": [
         "services/worker",
         "twin surface jobs is the local fallback until services/worker ships"
@@ -957,7 +975,9 @@
       "tests": [],
       "normalization": [],
       "status": "unimplemented",
-      "evidence": [],
+      "evidence": [
+        "services/worker/store.mjs:1"
+      ],
       "divergences": [],
       "exceptionJustification": null
     },
@@ -966,12 +986,14 @@
       "category": "edge-case",
       "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
       "upstreamPath": "ide-driving",
-      "behavior": "Full Electron and IDE driving via control-ui is out of scope; the reproducible twin is the control surface.",
+      "behavior": "Full Electron and IDE driving via control-ui is out of scope; the hosted execution path is the services/worker service proven by tests/hosted, and the local fallback remains the control surface.",
       "observableContract": [
         "twin@control"
       ],
       "classification": "HOSTED-CAPABILITY-REQUIRED",
-      "piMechanism": [],
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
       "prerequisites": [
         "services/worker",
         "twin surface control is the local fallback until services/worker ships"
@@ -979,7 +1001,9 @@
       "tests": [],
       "normalization": [],
       "status": "unimplemented",
-      "evidence": [],
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
       "divergences": [],
       "exceptionJustification": null
     },
@@ -1037,6 +1061,144 @@
       "normalization": [],
       "status": "verified",
       "evidence": [],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "ceiling-13",
+      "category": "edge-case",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "durable-jobs",
+      "behavior": "Return the existing hosted worker run for a repeated idempotencyKey instead of starting a second execution, so duplicate delivery executes the task exactly once.",
+      "observableContract": [
+        "gate@test:hosted"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
+      "prerequisites": [],
+      "tests": [],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "ceiling-14",
+      "category": "edge-case",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "durable-jobs",
+      "behavior": "Reject a hosted worker completion whose attempt is older than the run record's current attempt, so a zombie execution cannot overwrite a newer attempt.",
+      "observableContract": [
+        "gate@test:hosted"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
+      "prerequisites": [],
+      "tests": [],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "ceiling-15",
+      "category": "edge-case",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "durable-jobs",
+      "behavior": "Cancel a running hosted worker run, fire the executor abort signal, and record the terminal cancelled state with exit code 130.",
+      "observableContract": [
+        "gate@test:hosted"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
+      "prerequisites": [],
+      "tests": [],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "ceiling-16",
+      "category": "edge-case",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "durable-jobs",
+      "behavior": "Terminate a hosted worker run that exceeds timeoutMs and record the terminal timed_out state with exit code 124.",
+      "observableContract": [
+        "gate@test:hosted"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
+      "prerequisites": [],
+      "tests": [],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "ceiling-17",
+      "category": "edge-case",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "durable-jobs",
+      "behavior": "Mark a non-terminal hosted worker run dead when its lease lapses so a restarted worker reconciles zombies while keeping the partial output file.",
+      "observableContract": [
+        "gate@test:hosted"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/worker/store.mjs:1"
+      ],
+      "prerequisites": [],
+      "tests": [],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/worker/store.mjs:1"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "ceiling-18",
+      "category": "edge-case",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "durable-jobs",
+      "behavior": "Keep a hosted worker run durable and queryable in the run store when the parent client disconnects, so parent shutdown never cancels the run.",
+      "observableContract": [
+        "gate@test:hosted"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "services/worker/server.mjs:1"
+      ],
+      "prerequisites": [],
+      "tests": [],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "services/worker/server.mjs:1"
+      ],
       "divergences": [],
       "exceptionJustification": null
     },
@@ -9423,6 +9585,156 @@
       "status": "verified",
       "evidence": [
         "extensions/agents/policy.ts:290"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "spawn-41",
+      "category": "command",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "mcp",
+      "behavior": "Register pstack_integrations with list, status, probe, and query actions over the nine integration capability categories.",
+      "observableContract": [
+        "pstack_integrations"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/integrations/index.ts:210"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/integrations-tool.test.ts@integrations-tool-01 registers pstack_integrations"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/integrations/index.ts:210"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "spawn-42",
+      "category": "agent",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "mcp",
+      "behavior": "Report all nine capability categories with per-category availability, the capability tool name, and either the satisfying prerequisite or the missing prerequisite.",
+      "observableContract": [
+        "test@tests/layers/01-unit/integrations-tool.test.ts@integrations-tool-02 lists all nine categories"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/integrations/registry.ts:138"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/integrations-tool.test.ts@integrations-tool-02 lists all nine categories"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/integrations/registry.ts:138"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "spawn-43",
+      "category": "agent",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "mcp",
+      "behavior": "Return an explicit coverage gap naming the missing prerequisite for an unavailable capability and never substitute a different capability.",
+      "observableContract": [
+        "test@tests/layers/01-unit/integrations-tool.test.ts@integrations-tool-03 returns an explicit coverage gap"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/integrations/registry.ts:314"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/integrations-tool.test.ts@integrations-tool-03 returns an explicit coverage gap"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/integrations/registry.ts:314"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "spawn-44",
+      "category": "agent",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "mcp",
+      "behavior": "Decide source-control availability from git rev-parse --is-inside-work-tree and the presence of gh on PATH, distinguishing a git-only work tree from git plus gh.",
+      "observableContract": [
+        "test@tests/layers/01-unit/integrations-tool.test.ts@integrations-tool-05 probes source-control"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/integrations/registry.ts:292"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/integrations-tool.test.ts@integrations-tool-05 probes source-control"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/integrations/registry.ts:292"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "spawn-45",
+      "category": "agent",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "mcp",
+      "behavior": "Load command adapters from ~/.pi/agent/pstack/integrations.json while PSTACK_INTEGRATIONS_DIR overrides the config directory.",
+      "observableContract": [
+        "test@tests/layers/01-unit/integrations-registry.test.ts@integrations-registry-05 honors PSTACK_INTEGRATIONS_DIR"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/integrations/registry.ts:209"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/integrations-registry.test.ts@integrations-registry-05 honors PSTACK_INTEGRATIONS_DIR"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/integrations/registry.ts:209"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "spawn-46",
+      "category": "agent",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "mcp",
+      "behavior": "Derive every capability id and category tool name from extensions/agents/policy.ts instead of a second table.",
+      "observableContract": [
+        "test@tests/layers/01-unit/integrations-registry.test.ts@integrations-registry-06 derives tool names and kinds from the policy capability table"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/integrations/registry.ts:114"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/integrations-registry.test.ts@integrations-registry-06 derives tool names and kinds from the policy capability table"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/integrations/registry.ts:114"
       ],
       "divergences": [],
       "exceptionJustification": null
