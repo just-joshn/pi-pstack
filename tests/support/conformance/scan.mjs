@@ -65,10 +65,16 @@ function endOfRegex(src, start) {
 
 /**
  * A `/` starts a regular expression only where a value may begin. An operator
- * character is one such place. A keyword is the other, and missing it is not a
- * cosmetic gap: `return /a\"/` leaves the regex unmasked, the quote inside it
- * opens a string that swallows the code after it, and every later rule reads
+ * character is one such place. A keyword is the other, and missing either is
+ * not a cosmetic gap: `return /a\"/` leaves the regex unmasked, the quote inside
+ * it opens a string that swallows the code after it, and every later rule reads
  * shifted text. That both invents violations and hides real ones.
+ *
+ * `>` is in the operator set because an arrow body begins a value: an
+ * arrow-returned regex such as `(s) => /["']/.test(s)` was unmasked and
+ * desynchronised the scan, which is the same failure the keyword set exists to
+ * prevent. A comparison `a > /re/` also begins a value, so `>` is correct in
+ * both readings.
  */
 const REGEX_PRECEDING_KEYWORDS = new Set([
   "return",
@@ -87,7 +93,7 @@ const REGEX_PRECEDING_KEYWORDS = new Set([
 ]);
 
 function looksLikeRegex(prev, prevWord) {
-  if (prev !== "" && /[=(,:;[!&|?{}]/.test(prev)) return true;
+  if (prev !== "" && /[=(,:;[!&|?{}>]/.test(prev)) return true;
   return prevWord !== undefined && REGEX_PRECEDING_KEYWORDS.has(prevWord);
 }
 

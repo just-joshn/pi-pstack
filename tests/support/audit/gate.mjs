@@ -244,6 +244,7 @@ async function gateSanitizerSync() {
   const masked = [
     { label: "quote inside a returned regex", source: 'function f(s) {\n  return /\\s*,\\s*"\\.\\./.test(s);\n}\nconst x = "a--b";\n' },
     { label: "quote inside a typeof regex", source: 'const t = typeof /\\d+"x/;\nconst y = "c++d";\n' },
+    { label: "quote inside an arrow-returned regex", source: 'const isQuoted = (s) => /["\']/.test(s);\nconst z = "p++q";\n' },
     { label: "plain string", source: 'const z = "p++q";\n' },
   ];
   const leaked = masked.filter(({ source }) => auditSource(source).length > 0);
