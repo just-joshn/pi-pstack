@@ -24,9 +24,21 @@ const SKILLS = join(ROOT, "skills");
 const BUILTIN_TOOLS = ["read", "write", "edit", "bash", "grep", "find", "ls"];
 const FINISH_CONDITION = "finish condition: every acceptance scenario reports PASS";
 const SCENARIO_NAMES = [
-  "poteto-mode", "how", "why", "architect", "arena",
-  "swarm", "interrogate", "tdd", "show-me-your-work", "recall",
+  "poteto-mode", "poteto-mode-off", "pstack", "how", "why", "recall", "blast-radius",
+  "architect", "arena", "swarm", "interrogate", "setup-pstack", "reflect", "teach", "tdd",
+  "no-comments", "figure-it-out", "show-me-your-work", "unslop", "bro", "technical-writing",
+  "deslop", "pstack-readonly", "pstack-readonly-off", "babysit", "ship",
 ];
+const DOD_SKILL_HEADINGS = {
+  "blast-radius": "# Blast radius",
+  bro: "Restate your last message.",
+  "figure-it-out": "# Figure it out",
+  "no-comments": "# No comments",
+  reflect: "# Reflect",
+  teach: "# Teach",
+  "technical-writing": "# Technical writing",
+  unslop: "# Unslop",
+};
 const STUB_CHILD_SOURCE = [
   "const argv = process.argv;",
   "function flagValue(name) {",
@@ -666,6 +678,36 @@ async function scenarioCommandSurface(env) {
   report.note(`slash-names=${names.length}-each-once alias=pstack→poteto-mode msg=/skill:poteto-mode playbooks/bug-fix fix this bug global-dups=${dupNote}`);
 }
 
+async function scenarioDeslop(env, host) {
+  const report = env.report;
+  await host.commands.get("deslop").handler("", host.ctx());
+  report.expectEqual(
+    "command-message",
+    host.messages().at(-1)?.text,
+    "Run pstack_deslop on the current diff against main (consider applySafe:true for safe comment deletes), then apply /skill:unslop to any prose surfaces and fix remaining findings with edit.",
+  );
+  const outcome = await host.tools
+    .get("pstack_deslop")
+    .execute("d", { dryRun: true }, undefined, undefined, host.ctx());
+  report.expectEqual(
+    "result.headline",
+    outcome.content[0].text,
+    "pstack_deslop: no common slop patterns in added lines (still run /skill:unslop on prose surfaces).",
+  );
+  report.note("tool=pstack_deslop dryRun=clean-headline");
+}
+
+async function scenarioSkillSurface(env, host) {
+  const report = env.report;
+  const names = Object.keys(DOD_SKILL_HEADINGS);
+  for (const name of names) {
+    await host.commands.get(name).handler("x", host.ctx());
+    report.expectEqual(`forwarded.${name}`, host.messages().at(-1)?.text, `/skill:${name} x`);
+    report.expectEqual(`body-loaded.${name}`, skillText(name).includes(DOD_SKILL_HEADINGS[name]), true);
+  }
+  report.note(`skills=${names.length} forwarded-and-loaded`);
+}
+
 const SCENARIOS = [
   { n: 0, command: "command-surface", playbook: "-", run: scenarioCommandSurface },
   { n: 1, command: "/poteto-mode", playbook: "bug-fix", run: scenarioBugFix },
@@ -679,6 +721,8 @@ const SCENARIOS = [
   { n: 9, command: "/poteto-mode", playbook: "autonomous-run", run: scenarioAutonomousRun },
   { n: 10, command: "/show-me-your-work", playbook: "show-me-your-work", run: scenarioDecisionLog },
   { n: 11, command: "/recall", playbook: "recall", fakeGh: true, run: scenarioRecall },
+  { n: 12, command: "/deslop", playbook: "-", run: scenarioDeslop },
+  { n: 13, command: "skill-surface", playbook: "-", run: scenarioSkillSurface },
 ];
 
 async function runScenario(descriptor) {

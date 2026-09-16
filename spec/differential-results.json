@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T00:16:18.127Z",
+  "generatedAt": "2026-09-16T00:29:42.018Z",
   "upstreamDir": ".port-upstream/cursor-plugins-c1c0a32/pstack",
   "upstreamCommit": "c1c0a32802223f4be824112dd83d33ad29a8b26c",
   "cases": [
@@ -8,41 +8,89 @@
       "equal": true,
       "upstreamRc": 0,
       "portedRc": 0,
-      "detail": "--help -> rc 0/0, 1217/1217 bytes",
-      "bytes": "1217/1217",
-      "normalization": "upstream dependencies present"
+      "normalization": "tmp-path"
+    },
+    {
+      "id": "watch-pr-badflag",
+      "equal": true,
+      "upstreamRc": 64,
+      "portedRc": 64,
+      "normalization": "tmp-path"
     },
     {
       "id": "watch-pr-stack-prs-without-queued-stack",
       "equal": true,
       "upstreamRc": 64,
       "portedRc": 64,
-      "detail": "--stack-prs 1,2 -> rc 64/64, 42/42 bytes",
-      "bytes": "42/42",
-      "normalization": "upstream dependencies present"
+      "normalization": "tmp-path"
     },
     {
       "id": "watch-pr-invalid-interval",
       "equal": true,
       "upstreamRc": 64,
       "portedRc": 64,
-      "detail": "--owner o --repo r --pr 1 --interval nope -> rc 64/64, 90/90 bytes",
-      "bytes": "90/90",
-      "normalization": "upstream dependencies present"
+      "normalization": "tmp-path"
+    },
+    {
+      "id": "watch-pr-fixture-status",
+      "equal": true,
+      "upstreamRc": 0,
+      "portedRc": 0,
+      "normalization": "stdout + gh-argv-log; rewrites tmp-path, timestamp, retryInSeconds, 40-hex-sha"
+    },
+    {
+      "id": "watch-pr-fixture-pretty",
+      "equal": true,
+      "upstreamRc": 0,
+      "portedRc": 0,
+      "normalization": "stdout + gh-argv-log; rewrites tmp-path, timestamp, retryInSeconds, 40-hex-sha"
+    },
+    {
+      "id": "watch-pr-fixture-gh-error",
+      "equal": true,
+      "upstreamRc": 5,
+      "portedRc": 5,
+      "normalization": "stdout + gh-argv-log; rewrites tmp-path, timestamp, retryInSeconds, 40-hex-sha"
     },
     {
       "id": "worktree-audit",
       "equal": true,
       "upstreamRc": 0,
       "portedRc": 0,
-      "detail": "repo fixture with one feature worktree -> 2/2 lines",
-      "bytes": "121/121",
-      "normalization": "tree roots, HOME, and durations normalized; gh shimmed to an empty list"
+      "normalization": "tmp-path, size, age, last-chat date; rows compared per worktree"
+    },
+    {
+      "id": "check-plan-usage-error",
+      "equal": true,
+      "upstreamRc": 2,
+      "portedRc": 2,
+      "normalization": "tmp-path"
+    },
+    {
+      "id": "check-plan-fixture",
+      "equal": true,
+      "upstreamRc": 1,
+      "portedRc": 1,
+      "normalization": "tmp-path"
+    },
+    {
+      "id": "orch-usage-error",
+      "equal": true,
+      "upstreamRc": 1,
+      "portedRc": 1,
+      "normalization": "tmp-path"
+    },
+    {
+      "id": "orch-store-roundtrip",
+      "equal": true,
+      "upstreamRc": 0,
+      "portedRc": 0,
+      "normalization": "tmp-path, per-variant store segment, per-step rc markers"
     }
   ],
   "summary": {
-    "cases": 4,
-    "equal": 4,
+    "cases": 12,
+    "equal": 12,
     "differ": 0
   }
 }
