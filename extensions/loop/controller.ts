@@ -5,10 +5,12 @@
  * stopProgrammaticLoop.
  */
 import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { armProgrammaticLoop, stopProgrammaticLoop } from "../heartbeat/index.ts";
 import {
   initialRecord,
+  isTerminalPhase,
   reduceRun,
   type RunEffect,
   type RunEvent,
@@ -212,6 +214,7 @@ function armRun(pi: ExtensionAPI, params: RunToolParams): AgentToolResult<unknow
     maxFires: defined.record.maxFires,
     watchArgv: params.watchArgv,
   });
+  armedRunIds.add(runId);
   saveRun(defined.record);
   return runResult(defined.record, defined.effects);
 }
@@ -273,13 +276,19 @@ async function executeRunTool(
 
 function runToolParameters() {
   return Type.Object({
-    action: Type.String({ description: `One of ${MANDATED_ACTIONS.join(" | ")}` }),
+    action: StringEnum(MANDATED_ACTIONS, {
+      description: `One of ${MANDATED_ACTIONS.join(" | ")}`,
+    }),
     runId: Type.Optional(Type.String({ description: "Run id; defaults to the latest run for state." })),
     predicate: Type.Optional(Type.String({ description: "Checkable finish predicate required by arm." })),
     intervalSeconds: Type.Optional(Type.Integer({ minimum: 5, maximum: 86400, description: "Heartbeat interval required by arm." })),
     maxFires: Type.Optional(Type.Integer({ minimum: 1, maximum: 500 })),
     plateauLimit: Type.Optional(Type.Integer({ minimum: 1, maximum: 50, description: "Consecutive non-advancing iterations before BLOCKED." })),
-    mode: Type.Optional(Type.String({ description: "interval | settle | watcher | dynamic (default interval, dynamic when watchArgv is set)." })),
+    mode: Type.Optional(
+      StringEnum(["interval", "settle", "watcher", "dynamic"] as const, {
+        description: "interval | settle | watcher | dynamic (default interval, dynamic when watchArgv is set).",
+      }),
+    ),
     watchArgv: Type.Optional(Type.Array(Type.String(), { description: "Event watcher argv [command, ...args] (no shell)." })),
     step: Type.Optional(Type.String({ description: "Smallest evidence-justified action for iterate." })),
     evidence: Type.Optional(Type.String({ description: "Evidence string; required by verify." })),
@@ -292,7 +301,34 @@ function runToolParameters() {
   });
 }
 
+export const SESSION_SHUTDOWN_BLOCK_REASON =
+  "local runtime session ended without completion; hand off to a hosted worker or re-arm";
+
+const armedRunIds = new Set<string>();
+
+/**
+ * A local run's timer dies with the session, so a non-terminal record must not
+ * keep reading WAIT. Block every run armed in this process and report which ones
+ * moved to BLOCKED.
+ */
+export function blockArmedRunsOnSessionShutdown(reason: string): string[] {
+  let blocked: string[] = [];
+  for (const runId of armedRunIds) {
+    const record = loadRun(runId);
+    if (!record || isTerminalPhase(record.phase)) continue;
+    const reduced = reduceRun(record, { type: "mark_blocked", reason }, Date.now());
+    saveRun(reduced.record);
+    stopProgrammaticLoop(runId);
+    blocked = [...blocked, runId];
+  }
+  armedRunIds.clear();
+  return blocked;
+}
+
 export function registerLoopController(pi: ExtensionAPI): void {
+  pi.on("session_shutdown", () => {
+    blockArmedRunsOnSessionShutdown(SESSION_SHUTDOWN_BLOCK_REASON);
+  });
   pi.registerTool({
     name: "pstack_run",
     label: "Pstack Run",
@@ -301,9 +337,9 @@ export function registerLoopController(pi: ExtensionAPI): void {
     promptSnippet: "Drive a /loop run through its FSM with a durable record",
     promptGuidelines: [
       "Use pstack_run for autonomous-run and babysit work that needs a checkable finish predicate and a persisted run record.",
-      "Only verify with evidence counts as progress; three consecutive non-advancing iterations block the run on plateau.",
-      "Complete a run only with verify predicateMet=true plus evidence; checkpoint advances the predicate check, and an unresolved predicate returns the run to WAIT.",
-      "Continuation the local runtime cannot provide is a hosted handoff, never a silent local downgrade.",
+      "Only pstack_run verify with evidence counts as progress; three consecutive non-advancing iterations block the run on plateau.",
+      "Complete a pstack_run only with verify predicateMet=true plus evidence; checkpoint advances the predicate check, and an unresolved predicate returns the run to WAIT.",
+      "A pstack_run continuation the local runtime cannot provide is a hosted handoff, never a silent local downgrade.",
     ],
     parameters: runToolParameters(),
     execute: (id, params, _signal, _onUpdate, ctx) => executeRunTool(pi, params as RunToolParams, ctx),

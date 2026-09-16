@@ -184,7 +184,7 @@ test("sticky-01 /poteto-mode enables sticky mode and matches the playbook for th
     },
   });
   assert.deepEqual(env.messages(), [
-    { text: "/skill:poteto-mode playbooks/babysit babysit PR 12", opts: { expandPromptTemplates: true } },
+    { text: "/skill:poteto-mode playbooks/babysit babysit PR 12", opts: { expandPromptTemplates: true, deliverAs: "followUp" } },
   ]);
 
   const plain = fakeStickyEnv();

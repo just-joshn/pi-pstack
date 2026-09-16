@@ -163,6 +163,7 @@ function makeCtx(state) {
     cwd: state.cwd,
     hasUI: true,
     model: { provider: "acceptance", id: "parent" },
+    isProjectTrusted: () => true,
     sessionManager: {
       getBranch: () => state.entries(),
       getSessionFile: () => state.sessionFileRef.current,

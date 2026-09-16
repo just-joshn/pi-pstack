@@ -156,7 +156,7 @@ export function registerSkillCommands(
       handler: async (args) => {
         const trimmed = args.trim();
         const msg = trimmed ? `/skill:${skill.name} ${trimmed}` : `/skill:${skill.name}`;
-        pi.sendUserMessage(msg, { expandPromptTemplates: true });
+        pi.sendUserMessage(msg, { expandPromptTemplates: true, deliverAs: "followUp" });
       },
     });
   }
@@ -170,7 +170,7 @@ export function registerPiOnlyCommands(pi: ExtensionAPI, commands: PiOnlyCommand
       handler: async (args) => {
         const trimmed = args.trim();
         const msg = trimmed ? `${cmd.body} ${trimmed}` : cmd.body;
-        pi.sendUserMessage(msg, { expandPromptTemplates: true });
+        pi.sendUserMessage(msg, { expandPromptTemplates: true, deliverAs: "followUp" });
       },
     });
   }

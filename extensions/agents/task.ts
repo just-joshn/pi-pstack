@@ -12,6 +12,7 @@
  */
 import { randomBytes } from "node:crypto";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { MAX_TIMEOUT_MS, wantsBackground, type ChildTaskInput } from "../subagents/child-runner.ts";
 import {
@@ -25,10 +26,17 @@ import { createIsolatedWorktree } from "../worktree/helpers.ts";
 import {
   compileTaskPolicy,
   describePolicy,
+  ENVIRONMENT_VALUES,
+  FILESYSTEM_VALUES,
+  GIT_VALUES,
+  ISOLATION_VALUES,
+  NETWORK_VALUES,
   resolvePolicyTools,
   resolveThinkingLevel,
+  SHELL_VALUES,
   type PstackTaskPolicy,
 } from "./policy.ts";
+import { THINKING_LEVELS } from "../models/budget.ts";
 
 export interface TaskPermissions {
   filesystem?: string;
@@ -67,6 +75,7 @@ export interface TaskParams {
 export interface TaskContext {
   readonly cwd: string;
   readonly model: { provider: string; id: string } | undefined;
+  readonly isProjectTrusted?: () => boolean;
 }
 
 interface WorktreeAllocation {
@@ -81,36 +90,36 @@ interface HostedResult {
 }
 
 const TASK_DESCRIPTION =
-  "Run one pstack child agent under a compiled multidimensional policy. subagent_type picks the behavior role and its default policy (comment-sicko, investigator, poteto-agent, general); modelRole picks the model config entry. The eight policy dimensions are filesystem, shell, git, network, integrations, environment, background, and isolation. Integrations are independent of the filesystem axis: an investigator keeps integrations inherited while its filesystem is read-only. environment=hosted requires PSTACK_HOSTED_URL and runs on the worker service; there is no silent local fallback. worktree:true allocates an isolated git worktree and returns its path for parent cleanup.";
+  "Run one pstack child agent under a compiled multidimensional policy. subagent_type picks the behavior role and its default policy (comment-sicko, investigator, poteto-agent, general); modelRole picks the model config entry. The eight policy dimensions are filesystem, shell, git, network, integrations, environment, background, and isolation. Integrations are independent of the filesystem axis: an investigator keeps integrations inherited while its filesystem is read-only. environment=hosted requires PSTACK_HOSTED_URL and runs on the worker service; there is no silent local fallback. worktree:true allocates an isolated git worktree and returns its path for parent cleanup. Child output caps at 50KB / 2000 lines; when truncated the trailing lines name the full-output path.";
 
 const TASK_PROMPT_GUIDELINES = [
   "Reach for pstack_task when a child needs an explicit policy; pstack_spawn remains the compat alias with role-derived defaults only.",
-  "subagent_type is the behavior role (general default) and selects the policy defaults; modelRole is the model-config role and defaults to subagent_type.",
-  "Policy dimensions are independent. Filesystem read-only does not imply integrations none: investigator defaults keep integrations inherited, because the upstream why/reflect work needs MCP-style capabilities while the tree stays untouched.",
-  "Explicit readonly:true forces filesystem read-only, shell none, and git read. worktree:true forces isolation worktree. environment:hosted forces isolation remote unless a stronger container/vm sandbox was requested.",
-  "permissions overrides any axis by name; top-level readonly, worktree, environment, isolation, and run_in_background win over the permissions object.",
-  "thinkingLevel is forwarded as `--thinking <level>`; when omitted, the level embedded in a provider/id:level selector applies.",
-  "The compiled policy is passed to the child as PSTACK_CHILD_POLICY and enforced by the child's policy guard, so argv is a hint and the guard is the boundary.",
-  "hosted runs need PSTACK_HOSTED_URL (services/worker). A missing URL is an error that names the prerequisite; the local path is not parity.",
+  "pstack_task subagent_type is the behavior role (general default) and selects the policy defaults; modelRole is the model-config role and defaults to subagent_type.",
+  "pstack_task policy dimensions are independent. Filesystem read-only does not imply integrations none: investigator defaults keep integrations inherited, because the upstream why/reflect work needs MCP-style capabilities while the tree stays untouched.",
+  "pstack_task explicit readonly:true forces filesystem read-only, shell none, and git read. worktree:true forces isolation worktree. environment:hosted forces isolation remote unless a stronger container/vm sandbox was requested.",
+  "pstack_task permissions overrides any axis by name; top-level readonly, worktree, environment, isolation, and run_in_background win over the permissions object.",
+  "pstack_task thinkingLevel is forwarded as `--thinking <level>`; when omitted, the level embedded in a provider/id:level selector applies.",
+  "The pstack_task compiled policy is passed to the child as PSTACK_CHILD_POLICY and enforced by the child's policy guard, so argv is a hint and the guard is the boundary.",
+  "pstack_task hosted runs need PSTACK_HOSTED_URL (services/worker). A missing URL is an error that names the prerequisite; the local path is not parity.",
 ];
 
 const TASK_PERMISSIONS = Type.Object(
   {
-    filesystem: Type.Optional(Type.String({ description: "read-only | workspace-write" })),
-    shell: Type.Optional(Type.String({ description: "none | restricted | full" })),
-    git: Type.Optional(Type.String({ description: "read | branch-write | push | merge" })),
-    network: Type.Optional(Type.String({ description: "none | allowed" })),
+    filesystem: Type.Optional(StringEnum(FILESYSTEM_VALUES, { description: "read-only | workspace-write" })),
+    shell: Type.Optional(StringEnum(SHELL_VALUES, { description: "none | restricted | full" })),
+    git: Type.Optional(StringEnum(GIT_VALUES, { description: "read | branch-write | push | merge" })),
+    network: Type.Optional(StringEnum(NETWORK_VALUES, { description: "none | allowed" })),
     integrations: Type.Optional(
       Type.Union([Type.String(), Type.Array(Type.String())], {
         description: "none | inherit | [source-control, issue-tracker, long-form-docs, team-chat, observability, error-tracking, analytics, browser-ui, cli-tui]",
       }),
     ),
-    environment: Type.Optional(Type.String({ description: "local | hosted" })),
+    environment: Type.Optional(StringEnum(ENVIRONMENT_VALUES, { description: "local | hosted" })),
     background: Type.Optional(
       Type.Boolean({ description: "Policy background flag; run_in_background wins when set." }),
     ),
     isolation: Type.Optional(
-      Type.String({ description: "session | process | worktree | container | vm | remote" }),
+      StringEnum(ISOLATION_VALUES, { description: "session | process | worktree | container | vm | remote" }),
     ),
   },
   { additionalProperties: false },
@@ -133,7 +142,7 @@ const TASK_PARAMETERS = Type.Object({
     }),
   ),
   thinkingLevel: Type.Optional(
-    Type.String({ description: "off | minimal | low | medium | high | xhigh | max; forwarded as --thinking." }),
+    StringEnum(THINKING_LEVELS, { description: "off | minimal | low | medium | high | xhigh | max; forwarded as --thinking." }),
   ),
   readonly: Type.Optional(
     Type.Boolean({
@@ -147,7 +156,7 @@ const TASK_PARAMETERS = Type.Object({
     }),
   ),
   environment: Type.Optional(
-    Type.String({ description: "local (default) | hosted (requires PSTACK_HOSTED_URL; services/worker)." }),
+    StringEnum(ENVIRONMENT_VALUES, { description: "local (default) | hosted (requires PSTACK_HOSTED_URL; services/worker)." }),
   ),
   cloud_base_branch: Type.Optional(
     Type.String({ description: "Base ref for a requested worktree or hosted run." }),
@@ -158,11 +167,11 @@ const TASK_PARAMETERS = Type.Object({
   ),
   permissions: Type.Optional(TASK_PERMISSIONS),
   isolation: Type.Optional(
-    Type.String({ description: "session | process | worktree | container | vm | remote" }),
+    StringEnum(ISOLATION_VALUES, { description: "session | process | worktree | container | vm | remote" }),
   ),
   timeoutMs: Type.Optional(Type.Integer({ minimum: 1_000, maximum: MAX_TIMEOUT_MS })),
   sessionMode: Type.Optional(
-    Type.String({ description: "isolated (default, --session-dir) | ephemeral (--no-session)." }),
+    StringEnum(["isolated", "ephemeral"] as const, { description: "isolated (default, --session-dir) | ephemeral (--no-session)." }),
   ),
   resumeSessionDir: Type.Optional(
     Type.String({ description: "Path to a prior child --session-dir; fail closed when missing (--continue)." }),
@@ -327,7 +336,7 @@ async function executeTask(
       resumeSessionDir: params.resumeSessionDir,
       resumeJobId: params.resumeJobId,
     },
-    { model: ctx.model, cwd: ctx.cwd },
+    { model: ctx.model, cwd: ctx.cwd, isProjectTrusted: ctx.isProjectTrusted },
     pi,
   );
   const thinkingLevel = resolveThinkingLevel(params, prepared.model);

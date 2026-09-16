@@ -30,3 +30,4 @@ automate	Cursor built-in /automate and Automations editor; benny FOR_AGENTS.md r
 playbook-routing	skills/poteto-mode/SKILL.md playbook table plus the routing cues in playbooks/*.md; the host provides no router, so each implementation matches task text to a playbook	contract	rows:sticky	-
 model-picker	skills/setup-pstack/SKILL.md:22-38 four budget labels and the effort-token rewrite over the ladder max>xhigh>high>medium>low; Cursor carries effort in the model name	contract	rows:models	-
 worktree-isolation	how, arena, swarm, autopilot, and orchestrate playbooks instruct one isolated worktree per worker; no host API exists, so each implementation allocates and cleans up its own	contract	rows:worktree	-
+extension-api	@earendil-works/pi-coding-agent docs/extensions.md (installed 0.85.1) plus the checklist in .pi/audit/extensions-checklist.md; no upstream pstack file	contract	rows:host	-

@@ -114,7 +114,7 @@ function makeHarness(cwd: string) {
   registerTask(pi as never);
   const tool = tools.get("pstack_task");
   if (!tool) throw new Error("pstack_task was not registered");
-  return { tool, ctx: { model: { provider: "anthropic", id: "claude-parent-4-5" }, cwd } };
+  return { tool, ctx: { model: { provider: "anthropic", id: "claude-parent-4-5" }, cwd, isProjectTrusted: () => true } };
 }
 
 function tempCwd(): string {

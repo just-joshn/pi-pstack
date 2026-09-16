@@ -55,7 +55,7 @@ function captureArena(): CapturedTool {
 }
 
 function arenaCtx(cwd: string) {
-  return { cwd, model: { provider: "pstack-test", id: "parent" } };
+  return { cwd, model: { provider: "pstack-test", id: "parent" }, isProjectTrusted: () => true };
 }
 
 const STUB_CHILD_SOURCE = [

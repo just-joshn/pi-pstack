@@ -97,7 +97,7 @@ function captureModels() {
   registerModels(pi as never);
   return {
     beforeAgentStart: (baseSystemPrompt: string, cwd: string) =>
-      handler?.({ systemPrompt: baseSystemPrompt }, { cwd }),
+      handler?.({ systemPrompt: baseSystemPrompt }, { cwd, isProjectTrusted: () => true }),
   };
 }
 

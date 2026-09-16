@@ -8,7 +8,9 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
+import { capToolOutput } from "../lib/tool-output.ts";
 import {
   evaluateMergeGates,
   MERGE_GATE_FIXTURES,
@@ -77,11 +79,15 @@ async function executeBabysitWithWatchPr(
   const hintBlock = includeHint
     ? `\n\n--- pstack_loop dynamic arm (default babysit recipe ${recipeId}) ---\n${JSON.stringify(hint.loopArm, null, 2)}\nwatchArgv=${JSON.stringify(hint.watchArgv)}`
     : "";
+  const out = capToolOutput(result.stdout || result.stderr || `(exit ${result.code})`, {
+    keep: "tail",
+    label: "babysit-watch-pr",
+  });
   return {
     content: [
       {
         type: "text",
-        text: `${result.stdout || result.stderr || `(exit ${result.code})`}${hintBlock}`,
+        text: `${out.text}${hintBlock}`,
       },
     ],
     details: {
@@ -90,6 +96,7 @@ async function executeBabysitWithWatchPr(
       recipeId,
       watchArgv: hint.watchArgv,
       loopArm: includeHint ? hint.loopArm : undefined,
+      ...(out.outputPath ? { fullOutputPath: out.outputPath } : {}),
     },
   };
 }
@@ -109,11 +116,15 @@ async function executeBabysitWithGhRecipe(
   const hintBlock = includeHint
     ? `\n\n--- pstack_loop dynamic arm ---\n${JSON.stringify(hint.loopArm, null, 2)}`
     : "";
+  const out = capToolOutput(result.stdout || result.stderr || `(exit ${result.code})`, {
+    keep: "tail",
+    label: "babysit-gh-recipe",
+  });
   return {
     content: [
       {
         type: "text",
-        text: `${result.stdout || result.stderr || `(exit ${result.code})`}${hintBlock}`,
+        text: `${out.text}${hintBlock}`,
       },
     ],
     details: {
@@ -122,6 +133,7 @@ async function executeBabysitWithGhRecipe(
       recipeId,
       watchArgv: hint.watchArgv,
       loopArm: includeHint ? hint.loopArm : undefined,
+      ...(out.outputPath ? { fullOutputPath: out.outputPath } : {}),
     },
   };
 }
@@ -148,11 +160,15 @@ async function executeBabysitWithGhView(
   const hintBlock = includeHint
     ? `\n\n--- pstack_loop dynamic arm (default babysit) ---\n${JSON.stringify(hint.loopArm, null, 2)}\nwatchArgv=${JSON.stringify(hint.watchArgv)}`
     : "";
+  const out = capToolOutput(result.stdout || result.stderr || `(exit ${result.code})`, {
+    keep: "tail",
+    label: "babysit-gh-view",
+  });
   return {
     content: [
       {
         type: "text",
-        text: `${result.stdout || result.stderr}${hintBlock}`,
+        text: `${out.text}${hintBlock}`,
       },
     ],
     details: {
@@ -162,6 +178,7 @@ async function executeBabysitWithGhView(
       watchArgv: hint.watchArgv,
       loopArm: includeHint ? hint.loopArm : undefined,
       fixturesAvailable: MERGE_GATE_FIXTURES.length,
+      ...(out.outputPath ? { fullOutputPath: out.outputPath } : {}),
     },
   };
 }
@@ -176,7 +193,8 @@ async function handleShipView(
     ["pr", "view", pr.replace(/^#/, ""), "--json", "number,title,state,mergedAt,mergeStateStatus,url,statusCheckRollup"],
     { signal },
   );
-  return { content: [{ type: "text", text: r.stdout || r.stderr }], details: { code: r.code } };
+  const out = capToolOutput(r.stdout || r.stderr, { keep: "tail", label: "ship-view" });
+  return { content: [{ type: "text", text: out.text }], details: { code: r.code } };
 }
 
 async function fetchStackView(
@@ -260,14 +278,19 @@ async function handleShipMerge(
   if (r.code !== 0) {
     throw new Error(`gh pr merge failed (fail closed): ${r.stderr || r.stdout || `exit ${r.code}`}`);
   }
+  const merged = capToolOutput(r.stdout || "", { keep: "tail", label: "ship-merge" });
   return {
     content: [
       {
         type: "text",
-        text: `Merged PR ${prClean} after gate check (mergeStateStatus=${gate.mergeStateStatus ?? "n/a"}).\n${r.stdout || ""}`,
+        text: `Merged PR ${prClean} after gate check (mergeStateStatus=${gate.mergeStateStatus ?? "n/a"}).\n${merged.text}`,
       },
     ],
-    details: { code: r.code, gate },
+    details: {
+      code: r.code,
+      gate,
+      ...(merged.outputPath ? { fullOutputPath: merged.outputPath } : {}),
+    },
   };
 }
 
@@ -381,21 +404,21 @@ function registerBabysitTool(pi: ExtensionAPI): void {
     name: "pstack_babysit",
     label: "Pstack Babysit",
     description:
-      "Watch a GitHub PR via gh (or bundled watch-pr script) until a terminal verdict. Defaults to concrete watchArgv recipes + pstack_loop mode=dynamic guidance (Cursor local babysit twin). Closest Pi twin to Babysit playbook polling.",
+      "Watch a GitHub PR via gh (or bundled watch-pr script) until a terminal verdict. Defaults to concrete watchArgv recipes + pstack_loop mode=dynamic guidance (Cursor local babysit twin). Closest Pi twin to Babysit playbook polling. Command output caps at 50KB / 2000 lines; a truncated result's trailer names the temp file with the full text.",
     promptSnippet: "Watch PR checks/comments until ready or blocked",
     promptGuidelines: [
-      "Prefer recipeId=watch-pr-drive (default) or watch-pr-status / watch-pr-stack / watch-pr-queued-stack / gh-checks-watch / gh-view-json.",
-      "watch-pr-queued-stack requires stackPrs (bottom-to-top PR numbers).",
-      "The bundled watch-pr recipes run via bun (its declared runtime); bun must be on PATH.",
-      "Arm pstack_loop with the returned loopArm (mode=dynamic + watchArgv) for settle+watcher composite babysit.",
-      "Never merge from babysit — route land/ship to pstack_ship / shipping playbook.",
+      "Prefer pstack_babysit recipeId=watch-pr-drive (default) or watch-pr-status / watch-pr-stack / watch-pr-queued-stack / gh-checks-watch / gh-view-json.",
+      "pstack_babysit recipeId=watch-pr-queued-stack requires stackPrs (bottom-to-top PR numbers).",
+      "The bundled watch-pr recipes pstack_babysit runs go via bun (its declared runtime); bun must be on PATH.",
+      "Arm pstack_loop with the loopArm pstack_babysit returns (mode=dynamic + watchArgv) for settle+watcher composite babysit.",
+      "Never merge from pstack_babysit; route land/ship to pstack_ship / shipping playbook.",
     ],
     parameters: Type.Object({
       pr: Type.String({ description: "PR number or URL" }),
       statusOnly: Type.Optional(Type.Boolean()),
       pretty: Type.Optional(Type.Boolean()),
       recipeId: Type.Optional(
-        Type.String({
+        StringEnum(Object.keys(BABYSIT_WATCH_RECIPES), {
           description: `Concrete watchArgv recipe: ${Object.keys(BABYSIT_WATCH_RECIPES).join(" | ")} (default ${DEFAULT_BABYSIT_RECIPE}; statusOnly forces watch-pr-status)`,
         }),
       ),
@@ -422,13 +445,19 @@ function registerShipTool(pi: ExtensionAPI): void {
     name: "pstack_ship",
     label: "Pstack Ship",
     description:
-      "Stack-aware GitHub land helper: view/merge contiguous green PRs via gh. Merge runs a real gate check and fails closed if unmet (not a notify toast).",
+      "Stack-aware GitHub land helper: view/merge contiguous green PRs via gh. Merge runs a real gate check and fails closed if unmet (not a notify toast). Command output caps at 50KB / 2000 lines; a truncated result's trailer names the temp file with the full text.",
     promptSnippet: "Merge or inspect a green PR stack with gh",
     parameters: Type.Object({
-      action: Type.String({ description: "view | merge | stack-status | gate-check" }),
+      action: StringEnum(["view", "merge", "stack-status", "gate-check"] as const, {
+        description: "view | merge | stack-status | gate-check",
+      }),
       pr: Type.Optional(Type.String()),
       stackPrs: Type.Optional(Type.Array(Type.String(), { description: "Bottom-to-top PR numbers" })),
-      mergeMethod: Type.Optional(Type.String({ description: "squash | merge | rebase" })),
+      mergeMethod: Type.Optional(
+        StringEnum(["squash", "merge", "rebase"] as const, {
+          description: "squash | merge | rebase",
+        }),
+      ),
     }),
     async execute(_id, params, signal) {
       return await executeShip(pi, params, signal);

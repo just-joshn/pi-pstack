@@ -10,6 +10,7 @@
  * not double-fire within COALESCE_MS.
  */
 import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { DYNAMIC_COALESCE_MS } from "./coalesce.ts";
 
@@ -97,10 +98,7 @@ function fire(run: HeartbeatRun, state: LoopState, reason: string): void {
     });
     return;
   }
-  run.pi.sendUserMessage(
-    `[pstack_loop ${state.id} fire ${state.fires}/${state.maxFires} reason=${reason}]\n${state.prompt}`,
-    { deliverAs: "followUp" },
-  );
+  run.pi.sendUserMessage(`[pstack_loop ${state.id} fire ${state.fires}/${state.maxFires} reason=${reason}]\n${state.prompt}`, { deliverAs: "followUp" });
   // Reset prompt to base after injecting watcher output once
   state.prompt = state.basePrompt;
   if (state.mode === "interval" && state.armed) {
@@ -313,9 +311,11 @@ function registerLoopCommand(run: HeartbeatRun): void {
 
 function loopToolParameters() {
   return Type.Object({
-    action: Type.String({ description: "arm | stop | status | list" }),
+    action: StringEnum(["arm", "stop", "status", "list"] as const, {
+      description: "arm | stop | status | list",
+    }),
     mode: Type.Optional(
-      Type.String({
+      StringEnum(["interval", "settle", "watcher", "dynamic"] as const, {
         description:
           "interval | settle | watcher | dynamic (default interval). dynamic = settle + optional watcher re-arm (coalesced).",
       }),
@@ -388,9 +388,9 @@ function registerLoopTool(run: HeartbeatRun): void {
     promptSnippet: "Arm a repeating wake prompt after interval, settle, watcher, or dynamic",
     promptGuidelines: [
       "Use pstack_loop for autonomous-run and babysit wake chains (Pi has no Cursor /loop).",
-      "Prefer mode=dynamic (settle+watcher) for babysit/shipping frontiers; pass watchArgv when an event (CI, merge) should wake the agent.",
-      "mode=settle / dynamic clears any prior timer before re-arming on agent_settled; dynamic coalesces settle+watcher within 2.5s so they do not double-fire.",
-      "mode=watcher fires once when watchArgv exits; mode=dynamic re-arms the watcher after each fire.",
+      "Prefer pstack_loop mode=dynamic (settle+watcher) for babysit/shipping frontiers; pass watchArgv when an event (CI, merge) should wake the agent.",
+      "pstack_loop mode=settle / dynamic clears any prior timer before re-arming on agent_settled; dynamic coalesces settle+watcher within 2.5s so they do not double-fire.",
+      "pstack_loop mode=watcher fires once when watchArgv exits; mode=dynamic re-arms the watcher after each fire.",
     ],
     parameters: loopToolParameters(),
     execute: (_id, params, signal, _onUpdate, ctx) => executeLoopTool(run, params, signal, ctx),

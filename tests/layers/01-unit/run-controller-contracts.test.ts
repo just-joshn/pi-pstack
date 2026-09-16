@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { registerLoopController } from "../../../extensions/loop/controller.ts";
 import { registerHeartbeat } from "../../../extensions/heartbeat/index.ts";
 import { initialRecord, reduceRun, type RunRecord } from "../../../extensions/loop/fsm.ts";
-import { saveRun } from "../../../extensions/loop/run-store.ts";
+import { saveRun, loadRun } from "../../../extensions/loop/run-store.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "pstack-runs-"));
 process.env.PSTACK_RUNS_DIR = dir;
@@ -148,4 +148,37 @@ test("state reports a stored run and rejects an unknown id", async () => {
     () => env.tool().execute("t", { action: "state", runId: "run-missing" }, undefined, undefined, env.ctx),
     /unknown run run-missing/,
   );
+});
+
+test("session_shutdown blocks every run armed in this process", async () => {
+  let shutdown: (() => void) | undefined;
+  let tool: CapturedTool | undefined;
+  const pi = {
+    on(event: string, handler: () => void) {
+      if (event === "session_shutdown") shutdown = handler;
+    },
+    registerCommand() {},
+    registerTool(definition: CapturedTool) {
+      tool = definition;
+    },
+    sendUserMessage() {},
+    exec() {
+      return new Promise(() => {});
+    },
+  };
+  const ctx = { ui: { setStatus() {}, notify() {} } };
+  registerHeartbeat(pi as never);
+  registerLoopController(pi as never);
+  assert.ok(tool && shutdown, "the controller registers pstack_run and a shutdown handler");
+  await tool.execute(
+    "t",
+    { action: "arm", runId: "run-shutdown", predicate: "ci green", intervalSeconds: 60 },
+    undefined,
+    undefined,
+    ctx,
+  );
+  shutdown();
+  const record = loadRun("run-shutdown");
+  assert.equal(record?.phase, "BLOCKED");
+  assert.match(record?.blockedReason ?? "", /local runtime session ended without completion/);
 });

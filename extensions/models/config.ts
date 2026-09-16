@@ -8,6 +8,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import { withBudget } from "./budget.ts";
 
 export type RoleValue = string | string[];
@@ -56,7 +57,19 @@ export function modelsConfigPath(): string {
 }
 
 export function projectModelsConfigPath(cwd: string): string {
-  return join(cwd, ".pi", "pstack-models.json");
+  return join(cwd, CONFIG_DIR_NAME, "pstack-models.json");
+}
+
+/**
+ * Project-local config is honored only for a trusted project. Returns the cwd
+ * whose project config may be read, or undefined to fall back to the global
+ * config alone.
+ */
+export function projectConfigCwd(ctx: {
+  readonly cwd: string;
+  readonly isProjectTrusted?: () => boolean;
+}): string | undefined {
+  return ctx.isProjectTrusted?.() === true ? ctx.cwd : undefined;
 }
 
 export function loadModelsConfig(cwd?: string): PstackModelsConfig | null {
@@ -138,9 +151,9 @@ export function resolveRoleModel(
   role: string,
   parentModel: string,
   index = 0,
-  cwd?: string,
+  trustedConfigCwd?: string,
 ): string | undefined {
-  const cfg = loadModelsConfig(cwd);
+  const cfg = loadModelsConfig(trustedConfigCwd);
   if (!cfg) return undefined;
   const key = ROLE_ALIASES[role] ?? role;
   const value = cfg.roles[key] ?? cfg.roles[role];

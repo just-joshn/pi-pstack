@@ -93,13 +93,13 @@ test("commands-01 expands /skill:<name> arguments into the skill prompt", async 
 
     await command?.handler("  extra args  ", {});
     assert.deepEqual(env.messages(), [
-      { content: "/skill:demo-skill extra args", options: { expandPromptTemplates: true } },
+      { content: "/skill:demo-skill extra args", options: { expandPromptTemplates: true, deliverAs: "followUp" } },
     ]);
 
     await command?.handler("", {});
     assert.deepEqual(env.messages().at(-1), {
       content: "/skill:demo-skill",
-      options: { expandPromptTemplates: true },
+      options: { expandPromptTemplates: true, deliverAs: "followUp" },
     });
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -109,7 +109,7 @@ test("commands-01 expands /skill:<name> arguments into the skill prompt", async 
   registerSkillCommands(shipped.pi);
   await shipped.commands().get("how")?.handler("why does this exist", {});
   assert.deepEqual(shipped.messages(), [
-    { content: "/skill:how why does this exist", options: { expandPromptTemplates: true } },
+    { content: "/skill:how why does this exist", options: { expandPromptTemplates: true, deliverAs: "followUp" } },
   ]);
 });
 
@@ -178,6 +178,6 @@ test("commands-05 /pstack aliases /poteto-mode and notifies when run without arg
   assert.deepEqual(fromPstack, fromPoteto, "alias forwards the same forced skill prompt");
   assert.deepEqual(fromPstack, {
     content: "/skill:poteto-mode banana smoothie recipe",
-    options: { expandPromptTemplates: true },
+    options: { expandPromptTemplates: true, deliverAs: "followUp" },
   });
 });

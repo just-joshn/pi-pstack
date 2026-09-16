@@ -288,12 +288,10 @@ async function assertControlUiFailure(user) {
   user.setFetch(async () => {
     throw new Error("boom");
   });
-  const failed = await user.tool("pstack_control_ui", { url: "http://127.0.0.1:9/" });
-  assert.equal(
-    textOf(failed),
-    "pstack_control_ui failed: boom\nHTTP-only twin. If you need real browser interaction, use an available browser MCP alongside this probe.",
+  await assert.rejects(
+    () => user.tool("pstack_control_ui", { url: "http://127.0.0.1:9/" }),
+    /pstack_control_ui failed: boom\. HTTP-only twin\./,
   );
-  assert.deepEqual(failed.details, { ok: false });
 }
 
 const J12 = {

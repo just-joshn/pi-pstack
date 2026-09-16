@@ -244,7 +244,7 @@ test("benny-04 setup-benny sends the skill path to read and follow", async () =>
   const sent = env.messages()[0];
   assert.equal(sent.text.startsWith("Read and follow "), true);
   assert.equal(sent.text.includes(skill), true);
-  assert.deepEqual(sent.options, { expandPromptTemplates: false });
+  assert.deepEqual(sent.options, { expandPromptTemplates: false, deliverAs: "followUp" });
   assert.deepEqual(env.notifications(), []);
 });
 
@@ -267,8 +267,8 @@ test("benny-05 benny-triage sends the triage skill path for immediate evaluation
   assert.deepEqual(
     env.messages().map((message) => message.options),
     [
-      { expandPromptTemplates: false },
-      { expandPromptTemplates: false },
+      { expandPromptTemplates: false, deliverAs: "followUp" },
+      { expandPromptTemplates: false, deliverAs: "followUp" },
     ],
   );
 });
@@ -347,9 +347,10 @@ test("benny-08 parses the payload as JSON when possible and keeps raw strings ot
   assert.equal(rows[1].payload, "not json {");
   assert.equal(rows[2].payload, 42);
 
-  const blank = await wake.execute("t", { action: "append", payload: "   " });
-  assert.equal(blank.details.ok, false);
-  assert.equal(blank.content[0].text, "pstack_benny_wake append requires payload JSON");
+  await assert.rejects(
+    () => wake.execute("t", { action: "append", payload: "   " }),
+    /pstack_benny_wake append requires a non-empty payload JSON string/,
+  );
   assert.equal(readWakeRows().length, 3);
 });
 

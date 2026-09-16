@@ -74,7 +74,14 @@ await check("force-invoke routes via input transform, not a queued follow-up", a
   assert.ok(src.includes("restoredPlaybookId"));
   assert.ok(!src.includes("forceInvokeFallbackId"), "fallback-on-catch machinery must be gone");
   assert.ok(!src.includes("lastForcedSkillKey"), "re-entrant dedupe machinery must be gone");
-  assert.ok(!src.includes("deliverAs"), "must not queue a followUp for force-invoke");
+  const inputHandler = src.slice(
+    src.indexOf("function registerPotetoInput"),
+    src.indexOf("function registerPotetoPrompt"),
+  );
+  assert.ok(
+    !inputHandler.includes("sendUserMessage"),
+    "force-invoke must return a transform from the input handler, not queue a follow-up",
+  );
 });
 
 await check("sticky force skill message + persist helpers", async () => {
@@ -327,7 +334,7 @@ await check("deslop applySafe + dryRun path exercised", async () => {
         safeDelete: true,
       },
     ];
-    const result = mod.applySafeDeletes(dir, suggestions);
+    const result = await mod.applySafeDeletes(dir, suggestions);
     assert.ok(result.applied >= 1, `applied=${result.applied}`);
     const next = readFileSync(file, "utf8");
     assert.ok(!next.includes("Phase 1"));

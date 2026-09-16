@@ -7,14 +7,14 @@
   "totals": {
     "byClassification": {
       "EXACT-CONTRACT": 217,
-      "ADAPTED-EQUIVALENT": 230,
+      "ADAPTED-EQUIVALENT": 242,
       "HOSTED-CAPABILITY-REQUIRED": 6,
       "APPROVED-EXCEPTION": 3
     },
     "byStatus": {
       "unimplemented": 6,
       "implemented": 0,
-      "verified": 447,
+      "verified": 459,
       "blocked": 3
     }
   },
@@ -2971,7 +2971,7 @@
       ],
       "classification": "EXACT-CONTRACT",
       "piMechanism": [
-        "extensions/gates/index.ts:40"
+        "extensions/gates/index.ts:13"
       ],
       "prerequisites": [],
       "tests": [
@@ -2980,7 +2980,7 @@
       "normalization": [],
       "status": "verified",
       "evidence": [
-        "extensions/gates/index.ts:40"
+        "extensions/gates/index.ts:13"
       ],
       "divergences": [],
       "exceptionJustification": null
@@ -2996,7 +2996,7 @@
       ],
       "classification": "EXACT-CONTRACT",
       "piMechanism": [
-        "extensions/gates/index.ts:44"
+        "extensions/gates/index.ts:36"
       ],
       "prerequisites": [],
       "tests": [
@@ -3005,7 +3005,7 @@
       "normalization": [],
       "status": "verified",
       "evidence": [
-        "extensions/gates/index.ts:44"
+        "extensions/gates/index.ts:36"
       ],
       "divergences": [],
       "exceptionJustification": null
@@ -3021,7 +3021,7 @@
       ],
       "classification": "EXACT-CONTRACT",
       "piMechanism": [
-        "extensions/gates/index.ts:44-51"
+        "extensions/gates/index.ts:17-22"
       ],
       "prerequisites": [],
       "tests": [
@@ -3030,7 +3030,7 @@
       "normalization": [],
       "status": "verified",
       "evidence": [
-        "extensions/gates/index.ts:44-51"
+        "extensions/gates/index.ts:17-22"
       ],
       "divergences": [],
       "exceptionJustification": null
@@ -3046,7 +3046,7 @@
       ],
       "classification": "EXACT-CONTRACT",
       "piMechanism": [
-        "extensions/gates/index.ts:33-41"
+        "extensions/gates/index.ts:25-34"
       ],
       "prerequisites": [],
       "tests": [
@@ -3055,7 +3055,7 @@
       "normalization": [],
       "status": "verified",
       "evidence": [
-        "extensions/gates/index.ts:33-41"
+        "extensions/gates/index.ts:25-34"
       ],
       "divergences": [],
       "exceptionJustification": null
@@ -3071,7 +3071,7 @@
       ],
       "classification": "EXACT-CONTRACT",
       "piMechanism": [
-        "extensions/gates/index.ts:44-50"
+        "extensions/gates/index.ts:37-41"
       ],
       "prerequisites": [],
       "tests": [
@@ -3080,7 +3080,7 @@
       "normalization": [],
       "status": "verified",
       "evidence": [
-        "extensions/gates/index.ts:44-50"
+        "extensions/gates/index.ts:37-41"
       ],
       "divergences": [],
       "exceptionJustification": null
@@ -3096,7 +3096,7 @@
       ],
       "classification": "EXACT-CONTRACT",
       "piMechanism": [
-        "extensions/gates/index.ts:51-55"
+        "extensions/gates/index.ts:42-43"
       ],
       "prerequisites": [],
       "tests": [
@@ -3105,7 +3105,307 @@
       "normalization": [],
       "status": "verified",
       "evidence": [
-        "extensions/gates/index.ts:51-55"
+        "extensions/gates/index.ts:42-43"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-01",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "Every command handler that calls pi.sendUserMessage passes deliverAs so a mid-stream send cannot throw and drop the message.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-01 sendUserMessage call sites in extensions pass deliverAs"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/commands/skill-commands.ts:159"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-01 sendUserMessage call sites in extensions pass deliverAs"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/commands/skill-commands.ts:159"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-02",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "Arming readonly strips only the write-blocked tools and preserves every other active tool, and disarming restores the pre-arm snapshot unioned with the tools active at restore time.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-02 computeReadonlyTools preserves an unrelated tool"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/readonly-state/index.ts:28"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-02 computeReadonlyTools preserves an unrelated tool"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/readonly-state/index.ts:28"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-03",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "Every closed single-choice tool parameter is a JSON-schema enum built with StringEnum instead of Type.Union of Type.Literal.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-03 closed choice parameters are JSON-schema enums"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/benny/index.ts:21"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-03 closed choice parameters are JSON-schema enums"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/benny/index.ts:21"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-04",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "Every promptGuidelines bullet names the tool whose definition carries it, because the bullets are appended flat with no prefix.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-04 every promptGuidelines bullet names its registered tool"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/orchestration/swarm.ts:170"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-04 every promptGuidelines bullet names its registered tool"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/orchestration/swarm.ts:170"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-05",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "Tool output truncates at the default byte and line limits, tells the model the output was truncated, and names the file holding the full text.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-05 capToolOutput truncates and names the full-output path"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/lib/tool-output.ts:1"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-05 capToolOutput truncates and names the full-output path"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/lib/tool-output.ts:1"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-06",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "A tool that accepts a path drops a leading at-sign before the value reaches any path resolver.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-06 stripAtPrefix normalizes a leading at-sign"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/lib/paths.ts:1"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-06 stripAtPrefix normalizes a leading at-sign"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/lib/paths.ts:1"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-07",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "A file-mutating tool wraps its whole read-modify-write window in withFileMutationQueue keyed to the resolved absolute path.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-07 file-mutating tools await withFileMutationQueue"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/decision-log/index.ts:65"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-07 file-mutating tools await withFileMutationQueue"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/decision-log/index.ts:65"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-08",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "A tool failure throws an Error instead of returning a value, so the host marks the result as an error.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-08 benny and control_ui error paths throw"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/benny/index.ts:56"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-08 benny and control_ui error paths throw"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/benny/index.ts:56"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-09",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "Project-local extension configuration is read only when ctx.isProjectTrusted() is true, and an untrusted cwd falls back to the global config alone.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-09 projectConfigCwd gates project config on trust"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/models/config.ts:68"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-09 projectConfigCwd gates project config on trust"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/models/config.ts:68"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-10",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "Project-local config paths are built from CONFIG_DIR_NAME instead of the literal .pi directory name.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-10 project config modules use CONFIG_DIR_NAME"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/models/config.ts:60"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-10 project config modules use CONFIG_DIR_NAME"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/models/config.ts:60"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-11",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "Shutdown cleanup reads ctx.cwd rather than process.cwd() so it acts on the session directory the host reports.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-11 worktree shutdown cleanup reads ctx.cwd"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/worktree/index.ts:116"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-11 worktree shutdown cleanup reads ctx.cwd"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/worktree/index.ts:116"
+      ],
+      "divergences": [],
+      "exceptionJustification": null
+    },
+    {
+      "id": "host-12",
+      "category": "skill",
+      "upstreamRevision": "5bf2b1544db739998121a306340631963c2ff3de",
+      "upstreamPath": "extension-api",
+      "behavior": "Session-scoped jobs are aborted and cleared, and every non-terminal run armed in the process is blocked, at session_shutdown.",
+      "observableContract": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-12 session_shutdown clears jobs and blocks armed runs"
+      ],
+      "classification": "ADAPTED-EQUIVALENT",
+      "piMechanism": [
+        "extensions/subagents/index.ts:500"
+      ],
+      "prerequisites": [],
+      "tests": [
+        "test@tests/layers/01-unit/host-adherence.test.ts@host-12 session_shutdown clears jobs and blocks armed runs"
+      ],
+      "normalization": [],
+      "status": "verified",
+      "evidence": [
+        "extensions/subagents/index.ts:500"
       ],
       "divergences": [],
       "exceptionJustification": null

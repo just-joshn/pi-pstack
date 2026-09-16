@@ -8,6 +8,8 @@
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { capToolOutput } from "../lib/tool-output.ts";
+import { stripAtPrefix, stripAtPrefixes } from "../lib/paths.ts";
 import {
   SLOP_PATTERNS,
   applySafeDeletes,
@@ -295,7 +297,7 @@ function registerDeslopTool(pi: ExtensionAPI): void {
       const { ranked, suggestions, addedLineCount } = await scanDiffForSlop(
         pi,
         base,
-        params.paths,
+        stripAtPrefixes(params.paths),
         signal,
       );
       const { applyReport, applyDetails, doApply } = await determineApplyAction(
@@ -305,7 +307,7 @@ function registerDeslopTool(pi: ExtensionAPI): void {
       );
 
       if (doApply && suggestions.some((s) => s.safeDelete)) {
-        const result = applySafeDeletes(ctx.cwd, suggestions);
+        const result = await applySafeDeletes(ctx.cwd, suggestions);
         return formatResult(ctx.cwd, ranked, suggestions, addedLineCount, {
           applied: result.applied,
           files: result.files,
@@ -322,7 +324,7 @@ function registerControlCliTool(pi: ExtensionAPI): void {
     name: "pstack_control_cli",
     label: "Pstack Control CLI",
     description:
-      "Pi-local control-cli twin: run a CLI/TUI verification via argv array (no shell), capture stdout/stderr/exit, truncate for the model.",
+      "Pi-local control-cli twin: run a CLI/TUI verification via argv array (no shell), capture stdout/stderr/exit, truncate for the model. Output caps at 50KB / 2000 lines; the trailer names the temp file with the full text.",
     promptSnippet: "Drive a CLI/TUI and capture proof output",
     promptGuidelines: [
       "Use pstack_control_cli with argv=[cmd,...args] — never a raw shell string.",
@@ -343,17 +345,21 @@ function registerControlCliTool(pi: ExtensionAPI): void {
       const result = await pi.exec(command, args, {
         signal,
         timeout: (params.timeoutSeconds ?? 120) * 1000,
-        cwd: params.cwd,
+        cwd: stripAtPrefix(params.cwd),
       });
-      const out = `${result.stdout || ""}\n${result.stderr || ""}`.slice(0, 50_000);
+      const raw = `${result.stdout || ""}\n${result.stderr || ""}`;
+      const out = capToolOutput(raw || "(no output)", { keep: "tail", label: "control-cli" });
       return {
         content: [
           {
             type: "text",
-            text: `exit ${result.code}\n\n${out || "(no output)"}`,
+            text: `exit ${result.code}\n\n${out.text}`,
           },
         ],
-        details: { code: result.code },
+        details: {
+          code: result.code,
+          ...(out.outputPath ? { fullOutputPath: out.outputPath } : {}),
+        },
       };
     },
   });
@@ -364,35 +370,33 @@ function registerControlUiTool(pi: ExtensionAPI): void {
     name: "pstack_control_ui",
     label: "Pstack Control UI",
     description:
-      "Pi-local control-ui twin: probe a URL (HTTP) or run a browser MCP hint. Returns status + body snippet. Full browser automation depends on available MCP/browser tools — HTTP-only unless a browser MCP is present.",
+      "Pi-local control-ui twin: probe a URL (HTTP) or run a browser MCP hint. Returns status + body snippet. Body caps at 50KB / 2000 lines; the trailer names the temp file with the full body. Full browser automation depends on available MCP/browser tools — HTTP-only unless a browser MCP is present.",
     promptSnippet: "HTTP-probe a UI surface for proof",
     parameters: CONTROL_UI_PARAMETERS,
     async execute(_id, params, signal) {
       const method = params.method ?? "GET";
       try {
         const res = await fetch(params.url, { method, signal: signal ?? null });
-        const body = (await res.text()).slice(0, 20_000);
+        const capped = capToolOutput(await res.text(), { keep: "head", label: "control-ui" });
         const expect = params.expectStatus;
         const ok = expect == null ? res.ok : res.status === expect;
         return {
           content: [
             {
               type: "text",
-              text: `HTTP ${res.status} ok=${ok}\n\n${body}`,
+              text: `HTTP ${res.status} ok=${ok}\n\n${capped.text}`,
             },
           ],
-          details: { status: res.status, ok },
+          details: {
+            status: res.status,
+            ok,
+            ...(capped.outputPath ? { fullOutputPath: capped.outputPath } : {}),
+          },
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `pstack_control_ui failed: ${(err as Error).message}\nHTTP-only twin. If you need real browser interaction, use an available browser MCP alongside this probe.`,
-            },
-          ],
-          details: { ok: false },
-        };
+        throw new Error(
+          `pstack_control_ui failed: ${(err as Error).message}. HTTP-only twin. If you need real browser interaction, use an available browser MCP alongside this probe.`,
+        );
       }
     },
   });
@@ -402,10 +406,7 @@ function registerDeslopCommand(pi: ExtensionAPI): void {
   pi.registerCommand("deslop", {
     description: "Run pstack_deslop twin then remind /skill:unslop",
     handler: async (_args, ctx) => {
-      pi.sendUserMessage(
-        "Run pstack_deslop on the current diff against main (consider applySafe:true for safe comment deletes), then apply /skill:unslop to any prose surfaces and fix remaining findings with edit.",
-        { expandPromptTemplates: true },
-      );
+      pi.sendUserMessage("Run pstack_deslop on the current diff against main (consider applySafe:true for safe comment deletes), then apply /skill:unslop to any prose surfaces and fix remaining findings with edit.", { expandPromptTemplates: true, deliverAs: "followUp" });
       ctx.ui.notify("Queued deslop twin", "info");
     },
   });

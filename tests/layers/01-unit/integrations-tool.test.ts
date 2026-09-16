@@ -113,8 +113,8 @@ test("integrations-tool-01 registers pstack_integrations with the mandated actio
   assert.equal(tool.label, "Pstack Integrations");
   assert.equal(tool.promptSnippet, "Report integration capability availability and query a configured adapter");
   assert.deepEqual(tool.promptGuidelines, [
-    "/why must report an unavailable category as a null finding, never skip it",
-    "capability availability comes from pstack_integrations, not from guessing tool names",
+    "pstack_integrations must report an unavailable category as a null finding, never skip it",
+    "pstack_integrations capability availability comes from the tool, not from guessing tool names",
   ]);
 
   const accepted = { action: "query", capability: "team-chat", query: "x", paths: ["a"], limit: 1 };

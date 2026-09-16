@@ -67,7 +67,7 @@ Row granularity rules.
 
 `spec/surfaces.tsv` is the machine-readable surface list. Columns are `slug`, `capability`, `owns`, `upstream_basis`. `capability` mirrors `PARITY.md`'s 12-capability scorecard where one exists. Zero is infrastructure. `owns` is a one-line list of the tools, commands, and files the surface owns. `upstream_basis` is the upstream file, or `none in tree`.
 
-The 20 surfaces and what each owns.
+The 21 surfaces and what each owns.
 
 - `content`. Ported tree, bindings, overrides, extras, leftover tokens, `port/contract/alias` gates.
 - `commands`. `/skill:<name>` invocation, generated `/name` shims, reserved names, arg forwarding.
@@ -88,6 +88,7 @@ The 20 surfaces and what each owns.
 - `readonly`. `/pstack-readonly(-off)`, tool policy, auto-arm, status.
 - `sessions`. `pstack_sessions` list/grep/current/recall, ranking.
 - `benny`. `pstack_benny_wake`, `/setup-benny`, `/benny-triage`, `/benny-repro`.
+- `host`. ExtensionAPI conformance: tool definitions, enums, output caps, path normalization, the file mutation queue, trust gating, shutdown lifecycle.
 - `ceiling`. EXCLUDED rows only, each naming its twin surface. A ceiling is `HOSTED-CAPABILITY-REQUIRED`, `APPROVED-EXCEPTION`, or `ADAPTED-EQUIVALENT` when a verified twin reproduces the capability. The ceiling rows live in `spec/contracts/companions.tsv` with the companion surfaces.
 
 Completeness directions, and the honest limit of each.

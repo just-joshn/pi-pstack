@@ -272,9 +272,7 @@ function registerPotetoModeCommand(
         return;
       }
       stateRef.state = reduceRecordText(stateRef.state, task);
-      pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
-        expandPromptTemplates: true,
-      });
+      pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), { expandPromptTemplates: true, deliverAs: "followUp" });
     },
   });
 }
@@ -308,9 +306,7 @@ function registerPstackCommand(
         return;
       }
       stateRef.state = reduceRecordText(stateRef.state, task);
-      pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), {
-        expandPromptTemplates: true,
-      });
+      pi.sendUserMessage(forcePotetoSkillMessage(task, matched?.id), { expandPromptTemplates: true, deliverAs: "followUp" });
     },
   });
 }

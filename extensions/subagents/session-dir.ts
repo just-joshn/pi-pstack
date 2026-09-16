@@ -5,6 +5,7 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
+import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import type { ChildTaskInput } from "./child-runner.ts";
 
 export function resolveSessionMode(input: ChildTaskInput): "ephemeral" | "isolated" {
@@ -56,7 +57,7 @@ export function resolveChildSessionDir(
     const sessionDir = isAbsolute(input.sessionDir) ? input.sessionDir : resolve(cwd, input.sessionDir);
     return { sessionMode, sessionDir, continueSession: false };
   }
-  const sessionDir = mintChildSessionDir(join(cwd, ".pi", "pstack-child-sessions"));
+  const sessionDir = mintChildSessionDir(join(cwd, CONFIG_DIR_NAME, "pstack-child-sessions"));
   return { sessionMode, sessionDir, continueSession: false };
 }
 

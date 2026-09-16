@@ -3,6 +3,7 @@
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 
 export type Severity = "high" | "medium" | "low";
 
@@ -151,15 +152,19 @@ export interface FixSuggestion {
   safeDelete: boolean;
 }
 
-export function applySafeDeletes(cwd: string, suggestions: FixSuggestion[]): { applied: number; files: string[] } {
+export async function applySafeDeletes(
+  cwd: string,
+  suggestions: FixSuggestion[],
+): Promise<{ applied: number; files: string[] }> {
   const byFile = groupSuggestionsByFile(suggestions);
-  const results = [...byFile.entries()].map(([file, hits]) =>
-    applySafeDeletesForFile(cwd, file, hits),
-  );
-  return {
-    applied: results.reduce((sum, r) => sum + r.applied, 0),
-    files: results.map((r) => r.file).filter((f) => f !== null) as string[],
-  };
+  let applied = 0;
+  let files: string[] = [];
+  for (const [file, hits] of byFile.entries()) {
+    const result = await applySafeDeletesForFile(cwd, file, hits);
+    applied = applied + result.applied;
+    if (result.file !== null) files = [...files, result.file];
+  }
+  return { applied, files };
 }
 
 function groupSuggestionsByFile(
@@ -175,35 +180,37 @@ function groupSuggestionsByFile(
   return byFile;
 }
 
-function applySafeDeletesForFile(
+async function applySafeDeletesForFile(
   cwd: string,
   file: string,
   hits: FixSuggestion[],
-): { applied: number; file: string | null } {
+): Promise<{ applied: number; file: string | null }> {
   const path = resolve(cwd, file);
   if (!existsSync(path)) return { applied: 0, file: null };
-  
-  let text: string;
-  try {
-    text = readFileSync(path, "utf8");
-  } catch {
-    return { applied: 0, file: null };
-  }
-  
-  const lines = text.split("\n");
-  const remove = new Set(hits.map((h) => h.line.trimEnd()));
-  const next = lines.filter((ln) => !remove.has(ln.trimEnd()) && !remove.has(ln));
-  const next2 = next.filter((ln) => {
-    for (const h of hits) {
-      if (ln === h.line || ln.trim() === h.line.trim()) return false;
+
+  return await withFileMutationQueue(path, async () => {
+    let text: string;
+    try {
+      text = readFileSync(path, "utf8");
+    } catch {
+      return { applied: 0, file: null };
     }
-    return true;
+
+    const lines = text.split("\n");
+    const remove = new Set(hits.map((h) => h.line.trimEnd()));
+    const next = lines.filter((ln) => !remove.has(ln.trimEnd()) && !remove.has(ln));
+    const next2 = next.filter((ln) => {
+      for (const h of hits) {
+        if (ln === h.line || ln.trim() === h.line.trim()) return false;
+      }
+      return true;
+    });
+
+    if (next2.length === lines.length) return { applied: 0, file: null };
+
+    writeFileSync(path, next2.join("\n"), "utf8");
+    return { applied: lines.length - next2.length, file };
   });
-  
-  if (next2.length === lines.length) return { applied: 0, file: null };
-  
-  writeFileSync(path, next2.join("\n"), "utf8");
-  return { applied: lines.length - next2.length, file };
 }
 
 

@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { Check } from "typebox/value";
 import { registerCompanions } from "../../../extensions/companions/index.ts";
 
@@ -137,8 +138,8 @@ test("control-01 validates argv against the allowlist", async () => {
   assert.equal(env.calls().at(-1)?.command, "/usr/local/bin/git");
 });
 
-test("control-02 runs argv without a shell and truncates output at 50000 characters", async () => {
-  const stdout = `${"a".repeat(49_999)}BC`;
+test("control-02 runs argv without a shell and caps output at the 50KB default limit", async () => {
+  const stdout = `${"a".repeat(60_000)}\n`;
   const env = companionEnv(() => ({ code: 3, stdout, stderr: "" }));
   const cli = env.tool("pstack_control_cli");
 
@@ -158,8 +159,10 @@ test("control-02 runs argv without a shell and truncates output at 50000 charact
   const header = "exit 3\n\n";
   const text = result.content[0].text;
   assert.equal(text.startsWith(header), true);
-  assert.equal(text.slice(header.length), `${"a".repeat(49_999)}B`);
-  assert.equal(text.length, header.length + 50_000);
+  assert.equal(text.includes("a".repeat(1000)), true);
+  assert.match(text, /\[Output truncated: \d+ of \d+ lines \([\d.]+KB of 58\.6KB\)\. Full output saved to: /);
+  assert.equal(typeof result.details.fullOutputPath, "string");
+  assert.equal(readFileSync(result.details.fullOutputPath as string, "utf8"), `${stdout}\n`);
 
   const short = companionEnv(() => ({ code: 0, stdout: "all good", stderr: "warn" }));
   const shortResult = await short.tool("pstack_control_cli").execute("t", {
@@ -187,7 +190,7 @@ test("control-03 probes the URL with the requested method and expected status", 
 });
 
 test("control-04 returns the HTTP status and a truncated body snippet", async () => {
-  const body = `prefix-${"b".repeat(25_000)}`;
+  const body = `prefix-${'b'.repeat(60_000)}`;
   const env = fakeFetchEnv(() => ({ status: 200, ok: true, body }));
   try {
     const result = await env.probe.execute("t", { url: "http://localhost:3000/" });
@@ -196,9 +199,18 @@ test("control-04 returns the HTTP status and a truncated body snippet", async ()
     const text = result.content[0].text;
     const header = "HTTP 200 ok=true\n\n";
     assert.equal(text.startsWith(header), true);
-    assert.equal(text.slice(header.length), body.slice(0, 20_000));
-    assert.equal(text.length, header.length + 20_000);
-    assert.equal(body.length > 20_000, true, "the fake body is longer than the snippet cap");
+    assert.equal(text.includes(body.slice(0, 200)), true);
+    assert.match(text, /\[Output truncated: 1 of 1 lines \(50\.0KB of 58\.6KB\)\./);
+    assert.equal(typeof result.details.fullOutputPath, "string");
+    assert.equal(readFileSync(result.details.fullOutputPath as string, "utf8"), body);
+
+    const small = fakeFetchEnv(() => ({ status: 200, ok: true, body: "upstream down" }));
+    try {
+      const smallResult = await small.probe.execute("t", { url: "http://localhost:3000/" });
+      assert.equal(smallResult.content[0].text, "HTTP 200 ok=true\n\nupstream down");
+    } finally {
+      small.restore();
+    }
   } finally {
     env.restore();
   }

@@ -9,7 +9,10 @@
  * null finding instead of a silent skip.
  */
 import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
+import { capToolOutput } from "../lib/tool-output.ts";
+import { stripAtPrefixes } from "../lib/paths.ts";
 import {
   INTEGRATION_CATEGORIES,
   type IntegrationCategory,
@@ -40,7 +43,6 @@ import {
 } from "./adapters.ts";
 
 const ACTIONS = ["list", "status", "probe", "query"] as const;
-const OUTPUT_CAP = 40_000;
 
 interface IntegrationsParams {
   action: string;
@@ -117,21 +119,21 @@ function gapResult(gap: CoverageGap): AgentToolResult<unknown> {
   };
 }
 
-function truncate(text: string): string {
-  return text.length > OUTPUT_CAP ? `${text.slice(0, OUTPUT_CAP)}\n…(truncated at ${OUTPUT_CAP} characters)` : text;
-}
-
 function execResult(status: IntegrationStatus, outcome: ExecOutcome, plan: string): AgentToolResult<unknown> {
-  const body = truncate(`${outcome.stdout}\n${outcome.stderr}`.trim());
+  const capped = capToolOutput(`${outcome.stdout}\n${outcome.stderr}`.trim() || "(no output)", {
+    keep: "tail",
+    label: `integrations-${status.entry.id}`,
+  });
   return {
     content: [
-      { type: "text", text: `${status.entry.id} ${plan}: exit ${outcome.code}\n\n${body || "(no output)"}` },
+      { type: "text", text: `${status.entry.id} ${plan}: exit ${outcome.code}\n\n${capped.text}` },
     ],
     details: {
       capability: status.entry.id,
       plan,
       code: outcome.code,
       coverageGap: false,
+      ...(capped.outputPath ? { fullOutputPath: capped.outputPath } : {}),
     },
   };
 }
@@ -160,7 +162,7 @@ async function runSourceControl(
   exec: ExecLike,
   ctx: ExtensionContext,
 ): Promise<AgentToolResult<unknown>> {
-  const plan = planSourceControlQuery(params.query ?? "", params.paths, params.limit);
+  const plan = planSourceControlQuery(params.query ?? "", stripAtPrefixes(params.paths), params.limit);
   if (plan.requiresGh && status.availability === "available-git-only") {
     return gapResult({
       capability: "source-control",
@@ -213,14 +215,14 @@ export function registerIntegrations(pi: ExtensionAPI): void {
     name: "pstack_integrations",
     label: "Pstack Integrations",
     description:
-      "Pi-local integration capability bridge (no MCP client). list/status/probe report the nine capability categories and their prerequisites; query runs the source-control adapters (git, gh) or a command adapter configured in ~/.pi/agent/pstack/integrations.json for the named capability. An unavailable capability returns an explicit coverage gap.",
+      "Pi-local integration capability bridge (no MCP client). list/status/probe report the nine capability categories and their prerequisites; query runs the source-control adapters (git, gh) or a command adapter configured in ~/.pi/agent/pstack/integrations.json for the named capability. An unavailable capability returns an explicit coverage gap. Adapter output caps at 50KB / 2000 lines; a truncated result's trailer names the temp file with the full text.",
     promptSnippet: "Report integration capability availability and query a configured adapter",
     promptGuidelines: [
-      "/why must report an unavailable category as a null finding, never skip it",
-      "capability availability comes from pstack_integrations, not from guessing tool names",
+      "pstack_integrations must report an unavailable category as a null finding, never skip it",
+      "pstack_integrations capability availability comes from the tool, not from guessing tool names",
     ],
     parameters: Type.Object({
-      action: Type.String({ description: "list | status | probe | query" }),
+      action: StringEnum(ACTIONS, { description: "list | status | probe | query" }),
       capability: Type.Optional(
         Type.String({
           description: `query target, one of: ${INTEGRATION_CATEGORIES.join(", ")}`,

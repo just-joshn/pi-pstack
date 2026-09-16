@@ -36,6 +36,7 @@ One row per directory under `extensions/`.
 | `extensions/heartbeat` | the pstack_loop timer and its settle/watch coalescing |
 | `extensions/hosted` | the services/worker client for environment=hosted runs |
 | `extensions/integrations` | the integration capability registry and pstack_integrations coverage reporting |
+| `extensions/lib` | no responsibility recorded |
 | `extensions/loop` | the durable /loop run record and the DEFINE_PREDICATE..COMPLETE/BLOCKED reducer |
 | `extensions/models` | /setup-pstack config, budget labels, and role model resolution |
 | `extensions/orchestration` | pstack_swarm and pstack_arena parallel fan-out |
@@ -65,13 +66,13 @@ Totals over every row in `compat/parity.json` (ledger rows plus inventory rows).
 | Classification | Rows |
 | --- | --- |
 | `EXACT-CONTRACT` | 217 |
-| `ADAPTED-EQUIVALENT` | 230 |
+| `ADAPTED-EQUIVALENT` | 242 |
 | `HOSTED-CAPABILITY-REQUIRED` | 6 |
 | `APPROVED-EXCEPTION` | 3 |
 
 ## 6. Parity totals by verification status
 
-- unimplemented=6, implemented=0, verified=447, blocked=3
+- unimplemented=6, implemented=0, verified=459, blocked=3
 
 Capability rollup (`compat/capabilities.json`): 13 capabilities, 13 verified, 2 hosted-required.
 

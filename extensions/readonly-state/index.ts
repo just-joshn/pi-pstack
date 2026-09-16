@@ -31,19 +31,11 @@ export function computeReadonlyTools(
   writeBlocked: ReadonlySet<string>,
 ): { nextActive: string[]; toolsBefore: string[] } {
   const toolsBefore = activeTools.length ? [...activeTools] : [...allTools];
-  const keep = new Set<string>([...READONLY_TOOLS]);
-  for (const name of toolsBefore) {
-    if (name.startsWith("pstack_") && !writeBlocked.has(name)) {
-      keep.add(name);
-    }
-    if (name === "read" || name === "grep" || name === "find" || name === "ls") {
-      keep.add(name);
-    }
-  }
-  const alwaysKeep = new Set<string>([...READONLY_TOOLS]);
-  const nextActive = [...keep].filter(
-    (n) => alwaysKeep.has(n) || allTools.includes(n) || toolsBefore.includes(n),
-  );
+  // Preserve every tool the session already had except the blocked writers; the
+  // readonly allowlist is unioned in. setActiveTools replaces the active list, so
+  // narrowing to the allowlist alone would silently drop unrelated tools.
+  const kept = toolsBefore.filter((name) => !writeBlocked.has(name));
+  const nextActive = [...new Set([...READONLY_TOOLS, ...kept])];
   return { nextActive, toolsBefore };
 }
 
@@ -82,10 +74,11 @@ export function reduceSetEnabled(
       ],
     };
   }
+  const restoredTools = [...new Set([...(state.toolsBefore ?? []), ...ctx.activeTools])];
   const offEffects: Effect[] = [
     baseEffect,
-    ...(state.toolsBefore?.length
-      ? [{ type: "setActiveTools" as const, tools: state.toolsBefore, guarded: true }]
+    ...(restoredTools.length
+      ? [{ type: "setActiveTools" as const, tools: restoredTools, guarded: true }]
       : []),
     { type: "setStatus" as const, statusId: "pstack-ro", value: undefined },
     { type: "notify" as const, message: "Session readonly off.", level: "info" as const },

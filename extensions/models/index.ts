@@ -10,6 +10,7 @@ import {
   loadModelsConfig,
   MARKETING_SLUG_MAP,
   modelsConfigPath,
+  projectConfigCwd,
   sanitizeRoleValueForWrite,
   type PstackModelsConfig,
   type RoleValue,
@@ -20,6 +21,7 @@ export {
   resolveRoleModel,
   modelsConfigPath,
   normalizeModelSelector,
+  projectConfigCwd,
   MARKETING_SLUG_MAP,
 } from "./config.ts";
 
@@ -65,7 +67,7 @@ function formatModelRolesSection(cfg: PstackModelsConfig): string {
 
 async function runSetupPstack(ctx: ExtensionCommandContext): Promise<void> {
   const detected = detectPreferredModel();
-  let existing = loadModelsConfig(ctx.cwd) ?? defaultModelsConfig(detected);
+  let existing = loadModelsConfig(projectConfigCwd(ctx)) ?? defaultModelsConfig(detected);
   existing = sanitizeConfig(upgradeInheritRoles(existing, detected), detected);
   const path = modelsConfigPath();
   mkdirSync(dirname(path), { recursive: true });
@@ -107,7 +109,7 @@ function registerSetupPstackCommand(pi: ExtensionAPI): void {
 
 function registerModelRolesPrompt(pi: ExtensionAPI): void {
   pi.on("before_agent_start", (event, ctx) => {
-    const cfg = loadModelsConfig(ctx.cwd) ?? defaultModelsConfig(detectPreferredModel());
+    const cfg = loadModelsConfig(projectConfigCwd(ctx)) ?? defaultModelsConfig(detectPreferredModel());
     return { systemPrompt: `${event.systemPrompt}\n\n${formatModelRolesSection(cfg)}` };
   });
 }

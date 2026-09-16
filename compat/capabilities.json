@@ -8,11 +8,12 @@
       "surfaces": [
         "content",
         "commands",
-        "decision"
+        "decision",
+        "host"
       ],
       "status": "verified",
       "hostedRequired": false,
-      "notes": "36 ledger row(s), 36 verified, 0 excluded"
+      "notes": "48 ledger row(s), 48 verified, 0 excluded"
     },
     {
       "id": "1",

@@ -248,6 +248,14 @@
       "piMechanism": "extensions/worktree/index.ts",
       "verification": "tests/layers/01-unit/worktree-contracts.test.ts",
       "notes": "Each worker allocates and cleans up its own git worktree because no host API exists."
+    },
+    {
+      "id": "extension-api",
+      "upstreamEvidence": "@earendil-works/pi-coding-agent docs/extensions.md (installed 0.85.1); the host API contract has no upstream pstack file",
+      "disposition": "reproduced",
+      "piMechanism": "extensions/lib/tool-output.ts, extensions/lib/paths.ts, and the tool definitions across extensions/",
+      "verification": "tests/layers/01-unit/host-adherence.test.ts",
+      "notes": "Host API conformance: sendUserMessage delivery, StringEnum, promptGuidelines naming, output caps, path normalization, file mutation queue, throw-on-error, trust gating, CONFIG_DIR_NAME, ctx.cwd, session-scoped state."
     }
   ]
 }

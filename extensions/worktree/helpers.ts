@@ -5,6 +5,7 @@ import { execFile } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
+import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 
 const execFileAsync = promisify(execFile);
 
@@ -192,7 +193,7 @@ function anyRecentFile(dir: string, cutoff: number): boolean {
  */
 export function hasRecentChildActivity(wtPath: string, now: number = Date.now()): boolean {
   return anyRecentFile(
-    join(wtPath, ".pi", "pstack-child-sessions"),
+    join(wtPath, CONFIG_DIR_NAME, "pstack-child-sessions"),
     now - CHILD_ACTIVITY_WINDOW_MS,
   );
 }

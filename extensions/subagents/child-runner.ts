@@ -10,6 +10,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { CONFIG_DIR_NAME, DEFAULT_MAX_LINES, formatSize, truncateHead, truncateLine } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
 import { READONLY_TOOLS, type PstackTaskPolicy } from "../agents/policy.ts";
 import { resolveChildSessionDir } from "./session-dir.ts";
@@ -214,7 +215,13 @@ export function truncate(
   opts?: { maxBytes?: number; persistDir?: string; tag?: string },
 ): { text: string; outputPath?: string } {
   const max = opts?.maxBytes ?? MAX_OUTPUT_BYTES;
-  if (Buffer.byteLength(text, "utf8") <= max) return { text };
+  const truncation = truncateHead(text, { maxBytes: max, maxLines: DEFAULT_MAX_LINES });
+  if (!truncation.truncated) return { text };
+  // truncateHead drops a first line longer than the byte cap entirely; fall back
+  // to truncateLine so a single-line child answer still yields a visible snippet.
+  const content = truncation.firstLineExceedsLimit
+    ? truncateLine(text, max).text
+    : truncation.content;
   let outputPath: string | undefined;
   if (opts?.persistDir) {
     try {
@@ -224,11 +231,13 @@ export function truncate(
       outputPath = undefined;
     }
   }
-  let content = text.slice(0, max);
-  while (Buffer.byteLength(content, "utf8") > max) content = content.slice(0, -1);
+  const outputLines = truncation.firstLineExceedsLimit
+    ? Math.max(1, truncation.outputLines)
+    : truncation.outputLines;
+  const counts = `${outputLines} of ${truncation.totalLines} lines (${formatSize(Buffer.byteLength(content, "utf8"))} of ${formatSize(truncation.totalBytes)})`;
   const trailer = outputPath
-    ? `\n\n[Output truncated to ${max} bytes. Full output: ${outputPath}]`
-    : `\n\n[Output truncated to ${max} bytes. Set persistOutput:true or PSTACK_PERSIST_OUTPUT=1 to save full text under .pi/pstack-child-output/.]`;
+    ? `\n\n[Output truncated: ${counts}. Full output: ${outputPath}]`
+    : `\n\n[Output truncated: ${counts}. Set persistOutput:true or PSTACK_PERSIST_OUTPUT=1 to save full text under .pi/pstack-child-output/.]`;
   return { text: `${content}${trailer}`, outputPath };
 }
 
@@ -415,7 +424,7 @@ function finalizeChildResult(
   cwd: string,
 ): ChildTaskResult {
   const persist = shouldPersistOutput(input);
-  const persistDir = persist ? join(cwd, ".pi", "pstack-child-output") : undefined;
+  const persistDir = persist ? join(cwd, CONFIG_DIR_NAME, "pstack-child-output") : undefined;
   const fullOut = finalText(outcome.messages) || outcome.stderr || (outcome.timedOut ? "(timed out)" : "(no output)");
   const truncated = truncate(fullOut, {
     persistDir,
@@ -598,6 +607,8 @@ export function abortAllBackgroundJobs(): void {
   for (const id of [...backgroundControllers.keys()]) {
     abortBackgroundJob(id);
   }
+  backgroundJobs.clear();
+  backgroundControllers.clear();
 }
 
 function createBackgroundJob(
