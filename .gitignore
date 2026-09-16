@@ -1,6 +1,7 @@
 node_modules/
 .DS_Store
 *.log
-.pi/
+.pi/*
+!.pi/decisions.tsv
 .port-upstream/
 .pstack-worktrees/
