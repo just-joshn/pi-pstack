@@ -13,8 +13,6 @@ import { Type, type Static } from "typebox";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const BENNY_ROOT = resolve(PACKAGE_ROOT, "automations/benny");
-const WAKE_DIR = resolve(homedir(), ".pi/agent");
-const WAKE_FILE = resolve(WAKE_DIR, "pstack-benny-wakes.jsonl");
 
 const BENNY_WAKE_PARAMETERS = Type.Object({
   action: Type.Union([Type.Literal("append"), Type.Literal("drain"), Type.Literal("path")], {
@@ -35,12 +33,20 @@ type WakeToolResult = {
   details: Record<string, unknown>;
 };
 
-function ensureWakeFile(): void {
-  if (!existsSync(WAKE_DIR)) mkdirSync(WAKE_DIR, { recursive: true });
-  if (!existsSync(WAKE_FILE)) writeFileSync(WAKE_FILE, "", "utf8");
+function wakeFile(): string {
+  return resolve(homedir(), ".pi/agent/pstack-benny-wakes.jsonl");
+}
+
+function ensureWakeFile(): string {
+  const file = wakeFile();
+  const dir = dirname(file);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  if (!existsSync(file)) writeFileSync(file, "", "utf8");
+  return file;
 }
 
 function appendWake(params: WakeParams): WakeToolResult {
+  const file = ensureWakeFile();
   if (!params.payload?.trim()) {
     return {
       content: [{ type: "text", text: "pstack_benny_wake append requires payload JSON" }],
@@ -58,16 +64,17 @@ function appendWake(params: WakeParams): WakeToolResult {
       }
     })(),
   });
-  appendFileSync(WAKE_FILE, line + "\n", "utf8");
+  appendFileSync(file, line + "\n", "utf8");
   return {
-    content: [{ type: "text", text: `Appended wake to ${WAKE_FILE}` }],
-    details: { ok: true, path: WAKE_FILE },
+    content: [{ type: "text", text: `Appended wake to ${file}` }],
+    details: { ok: true, path: file },
   };
 }
 
 function drainWakes(): WakeToolResult {
-  const raw = readFileSync(WAKE_FILE, "utf8");
-  writeFileSync(WAKE_FILE, "", "utf8");
+  const file = ensureWakeFile();
+  const raw = readFileSync(file, "utf8");
+  writeFileSync(file, "", "utf8");
   const lines = raw.split("\n").filter((l) => l.trim());
   return {
     content: [
@@ -79,7 +86,7 @@ function drainWakes(): WakeToolResult {
             : `Drained ${lines.length} wake(s):\n${lines.join("\n")}`,
       },
     ],
-    details: { count: lines.length, path: WAKE_FILE },
+    details: { count: lines.length, path: file },
   };
 }
 
@@ -141,11 +148,11 @@ function registerBennyWakeTool(pi: ExtensionAPI): void {
       "After drain, run /benny-triage or /benny-repro with the payload.",
     ],
     async execute(_id, params) {
-      ensureWakeFile();
+      const file = ensureWakeFile();
       if (params.action === "path") {
         return {
-          content: [{ type: "text", text: WAKE_FILE }],
-          details: { path: WAKE_FILE },
+          content: [{ type: "text", text: file }],
+          details: { path: file },
         };
       }
       if (params.action === "append") {

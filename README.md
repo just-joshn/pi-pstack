@@ -54,7 +54,7 @@ The pinned upstream commit is in `port/upstream.json`. Never hand-edit a ported 
 
 ## Testing
 
-One entry point runs seven layers plus the pre-existing suites:
+One entry point runs eight layers plus the pre-existing suites:
 
 ```bash
 npm test                          # layers 0-6 + legacy; layer 7 is opt-in
@@ -72,6 +72,7 @@ node tests/runner.mjs --list      # layers, files, requirements
 | 5 rpc | dialogs, notifications, and status over the RPC protocol (`/setup-pstack` select → confirm → notify) |
 | 6 tui | rendered TUI output and key-driven commands in a tmux pane |
 | 7 third-party | opt-in `pi-test-harness` compatibility gate; skipped by default, never on the network |
+| 8 user-journeys | user-perspective journeys over the fake Pi host; gate is all critical journeys or 80% of the runtime behavior inventory |
 | legacy | `npm run test:extensions` and the upstream bun:test suite, wrapped verbatim |
 
 Tests are hermetic (temp `HOME` and agent dirs, `PI_OFFLINE=1`, no ports) and need `pi` on PATH, plus `tmux` for layers 4 and 6. `npm run parity:check` stays a separate gate because its first run clones upstream. Full matrix, flags, and exit codes: [`tests/README.md`](./tests/README.md).
