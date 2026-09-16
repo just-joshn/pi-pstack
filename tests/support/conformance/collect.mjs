@@ -15,11 +15,15 @@ export function walkCodeFiles(dir, base, out = []) {
   return next;
 }
 
-export function collectViolations({ base, roots, owned = true }) {
+export function scannedFiles({ base, roots }) {
   return roots
     .filter((root) => existsSync(join(base, root)))
     .flatMap((root) => walkCodeFiles(join(base, root), base))
-    .toSorted()
+    .toSorted();
+}
+
+export function collectViolations({ base, roots, owned = true }) {
+  return scannedFiles({ base, roots })
     .map((file) => ({
       file,
       violations: auditSource(readFileSync(join(base, file), "utf8"), { owned }),
