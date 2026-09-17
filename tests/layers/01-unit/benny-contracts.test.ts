@@ -1,5 +1,4 @@
-import { test, after } from "node:test";
-import assert from "node:assert/strict";
+import { afterAll, expect, test } from "vitest";
 import { spawn } from "node:child_process";
 import {
   existsSync,
@@ -73,7 +72,7 @@ type CapturedCommand = {
   handler: (args: string, ctx: unknown) => Promise<void> | void;
 };
 
-after(() => {
+afterAll(() => {
   if (ORIGINAL_HOME) process.env.HOME = ORIGINAL_HOME;
   rmSync(TEMP_HOME, { recursive: true, force: true });
 });
@@ -141,12 +140,12 @@ function fakeEnv(execHandler: ExecHandler = async () => ({ code: 0, stdout: "", 
     ctx,
     tool(name: string) {
       const found = tools.find((candidate) => candidate.name === name);
-      assert.ok(found, `${name} is registered`);
+      expect(found, `${name} is registered`).toBeTruthy();
       return found;
     },
     command(name: string) {
       const found = commands.find((candidate) => candidate.name === name);
-      assert.ok(found, `${name} is registered`);
+      expect(found, `${name} is registered`).toBeTruthy();
       return found;
     },
     messages: () => messages,
@@ -170,25 +169,25 @@ test("benny-01 dispatches path, append, and drain actions", async () => {
   const wake = env.tool("pstack_benny_wake");
 
   const pathResult = await wake.execute("t", { action: "path" });
-  assert.equal(pathResult.content[0].text, WAKE_FILE);
-  assert.equal(pathResult.details.path, WAKE_FILE);
+  expect(pathResult.content[0].text).toBe(WAKE_FILE);
+  expect(pathResult.details.path).toBe(WAKE_FILE);
 
   const appendResult = await wake.execute("t", { action: "append", payload: '{"issue":"x"}' });
-  assert.equal(appendResult.details.ok, true);
-  assert.equal(appendResult.content[0].text, `Appended wake to ${WAKE_FILE}`);
-  assert.equal(readWakeRows().length, 1);
+  expect(appendResult.details.ok).toBe(true);
+  expect(appendResult.content[0].text).toBe(`Appended wake to ${WAKE_FILE}`);
+  expect(readWakeRows().length).toBe(1);
 
   const unchanged = await wake.execute("t", { action: "path" });
-  assert.equal(unchanged.details.path, WAKE_FILE);
-  assert.equal(readWakeRows().length, 1, "path does not drain the queue");
+  expect(unchanged.details.path).toBe(WAKE_FILE);
+  expect(readWakeRows().length, "path does not drain the queue").toBe(1);
 
   const drainResult = await wake.execute("t", { action: "drain" });
-  assert.equal(drainResult.details.count, 1);
-  assert.equal(readWakeRows().length, 0);
+  expect(drainResult.details.count).toBe(1);
+  expect(readWakeRows().length).toBe(0);
 
-  assert.equal(Check(wake.parameters, { action: "drain" }), true);
-  assert.equal(Check(wake.parameters, { action: "purge" }), false);
-  assert.equal(Check(wake.parameters, {}), false);
+  expect(Check(wake.parameters, { action: "drain" })).toBe(true);
+  expect(Check(wake.parameters, { action: "purge" })).toBe(false);
+  expect(Check(wake.parameters, {})).toBe(false);
 });
 
 test("benny-02 appends a JSONL payload line with ts and intent", async () => {
@@ -201,14 +200,14 @@ test("benny-02 appends a JSONL payload line with ts and intent", async () => {
   await wake.execute("t", { action: "append", payload: '{"issue":"def"}', intent: "triage" });
 
   const rows = readWakeRows();
-  assert.equal(rows.length, 2);
-  assert.deepEqual(Object.keys(rows[0]), ["ts", "intent", "payload"]);
-  assert.equal(rows[0].intent, "repro");
-  assert.deepEqual(rows[0].payload, { issue: "abc" });
-  assert.equal(new Date(rows[0].ts).toISOString(), rows[0].ts);
-  assert.equal(rows[1].intent, "triage");
-  assert.deepEqual(rows[1].payload, { issue: "def" });
-  assert.equal(readFileSync(WAKE_FILE, "utf8").endsWith("\n"), true);
+  expect(rows.length).toBe(2);
+  expect(Object.keys(rows[0])).toEqual(["ts", "intent", "payload"]);
+  expect(rows[0].intent).toBe("repro");
+  expect(rows[0].payload).toEqual({ issue: "abc" });
+  expect(new Date(rows[0].ts).toISOString()).toBe(rows[0].ts);
+  expect(rows[1].intent).toBe("triage");
+  expect(rows[1].payload).toEqual({ issue: "def" });
+  expect(readFileSync(WAKE_FILE, "utf8").endsWith("\n")).toBe(true);
 });
 
 test("benny-03 drain returns pending lines and truncates the file", async () => {
@@ -224,69 +223,63 @@ test("benny-03 drain returns pending lines and truncates the file", async () => 
     .filter((line) => line.trim().length > 0);
 
   const drained = await wake.execute("t", { action: "drain" });
-  assert.equal(drained.details.count, 2);
-  assert.equal(drained.content[0].text, `Drained 2 wake(s):\n${pending.join("\n")}`);
-  assert.equal(readFileSync(WAKE_FILE, "utf8"), "");
+  expect(drained.details.count).toBe(2);
+  expect(drained.content[0].text).toBe(`Drained 2 wake(s):\n${pending.join("\n")}`);
+  expect(readFileSync(WAKE_FILE, "utf8")).toBe("");
 
   const empty = await wake.execute("t", { action: "drain" });
-  assert.equal(empty.details.count, 0);
-  assert.equal(empty.content[0].text, "No pending Benny wakes.");
+  expect(empty.details.count).toBe(0);
+  expect(empty.content[0].text).toBe("No pending Benny wakes.");
 });
 
 test("benny-04 setup-benny sends the skill path to read and follow", async () => {
   const env = fakeEnv();
   registerBenny(env.pi as never);
   const skill = resolve(REPO_ROOT, "automations/benny/skills/setup-benny/SKILL.md");
-  assert.equal(existsSync(skill), true);
+  expect(existsSync(skill)).toBe(true);
 
   await env.command("setup-benny").handler("", env.ctx);
 
   const sent = env.messages()[0];
-  assert.equal(sent.text.startsWith("Read and follow "), true);
-  assert.equal(sent.text.includes(skill), true);
-  assert.deepEqual(sent.options, { expandPromptTemplates: false, deliverAs: "followUp" });
-  assert.deepEqual(env.notifications(), []);
+  expect(sent.text.startsWith("Read and follow ")).toBe(true);
+  expect(sent.text.includes(skill)).toBe(true);
+  expect(sent.options).toEqual({ expandPromptTemplates: false, deliverAs: "followUp" });
+  expect(env.notifications()).toEqual([]);
 });
 
 test("benny-05 benny-triage sends the triage skill path for immediate evaluation", async () => {
   const env = fakeEnv();
   registerBenny(env.pi as never);
   const skill = resolve(REPO_ROOT, "automations/benny/skills/triage-issue-reports/SKILL.md");
-  assert.equal(existsSync(skill), true);
+  expect(existsSync(skill)).toBe(true);
   const handler = env.command("benny-triage").handler;
 
   await handler("staging 500s", env.ctx);
   await handler("", env.ctx);
 
-  assert.equal(env.messages()[0].text.startsWith(`Read and follow ${skill}.`), true);
-  assert.equal(env.messages()[0].text.includes("Context: staging 500s"), true);
-  assert.equal(
-    env.messages()[1].text.includes("Await the next Slack/tracker issue payload"),
-    true,
-  );
-  assert.deepEqual(
-    env.messages().map((message) => message.options),
-    [
+  expect(env.messages()[0].text.startsWith(`Read and follow ${skill}.`)).toBe(true);
+  expect(env.messages()[0].text.includes("Context: staging 500s")).toBe(true);
+  expect(env.messages()[1].text.includes("Await the next Slack/tracker issue payload")).toBe(true);
+  expect(env.messages().map((message) => message.options)).toEqual([
       { expandPromptTemplates: false, deliverAs: "followUp" },
       { expandPromptTemplates: false, deliverAs: "followUp" },
-    ],
-  );
+    ]);
 });
 
 test("benny-06 benny-repro sends the repro skill path with the issue context", async () => {
   const env = fakeEnv();
   registerBenny(env.pi as never);
   const skill = resolve(REPO_ROOT, "automations/benny/skills/reproduce-and-fix-issues/SKILL.md");
-  assert.equal(existsSync(skill), true);
+  expect(existsSync(skill)).toBe(true);
   const handler = env.command("benny-repro").handler;
 
   await handler("issue 42 crashes on startup", env.ctx);
   await handler("", env.ctx);
 
-  assert.equal(env.messages()[0].text.startsWith(`Read and follow ${skill}.`), true);
-  assert.equal(env.messages()[0].text.includes("Issue: issue 42 crashes on startup"), true);
-  assert.equal(env.messages()[0].text.includes("pstack_control_cli"), true);
-  assert.equal(env.messages()[1].text.includes("Issue:"), false);
+  expect(env.messages()[0].text.startsWith(`Read and follow ${skill}.`)).toBe(true);
+  expect(env.messages()[0].text.includes("Issue: issue 42 crashes on startup")).toBe(true);
+  expect(env.messages()[0].text.includes("pstack_control_cli")).toBe(true);
+  expect(env.messages()[1].text.includes("Issue:")).toBe(false);
 });
 
 test("benny-07 a wake payload drives the pstack_loop watcher", async () => {
@@ -309,14 +302,14 @@ test("benny-07 a wake payload drives the pstack_loop watcher", async () => {
     undefined,
     env.ctx,
   );
-  assert.equal(armed.details.mode, "watcher");
+  expect(armed.details.mode).toBe("watcher");
 
   const appended = await wake.execute("t", {
     action: "append",
     payload: '{"issue":"wake-7"}',
     intent: "triage",
   });
-  assert.equal(appended.details.ok, true);
+  expect(appended.details.ok).toBe(true);
 
   try {
     await waitFor(() => env.messages().some((message) => message.text.includes("reason=watcher]")));
@@ -325,11 +318,11 @@ test("benny-07 a wake payload drives the pstack_loop watcher", async () => {
   }
 
   const fired = env.messages().find((message) => message.text.includes("reason=watcher]"));
-  assert.ok(fired);
-  assert.equal(fired.text.includes("triage the wake payload"), true);
-  assert.equal(fired.text.includes("wake-7"), true);
-  assert.deepEqual(fired.options, { deliverAs: "followUp" });
-  assert.equal(readWakeRows().length, 1, "the watcher does not consume the queue");
+  expect(fired).toBeTruthy();
+  expect(fired.text.includes("triage the wake payload")).toBe(true);
+  expect(fired.text.includes("wake-7")).toBe(true);
+  expect(fired.options).toEqual({ deliverAs: "followUp" });
+  expect(readWakeRows().length, "the watcher does not consume the queue").toBe(1);
 });
 
 test("benny-08 parses the payload as JSON when possible and keeps raw strings otherwise", async () => {
@@ -343,15 +336,12 @@ test("benny-08 parses the payload as JSON when possible and keeps raw strings ot
   await wake.execute("t", { action: "append", payload: "42" });
 
   const rows = readWakeRows();
-  assert.deepEqual(rows[0].payload, { nested: { ok: true } });
-  assert.equal(rows[1].payload, "not json {");
-  assert.equal(rows[2].payload, 42);
+  expect(rows[0].payload).toEqual({ nested: { ok: true } });
+  expect(rows[1].payload).toBe("not json {");
+  expect(rows[2].payload).toBe(42);
 
-  await assert.rejects(
-    () => wake.execute("t", { action: "append", payload: "   " }),
-    /pstack_benny_wake append requires a non-empty payload JSON string/,
-  );
-  assert.equal(readWakeRows().length, 3);
+  await expect(() => wake.execute("t", { action: "append", payload: "   " })).rejects.toThrow(/pstack_benny_wake append requires a non-empty payload JSON string/);
+  expect(readWakeRows().length).toBe(3);
 });
 
 test("benny-09 defaults the intent parameter to triage", async () => {
@@ -364,10 +354,10 @@ test("benny-09 defaults the intent parameter to triage", async () => {
   await wake.execute("t", { action: "append", payload: '{"a":2}', intent: "repro" });
 
   const rows = readWakeRows();
-  assert.equal(rows[0].intent, "triage");
-  assert.equal(rows[1].intent, "repro");
-  assert.equal(Check(wake.parameters, { action: "append", payload: "{}" }), true);
-  assert.equal(Check(wake.parameters, { action: "append", payload: "{}", intent: "other" }), false);
+  expect(rows[0].intent).toBe("triage");
+  expect(rows[1].intent).toBe("repro");
+  expect(Check(wake.parameters, { action: "append", payload: "{}" })).toBe(true);
+  expect(Check(wake.parameters, { action: "append", payload: "{}", intent: "other" })).toBe(false);
 });
 
 test("benny-10 resolves the wake file under the Pi agent directory", async () => {
@@ -378,12 +368,12 @@ test("benny-10 resolves the wake file under the Pi agent directory", async () =>
 
   const result = await wake.execute("t", { action: "path" });
   const wakePath = String(result.details.path);
-  assert.equal(wakePath, WAKE_FILE);
-  assert.equal(wakePath, resolve(TEMP_HOME, ".pi/agent/pstack-benny-wakes.jsonl"));
-  assert.equal(wakePath, join(homedir(), ".pi", "agent", "pstack-benny-wakes.jsonl"));
-  assert.equal(basename(wakePath), "pstack-benny-wakes.jsonl");
-  assert.equal(wakePath.startsWith(join(TEMP_HOME, ".pi", "agent")), true);
+  expect(wakePath).toBe(WAKE_FILE);
+  expect(wakePath).toBe(resolve(TEMP_HOME, ".pi/agent/pstack-benny-wakes.jsonl"));
+  expect(wakePath).toBe(join(homedir(), ".pi", "agent", "pstack-benny-wakes.jsonl"));
+  expect(basename(wakePath)).toBe("pstack-benny-wakes.jsonl");
+  expect(wakePath.startsWith(join(TEMP_HOME, ".pi", "agent"))).toBe(true);
 
   await wake.execute("t", { action: "append", payload: '{"p":1}' });
-  assert.equal(readFileSync(wakePath, "utf8").includes('"p":1'), true);
+  expect(readFileSync(wakePath, "utf8").includes('"p":1')).toBe(true);
 });

@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { parseShellCommand, subcommandOf } from "../../../extensions/agents/shell-parse.ts";
 
 function commandNames(command: string) {
@@ -11,84 +10,84 @@ function argsOf(command: string, index = 0) {
 }
 
 test("separators split a command line into ordered executions", () => {
-  assert.deepEqual(commandNames("git status\ngit push origin main"), ["git", "git"]);
-  assert.deepEqual(commandNames("cd /repo && git commit -m x || echo fail"), ["cd", "git", "echo"]);
-  assert.deepEqual(commandNames("ls | wc -l & sleep 1 ; true"), ["ls", "wc", "sleep", "true"]);
-  assert.deepEqual(commandNames("if [ -f x ]; then git push; fi"), ["[", "git"]);
-  assert.deepEqual(commandNames("(cd /repo; git push)"), ["cd", "git"]);
-  assert.deepEqual(commandNames("echo one;echo two"), ["echo", "echo"]);
+  expect(commandNames("git status\ngit push origin main")).toEqual(["git", "git"]);
+  expect(commandNames("cd /repo && git commit -m x || echo fail")).toEqual(["cd", "git", "echo"]);
+  expect(commandNames("ls | wc -l & sleep 1 ; true")).toEqual(["ls", "wc", "sleep", "true"]);
+  expect(commandNames("if [ -f x ]; then git push; fi")).toEqual(["[", "git"]);
+  expect(commandNames("(cd /repo; git push)")).toEqual(["cd", "git"]);
+  expect(commandNames("echo one;echo two")).toEqual(["echo", "echo"]);
 });
 
 test("quotes keep operands from being read as commands", () => {
-  assert.deepEqual(commandNames("grep -rn nc src/"), ["grep"]);
-  assert.deepEqual(commandNames("echo 'curl this' \"rm -rf /\""), ["echo"]);
-  assert.deepEqual(argsOf("echo 'a b' \"c;d\""), ["a b", "c;d"]);
-  assert.deepEqual(commandNames("echo a#b"), ["echo"]);
-  assert.deepEqual(commandNames("echo hi # comment\nls"), ["echo", "ls"]);
+  expect(commandNames("grep -rn nc src/")).toEqual(["grep"]);
+  expect(commandNames("echo 'curl this' \"rm -rf /\"")).toEqual(["echo"]);
+  expect(argsOf("echo 'a b' \"c;d\"")).toEqual(["a b", "c;d"]);
+  expect(commandNames("echo a#b")).toEqual(["echo"]);
+  expect(commandNames("echo hi # comment\nls")).toEqual(["echo", "ls"]);
 });
 
 test("wrappers are unwrapped to the command they run", () => {
-  assert.deepEqual(commandNames("sudo -u root env FOO=1 git push"), ["git"]);
-  assert.deepEqual(commandNames("xargs -n1 rm -rf"), ["rm"]);
-  assert.deepEqual(commandNames('bash -c "git push"'), ["git"]);
-  assert.deepEqual(commandNames("env bash -c 'git push'"), ["git"]);
-  assert.deepEqual(commandNames("env -S 'git push'"), ["git"]);
-  assert.deepEqual(commandNames("env --split-string='git push'"), ["git"]);
-  assert.deepEqual(argsOf('bash -c "git push origin main"'), ["push", "origin", "main"]);
+  expect(commandNames("sudo -u root env FOO=1 git push")).toEqual(["git"]);
+  expect(commandNames("xargs -n1 rm -rf")).toEqual(["rm"]);
+  expect(commandNames('bash -c "git push"')).toEqual(["git"]);
+  expect(commandNames("env bash -c 'git push'")).toEqual(["git"]);
+  expect(commandNames("env -S 'git push'")).toEqual(["git"]);
+  expect(commandNames("env --split-string='git push'")).toEqual(["git"]);
+  expect(argsOf('bash -c "git push origin main"')).toEqual(["push", "origin", "main"]);
 });
 
 test("command substitutions are parsed rather than skipped", () => {
-  assert.deepEqual(commandNames("echo $(git push)"), ["echo", "git"]);
-  assert.deepEqual(commandNames("x=$(git push)"), ["git"]);
-  assert.deepEqual(commandNames("echo `git push`"), ["echo", "git"]);
-  assert.deepEqual(commandNames("echo ${x:-$(git push)}"), ["echo", "git"]);
-  assert.deepEqual(commandNames("echo $(echo $(date))"), ["echo", "echo", "date"]);
-  assert.equal(parseShellCommand("x=$(git push)").refusals.length, 0);
+  expect(commandNames("echo $(git push)")).toEqual(["echo", "git"]);
+  expect(commandNames("x=$(git push)")).toEqual(["git"]);
+  expect(commandNames("echo `git push`")).toEqual(["echo", "git"]);
+  expect(commandNames("echo ${x:-$(git push)}")).toEqual(["echo", "git"]);
+  expect(commandNames("echo $(echo $(date))")).toEqual(["echo", "echo", "date"]);
+  expect(parseShellCommand("x=$(git push)").refusals.length).toBe(0);
 });
 
 test("redirection operators are classified as writes or descriptor dups", () => {
-  assert.deepEqual(parseShellCommand("echo hi > /tmp/f").redirects, [
+  expect(parseShellCommand("echo hi > /tmp/f").redirects).toEqual([
     { operator: ">", target: "/tmp/f", write: true },
   ]);
-  assert.deepEqual(parseShellCommand("echo hi >> /tmp/f").redirects, [
+  expect(parseShellCommand("echo hi >> /tmp/f").redirects).toEqual([
     { operator: ">>", target: "/tmp/f", write: true },
   ]);
-  assert.deepEqual(parseShellCommand("cmd &> /dev/null").redirects, [
+  expect(parseShellCommand("cmd &> /dev/null").redirects).toEqual([
     { operator: "&>", target: "/dev/null", write: true },
   ]);
-  assert.deepEqual(parseShellCommand("cmd 2>&1").redirects, [
+  expect(parseShellCommand("cmd 2>&1").redirects).toEqual([
     { operator: ">&", target: "1", write: false },
   ]);
-  assert.deepEqual(parseShellCommand("cat < in.txt").redirects, [
+  expect(parseShellCommand("cat < in.txt").redirects).toEqual([
     { operator: "<", target: "in.txt", write: false },
   ]);
 });
 
 test("unparseable constructs are refused instead of guessed", () => {
-  assert.deepEqual(parseShellCommand("echo 'oops").refusals, ["unbalanced single quote"]);
-  assert.deepEqual(parseShellCommand('echo "oops').refusals, ["unbalanced double quote"]);
-  assert.deepEqual(parseShellCommand("echo $(oops").refusals, ["unbalanced command substitution `$(`"]);
-  assert.deepEqual(parseShellCommand("cmd <<EOF\nbody\nEOF").refusals, ["here-doc or here-string"]);
-  assert.deepEqual(parseShellCommand("cmd <(other)").refusals, [
+  expect(parseShellCommand("echo 'oops").refusals).toEqual(["unbalanced single quote"]);
+  expect(parseShellCommand('echo "oops').refusals).toEqual(["unbalanced double quote"]);
+  expect(parseShellCommand("echo $(oops").refusals).toEqual(["unbalanced command substitution `$(`"]);
+  expect(parseShellCommand("cmd <<EOF\nbody\nEOF").refusals).toEqual(["here-doc or here-string"]);
+  expect(parseShellCommand("cmd <(other)").refusals).toEqual([
     "process substitution, which runs an uninspected command",
   ]);
-  assert.deepEqual(parseShellCommand('eval "git push"').refusals, ["`eval`"]);
-  assert.deepEqual(parseShellCommand("exec git push").refusals, ["`exec`"]);
-  assert.deepEqual(parseShellCommand("sh script.sh").refusals, ["`sh` running a script from a file or stdin"]);
-  assert.deepEqual(parseShellCommand("$CMD push").refusals, [
+  expect(parseShellCommand('eval "git push"').refusals).toEqual(["`eval`"]);
+  expect(parseShellCommand("exec git push").refusals).toEqual(["`exec`"]);
+  expect(parseShellCommand("sh script.sh").refusals).toEqual(["`sh` running a script from a file or stdin"]);
+  expect(parseShellCommand("$CMD push").refusals).toEqual([
     "a command name built from a variable or substitution",
   ]);
-  assert.deepEqual(parseShellCommand('bash -c "$CMD"').refusals, ["`bash -c` with a command built from a variable"]);
+  expect(parseShellCommand('bash -c "$CMD"').refusals).toEqual(["`bash -c` with a command built from a variable"]);
 });
 
 test("a word built from an expansion is marked dynamic", () => {
   const invocation = parseShellCommand("git $SUB push").executions[0];
-  assert.deepEqual(invocation.args, [
+  expect(invocation.args).toEqual([
     { value: "$SUB", dynamic: true },
     { value: "push", dynamic: false },
   ]);
   const staticInvocation = parseShellCommand("git commit -m 'wip'").executions[0];
-  assert.deepEqual(staticInvocation.args, [
+  expect(staticInvocation.args).toEqual([
     { value: "commit", dynamic: false },
     { value: "-m", dynamic: false },
     { value: "wip", dynamic: false },
@@ -96,37 +95,31 @@ test("a word built from an expansion is marked dynamic", () => {
 });
 
 test("an ANSI-C quoted word cannot smuggle a command name past the guard", () => {
-  assert.deepEqual(parseShellCommand("$'\\x72\\x6d' -rf /tmp/d").refusals, [
+  expect(parseShellCommand("$'\\x72\\x6d' -rf /tmp/d").refusals).toEqual([
     "a command name built from a variable or substitution",
   ]);
-  assert.deepEqual(parseShellCommand("${CMD} push").refusals, [
+  expect(parseShellCommand("${CMD} push").refusals).toEqual([
     "a command name built from a variable or substitution",
   ]);
 });
 
 test("subcommandOf skips value flags and reports an unresolvable subcommand", () => {
   const gitValueFlags = new Set(["-C"]);
-  assert.deepEqual(
-    subcommandOf(
+  expect(subcommandOf(
       [
         { value: "-C", dynamic: false },
         { value: "/repo", dynamic: false },
         { value: "status", dynamic: false },
       ],
       gitValueFlags,
-    ),
-    { sub: "status", dynamic: false },
-  );
-  assert.deepEqual(
-    subcommandOf(
+    )).toEqual({ sub: "status", dynamic: false });
+  expect(subcommandOf(
       [
         { value: "--no-pager", dynamic: false },
         { value: "push", dynamic: false },
       ],
       gitValueFlags,
-    ),
-    { sub: "push", dynamic: false },
-  );
-  assert.deepEqual(subcommandOf([{ value: "$SUB", dynamic: true }], gitValueFlags), { dynamic: true });
-  assert.deepEqual(subcommandOf([], gitValueFlags), { dynamic: false });
+    )).toEqual({ sub: "push", dynamic: false });
+  expect(subcommandOf([{ value: "$SUB", dynamic: true }], gitValueFlags)).toEqual({ dynamic: true });
+  expect(subcommandOf([], gitValueFlags)).toEqual({ dynamic: false });
 });

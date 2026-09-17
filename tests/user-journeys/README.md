@@ -5,9 +5,9 @@ commands, tool calls, UI notifications and status, files on disk) over the fake 
 the acceptance run. No network, no real Pi session, no real child model.
 
 ```
-npm run test:journeys     # the whole layer, spec reporter, prints the coverage line
-node tests/runner.mjs --layer 8
-node --test --test-name-pattern="install-and-orient" tests/layers/08-user-journeys/user-journeys.test.mjs
+npm run test:journeys     # the whole project
+npx vitest run --project user-journeys
+npx vitest run --project user-journeys -t "install-and-orient"
 ```
 
 ## Behavior units

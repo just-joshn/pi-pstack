@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { evaluateStack } from "../../../extensions/shipping/frontier.ts";
 
 test("evaluateStack reports ADVANCE when the frontier is merge-ready", () => {
@@ -8,9 +7,9 @@ test("evaluateStack reports ADVANCE when the frontier is merge-ready", () => {
     { number: "5", state: "OPEN", mergeStateStatus: "CLEAN", reviewDecision: "APPROVED" },
     { number: "7", state: "OPEN", mergeStateStatus: "DIRTY" },
   ]);
-  assert.equal(status.verdict, "ADVANCE");
-  assert.equal(status.frontier, "5");
-  assert.deepEqual(status.problems, []);
+  expect(status.verdict).toBe("ADVANCE");
+  expect(status.frontier).toBe("5");
+  expect(status.problems).toEqual([]);
 });
 
 test("evaluateStack waits on the frontier blockers", () => {
@@ -18,9 +17,9 @@ test("evaluateStack waits on the frontier blockers", () => {
     { number: "3", state: "OPEN", mergeStateStatus: "BLOCKED" },
     { number: "5", state: "OPEN", mergeStateStatus: "CLEAN" },
   ]);
-  assert.equal(status.verdict, "WAITING");
-  assert.equal(status.frontier, "3");
-  assert.deepEqual(status.problems, ["mergeStateStatus=BLOCKED"]);
+  expect(status.verdict).toBe("WAITING");
+  expect(status.frontier).toBe("3");
+  expect(status.problems).toEqual(["mergeStateStatus=BLOCKED"]);
 });
 
 test("evaluateStack reports COMPLETE when every PR merged", () => {
@@ -28,14 +27,14 @@ test("evaluateStack reports COMPLETE when every PR merged", () => {
     { number: "3", state: "MERGED", mergedAt: "2026-01-01T00:00:00Z" },
     { number: "5", state: "MERGED", mergedAt: "2026-01-02T00:00:00Z" },
   ]);
-  assert.equal(status.verdict, "COMPLETE");
-  assert.equal(status.frontier, undefined);
-  assert.deepEqual(status.problems, []);
+  expect(status.verdict).toBe("COMPLETE");
+  expect(status.frontier).toBe(undefined);
+  expect(status.problems).toEqual([]);
 });
 
 test("evaluateStack fails closed on an unfetchable row", () => {
   const status = evaluateStack([{ number: "3", state: "UNKNOWN" }]);
-  assert.equal(status.verdict, "WAITING");
-  assert.equal(status.frontier, "3");
-  assert.deepEqual(status.problems, ["state=UNKNOWN"]);
+  expect(status.verdict).toBe("WAITING");
+  expect(status.frontier).toBe("3");
+  expect(status.problems).toEqual(["state=UNKNOWN"]);
 });

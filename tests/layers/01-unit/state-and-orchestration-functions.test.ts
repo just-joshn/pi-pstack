@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -150,24 +149,24 @@ function writeStubChild(dir: string): string {
 }
 
 test("readonly deslop and task policies block writes and coerce unread fan-out", () => {
-  assert.deepEqual(READONLY_TOOL_POLICIES.pstack_deslop({ applySafe: true }), {
+  expect(READONLY_TOOL_POLICIES.pstack_deslop({ applySafe: true })).toEqual({
     action: "block",
     reason: "pstack session readonly: blocked deslop applySafe/autoApply.",
   });
-  assert.deepEqual(READONLY_TOOL_POLICIES.pstack_deslop({ autoApply: true }), {
+  expect(READONLY_TOOL_POLICIES.pstack_deslop({ autoApply: true })).toEqual({
     action: "block",
     reason: "pstack session readonly: blocked deslop applySafe/autoApply.",
   });
-  assert.deepEqual(READONLY_TOOL_POLICIES.pstack_deslop({}), { action: "allow" });
-  assert.deepEqual(READONLY_TOOL_POLICIES.pstack_task({}), { action: "coerceReadonly" });
-  assert.deepEqual(READONLY_TOOL_POLICIES.pstack_task({ readonly: true }), { action: "allow" });
-  assert.deepEqual(READONLY_TOOL_POLICIES.pstack_task({ subagent_type: "investigator" }), {
+  expect(READONLY_TOOL_POLICIES.pstack_deslop({})).toEqual({ action: "allow" });
+  expect(READONLY_TOOL_POLICIES.pstack_task({})).toEqual({ action: "coerceReadonly" });
+  expect(READONLY_TOOL_POLICIES.pstack_task({ readonly: true })).toEqual({ action: "allow" });
+  expect(READONLY_TOOL_POLICIES.pstack_task({ subagent_type: "investigator" })).toEqual({
     action: "allow",
   });
-  assert.deepEqual(READONLY_TOOL_POLICIES.pstack_task({ subagent_type: "comment-sicko" }), {
+  expect(READONLY_TOOL_POLICIES.pstack_task({ subagent_type: "comment-sicko" })).toEqual({
     action: "allow",
   });
-  assert.deepEqual(READONLY_TOOL_POLICIES.pstack_task({ subagent_type: "poteto-agent" }), {
+  expect(READONLY_TOOL_POLICIES.pstack_task({ subagent_type: "poteto-agent" })).toEqual({
     action: "coerceReadonly",
   });
 });
@@ -190,13 +189,13 @@ test("createReadonlyRuntime restores an armed session from the transcript on ses
       ui: env.ui,
     },
   );
-  assert.deepEqual(runtime.getState(), {
+  expect(runtime.getState()).toEqual({
     enabled: true,
     toolsBefore: ["read", "write"],
     reason: "playbook:investigation",
   });
-  assert.deepEqual(env.statuses(), [{ id: "pstack-ro", value: "readonly" }]);
-  assert.deepEqual(env.activeWrites(), [["read", "grep", "find", "ls"]]);
+  expect(env.statuses()).toEqual([{ id: "pstack-ro", value: "readonly" }]);
+  expect(env.activeWrites()).toEqual([["read", "grep", "find", "ls"]]);
 });
 
 test("createReadonlyRuntime takes the last readonly entry and leaves a disabled session inert", () => {
@@ -215,9 +214,9 @@ test("createReadonlyRuntime takes the last readonly entry and leaves a disabled 
       ui: env.ui,
     },
   );
-  assert.deepEqual(runtime.getState(), { enabled: false, toolsBefore: undefined, reason: undefined });
-  assert.deepEqual(env.statuses(), []);
-  assert.deepEqual(env.activeWrites(), []);
+  expect(runtime.getState()).toEqual({ enabled: false, toolsBefore: undefined, reason: undefined });
+  expect(env.statuses()).toEqual([]);
+  expect(env.activeWrites()).toEqual([]);
 });
 
 test("releasePlaybookArm disarms a playbook arm and leaves a command arm armed", () => {
@@ -225,17 +224,17 @@ test("releasePlaybookArm disarms a playbook arm and leaves a command arm armed",
   const runtime = createReadonlyRuntime(env.pi as never);
   const ctx = { ui: env.ui };
   runtime.setEnabled(true, ctx, "playbook:investigation");
-  assert.deepEqual(runtime.getState(), {
+  expect(runtime.getState()).toEqual({
     enabled: true,
     toolsBefore: ["read", "write"],
     reason: "playbook:investigation",
   });
   runtime.releasePlaybookArm(ctx);
-  assert.deepEqual(runtime.getState(), { enabled: false, toolsBefore: undefined, reason: undefined });
+  expect(runtime.getState()).toEqual({ enabled: false, toolsBefore: undefined, reason: undefined });
 
   runtime.setEnabled(true, ctx, "command");
   runtime.releasePlaybookArm(ctx);
-  assert.deepEqual(runtime.getState(), {
+  expect(runtime.getState()).toEqual({
     enabled: true,
     toolsBefore: ["read", "write"],
     reason: "command",
@@ -246,9 +245,9 @@ test("the readonly runtime re-injects the read-only contract only while armed", 
   const env = readonlyEnv(["read", "write"], ["read", "write"]);
   const runtime = createReadonlyRuntime(env.pi as never);
   const prompt = env.handler("before_agent_start");
-  assert.equal(prompt({ systemPrompt: "BASE" }, {}), undefined);
+  expect(prompt({ systemPrompt: "BASE" }, {})).toBe(undefined);
   runtime.setEnabled(true, { ui: env.ui }, "command");
-  assert.deepEqual(prompt({ systemPrompt: "BASE" }, {}), {
+  expect(prompt({ systemPrompt: "BASE" }, {})).toEqual({
     systemPrompt:
       "BASE\n\n## pstack session readonly\nThis session is read-only. Do not write, edit, or run bash. Use read/grep/find/ls (and read-safe pstack_* tools). Spawn children with readonly:true or role investigator/comment-sicko. Deliver citations and recommendations only.",
   });
@@ -259,11 +258,11 @@ test("/poteto-mode with an investigation task arms readonly with the playbook re
   await env.commands.get("poteto-mode")?.handler("investigate why is the build slow", {
     ui: env.ui,
   });
-  assert.deepEqual(env.armed(), ["playbook:investigation"]);
-  assert.equal(env.runtime.getState().matchedPlaybookId, "investigation");
-  assert.equal(env.runtime.getState().matchedScore, 5);
-  assert.equal(env.runtime.getState().enabled, true);
-  assert.deepEqual(env.messages(), [
+  expect(env.armed()).toEqual(["playbook:investigation"]);
+  expect(env.runtime.getState().matchedPlaybookId).toBe("investigation");
+  expect(env.runtime.getState().matchedScore).toBe(5);
+  expect(env.runtime.getState().enabled).toBe(true);
+  expect(env.messages()).toEqual([
     {
       text: "/skill:poteto-mode playbooks/investigation investigate why is the build slow",
       opts: { expandPromptTemplates: true, deliverAs: "followUp" },
@@ -276,11 +275,11 @@ test("loadPlaybookBody strips frontmatter from an explicit playbook path", () =>
   try {
     const framed = join(dir, "framed.md");
     writeFileSync(framed, "---\nname: framed\n---\nStep one\n\nStep two\n", "utf8");
-    assert.equal(loadPlaybookBody(framed), "Step one\n\nStep two");
+    expect(loadPlaybookBody(framed)).toBe("Step one\n\nStep two");
 
     const unterminated = join(dir, "unterminated.md");
     writeFileSync(unterminated, "---\nname: broken\nno closing fence\n", "utf8");
-    assert.equal(loadPlaybookBody(unterminated), "---\nname: broken\nno closing fence");
+    expect(loadPlaybookBody(unterminated)).toBe("---\nname: broken\nno closing fence");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -311,12 +310,9 @@ test("pstack_arena streams candidate progress through onUpdate", async () => {
       },
       { cwd: parent, model: { provider: "pstack-test", id: "parent" }, isProjectTrusted: () => true },
     );
-    assert.deepEqual(updates, ["1/2 arena candidates done", "2/2 arena candidates done"]);
-    assert.equal(outcome.details.results.length, 2);
-    assert.deepEqual(
-      outcome.details.results.map((entry) => entry.cwd).toSorted(),
-      [dirA, dirB].toSorted(),
-    );
+    expect(updates).toEqual(["1/2 arena candidates done", "2/2 arena candidates done"]);
+    expect(outcome.details.results.length).toBe(2);
+    expect(outcome.details.results.map((entry) => entry.cwd).toSorted()).toEqual([dirA, dirB].toSorted());
   } finally {
     restoreScript();
     rmSync(parent, { recursive: true, force: true });

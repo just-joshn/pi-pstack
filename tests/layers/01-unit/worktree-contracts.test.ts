@@ -3,8 +3,7 @@
  * The git fixtures put a recording stand-in first on PATH because the worktree
  * helpers exec `git` directly instead of going through pi.exec.
  */
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import {
   chmodSync,
   mkdirSync,
@@ -165,8 +164,8 @@ function throwsWithMessage(run: () => string, message: string): void {
   } catch (error) {
     caught = error;
   }
-  assert.ok(caught instanceof WorktreeSanitizeError, "expected WorktreeSanitizeError for: " + message);
-  assert.equal((caught as Error).message, message);
+  expect(caught instanceof WorktreeSanitizeError, "expected WorktreeSanitizeError for: " + message).toBeTruthy();
+  expect((caught as Error).message).toBe(message);
 }
 
 async function captureRejection(run: () => Promise<unknown>): Promise<unknown> {
@@ -181,16 +180,13 @@ async function captureRejection(run: () => Promise<unknown>): Promise<unknown> {
 test("worktree-01 registers pstack_worktree with the documented schema", () => {
   const harness = worktreeHarness();
   const tool = harness.tool();
-  assert.equal(tool.name, "pstack_worktree");
-  assert.equal(tool.label, "Pstack Worktree");
-  assert.equal(tool.promptSnippet, "Allocate an isolated git worktree path");
-  assert.equal(
-    tool.description,
-    `Create/list/remove/prune git worktrees for isolated arena/swarm writes. Create rejects path/option injection and enforces a session cap of ${MAX_PSTACK_WORKTREES}. On session_shutdown, empty/merged pstack-owned trees under .pstack-worktrees are auto-removed (dirty/unmerged skipped).`,
-  );
-  assert.equal(tool.parameters.type, "object");
-  assert.deepEqual(tool.parameters.required, ["action"]);
-  assert.deepEqual(tool.parameters.properties, {
+  expect(tool.name).toBe("pstack_worktree");
+  expect(tool.label).toBe("Pstack Worktree");
+  expect(tool.promptSnippet).toBe("Allocate an isolated git worktree path");
+  expect(tool.description).toBe(`Create/list/remove/prune git worktrees for isolated arena/swarm writes. Create rejects path/option injection and enforces a session cap of ${MAX_PSTACK_WORKTREES}. On session_shutdown, empty/merged pstack-owned trees under .pstack-worktrees are auto-removed (dirty/unmerged skipped).`);
+  expect(tool.parameters.type).toBe("object");
+  expect(tool.parameters.required).toEqual(["action"]);
+  expect(tool.parameters.properties).toEqual({
     action: {
       type: "string",
       enum: ["create", "list", "remove", "prune", "cleanup"],
@@ -199,8 +195,8 @@ test("worktree-01 registers pstack_worktree with the documented schema", () => {
     name: { type: "string", description: "Worktree/branch slug for create/remove" },
     base: { type: "string", description: "Base ref (default HEAD)" },
   });
-  assert.equal(typeof tool.execute, "function");
-  assert.equal(typeof harness.shutdownHandler(), "function");
+  expect(typeof tool.execute).toBe("function");
+  expect(typeof harness.shutdownHandler()).toBe("function");
 });
 
 test("worktree-02 rejects unsafe worktree names", () => {
@@ -214,8 +210,8 @@ test("worktree-02 rejects unsafe worktree names", () => {
   for (const unsupported of ["bad name", "foo;bar", "foo:bar", "caf\u00e9"]) {
     throwsWithMessage(() => sanitizeWorktreeName(unsupported), "worktree name has unsupported characters");
   }
-  assert.equal(sanitizeWorktreeName("valid-1.2_3@x+=,y"), "valid-1.2_3@x+=,y");
-  assert.equal(sanitizeWorktreeName("  spaced  "), "spaced");
+  expect(sanitizeWorktreeName("valid-1.2_3@x+=,y")).toBe("valid-1.2_3@x+=,y");
+  expect(sanitizeWorktreeName("  spaced  ")).toBe("spaced");
 });
 
 test("worktree-03 rejects unsafe base refs", () => {
@@ -229,11 +225,11 @@ test("worktree-03 rejects unsafe base refs", () => {
   for (const unsupported of ["main:evil", "a;b", "main&x", "caf\u00e9"]) {
     throwsWithMessage(() => sanitizeBaseRef(unsupported), "base ref has unsupported characters");
   }
-  assert.equal(sanitizeBaseRef("origin/main"), "origin/main");
-  assert.equal(sanitizeBaseRef("main~1"), "main~1");
-  assert.equal(sanitizeBaseRef("v1.0.0^"), "v1.0.0^");
-  assert.equal(sanitizeBaseRef("a+b"), "a+b");
-  assert.equal(sanitizeBaseRef("  main  "), "main");
+  expect(sanitizeBaseRef("origin/main")).toBe("origin/main");
+  expect(sanitizeBaseRef("main~1")).toBe("main~1");
+  expect(sanitizeBaseRef("v1.0.0^")).toBe("v1.0.0^");
+  expect(sanitizeBaseRef("a+b")).toBe("a+b");
+  expect(sanitizeBaseRef("  main  ")).toBe("main");
 });
 
 test("worktree-04 creates .pstack-worktrees/<slug> on branch pstack/<slug>", async () => {
@@ -242,12 +238,12 @@ test("worktree-04 creates .pstack-worktrees/<slug> on branch pstack/<slug>", asy
     const git = installFakeGit(dir, [{ prefix: ["worktree", "add"] }]);
     const created = await withFakeGit(git.bin, () => createIsolatedWorktree(dir, "feat-one"));
     const root = join(dir, ".pstack-worktrees");
-    assert.deepEqual(created, { path: join(root, "feat-one"), branch: "pstack/feat-one" });
+    expect(created).toEqual({ path: join(root, "feat-one"), branch: "pstack/feat-one" });
     const based = await withFakeGit(git.bin, () =>
       createIsolatedWorktree(dir, "feat-two", "origin/main"),
     );
-    assert.deepEqual(based, { path: join(root, "feat-two"), branch: "pstack/feat-two" });
-    assert.deepEqual(git.argvLog(), [
+    expect(based).toEqual({ path: join(root, "feat-two"), branch: "pstack/feat-two" });
+    expect(git.argvLog()).toEqual([
       ["worktree", "add", "-b", "pstack/feat-one", join(root, "feat-one"), "HEAD"],
       ["worktree", "add", "-b", "pstack/feat-two", join(root, "feat-two"), "origin/main"],
     ]);
@@ -259,22 +255,19 @@ test("worktree-04 creates .pstack-worktrees/<slug> on branch pstack/<slug>", asy
 test("worktree-05 refuses to create at the 12-worktree session cap", async () => {
   const dir = tempDir("pstack-wt-05-");
   try {
-    assert.equal(MAX_PSTACK_WORKTREES, 12);
+    expect(MAX_PSTACK_WORKTREES).toBe(12);
     const root = join(dir, ".pstack-worktrees");
     for (let index = 0; index < MAX_PSTACK_WORKTREES; index += 1) {
       mkdirSync(join(root, `slot-${index}`), { recursive: true });
     }
     const error = await captureRejection(() => createIsolatedWorktree(dir, "overflow"));
-    assert.ok(error instanceof WorktreeSanitizeError);
-    assert.equal(
-      (error as Error).message,
-      `pstack worktree session cap (${MAX_PSTACK_WORKTREES}) reached; remove/prune before creating more`,
-    );
+    expect(error instanceof WorktreeSanitizeError).toBeTruthy();
+    expect((error as Error).message).toBe(`pstack worktree session cap (${MAX_PSTACK_WORKTREES}) reached; remove/prune before creating more`);
     rmSync(join(root, "slot-0"), { recursive: true, force: true });
     const git = installFakeGit(join(dir, "git-home"), [{ prefix: ["worktree", "add"] }]);
     const created = await withFakeGit(git.bin, () => createIsolatedWorktree(dir, "eleventh"));
-    assert.equal(created.branch, "pstack/eleventh");
-    assert.deepEqual(git.argvLog(), [
+    expect(created.branch).toBe("pstack/eleventh");
+    expect(git.argvLog()).toEqual([
       ["worktree", "add", "-b", "pstack/eleventh", join(root, "eleventh"), "HEAD"],
     ]);
   } finally {
@@ -295,13 +288,13 @@ test("worktree-06 defaults the create slug to pstack-<Date.now()>", async () => 
     const argv = git.argvLog()[0];
     const branch = argv[3];
     const slug = branch.slice("pstack/".length);
-    assert.match(slug, /^pstack-\d+$/);
+    expect(slug).toMatch(/^pstack-\d+$/);
     const stamp = Number(slug.slice("pstack-".length));
-    assert.ok(stamp >= before && stamp <= after, `default slug stamp ${stamp} outside [${before}, ${after}]`);
+    expect(stamp >= before && stamp <= after, `default slug stamp ${stamp} outside [${before}, ${after}]`).toBeTruthy();
     const path = join(dir, ".pstack-worktrees", slug);
-    assert.deepEqual(argv, ["worktree", "add", "-b", `pstack/${slug}`, path, "HEAD"]);
-    assert.deepEqual(result.details, { path, branch });
-    assert.equal(result.content[0].text, `Created worktree ${path} on ${branch}`);
+    expect(argv).toEqual(["worktree", "add", "-b", `pstack/${slug}`, path, "HEAD"]);
+    expect(result.details).toEqual({ path, branch });
+    expect(result.content[0].text).toBe(`Created worktree ${path} on ${branch}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -316,10 +309,10 @@ test("worktree-07 maps a git worktree add failure onto a prefixed Error", async 
     const error = await withFakeGit(git.bin, () =>
       captureRejection(() => createIsolatedWorktree(dir, "broken")),
     );
-    assert.ok(error instanceof Error);
-    assert.equal(error.constructor, Error);
-    assert.ok(error.message.startsWith("git worktree add failed: "), error.message);
-    assert.ok(error.message.includes("fatal: not a git repository"), error.message);
+    expect(error instanceof Error).toBeTruthy();
+    expect(error.constructor).toBe(Error);
+    expect(error.message.startsWith("git worktree add failed: "), error.message).toBeTruthy();
+    expect(error.message.includes("fatal: not a git repository"), error.message).toBeTruthy();
     const harness = worktreeHarness();
     const toolError = await withFakeGit(git.bin, () =>
       captureRejection(() =>
@@ -330,8 +323,8 @@ test("worktree-07 maps a git worktree add failure onto a prefixed Error", async 
           }),
       ),
     );
-    assert.ok(toolError instanceof Error);
-    assert.ok(toolError.message.startsWith("git worktree add failed: "), toolError.message);
+    expect(toolError instanceof Error).toBeTruthy();
+    expect(toolError.message.startsWith("git worktree add failed: "), toolError.message).toBeTruthy();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -348,19 +341,13 @@ test("worktree-08 lists via git worktree list --porcelain and reports the cap co
     ]);
     const ctx = { cwd: dir };
     const listed = await harness.tool().execute("call-list", { action: "list" }, undefined, undefined, ctx);
-    assert.deepEqual(harness.execCalls(), [{ command: "git", args: ["worktree", "list", "--porcelain"] }]);
-    assert.equal(
-      listed.content[0].text,
-      `worktree /repo\nHEAD abc123\n\n\npstack-managed under .pstack-worktrees: 2/${MAX_PSTACK_WORKTREES}`,
-    );
-    assert.deepEqual(listed.details, { code: 0, count: 2 });
+    expect(harness.execCalls()).toEqual([{ command: "git", args: ["worktree", "list", "--porcelain"] }]);
+    expect(listed.content[0].text).toBe(`worktree /repo\nHEAD abc123\n\n\npstack-managed under .pstack-worktrees: 2/${MAX_PSTACK_WORKTREES}`);
+    expect(listed.details).toEqual({ code: 0, count: 2 });
     const fallback = await harness.tool().execute("call-list", { action: "list" }, undefined, undefined, ctx);
-    assert.equal(
-      fallback.content[0].text,
-      `fatal: not a git repository\n\npstack-managed under .pstack-worktrees: 2/${MAX_PSTACK_WORKTREES}`,
-    );
-    assert.deepEqual(fallback.details, { code: 1, count: 2 });
-    assert.deepEqual(harness.execCalls(), [
+    expect(fallback.content[0].text).toBe(`fatal: not a git repository\n\npstack-managed under .pstack-worktrees: 2/${MAX_PSTACK_WORKTREES}`);
+    expect(fallback.details).toEqual({ code: 1, count: 2 });
+    expect(harness.execCalls()).toEqual([
       { command: "git", args: ["worktree", "list", "--porcelain"] },
       { command: "git", args: ["worktree", "list", "--porcelain"] },
     ]);
@@ -376,17 +363,17 @@ test("worktree-09 prunes with git worktree prune -v", async () => {
       { prefix: ["worktree", "prune", "-v"], stdout: "pruning worktrees" },
     ]);
     const pruned = await withFakeGit(git.bin, () => pruneWorktrees(dir));
-    assert.equal(pruned, "pruning worktrees");
+    expect(pruned).toBe("pruning worktrees");
     const harness = worktreeHarness();
     const result = await withFakeGit(git.bin, () =>
       harness.tool().execute("call-prune", { action: "prune" }, undefined, undefined, { cwd: dir }),
     );
-    assert.equal(result.content[0].text, "pruning worktrees");
-    assert.deepEqual(git.argvLog(), [
+    expect(result.content[0].text).toBe("pruning worktrees");
+    expect(git.argvLog()).toEqual([
       ["worktree", "prune", "-v"],
       ["worktree", "prune", "-v"],
     ]);
-    assert.deepEqual(harness.execCalls(), []);
+    expect(harness.execCalls()).toEqual([]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -401,16 +388,16 @@ test("worktree-10 removes with --force then falls back to a plain remove", async
       { prefix: ["worktree", "remove"] },
     ]);
     const stuck = await withFakeGit(forceFails.bin, () => removeWorktree(dir, "stuck"));
-    assert.equal(stuck, join(root, "stuck"));
-    assert.deepEqual(forceFails.argvLog(), [
+    expect(stuck).toBe(join(root, "stuck"));
+    expect(forceFails.argvLog()).toEqual([
       ["worktree", "remove", "--force", join(root, "stuck")],
       ["worktree", "remove", join(root, "stuck")],
     ]);
     const forceWorks = installFakeGit(join(dir, "force-works"), [
       { prefix: ["worktree", "remove", "--force"] },
     ]);
-    assert.equal(await withFakeGit(forceWorks.bin, () => removeWorktree(dir, "easy")), join(root, "easy"));
-    assert.deepEqual(forceWorks.argvLog(), [["worktree", "remove", "--force", join(root, "easy")]]);
+    expect(await withFakeGit(forceWorks.bin, () => removeWorktree(dir, "easy"))).toBe(join(root, "easy"));
+    expect(forceWorks.argvLog()).toEqual([["worktree", "remove", "--force", join(root, "easy")]]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -422,14 +409,14 @@ test("worktree-11 requires a name for remove and rejects unknown actions", async
   const missingName = await captureRejection(() =>
     harness.tool().execute("call-remove", { action: "remove" }, undefined, undefined, ctx),
   );
-  assert.ok(missingName instanceof Error);
-  assert.equal(missingName.message, "name required for remove");
+  expect(missingName instanceof Error).toBeTruthy();
+  expect(missingName.message).toBe("name required for remove");
   const unknown = await captureRejection(() =>
     harness.tool().execute("call-bogus", { action: "bogus", name: "x" }, undefined, undefined, ctx),
   );
-  assert.ok(unknown instanceof Error);
-  assert.equal(unknown.message, "action must be create|list|remove|prune|cleanup");
-  assert.deepEqual(harness.execCalls(), []);
+  expect(unknown instanceof Error).toBeTruthy();
+  expect(unknown.message).toBe("action must be create|list|remove|prune|cleanup");
+  expect(harness.execCalls()).toEqual([]);
 });
 
 test("worktree-12 skips cleanup for child sessions touched in the last 30 minutes", () => {
@@ -439,16 +426,16 @@ test("worktree-12 skips cleanup for child sessions touched in the last 30 minute
     mkdirSync(sessions, { recursive: true });
     const jsonl = join(sessions, "child.jsonl");
     writeFileSync(jsonl, "{}\n");
-    assert.equal(hasRecentChildActivity(dir), true);
+    expect(hasRecentChildActivity(dir)).toBe(true);
     const stamp = Date.parse("2024-01-01T00:00:00.000Z");
     utimesSync(jsonl, new Date(stamp), new Date(stamp));
-    assert.equal(hasRecentChildActivity(dir, stamp + 30 * 60 * 1000), true);
-    assert.equal(hasRecentChildActivity(dir, stamp + 30 * 60 * 1000 + 1), false);
+    expect(hasRecentChildActivity(dir, stamp + 30 * 60 * 1000)).toBe(true);
+    expect(hasRecentChildActivity(dir, stamp + 30 * 60 * 1000 + 1)).toBe(false);
     const note = join(sessions, "notes.txt");
     writeFileSync(note, "not a session");
     utimesSync(note, new Date(stamp + 60 * 60 * 1000), new Date(stamp + 60 * 60 * 1000));
-    assert.equal(hasRecentChildActivity(dir, stamp + 60 * 60 * 1000), false);
-    assert.equal(hasRecentChildActivity(join(dir, "missing"), stamp), false);
+    expect(hasRecentChildActivity(dir, stamp + 60 * 60 * 1000)).toBe(false);
+    expect(hasRecentChildActivity(join(dir, "missing"), stamp)).toBe(false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -480,9 +467,9 @@ test("worktree-13 removes clean worktrees that are ancestors or branch-merged", 
       { prefix: ["worktree", "prune", "-v"], stdout: "pruned" },
     ]);
     const result = await withFakeGit(git.bin, () => cleanupPstackWorktreesOnShutdown(dir));
-    assert.deepEqual(result.removed.toSorted(), ["ancestor", "branch-merged"]);
-    assert.equal(result.pruned, "pruned");
-    assert.deepEqual(result.skipped, [{ name: "unmerged", reason: "has commits not merged into HEAD" }]);
+    expect(result.removed.toSorted()).toEqual(["ancestor", "branch-merged"]);
+    expect(result.pruned).toBe("pruned");
+    expect(result.skipped).toEqual([{ name: "unmerged", reason: "has commits not merged into HEAD" }]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -510,15 +497,15 @@ test("worktree-14 skips dirty, untracked-only, and recently active worktrees", a
       { prefix: ["worktree", "prune", "-v"], stdout: "pruned" },
     ]);
     const result = await withFakeGit(git.bin, () => cleanupPstackWorktreesOnShutdown(dir));
-    assert.deepEqual(result.removed, ["clean"]);
-    assert.equal(result.pruned, "pruned");
+    expect(result.removed).toEqual(["clean"]);
+    expect(result.pruned).toBe("pruned");
     const skipped = result.skipped.toSorted((left, right) => left.name.localeCompare(right.name));
-    assert.deepEqual(skipped, [
+    expect(skipped).toEqual([
       { name: "child-active", reason: "child session active in the last 30 minutes" },
       { name: "dirty", reason: "dirty working tree" },
       { name: "untracked-only", reason: "dirty working tree" },
     ]);
-    assert.deepEqual(git.readLog().filter((entry) => entry.argv.includes(active)), []);
+    expect(git.readLog().filter((entry) => entry.argv.includes(active))).toEqual([]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -542,13 +529,13 @@ test("worktree-15 runs shutdown cleanup in the project cwd and swallows errors",
     process.chdir(repo);
     await withFakeGit(git.bin, () => harness.shutdown({ cwd: repo }));
     const calls = git.readLog();
-    assert.ok(calls.length > 0);
-    assert.deepEqual([...new Set(calls.map((entry) => entry.cwd))], [repo]);
-    assert.ok(calls.some((entry) => entry.argv.join(" ") === `-C ${clean} status --porcelain`));
+    expect(calls.length > 0).toBeTruthy();
+    expect([...new Set(calls.map((entry) => entry.cwd))]).toEqual([repo]);
+    expect(calls.some((entry) => entry.argv.join(" ") === `-C ${clean} status --porcelain`)).toBeTruthy();
     const gone = tempDir("pstack-wt-15-gone-");
     process.chdir(gone);
     rmSync(gone, { recursive: true, force: true });
-    await assert.doesNotReject(harness.shutdown({ cwd: gone }));
+    await expect(harness.shutdown({ cwd: gone })).resolves.toSatisfy(() => true);
     process.chdir(savedCwd);
   } finally {
     process.chdir(savedCwd);

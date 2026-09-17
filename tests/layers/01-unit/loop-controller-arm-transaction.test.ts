@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -78,13 +77,10 @@ const ARM_BASE = { action: "arm", predicate: "ci green", intervalSeconds: 30 };
 test('arm rejects the auditor runId "../evil" and leaves no armed loop and no run record', async () => {
   const env = armEnv();
   try {
-    await assert.rejects(
-      () => env.run({ ...ARM_BASE, runId: "../evil" }),
-      /invalid runId: \.\.\/evil/,
-    );
-    assert.equal(await env.loopStatus(), "(no active loops)");
-    assert.deepEqual(env.storedRunIds(), []);
-    assert.deepEqual(listRuns(), []);
+    await expect(() => env.run({ ...ARM_BASE, runId: "../evil" })).rejects.toThrow(/invalid runId: \.\.\/evil/);
+    expect(await env.loopStatus()).toBe("(no active loops)");
+    expect(env.storedRunIds()).toEqual([]);
+    expect(listRuns()).toEqual([]);
   } finally {
     env.cleanup();
   }
@@ -95,9 +91,9 @@ test("arm rejects every runId shape the store refuses without arming or writing"
   for (const runId of rejected) {
     const env = armEnv();
     try {
-      await assert.rejects(() => env.run({ ...ARM_BASE, runId }), /invalid runId/);
-      assert.equal(await env.loopStatus(), "(no active loops)", `no loop armed for ${runId}`);
-      assert.deepEqual(env.storedRunIds(), [], `no record written for ${runId}`);
+      await expect(() => env.run({ ...ARM_BASE, runId })).rejects.toThrow(/invalid runId/);
+      expect(await env.loopStatus(), `no loop armed for ${runId}`).toBe("(no active loops)");
+      expect(env.storedRunIds(), `no record written for ${runId}`).toEqual([]);
     } finally {
       env.cleanup();
     }
@@ -107,12 +103,9 @@ test("arm rejects every runId shape the store refuses without arming or writing"
 test("arm rejects an unwatchable watcher argv before writing a record or arming", async () => {
   const env = armEnv();
   try {
-    await assert.rejects(
-      () => env.run({ ...ARM_BASE, runId: "run-bad-watch", mode: "watcher", watchArgv: ["-x"] }),
-      /watchArgv\[0\] must be a command path\/name/,
-    );
-    assert.equal(await env.loopStatus(), "(no active loops)");
-    assert.deepEqual(env.storedRunIds(), []);
+    await expect(() => env.run({ ...ARM_BASE, runId: "run-bad-watch", mode: "watcher", watchArgv: ["-x"] })).rejects.toThrow(/watchArgv\[0\] must be a command path\/name/);
+    expect(await env.loopStatus()).toBe("(no active loops)");
+    expect(env.storedRunIds()).toEqual([]);
   } finally {
     env.cleanup();
   }
@@ -121,12 +114,9 @@ test("arm rejects an unwatchable watcher argv before writing a record or arming"
 test("arm rejects an unknown mode before writing a record or arming", async () => {
   const env = armEnv();
   try {
-    await assert.rejects(
-      () => env.run({ ...ARM_BASE, runId: "run-bad-mode", mode: "mystery" }),
-      /mode must be interval\|settle\|watcher\|dynamic/,
-    );
-    assert.equal(await env.loopStatus(), "(no active loops)");
-    assert.deepEqual(env.storedRunIds(), []);
+    await expect(() => env.run({ ...ARM_BASE, runId: "run-bad-mode", mode: "mystery" })).rejects.toThrow(/mode must be interval\|settle\|watcher\|dynamic/);
+    expect(await env.loopStatus()).toBe("(no active loops)");
+    expect(env.storedRunIds()).toEqual([]);
   } finally {
     env.cleanup();
   }
@@ -135,9 +125,9 @@ test("arm rejects an unknown mode before writing a record or arming", async () =
 test("a rejected arm registers no run for session shutdown to block", async () => {
   const env = armEnv();
   try {
-    await assert.rejects(() => env.run({ ...ARM_BASE, runId: "../evil" }), /invalid runId/);
-    assert.doesNotThrow(() => env.shutdown());
-    assert.deepEqual(env.storedRunIds(), []);
+    await expect(() => env.run({ ...ARM_BASE, runId: "../evil" })).rejects.toThrow(/invalid runId/);
+    expect(() => env.shutdown()).not.toThrow();
+    expect(env.storedRunIds()).toEqual([]);
   } finally {
     env.cleanup();
   }
@@ -147,10 +137,10 @@ test("a valid arm still writes exactly one record and arms exactly one loop", as
   const env = armEnv();
   try {
     const armed = await env.run({ ...ARM_BASE, runId: "run-ok" });
-    assert.equal((armed.details.run as { phase: string }).phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
-    assert.equal(await env.loopStatus(), "run-ok mode=interval fires=0/50 armed=true lastReason=-");
-    assert.deepEqual(env.storedRunIds(), ["run-ok.json"]);
-    assert.deepEqual(listRuns().map((record) => record.runId), ["run-ok"]);
+    expect((armed.details.run as { phase: string }).phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+    expect(await env.loopStatus()).toBe("run-ok mode=interval fires=0/50 armed=true lastReason=-");
+    expect(env.storedRunIds()).toEqual(["run-ok.json"]);
+    expect(listRuns().map((record) => record.runId)).toEqual(["run-ok"]);
   } finally {
     env.cleanup();
   }

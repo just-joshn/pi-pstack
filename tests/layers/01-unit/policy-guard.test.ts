@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import {
   __setGuardPolicyForTests,
   evaluateGuard,
@@ -33,62 +32,53 @@ function fakePi() {
 
 test("guard blocks filesystem, shell, git, and network writes", () => {
   const readOnly = guardFor(undefined, "comment-sicko");
-  assert.equal(evaluateGuard(readOnly, { toolName: "write", input: {} })?.block, true);
-  assert.equal(evaluateGuard(readOnly, { toolName: "edit", input: {} })?.block, true);
-  assert.equal(evaluateGuard(readOnly, { toolName: "bash", input: { command: "ls" } })?.block, true);
+  expect(evaluateGuard(readOnly, { toolName: "write", input: {} })?.block).toBe(true);
+  expect(evaluateGuard(readOnly, { toolName: "edit", input: {} })?.block).toBe(true);
+  expect(evaluateGuard(readOnly, { toolName: "bash", input: { command: "ls" } })?.block).toBe(true);
 
   const shellNone = guardFor({ shell: "none" });
-  assert.match(evaluateGuard(shellNone, bash("echo hi"))?.reason ?? "", /shell none blocks bash/);
+  expect(evaluateGuard(shellNone, bash("echo hi"))?.reason ?? "").toMatch(/shell none blocks bash/);
 
   const gitRead = guardFor({ git: "read", shell: "full" });
-  assert.match(evaluateGuard(gitRead, bash("git push origin main"))?.reason ?? "", /git policy read blocks 'git push'/);
-  assert.equal(evaluateGuard(gitRead, bash("git log --oneline -5")), undefined);
-  assert.equal(evaluateGuard(gitRead, bash("git status --porcelain")), undefined);
+  expect(evaluateGuard(gitRead, bash("git push origin main"))?.reason ?? "").toMatch(/git policy read blocks 'git push'/);
+  expect(evaluateGuard(gitRead, bash("git log --oneline -5"))).toBe(undefined);
+  expect(evaluateGuard(gitRead, bash("git status --porcelain"))).toBe(undefined);
 
   const branchWrite = guardFor({ git: "branch-write", shell: "full" });
-  assert.equal(evaluateGuard(branchWrite, bash("git commit -m 'wip'")), undefined);
-  assert.equal(evaluateGuard(branchWrite, bash("git checkout -b feature/x")), undefined);
-  assert.equal(evaluateGuard(branchWrite, bash("git branch new-branch")), undefined);
-  assert.equal(evaluateGuard(branchWrite, bash("git push origin HEAD"))?.block, true);
-  assert.equal(evaluateGuard(branchWrite, bash("git merge main"))?.block, true);
+  expect(evaluateGuard(branchWrite, bash("git commit -m 'wip'"))).toBe(undefined);
+  expect(evaluateGuard(branchWrite, bash("git checkout -b feature/x"))).toBe(undefined);
+  expect(evaluateGuard(branchWrite, bash("git branch new-branch"))).toBe(undefined);
+  expect(evaluateGuard(branchWrite, bash("git push origin HEAD"))?.block).toBe(true);
+  expect(evaluateGuard(branchWrite, bash("git merge main"))?.block).toBe(true);
 
   const networkNone = guardFor({ network: "none", shell: "full" });
-  assert.match(evaluateGuard(networkNone, bash("curl https://example.com"))?.reason ?? "", /network none blocks 'curl'/);
-  assert.match(evaluateGuard(networkNone, bash("npm install left-pad"))?.reason ?? "", /network none blocks 'npm install'/);
-  assert.match(evaluateGuard(networkNone, bash("pnpm add react"))?.reason ?? "", /network none blocks 'pnpm add'/);
-  assert.match(evaluateGuard(networkNone, bash("git clone https://example.com/x.git"))?.reason ?? "", /network none blocks 'git clone'/);
-  assert.match(evaluateGuard(networkNone, bash("gh pr create --fill"))?.reason ?? "", /network none blocks 'gh pr create'/);
+  expect(evaluateGuard(networkNone, bash("curl https://example.com"))?.reason ?? "").toMatch(/network none blocks 'curl'/);
+  expect(evaluateGuard(networkNone, bash("npm install left-pad"))?.reason ?? "").toMatch(/network none blocks 'npm install'/);
+  expect(evaluateGuard(networkNone, bash("pnpm add react"))?.reason ?? "").toMatch(/network none blocks 'pnpm add'/);
+  expect(evaluateGuard(networkNone, bash("git clone https://example.com/x.git"))?.reason ?? "").toMatch(/network none blocks 'git clone'/);
+  expect(evaluateGuard(networkNone, bash("gh pr create --fill"))?.reason ?? "").toMatch(/network none blocks 'gh pr create'/);
 });
 
 test("guard allows the read paths each axis leaves open", () => {
   const networkNone = guardFor({ network: "none", shell: "full" });
-  assert.equal(evaluateGuard(networkNone, bash("npm run test:unit")), undefined);
-  assert.equal(evaluateGuard(networkNone, bash("git log --oneline")), undefined);
-  assert.equal(evaluateGuard(networkNone, bash("gh pr view 12")), undefined);
-  assert.equal(evaluateGuard(networkNone, bash("grep -rn nc src/")), undefined, "operands never look like commands");
-  assert.equal(evaluateGuard(networkNone, bash("echo 'curl this' > notes.txt")), undefined);
-  assert.equal(evaluateGuard(networkNone, { toolName: "read", input: {} }), undefined);
+  expect(evaluateGuard(networkNone, bash("npm run test:unit"))).toBe(undefined);
+  expect(evaluateGuard(networkNone, bash("git log --oneline"))).toBe(undefined);
+  expect(evaluateGuard(networkNone, bash("gh pr view 12"))).toBe(undefined);
+  expect(evaluateGuard(networkNone, bash("grep -rn nc src/")), "operands never look like commands").toBe(undefined);
+  expect(evaluateGuard(networkNone, bash("echo 'curl this' > notes.txt"))).toBe(undefined);
+  expect(evaluateGuard(networkNone, { toolName: "read", input: {} })).toBe(undefined);
 
   const full = guardFor({ git: "merge" });
-  assert.equal(evaluateGuard(full, { toolName: "edit", input: {} }), undefined);
-  assert.equal(evaluateGuard(full, bash("git push origin main")), undefined);
-  assert.equal(evaluateGuard(full, bash("curl https://example.com")), undefined);
+  expect(evaluateGuard(full, { toolName: "edit", input: {} })).toBe(undefined);
+  expect(evaluateGuard(full, bash("git push origin main"))).toBe(undefined);
+  expect(evaluateGuard(full, bash("curl https://example.com"))).toBe(undefined);
 });
 
 test("guard reads git through flags and every command segment", () => {
   const gitRead = guardFor({ git: "read", shell: "full" });
-  assert.match(
-    evaluateGuard(gitRead, bash("git -C /repo push origin main"))?.reason ?? "",
-    /blocks 'git push'/,
-  );
-  assert.match(
-    evaluateGuard(gitRead, bash("cd /repo && git commit -m 'x'"))?.reason ?? "",
-    /blocks 'git commit'/,
-  );
-  assert.match(
-    evaluateGuard(gitRead, bash("sudo git reset --hard HEAD~1"))?.reason ?? "",
-    /blocks 'git reset'/,
-  );
+  expect(evaluateGuard(gitRead, bash("git -C /repo push origin main"))?.reason ?? "").toMatch(/blocks 'git push'/);
+  expect(evaluateGuard(gitRead, bash("cd /repo && git commit -m 'x'"))?.reason ?? "").toMatch(/blocks 'git commit'/);
+  expect(evaluateGuard(gitRead, bash("sudo git reset --hard HEAD~1"))?.reason ?? "").toMatch(/blocks 'git reset'/);
 });
 
 test("filesystem read-only blocks mutating bash commands, not just write and edit", () => {
@@ -116,12 +106,12 @@ test("filesystem read-only blocks mutating bash commands, not just write and edi
     "git checkout -- .",
   ];
   const leaks = mutators.filter((command) => evaluateGuard(readOnly, bash(command))?.block !== true);
-  assert.deepEqual(leaks, [], "every mutating command must be blocked");
+  expect(leaks, "every mutating command must be blocked").toEqual([]);
 
-  assert.equal(evaluateGuard(readOnly, bash("ls -la")), undefined);
-  assert.equal(evaluateGuard(readOnly, bash("grep -rn pattern src/")), undefined);
-  assert.equal(evaluateGuard(readOnly, bash("sed -n 1p file")), undefined, "sed without -i only reads");
-  assert.equal(evaluateGuard(readOnly, bash("git log --oneline -5")), undefined);
+  expect(evaluateGuard(readOnly, bash("ls -la"))).toBe(undefined);
+  expect(evaluateGuard(readOnly, bash("grep -rn pattern src/"))).toBe(undefined);
+  expect(evaluateGuard(readOnly, bash("sed -n 1p file")), "sed without -i only reads").toBe(undefined);
+  expect(evaluateGuard(readOnly, bash("git log --oneline -5"))).toBe(undefined);
 });
 
 test("git read blocks pushes hidden behind separators, wrappers, and substitutions", () => {
@@ -138,16 +128,13 @@ test("git read blocks pushes hidden behind separators, wrappers, and substitutio
     "if [ -f x ]; then git push; fi",
   ];
   const leaks = hidden.filter((command) => evaluateGuard(gitRead, bash(command))?.block !== true);
-  assert.deepEqual(leaks, [], "every hidden push must be blocked");
+  expect(leaks, "every hidden push must be blocked").toEqual([]);
 });
 
 test("git read refuses a subcommand it cannot resolve instead of allowing it", () => {
   const gitRead = guardFor({ git: "read", shell: "full" });
-  assert.match(
-    evaluateGuard(gitRead, bash("git $SUB origin main"))?.reason ?? "",
-    /cannot verify a git subcommand built from a variable/,
-  );
-  assert.equal(evaluateGuard(gitRead, bash("git log $REV")), undefined, "a dynamic argument that is not the subcommand stays allowed");
+  expect(evaluateGuard(gitRead, bash("git $SUB origin main"))?.reason ?? "").toMatch(/cannot verify a git subcommand built from a variable/);
+  expect(evaluateGuard(gitRead, bash("git log $REV")), "a dynamic argument that is not the subcommand stays allowed").toBe(undefined);
 });
 
 test("a restrictive policy fails closed on a construct the parser cannot decompose", () => {
@@ -162,47 +149,34 @@ test("a restrictive policy fails closed on a construct the parser cannot decompo
     "cmd <(other)",
   ];
   const leaks = opaque.filter((command) => evaluateGuard(gitRead, bash(command))?.block !== true);
-  assert.deepEqual(leaks, [], "every uninspectable construct must be blocked");
-  assert.match(evaluateGuard(gitRead, bash("sh script.sh"))?.reason ?? "", /cannot enforce this policy on/);
+  expect(leaks, "every uninspectable construct must be blocked").toEqual([]);
+  expect(evaluateGuard(gitRead, bash("sh script.sh"))?.reason ?? "").toMatch(/cannot enforce this policy on/);
 });
 
 test("a policy with no restrictive axis has nothing to enforce from an unparsed construct", () => {
   const permissive = guardFor({ git: "merge", filesystem: "workspace-write", network: "allowed", shell: "full" });
-  assert.equal(evaluateGuard(permissive, bash('eval "echo hi"')), undefined);
-  assert.equal(evaluateGuard(permissive, bash("rm -rf /tmp/x")), undefined);
+  expect(evaluateGuard(permissive, bash('eval "echo hi"'))).toBe(undefined);
+  expect(evaluateGuard(permissive, bash("rm -rf /tmp/x"))).toBe(undefined);
 });
 
 test("a bash tool call without a string command is blocked instead of assumed safe", () => {
   const readOnly = guardFor({ filesystem: "read-only", shell: "full" });
-  assert.equal(evaluateGuard(readOnly, { toolName: "bash", input: {} })?.block, true);
-  assert.equal(evaluateGuard(readOnly, { toolName: "bash", input: { command: 42 } })?.block, true);
+  expect(evaluateGuard(readOnly, { toolName: "bash", input: {} })?.block).toBe(true);
+  expect(evaluateGuard(readOnly, { toolName: "bash", input: { command: 42 } })?.block).toBe(true);
 });
 
 test("integrations grant blocks a non-granted capability tool and allows a granted one", () => {
   const browserOnly = guardFor({ integrations: ["browser-ui"] });
-  assert.equal(evaluateGuard(browserOnly, { toolName: "pstack_control_ui", input: {} }), undefined);
-  assert.match(
-    evaluateGuard(browserOnly, { toolName: "pstack_control_cli", input: {} })?.reason ?? "",
-    /excludes cli-tui/,
-  );
-  assert.equal(evaluateGuard(browserOnly, { toolName: "read", input: {} }), undefined);
+  expect(evaluateGuard(browserOnly, { toolName: "pstack_control_ui", input: {} })).toBe(undefined);
+  expect(evaluateGuard(browserOnly, { toolName: "pstack_control_cli", input: {} })?.reason ?? "").toMatch(/excludes cli-tui/);
+  expect(evaluateGuard(browserOnly, { toolName: "read", input: {} })).toBe(undefined);
 
   const none = guardFor({ integrations: "none" });
-  assert.match(
-    evaluateGuard(none, { toolName: "pstack_control_ui", input: {} })?.reason ?? "",
-    /integrations none excludes browser-ui/,
-  );
+  expect(evaluateGuard(none, { toolName: "pstack_control_ui", input: {} })?.reason ?? "").toMatch(/integrations none excludes browser-ui/);
 
   const inherited = guardFor({ integrations: "inherit" });
-  assert.equal(
-    evaluateGuard(inherited, { toolName: "pstack_control_cli", input: { argv: ["git", "status"] } }),
-    undefined,
-  );
-  assert.match(
-    evaluateGuard(inherited, { toolName: "pstack_control_cli", input: {} })?.reason ?? "",
-    /malformed command/,
-    "a call with no argv is refused instead of assumed safe",
-  );
+  expect(evaluateGuard(inherited, { toolName: "pstack_control_cli", input: { argv: ["git", "status"] } })).toBe(undefined);
+  expect(evaluateGuard(inherited, { toolName: "pstack_control_cli", input: {} })?.reason ?? "", "a call with no argv is refused instead of assumed safe").toMatch(/malformed command/);
 });
 
 test("malformed PSTACK_CHILD_POLICY blocks writes instead of silently allowing them", () => {
@@ -212,13 +186,13 @@ test("malformed PSTACK_CHILD_POLICY blocks writes instead of silently allowing t
       process.env.PSTACK_CHILD_POLICY = raw;
       const env = fakePi();
       registerPolicyGuard(env.pi as never);
-      assert.equal(env.handlerCount(), 1);
+      expect(env.handlerCount()).toBe(1);
       const blocked = env.invoke({ toolName: "write", input: {} });
-      assert.equal(blocked?.block, true, `expected a block for ${raw}`);
-      assert.match(blocked?.reason ?? "", /PSTACK_CHILD_POLICY/);
-      assert.equal(env.invoke({ toolName: "edit", input: {} })?.block, true);
-      assert.equal(env.invoke({ toolName: "bash", input: { command: "rm -rf x" } })?.block, true);
-      assert.equal(env.invoke({ toolName: "read", input: {} }), undefined, "reads cannot mutate");
+      expect(blocked?.block, `expected a block for ${raw}`).toBe(true);
+      expect(blocked?.reason ?? "").toMatch(/PSTACK_CHILD_POLICY/);
+      expect(env.invoke({ toolName: "edit", input: {} })?.block).toBe(true);
+      expect(env.invoke({ toolName: "bash", input: { command: "rm -rf x" } })?.block).toBe(true);
+      expect(env.invoke({ toolName: "read", input: {} }), "reads cannot mutate").toBe(undefined);
     }
   } finally {
     if (previous === undefined) Reflect.deleteProperty(process.env, "PSTACK_CHILD_POLICY");
@@ -234,8 +208,8 @@ test("registerPolicyGuard is a no-op when PSTACK_CHILD_POLICY is absent", () => 
   try {
     const env = fakePi();
     registerPolicyGuard(env.pi as never);
-    assert.equal(env.handlerCount(), 0);
-    assert.equal(env.invoke({ toolName: "write", input: {} }), undefined);
+    expect(env.handlerCount()).toBe(0);
+    expect(env.invoke({ toolName: "write", input: {} })).toBe(undefined);
   } finally {
     if (previous !== undefined) process.env.PSTACK_CHILD_POLICY = previous;
   }
@@ -247,11 +221,8 @@ test("registerPolicyGuard applies the compiled env policy to the tool_call hook"
   try {
     const env = fakePi();
     registerPolicyGuard(env.pi as never);
-    assert.equal(env.invoke({ toolName: "write", input: {} }), undefined);
-    assert.match(
-      env.invoke({ toolName: "bash", input: { command: "git push" } })?.reason ?? "",
-      /git policy read/,
-    );
+    expect(env.invoke({ toolName: "write", input: {} })).toBe(undefined);
+    expect(env.invoke({ toolName: "bash", input: { command: "git push" } })?.reason ?? "").toMatch(/git policy read/);
   } finally {
     if (previous === undefined) Reflect.deleteProperty(process.env, "PSTACK_CHILD_POLICY");
     else process.env.PSTACK_CHILD_POLICY = previous;
@@ -266,8 +237,8 @@ test("__setGuardPolicyForTests drives the hook without spawning", () => {
   try {
     const env = fakePi();
     registerPolicyGuard(env.pi as never);
-    assert.equal(env.handlerCount(), 1);
-    assert.equal(env.invoke({ toolName: "write", input: {} })?.block, true);
+    expect(env.handlerCount()).toBe(1);
+    expect(env.invoke({ toolName: "write", input: {} })?.block).toBe(true);
   } finally {
     if (previous !== undefined) process.env.PSTACK_CHILD_POLICY = previous;
     __setGuardPolicyForTests(null);
@@ -275,13 +246,13 @@ test("__setGuardPolicyForTests drives the hook without spawning", () => {
 });
 
 test("parseGuardPolicy reports schema failures without throwing", () => {
-  assert.equal(parseGuardPolicy("not json").policy, undefined);
-  assert.match(parseGuardPolicy("not json").blockReason ?? "", /not valid JSON/);
-  assert.equal(parseGuardPolicy(JSON.stringify({ filesystem: "readwrite" })).policy, undefined);
-  assert.match(parseGuardPolicy(JSON.stringify({ filesystem: "readwrite" })).blockReason ?? "", /failed policy validation/);
+  expect(parseGuardPolicy("not json").policy).toBe(undefined);
+  expect(parseGuardPolicy("not json").blockReason ?? "").toMatch(/not valid JSON/);
+  expect(parseGuardPolicy(JSON.stringify({ filesystem: "readwrite" })).policy).toBe(undefined);
+  expect(parseGuardPolicy(JSON.stringify({ filesystem: "readwrite" })).blockReason ?? "").toMatch(/failed policy validation/);
   const good = parseGuardPolicy(JSON.stringify(compileTaskPolicy(undefined, "comment-sicko")));
-  assert.equal(good.blockReason, undefined);
-  assert.equal(good.policy?.integrations, "none");
+  expect(good.blockReason).toBe(undefined);
+  expect(good.policy?.integrations).toBe("none");
 });
 
 function cliCall(argv: unknown) {
@@ -292,11 +263,11 @@ test("a command-executing tool is gated by the shell axis, not only by its name"
   for (const shell of ["none", "restricted"] as const) {
     const policy = guardFor({ shell });
     const reason = evaluateGuard(policy, cliCall(["git", "status"]))?.reason ?? "";
-    assert.match(reason, new RegExp(`shell ${shell} blocks pstack_control_cli`));
+    expect(reason).toMatch(new RegExp(`shell ${shell} blocks pstack_control_cli`));
   }
   const full = guardFor({ shell: "full", git: "read" });
-  assert.equal(evaluateGuard(full, cliCall(["git", "status"])), undefined);
-  assert.match(evaluateGuard(full, cliCall(["git", "push"]))?.reason ?? "", /git policy read blocks 'git push'/);
+  expect(evaluateGuard(full, cliCall(["git", "status"]))).toBe(undefined);
+  expect(evaluateGuard(full, cliCall(["git", "push"]))?.reason ?? "").toMatch(/git policy read blocks 'git push'/);
 });
 
 test("an argv command line is analyzed exactly as the equivalent bash command", () => {
@@ -317,7 +288,7 @@ test("an argv command line is analyzed exactly as the equivalent bash command", 
       evaluateGuard(readOnly, bash(command))?.block !== true ||
       evaluateGuard(readOnly, cliCall(argv))?.block !== true,
   );
-  assert.deepEqual(mismatches, [], "both routes must reach the same verdict");
+  expect(mismatches, "both routes must reach the same verdict").toEqual([]);
 
   const reads = [
     ["git status", ["git", "status"]],
@@ -328,22 +299,15 @@ test("an argv command line is analyzed exactly as the equivalent bash command", 
     ([command, argv]) =>
       evaluateGuard(readOnly, bash(command)) !== undefined || evaluateGuard(readOnly, cliCall(argv)) !== undefined,
   );
-  assert.deepEqual(refusals, [], "both routes must leave the read path open");
+  expect(refusals, "both routes must leave the read path open").toEqual([]);
 
-  assert.equal(
-    evaluateGuard(readOnly, cliCall(["echo", "pwned", ">", "/tmp/f"])),
-    undefined,
-    "argv carries no redirection surface, so a redirect-looking operand is a plain argument",
-  );
+  expect(evaluateGuard(readOnly, cliCall(["echo", "pwned", ">", "/tmp/f"])), "argv carries no redirection surface, so a redirect-looking operand is a plain argument").toBe(undefined);
 });
 
 test("a network-only tool is gated by the network axis before its capability grant", () => {
   const browserOnly = guardFor({ integrations: ["browser-ui"], network: "allowed" });
-  assert.equal(evaluateGuard(browserOnly, { toolName: "pstack_control_ui", input: {} }), undefined);
+  expect(evaluateGuard(browserOnly, { toolName: "pstack_control_ui", input: {} })).toBe(undefined);
   const noNetwork = guardFor({ integrations: ["browser-ui"], network: "none" });
-  assert.match(
-    evaluateGuard(noNetwork, { toolName: "pstack_control_ui", input: {} })?.reason ?? "",
-    /network none blocks pstack_control_ui/,
-  );
-  assert.equal(evaluateGuard(noNetwork, { toolName: "read", input: {} }), undefined);
+  expect(evaluateGuard(noNetwork, { toolName: "pstack_control_ui", input: {} })?.reason ?? "").toMatch(/network none blocks pstack_control_ui/);
+  expect(evaluateGuard(noNetwork, { toolName: "read", input: {} })).toBe(undefined);
 });

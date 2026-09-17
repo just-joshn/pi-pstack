@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -25,36 +24,36 @@ test("skill-chrome-01 reads icon, color, and reminder from the file frontmatter"
   const chrome = parseSkillChrome(
     ["---", "name: demo", "icon: crown", "color: yellow", "reminder: stay concise", "---", "body"].join("\n"),
   );
-  assert.deepEqual(chrome, { icon: "crown", color: "yellow", reminder: "stay concise" });
+  expect(chrome).toEqual({ icon: "crown", color: "yellow", reminder: "stay concise" });
 
   const bare = parseSkillChrome("plain markdown\n");
-  assert.deepEqual(bare, { icon: undefined, color: undefined, reminder: undefined });
+  expect(bare).toEqual({ icon: undefined, color: undefined, reminder: undefined });
 });
 
 test("skill-chrome-02 the shipped poteto skill declares the chrome the parser returns", () => {
   const chrome = readSkillChrome(POTETO_SKILL);
-  assert.equal(chrome?.icon, "crown");
-  assert.equal(chrome?.color, "yellow");
-  assert.equal(typeof chrome?.reminder, "string");
-  assert.equal(chrome?.reminder?.includes("/poteto-mode"), true);
+  expect(chrome?.icon).toBe("crown");
+  expect(chrome?.color).toBe("yellow");
+  expect(typeof chrome?.reminder).toBe("string");
+  expect(chrome?.reminder?.includes("/poteto-mode")).toBe(true);
 });
 
 test("skill-chrome-03 splitFrontmatter keeps stripFrontmatter behavior and drops the block", () => {
   const raw = ["---", "name: x", "icon: crown", "---", "body text", ""].join("\n");
-  assert.equal(splitFrontmatter(raw).body, stripFrontmatter(raw));
-  assert.deepEqual(splitFrontmatter(raw).fields, { name: "x", icon: "crown" });
-  assert.equal(stripFrontmatter("plain text\n"), "plain text");
-  assert.equal(stripFrontmatter("---\nunclosed\n"), "---\nunclosed");
+  expect(splitFrontmatter(raw).body).toBe(stripFrontmatter(raw));
+  expect(splitFrontmatter(raw).fields).toEqual({ name: "x", icon: "crown" });
+  expect(stripFrontmatter("plain text\n")).toBe("plain text");
+  expect(stripFrontmatter("---\nunclosed\n")).toBe("---\nunclosed");
 });
 
 test("skill-chrome-04 maps declared colors onto theme tokens", () => {
-  assert.equal(chromeThemeToken("yellow"), "warning");
-  assert.equal(chromeThemeToken("YELLOW"), "warning");
-  assert.equal(chromeThemeToken("green"), "success");
-  assert.equal(chromeThemeToken("chartreuse"), undefined);
-  assert.equal(chromeThemeToken(undefined), undefined);
-  assert.equal(chromeStatusLabel({ icon: "crown" }, "poteto-mode"), "crown poteto-mode");
-  assert.equal(chromeStatusLabel({}, "solo"), "solo");
+  expect(chromeThemeToken("yellow")).toBe("warning");
+  expect(chromeThemeToken("YELLOW")).toBe("warning");
+  expect(chromeThemeToken("green")).toBe("success");
+  expect(chromeThemeToken("chartreuse")).toBe(undefined);
+  expect(chromeThemeToken(undefined)).toBe(undefined);
+  expect(chromeStatusLabel({ icon: "crown" }, "poteto-mode")).toBe("crown poteto-mode");
+  expect(chromeStatusLabel({}, "solo")).toBe("solo");
 });
 
 test("skill-chrome-05 a skill command renders its chrome through ctx.ui.setStatus", async () => {
@@ -80,10 +79,10 @@ test("skill-chrome-05 a skill command renders its chrome through ctx.ui.setStatu
       },
     };
     await commands.get("demo")?.handler("", ctx);
-    assert.deepEqual(statuses, [["pstack-skill", "[warning]crown demo"]]);
+    expect(statuses).toEqual([["pstack-skill", "[warning]crown demo"]]);
 
     await commands.get("demo")?.handler("", {});
-    assert.equal(statuses.length, 1, "a headless context must not throw or record");
+    expect(statuses.length, "a headless context must not throw or record").toBe(1);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -92,10 +91,10 @@ test("skill-chrome-05 a skill command renders its chrome through ctx.ui.setStatu
 test("skill-chrome-06 the poteto reminder reaches the sticky inject", () => {
   clearPotetoStickyCache();
   const reminder = loadPotetoReminder();
-  assert.equal(typeof reminder, "string");
-  assert.equal(reminder?.includes("/poteto-mode"), true);
-  assert.equal(loadPotetoReminder(), reminder, "the reminder is cached");
+  expect(typeof reminder).toBe("string");
+  expect(reminder?.includes("/poteto-mode")).toBe(true);
+  expect(loadPotetoReminder(), "the reminder is cached").toBe(reminder);
 
   const prompt = buildPotetoStickyPrompt("BASE");
-  assert.equal(prompt.includes(`Reminder: ${reminder}`), true, "the declared reminder is injected");
+  expect(prompt.includes(`Reminder: ${reminder}`), "the declared reminder is injected").toBe(true);
 });

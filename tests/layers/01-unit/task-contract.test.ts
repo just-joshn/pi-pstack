@@ -1,9 +1,8 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import { Value } from "typebox/value";
 
@@ -71,15 +70,47 @@ childProcessModule.spawn = fakeSpawn as unknown;
 const childProcessEsm = await import("node:child_process");
 
 /**
- * The peer-deps preload imports node:child_process before this file runs, which
- * freezes the ESM facade. tests/registry.mjs runs layer 1 as plain `node --test`
- * (no preload), where the patch lands. spawn-contracts.test.ts carries the same
- * constraint. Skip only the test that needs a spawned child instead of failing.
+ * Patching the CommonJS `node:child_process` binding only reaches the ESM facade
+ * while nothing has materialized that facade yet. Vitest does not import
+ * `node:child_process` before this file runs, so the patch lands; the guard keeps
+ * the test from failing if a runner ever preloads it. spawn-contracts.test.ts
+ * carries the same constraint.
  */
 const SPAWN_SKIP =
   childProcessEsm.spawn === (fakeSpawn as unknown)
     ? false
     : "node:child_process ESM facade was already materialized (peer-deps preload); run node --test without --import";
+
+/**
+ * Real git through the CommonJS binding. Only `spawn` is patched above, so
+ * execFileSync still launches a real process and the worktree is real.
+ */
+interface SyncGitRunner {
+  execFileSync: (command: string, args: string[], options: { cwd: string; encoding: "utf8" }) => string;
+}
+
+const { execFileSync } = childProcessModule as unknown as SyncGitRunner;
+
+function git(cwd: string, args: string[]): string {
+  return execFileSync("git", args, { cwd, encoding: "utf8" });
+}
+
+function gitIdentity(): string[] {
+  return ["-c", "user.email=harness@example.com", "-c", "user.name=harness"];
+}
+
+function initGitRepo(cwd: string): string {
+  git(cwd, ["init", "-q", "-b", "main"]);
+  git(cwd, [...gitIdentity(), "commit", "-q", "--allow-empty", "-m", "base"]);
+  return git(cwd, ["rev-parse", "HEAD"]).trim();
+}
+
+function commitFile(cwd: string, name: string, message: string): string {
+  writeFileSync(join(cwd, name), `${message}\n`, "utf8");
+  git(cwd, ["add", name]);
+  git(cwd, [...gitIdentity(), "commit", "-q", "-m", message]);
+  return git(cwd, ["rev-parse", "HEAD"]).trim();
+}
 
 // Imported after the spawn patch so the child runner binds the fake, matching spawn-contracts.test.ts.
 const { compilePolicyFromParams, registerTask } = await import("../../../extensions/agents/task.ts");
@@ -96,19 +127,22 @@ interface CapturedTool {
   ) => Promise<{ content: Array<{ type: string; text: string }>; details: Record<string, unknown> }>;
 }
 
-function makeHarness(cwd: string) {
+function makeHarness(cwd: string, options: { withoutGetActiveTools?: boolean } = {}) {
   // Shadow any developer model config so model resolution is deterministic here.
   mkdirSync(join(cwd, ".pi"), { recursive: true });
   writeFileSync(join(cwd, ".pi", "pstack-models.json"), JSON.stringify({ version: 1, roles: {} }), "utf8");
   const tools = new Map<string, CapturedTool>();
+  const parentTools = {
+    getActiveTools() {
+      return ["read", "bash", "write", "edit"];
+    },
+  };
   const pi = {
     on() {},
     registerTool(definition: CapturedTool) {
       tools.set(definition.name, definition);
     },
-    getActiveTools() {
-      return ["read", "bash", "write", "edit"];
-    },
+    ...(options.withoutGetActiveTools ? {} : parentTools),
     sendUserMessage() {},
   };
   registerTask(pi as never);
@@ -136,13 +170,12 @@ test("pstack_task registers the mandated parameter names", () => {
   const cwd = tempCwd();
   try {
     const h = makeHarness(cwd);
-    assert.equal(h.tool.name, "pstack_task");
-    assert.deepEqual(Object.keys(h.tool.parameters.properties).toSorted(), [...MANDATED_PARAMS].toSorted());
-    assert.equal(Value.Check(h.tool.parameters, { prompt: "brief" }), true);
-    assert.equal(Value.Check(h.tool.parameters, { prompt: "" }), false);
-    assert.equal(Value.Check(h.tool.parameters, {}), false);
-    assert.equal(
-      Value.Check(h.tool.parameters, {
+    expect(h.tool.name).toBe("pstack_task");
+    expect(Object.keys(h.tool.parameters.properties).toSorted()).toEqual([...MANDATED_PARAMS].toSorted());
+    expect(Value.Check(h.tool.parameters, { prompt: "brief" })).toBe(true);
+    expect(Value.Check(h.tool.parameters, { prompt: "" })).toBe(false);
+    expect(Value.Check(h.tool.parameters, {})).toBe(false);
+    expect(Value.Check(h.tool.parameters, {
         prompt: "brief",
         subagent_type: "investigator",
         thinkingLevel: "high",
@@ -150,10 +183,8 @@ test("pstack_task registers the mandated parameter names", () => {
         environment: "hosted",
         worktree: true,
         permissions: { filesystem: "read-only", integrations: ["browser-ui"] },
-      }),
-      true,
-    );
-    assert.equal(Value.Check(h.tool.parameters, { prompt: "brief", permissions: { nope: 1 } }), false);
+      })).toBe(true);
+    expect(Value.Check(h.tool.parameters, { prompt: "brief", permissions: { nope: 1 } })).toBe(false);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -161,7 +192,7 @@ test("pstack_task registers the mandated parameter names", () => {
 
 test("the investigator shape compiles to a read-only filesystem with inherited integrations", () => {
   const policy = compilePolicyFromParams({ prompt: "brief", subagent_type: "investigator" }, "investigator");
-  assert.deepEqual(policy, {
+  expect(policy).toEqual({
     filesystem: "read-only",
     shell: "none",
     git: "read",
@@ -175,7 +206,7 @@ test("the investigator shape compiles to a read-only filesystem with inherited i
     { prompt: "brief", subagent_type: "comment-sicko" },
     "comment-sicko",
   );
-  assert.equal(readonlyComment.integrations, "none");
+  expect(readonlyComment.integrations).toBe("none");
   const explicit = compilePolicyFromParams(
     {
       prompt: "brief",
@@ -186,10 +217,10 @@ test("the investigator shape compiles to a read-only filesystem with inherited i
     },
     "general",
   );
-  assert.equal(explicit.filesystem, "read-only");
-  assert.equal(explicit.shell, "none");
-  assert.deepEqual(explicit.integrations, ["browser-ui"]);
-  assert.equal(explicit.background, true);
+  expect(explicit.filesystem).toBe("read-only");
+  expect(explicit.shell).toBe("none");
+  expect(explicit.integrations).toEqual(["browser-ui"]);
+  expect(explicit.background).toBe(true);
 });
 
 test("pstack_task passes the resolved thinking level into child argv", { skip: SPAWN_SKIP }, async () => {
@@ -204,18 +235,15 @@ test("pstack_task passes the resolved thinking level into child argv", { skip: S
       h.ctx,
     );
     const args = lastSpawn().args;
-    assert.equal(argAfter(args, "--thinking"), "high");
-    assert.equal(
-      argAfter(args, "--tools"),
-      "read,grep,find,ls,pstack_integrations,pstack_control_ui,pstack_control_cli",
-    );
+    expect(argAfter(args, "--thinking")).toBe("high");
+    expect(argAfter(args, "--tools")).toBe("read,grep,find,ls,pstack_integrations,pstack_control_ui,pstack_control_cli");
     const policy = reply.details.policy as Record<string, unknown>;
-    assert.equal(policy.filesystem, "read-only");
-    assert.equal(policy.integrations, "inherit");
-    assert.equal(reply.details.thinkingLevel, "high");
+    expect(policy.filesystem).toBe("read-only");
+    expect(policy.integrations).toBe("inherit");
+    expect(reply.details.thinkingLevel).toBe("high");
     const envPolicy = JSON.parse(lastSpawn().env.PSTACK_CHILD_POLICY ?? "{}") as Record<string, unknown>;
-    assert.deepEqual(envPolicy, policy);
-    assert.equal(reply.content.at(-1)?.text.includes("thinkingLevel=high"), true);
+    expect(envPolicy).toEqual(policy);
+    expect(reply.content.at(-1)?.text.includes("thinkingLevel=high")).toBe(true);
 
     const noLevel = await h.tool.execute(
       "call-2",
@@ -224,8 +252,8 @@ test("pstack_task passes the resolved thinking level into child argv", { skip: S
       undefined,
       h.ctx,
     );
-    assert.equal(lastSpawn().args.includes("--thinking"), false, "no level means no flag");
-    assert.equal(noLevel.details.thinkingLevel, null);
+    expect(lastSpawn().args.includes("--thinking"), "no level means no flag").toBe(false);
+    expect(noLevel.details.thinkingLevel).toBe(null);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -238,7 +266,7 @@ test("hosted environment without PSTACK_HOSTED_URL fails closed naming services/
   try {
     const h = makeHarness(cwd);
     const before = recordedSpawns.length;
-    await assert.rejects(
+    await expect(
       h.tool.execute(
         "call-hosted",
         { prompt: "RAW BRIEF", subagent_type: "why", environment: "hosted" },
@@ -246,15 +274,14 @@ test("hosted environment without PSTACK_HOSTED_URL fails closed naming services/
         undefined,
         h.ctx,
       ),
-      (err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        assert.match(message, /services\/worker/);
-        assert.match(message, /not parity/);
-        assert.match(message, /PSTACK_HOSTED_URL/);
-        return true;
-      },
-    );
-    assert.equal(recordedSpawns.length, before, "hosted never downgrades to a local child");
+    ).rejects.toSatisfy((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      expect(message).toMatch(/services\/worker/);
+      expect(message).toMatch(/not parity/);
+      expect(message).toMatch(/PSTACK_HOSTED_URL/);
+      return true;
+    });
+    expect(recordedSpawns.length, "hosted never downgrades to a local child").toBe(before);
   } finally {
     if (previous === undefined) Reflect.deleteProperty(process.env, "PSTACK_HOSTED_URL");
     else process.env.PSTACK_HOSTED_URL = previous;
@@ -281,34 +308,147 @@ test("hosted environment with PSTACK_HOSTED_URL posts the envelope to /v1/tasks"
       undefined,
       h.ctx,
     );
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, "http://worker.test/v1/tasks");
+    expect(calls.length).toBe(1);
+    expect(calls[0].url).toBe("http://worker.test/v1/tasks");
     const body = JSON.parse(String(calls[0].init.body)) as Record<string, unknown>;
-    assert.equal(body.task, "RAW BRIEF");
-    assert.equal(body.role, "investigator");
-    assert.equal(typeof body.runId, "string");
-    assert.equal(body.parentSessionCwd, cwd);
-    assert.equal((body.policy as Record<string, unknown>).integrations, "inherit");
-    assert.equal(reply.details.hosted, true);
-    assert.equal(reply.details.status, 202);
-    assert.equal(reply.content[0].text, "hosted worker accepted");
+    expect(body.task).toBe("RAW BRIEF");
+    expect(body.role).toBe("investigator");
+    expect(typeof body.runId).toBe("string");
+    expect(body.parentSessionCwd).toBe(cwd);
+    expect((body.policy as Record<string, unknown>).integrations).toBe("inherit");
+    expect(reply.details.hosted).toBe(true);
+    expect(reply.details.status).toBe(202);
+    expect(reply.content[0].text).toBe("hosted worker accepted");
 
     globalThis.fetch = (async () =>
       new Response("worker exploded", { status: 500, statusText: "Server Error" })) as typeof globalThis.fetch;
-    await assert.rejects(
-      h.tool.execute(
+    await expect(h.tool.execute(
         "call-hosted-fail",
         { prompt: "RAW BRIEF", environment: "hosted" },
         undefined,
         undefined,
         h.ctx,
-      ),
-      /HTTP 500/,
-    );
+      )).rejects.toThrow(/HTTP 500/);
   } finally {
     globalThis.fetch = realFetch;
     if (previous === undefined) Reflect.deleteProperty(process.env, "PSTACK_HOSTED_URL");
     else process.env.PSTACK_HOSTED_URL = previous;
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("inheritParentTools false drops the inherited child tool allowlist", { skip: SPAWN_SKIP }, async () => {
+  const cwd = tempCwd();
+  try {
+    const h = makeHarness(cwd);
+    await h.tool.execute(
+      "call-inherit",
+      { prompt: "RAW BRIEF", subagent_type: "general", run_in_background: false },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    expect(argAfter(lastSpawn().args, "--tools")).toBe("read,bash,write,edit");
+    await h.tool.execute(
+      "call-no-inherit",
+      { prompt: "RAW BRIEF", subagent_type: "general", run_in_background: false, inheritParentTools: false },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    expect(lastSpawn().args.includes("--tools"), "no allowlist means the child keeps its own discovery").toBe(false);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("a parent pi without getActiveTools runs the child without an allowlist", { skip: SPAWN_SKIP }, async () => {
+  const cwd = tempCwd();
+  try {
+    const h = makeHarness(cwd, { withoutGetActiveTools: true });
+    const reply = await h.tool.execute(
+      "call-no-active-tools",
+      { prompt: "RAW BRIEF", subagent_type: "general", run_in_background: false },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    expect(lastSpawn().args.includes("--tools"), "an absent getActiveTools yields no allowlist").toBe(false);
+    expect(reply.details.policy).toEqual({
+      filesystem: "workspace-write",
+      shell: "full",
+      git: "branch-write",
+      network: "allowed",
+      integrations: "inherit",
+      environment: "local",
+      background: false,
+      isolation: "session",
+    });
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("a context without an active parent model fails before any child spawns", async () => {
+  const cwd = tempCwd();
+  try {
+    const h = makeHarness(cwd);
+    const before = recordedSpawns.length;
+    await expect(
+      h.tool.execute("call-no-model", { prompt: "RAW BRIEF" }, undefined, undefined, {
+        cwd,
+        model: undefined,
+        isProjectTrusted: () => true,
+      }),
+    ).rejects.toThrow("pstack_task requires an active parent model");
+    expect(recordedSpawns.length, "no child starts without a parent model").toBe(before);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("worktree true branches the child tree from HEAD and runs the child inside it", { skip: SPAWN_SKIP }, async () => {
+  const cwd = tempCwd();
+  try {
+    const head = initGitRepo(cwd);
+    const h = makeHarness(cwd);
+    const reply = await h.tool.execute(
+      "call-worktree",
+      { prompt: "RAW BRIEF", subagent_type: "general", run_in_background: false, worktree: true },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    const tree = reply.details.worktree as string;
+    expect(existsSync(tree), "the worktree exists on disk").toBe(true);
+    expect(lastSpawn().cwd).toBe(tree);
+    expect(git(cwd, ["-C", tree, "rev-parse", "HEAD"]).trim()).toBe(head);
+    expect(reply.details.worktreeBranch).toBe(`pstack/${basename(tree)}`);
+    expect(reply.content.at(-1)?.text).toContain(`worktree=${tree}`);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("worktree true honors a trimmed cloud_base_branch instead of HEAD", { skip: SPAWN_SKIP }, async () => {
+  const cwd = tempCwd();
+  try {
+    const pinned = initGitRepo(cwd);
+    git(cwd, ["branch", "pinned"]);
+    const tip = commitFile(cwd, "next.txt", "next");
+    expect(tip).not.toBe(pinned);
+    const h = makeHarness(cwd);
+    const reply = await h.tool.execute(
+      "call-worktree-base",
+      { prompt: "RAW BRIEF", subagent_type: "general", run_in_background: false, worktree: true, cloud_base_branch: " pinned " },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    const tree = reply.details.worktree as string;
+    expect(lastSpawn().cwd).toBe(tree);
+    expect(git(cwd, ["-C", tree, "rev-parse", "HEAD"]).trim()).toBe(pinned);
+  } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
 });

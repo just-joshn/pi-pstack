@@ -81,14 +81,14 @@ Upstream PR #10 in `marcfargas/pi-test-harness` fixes breaks 1 and 2 only and is
 Default (no network, one skipped test):
 
 ```
-node tests/runner.mjs --layer 7
+npx vitest run --config vitest.opt-in.config.ts --project third-party
 ```
 
 Live check, which installs the pinned versions into a temp dir and asserts break 1 still
 reproduces (about 2 seconds with a warm bun cache):
 
 ```
-PSTACK_VERIFY_PI_TEST_HARNESS=1 node tests/runner.mjs --layer 7
+PSTACK_VERIFY_PI_TEST_HARNESS=1 npx vitest run --config vitest.opt-in.config.ts --project third-party
 ```
 
 The live check fails the suite if the import starts succeeding. Treat that as "the verdict is

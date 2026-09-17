@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -72,87 +72,87 @@ function readJson(path) {
 
 function assertPotetoArmed(user, before, after) {
   const data = user.entry(STICKY_ENTRY)?.data;
-  assert.equal(data?.enabled, true);
-  assert.equal(data?.matchedPlaybookId, "bug-fix");
-  assert.equal(data?.matchedScore, 3);
-  assert.equal(user.status("pstack"), "poteto:bug-fix");
-  assert.equal(user.message(), BUG_FIX_MESSAGE);
-  assert.equal(after.entries, before.entries + 1);
+  expect(data?.enabled).toBe(true);
+  expect(data?.matchedPlaybookId).toBe("bug-fix");
+  expect(data?.matchedScore).toBe(3);
+  expect(user.status("pstack")).toBe("poteto:bug-fix");
+  expect(user.message()).toBe(BUG_FIX_MESSAGE);
+  expect(after.entries).toBe(before.entries + 1);
 }
 
 function assertPotetoOff(user, before, after) {
   const data = user.entry(STICKY_ENTRY)?.data;
-  assert.equal(data?.enabled, false);
-  assert.equal(data?.matchedPlaybookId, null);
-  assert.equal(user.status("pstack"), undefined);
-  assert.deepEqual(user.notifications().at(-1), POTETO_OFF_NOTICE);
-  assert.equal(after.entries, before.entries + 1);
+  expect(data?.enabled).toBe(false);
+  expect(data?.matchedPlaybookId).toBe(null);
+  expect(user.status("pstack")).toBe(undefined);
+  expect(user.notifications().at(-1)).toEqual(POTETO_OFF_NOTICE);
+  expect(after.entries).toBe(before.entries + 1);
 }
 
 function assertToolCensus(user, before, after) {
   const notice = user.notifications().at(-1);
-  assert.equal(notice?.[0], "info");
-  assert.ok(String(notice?.[1]).startsWith("pi-pstack tools: pstack_spawn, "), `unexpected census: ${notice?.[1]}`);
-  assert.equal(user.entry(STICKY_ENTRY)?.data?.enabled, true);
-  assert.equal(user.status("pstack"), "poteto");
-  assert.equal(after.messages, before.messages);
+  expect(notice?.[0]).toBe("info");
+  expect(String(notice?.[1]).startsWith("pi-pstack tools: pstack_spawn, "), `unexpected census: ${notice?.[1]}`).toBeTruthy();
+  expect(user.entry(STICKY_ENTRY)?.data?.enabled).toBe(true);
+  expect(user.status("pstack")).toBe("poteto");
+  expect(after.messages).toBe(before.messages);
 }
 
 function assertReadonlyArmed(user, before, after) {
   const data = user.entry(READONLY_ENTRY)?.data;
-  assert.equal(data?.enabled, true);
-  assert.equal(data?.reason, "command");
-  assert.equal(user.status("pstack-ro"), "readonly");
-  assert.deepEqual(user.notifications().at(-1), READONLY_ON_NOTICE);
-  assert.deepEqual(user.activeTools(), READONLY_TOOLS);
-  assert.equal(after.entries, before.entries + 1);
+  expect(data?.enabled).toBe(true);
+  expect(data?.reason).toBe("command");
+  expect(user.status("pstack-ro")).toBe("readonly");
+  expect(user.notifications().at(-1)).toEqual(READONLY_ON_NOTICE);
+  expect(user.activeTools()).toEqual(READONLY_TOOLS);
+  expect(after.entries).toBe(before.entries + 1);
 }
 
 function assertReadonlyOff(user, before, after) {
   const data = user.entry(READONLY_ENTRY)?.data;
-  assert.equal(data?.enabled, false);
-  assert.equal(user.status("pstack-ro"), undefined);
-  assert.deepEqual(user.notifications().at(-1), READONLY_OFF_NOTICE);
-  assert.deepEqual(user.activeTools(), BUILTIN_TOOLS);
-  assert.equal(after.entries, before.entries + 1);
+  expect(data?.enabled).toBe(false);
+  expect(user.status("pstack-ro")).toBe(undefined);
+  expect(user.notifications().at(-1)).toEqual(READONLY_OFF_NOTICE);
+  expect(user.activeTools()).toEqual(BUILTIN_TOOLS);
+  expect(after.entries).toBe(before.entries + 1);
 }
 
 function assertSetupPstack(user, before, after) {
   const path = modelsConfigPath();
   const notice = user.notifications().at(-1);
   const text = String(notice?.[1]);
-  assert.equal(notice?.[0], "info");
-  assert.ok(text.startsWith(`Wrote ${path}`), `unexpected setup-pstack notify: ${text}`);
-  assert.ok(text.endsWith("Bare Cursor marketing slugs are mapped or refused."), `unexpected setup-pstack notify: ${text}`);
+  expect(notice?.[0]).toBe("info");
+  expect(text.startsWith(`Wrote ${path}`), `unexpected setup-pstack notify: ${text}`).toBeTruthy();
+  expect(text.endsWith("Bare Cursor marketing slugs are mapped or refused."), `unexpected setup-pstack notify: ${text}`).toBeTruthy();
   const written = readJson(path);
-  assert.equal(written.version, 1);
-  assert.equal(written.budget, "unlimited (max)");
-  assert.deepEqual(Object.keys(written.roles).toSorted(), DEFAULT_ROLE_KEYS.toSorted());
-  assert.equal(written.roles["arena runners"].length, 4);
-  assert.equal(after.messages, before.messages);
+  expect(written.version).toBe(1);
+  expect(written.budget).toBe("unlimited (max)");
+  expect(Object.keys(written.roles).toSorted()).toEqual(DEFAULT_ROLE_KEYS.toSorted());
+  expect(written.roles["arena runners"].length).toBe(4);
+  expect(after.messages).toBe(before.messages);
 }
 
 function assertGatesUsage(user, before, after) {
-  assert.deepEqual(user.notifications().at(-1), ["error", GATES_USAGE]);
-  assert.equal(after.messages, before.messages);
+  expect(user.notifications().at(-1)).toEqual(["error", GATES_USAGE]);
+  expect(after.messages).toBe(before.messages);
 }
 
 function assertEmptyLoopStatus(user, before, after) {
-  assert.deepEqual(user.notifications().at(-1), ["info", "(no active loops)"]);
-  assert.equal(after.messages, before.messages);
+  expect(user.notifications().at(-1)).toEqual(["info", "(no active loops)"]);
+  expect(after.messages).toBe(before.messages);
 }
 
 function assertDeslopQueued(user, before, after) {
-  assert.equal(user.message(), DESLOP_MESSAGE);
-  assert.deepEqual(user.notifications().at(-1), ["info", "Queued deslop twin"]);
-  assert.equal(after.messages, before.messages + 1);
+  expect(user.message()).toBe(DESLOP_MESSAGE);
+  expect(user.notifications().at(-1)).toEqual(["info", "Queued deslop twin"]);
+  expect(after.messages).toBe(before.messages + 1);
 }
 
 function assertSingleMessage(user, before, after, expected) {
-  assert.equal(after.messages, before.messages + 1, `expected exactly one message, saw ${after.messages - before.messages}`);
-  assert.equal(after.notifications, before.notifications, "unexpected notification");
-  assert.equal(user.message(), expected);
-  assert.equal(user.messages().at(-1)?.options?.expandPromptTemplates, true);
+  expect(after.messages, `expected exactly one message, saw ${after.messages - before.messages}`).toBe(before.messages + 1);
+  expect(after.notifications, "unexpected notification").toBe(before.notifications);
+  expect(user.message()).toBe(expected);
+  expect(user.messages().at(-1)?.options?.expandPromptTemplates).toBe(true);
 }
 
 function assertBabysitBody(user, before, after) {
@@ -165,9 +165,9 @@ function assertShipBody(user, before, after) {
 
 function assertBennyPreflight(user, suffix) {
   const message = user.message() ?? "";
-  assert.ok(message.startsWith("Read and follow "), `unexpected benny message: ${message}`);
-  assert.ok(message.endsWith(suffix), `unexpected benny message: ${message}`);
-  assert.equal(user.messages().at(-1)?.options?.expandPromptTemplates, false);
+  expect(message.startsWith("Read and follow "), `unexpected benny message: ${message}`).toBeTruthy();
+  expect(message.endsWith(suffix), `unexpected benny message: ${message}`).toBeTruthy();
+  expect(user.messages().at(-1)?.options?.expandPromptTemplates).toBe(false);
 }
 
 function assertSetupBenny(user, before, after) {
@@ -176,7 +176,7 @@ function assertSetupBenny(user, before, after) {
     "/automations/benny/skills/setup-benny/SKILL.md. Retarget paths to .pi/automations/benny and .pi/benny. " +
       "Do not use Cursor Automations host APIs.",
   );
-  assert.equal(after.messages, before.messages + 1);
+  expect(after.messages).toBe(before.messages + 1);
 }
 
 function assertBennyTriage(user, before, after) {
@@ -185,7 +185,7 @@ function assertBennyTriage(user, before, after) {
     "/automations/benny/skills/triage-issue-reports/SKILL.md. Await the next Slack/tracker issue payload " +
       "from pstack_benny_wake or chat.",
   );
-  assert.equal(after.messages, before.messages + 1);
+  expect(after.messages).toBe(before.messages + 1);
 }
 
 function assertBennyRepro(user, before, after) {
@@ -194,15 +194,15 @@ function assertBennyRepro(user, before, after) {
     "/automations/benny/skills/reproduce-and-fix-issues/SKILL.md. Use pstack_control_cli / pstack_control_ui " +
       "for the control adapter. ",
   );
-  assert.equal(after.messages, before.messages + 1);
+  expect(after.messages).toBe(before.messages + 1);
 }
 
 function assertSkillDispatch(user, name, before, after) {
-  assert.equal(after.messages, before.messages + 1, `/${name} sent ${after.messages - before.messages} messages`);
-  assert.equal(after.notifications, before.notifications, `/${name} notified`);
-  assert.equal(after.entries, before.entries, `/${name} appended a session entry`);
-  assert.equal(user.message(), `/skill:${name}`);
-  assert.equal(user.messages().at(-1)?.options?.expandPromptTemplates, true, `/${name} did not expand the template`);
+  expect(after.messages, `/${name} sent ${after.messages - before.messages} messages`).toBe(before.messages + 1);
+  expect(after.notifications, `/${name} notified`).toBe(before.notifications);
+  expect(after.entries, `/${name} appended a session entry`).toBe(before.entries);
+  expect(user.message()).toBe(`/skill:${name}`);
+  expect(user.messages().at(-1)?.options?.expandPromptTemplates, `/${name} did not expand the template`).toBe(true);
 }
 
 const SAFE_ARGS = new Map([
@@ -238,7 +238,7 @@ async function invokeCommand(user, name) {
   const before = effectCounts(user);
   await user.command(name, SAFE_ARGS.get(name) ?? "");
   const after = effectCounts(user);
-  assert.ok(effectDelta(before, after) > 0, `/${name} produced no observable effect`);
+  expect(effectDelta(before, after) > 0, `/${name} produced no observable effect`).toBeTruthy();
   const check = RICH_COMMAND_CHECKS.get(name);
   if (check) check(user, before, after);
   else assertSkillDispatch(user, name, before, after);
@@ -247,7 +247,7 @@ async function invokeCommand(user, name) {
 async function invokeEveryCommand(user) {
   const names = user.commands();
   const skillNames = names.filter((name) => !RICH_COMMAND_CHECKS.has(name));
-  assert.equal(skillNames.length, 45, `expected 45 skill commands, saw ${skillNames.length}`);
+  expect(skillNames.length, `expected 45 skill commands, saw ${skillNames.length}`).toBe(45);
   for (const name of names) await invokeCommand(user, name);
 }
 
@@ -258,27 +258,27 @@ function writeProjectModels(user) {
 
 function assertHomeModelDefaults() {
   const written = readJson(modelsConfigPath());
-  assert.equal(written.version, 1);
-  assert.equal(written.budget, "unlimited (max)");
-  assert.deepEqual(Object.keys(written.roles).toSorted(), DEFAULT_ROLE_KEYS.toSorted());
-  assert.equal(written.roles["arena runners"].length, 4);
+  expect(written.version).toBe(1);
+  expect(written.budget).toBe("unlimited (max)");
+  expect(Object.keys(written.roles).toSorted()).toEqual(DEFAULT_ROLE_KEYS.toSorted());
+  expect(written.roles["arena runners"].length).toBe(4);
 }
 
 async function setupModels(user) {
   await user.command("setup-pstack", "");
   const notice = user.notifications().at(-1);
   const text = String(notice?.[1]);
-  assert.equal(notice?.[0], "info");
-  assert.ok(text.startsWith(`Wrote ${modelsConfigPath()}`), `unexpected setup-pstack notify: ${text}`);
-  assert.ok(text.endsWith("Bare Cursor marketing slugs are mapped or refused."), `unexpected setup-pstack notify: ${text}`);
+  expect(notice?.[0]).toBe("info");
+  expect(text.startsWith(`Wrote ${modelsConfigPath()}`), `unexpected setup-pstack notify: ${text}`).toBeTruthy();
+  expect(text.endsWith("Bare Cursor marketing slugs are mapped or refused."), `unexpected setup-pstack notify: ${text}`).toBeTruthy();
   assertHomeModelDefaults();
 }
 
 async function assertProjectConfigWins(user) {
   const prompt = await user.emitBeforeAgentStart("configure models", "BASE");
-  assert.ok(prompt.includes("## pstack model roles (validated always-applied twin)"), "model roles block missing");
-  assert.ok(prompt.includes("- feature, refactoring: openai/gpt-5"), `project role missing from the block:\n${prompt}`);
-  assert.ok(!prompt.includes("- bug-fix:"), "home role table leaked into the block; the project config should win");
+  expect(prompt.includes("## pstack model roles (validated always-applied twin)"), "model roles block missing").toBeTruthy();
+  expect(prompt.includes("- feature, refactoring: openai/gpt-5"), `project role missing from the block:\n${prompt}`).toBeTruthy();
+  expect(!prompt.includes("- bug-fix:"), "home role table leaked into the block; the project config should win").toBeTruthy();
   assertHomeModelDefaults();
 }
 
@@ -289,7 +289,7 @@ async function assertConfiguredRoleDrivesSpawn(user) {
     background: false,
   });
   const text = result.content?.[0]?.text ?? "";
-  assert.ok(text.includes("stub-child model=openai/gpt-5"), `spawn did not use the configured role model:\n${text}`);
+  expect(text.includes("stub-child model=openai/gpt-5"), `spawn did not use the configured role model:\n${text}`).toBeTruthy();
 }
 
 async function runConfigureModels(user) {
@@ -302,58 +302,58 @@ async function runConfigureModels(user) {
 async function armStickyFromCommand(user) {
   await user.command("poteto-mode", "fix this bug");
   const data = user.entry(STICKY_ENTRY)?.data;
-  assert.equal(data?.enabled, true);
-  assert.equal(data?.matchedPlaybookId, "bug-fix");
-  assert.equal(data?.matchedScore, 3);
-  assert.equal(typeof data?.updatedAt, "number");
-  assert.equal(user.status("pstack"), "poteto:bug-fix");
-  assert.equal(user.message(), BUG_FIX_MESSAGE);
+  expect(data?.enabled).toBe(true);
+  expect(data?.matchedPlaybookId).toBe("bug-fix");
+  expect(data?.matchedScore).toBe(3);
+  expect(typeof data?.updatedAt).toBe("number");
+  expect(user.status("pstack")).toBe("poteto:bug-fix");
+  expect(user.message()).toBe(BUG_FIX_MESSAGE);
 }
 
 async function assertExtensionInputIgnored(user) {
   const before = effectCounts(user);
   const turn = await user.emitInput(BUG_FIX_MESSAGE, "extension");
-  assert.deepEqual(turn, { text: BUG_FIX_MESSAGE, handled: false });
-  assert.equal(effectDelta(before, effectCounts(user)), 0, "extension input re-entered sticky routing");
+  expect(turn).toEqual({ text: BUG_FIX_MESSAGE, handled: false });
+  expect(effectDelta(before, effectCounts(user)), "extension input re-entered sticky routing").toBe(0);
 }
 
 async function assertForcedPlaybookInjection(user) {
   const turn = await user.emitInput("bug fix: fix this bug", "interactive");
-  assert.equal(turn?.text, "/skill:poteto-mode playbooks/bug-fix bug fix: fix this bug");
-  assert.equal(user.entry(STICKY_ENTRY)?.data?.matchedScore, 5);
+  expect(turn?.text).toBe("/skill:poteto-mode playbooks/bug-fix bug fix: fix this bug");
+  expect(user.entry(STICKY_ENTRY)?.data?.matchedScore).toBe(5);
   const prompt = await user.emitBeforeAgentStart("bug fix: fix this bug", "BASE");
-  assert.ok(prompt.includes("## Matched playbook (sticky routing — forced)"), "forced playbook header missing");
-  assert.ok(prompt.includes("Matched **bug-fix** (score=5) → `playbooks/bug-fix.md`."), "matched playbook line missing");
-  assert.ok(prompt.includes("### Bug fix"), "playbook body missing");
-  assert.ok(prompt.includes("(End matched playbook bug-fix.)"), "playbook terminator missing");
+  expect(prompt.includes("## Matched playbook (sticky routing — forced)"), "forced playbook header missing").toBeTruthy();
+  expect(prompt.includes("Matched **bug-fix** (score=5) → `playbooks/bug-fix.md`."), "matched playbook line missing").toBeTruthy();
+  expect(prompt.includes("### Bug fix"), "playbook body missing").toBeTruthy();
+  expect(prompt.includes("(End matched playbook bug-fix.)"), "playbook terminator missing").toBeTruthy();
 }
 
 async function assertAliasIdentical(user) {
   await user.command("pstack", "fix this bug");
-  assert.equal(user.message(), BUG_FIX_MESSAGE);
+  expect(user.message()).toBe(BUG_FIX_MESSAGE);
 }
 
 async function assertUnmatchedFallback(user) {
   await user.command("poteto-mode-off", "");
   await user.command("poteto-mode", "polish the charts");
-  assert.equal(user.message(), "/skill:poteto-mode polish the charts");
+  expect(user.message()).toBe("/skill:poteto-mode polish the charts");
   const data = user.entry(STICKY_ENTRY)?.data;
-  assert.equal(data?.enabled, true);
-  assert.equal(data?.matchedPlaybookId, undefined);
-  assert.equal(user.status("pstack"), "poteto");
+  expect(data?.enabled).toBe(true);
+  expect(data?.matchedPlaybookId).toBe(undefined);
+  expect(user.status("pstack")).toBe("poteto");
 }
 
 async function assertOffIsIdempotent(user) {
   await user.command("poteto-mode-off", "");
-  assert.equal(user.entry(STICKY_ENTRY)?.data?.enabled, false);
-  assert.equal(user.status("pstack"), undefined);
-  assert.deepEqual(user.notifications().at(-1), POTETO_OFF_NOTICE);
+  expect(user.entry(STICKY_ENTRY)?.data?.enabled).toBe(false);
+  expect(user.status("pstack")).toBe(undefined);
+  expect(user.notifications().at(-1)).toEqual(POTETO_OFF_NOTICE);
   const before = effectCounts(user);
   await user.command("poteto-mode-off", "");
   const after = effectCounts(user);
-  assert.equal(after.entries, before.entries, "second off appended an entry");
-  assert.equal(after.statuses, before.statuses, "second off wrote a status");
-  assert.deepEqual(user.notifications().at(-1), POTETO_OFF_NOTICE);
+  expect(after.entries, "second off appended an entry").toBe(before.entries);
+  expect(after.statuses, "second off wrote a status").toBe(before.statuses);
+  expect(user.notifications().at(-1)).toEqual(POTETO_OFF_NOTICE);
 }
 
 async function runStickyRouting(user) {
@@ -368,37 +368,37 @@ async function runStickyRouting(user) {
 async function armReadonly(user) {
   await user.command("pstack-readonly", "");
   const data = user.entry(READONLY_ENTRY)?.data;
-  assert.equal(data?.enabled, true);
-  assert.equal(data?.reason, "command");
-  assert.equal(typeof data?.updatedAt, "number");
-  assert.equal(user.status("pstack-ro"), "readonly");
-  assert.deepEqual(user.notifications().at(-1), READONLY_ON_NOTICE);
-  assert.deepEqual(user.activeTools(), READONLY_TOOLS);
+  expect(data?.enabled).toBe(true);
+  expect(data?.reason).toBe("command");
+  expect(typeof data?.updatedAt).toBe("number");
+  expect(user.status("pstack-ro")).toBe("readonly");
+  expect(user.notifications().at(-1)).toEqual(READONLY_ON_NOTICE);
+  expect(user.activeTools()).toEqual(READONLY_TOOLS);
 }
 
 async function assertReadonlyBlocksWrites(user) {
   const bashDecisions = await user.emitToolCall("bash", { command: "ls" });
   const blocked = bashDecisions.find((decision) => decision?.block === true);
-  assert.equal(blocked?.reason, BASH_BLOCK_REASON);
+  expect(blocked?.reason).toBe(BASH_BLOCK_REASON);
   const spawnCall = { task: "Investigate X and report PASS/ISSUES/BLOCKED", role: "general" };
   const spawnDecisions = await user.emitToolCall("pstack_spawn", spawnCall);
-  assert.ok(spawnDecisions.every((decision) => decision?.block !== true), "pstack_spawn was blocked");
-  assert.equal(spawnCall.readonly, true, "pstack_spawn input did not gain readonly:true");
+  expect(spawnDecisions.every((decision) => decision?.block !== true), "pstack_spawn was blocked").toBeTruthy();
+  expect(spawnCall.readonly, "pstack_spawn input did not gain readonly:true").toBe(true);
 }
 
 async function assertReadonlyPrompt(user) {
   const prompt = await user.emitBeforeAgentStart("read the code", "BASE");
-  assert.ok(prompt.includes("## pstack session readonly"), "readonly prompt header missing");
-  assert.ok(prompt.includes(READONLY_PROMPT), "readonly prompt body missing");
+  expect(prompt.includes("## pstack session readonly"), "readonly prompt header missing").toBeTruthy();
+  expect(prompt.includes(READONLY_PROMPT), "readonly prompt body missing").toBeTruthy();
 }
 
 async function leaveReadonly(user) {
   await user.command("pstack-readonly-off", "");
   const data = user.entry(READONLY_ENTRY)?.data;
-  assert.equal(data?.enabled, false);
-  assert.equal(user.status("pstack-ro"), undefined);
-  assert.deepEqual(user.notifications().at(-1), READONLY_OFF_NOTICE);
-  assert.deepEqual(user.activeTools(), BUILTIN_TOOLS);
+  expect(data?.enabled).toBe(false);
+  expect(user.status("pstack-ro")).toBe(undefined);
+  expect(user.notifications().at(-1)).toEqual(READONLY_OFF_NOTICE);
+  expect(user.activeTools()).toEqual(BUILTIN_TOOLS);
 }
 
 async function assertSessionRestore(user) {
@@ -406,10 +406,10 @@ async function assertSessionRestore(user) {
   const before = effectCounts(user);
   await user.emitSessionStart();
   const after = effectCounts(user);
-  assert.equal(after.entries, before.entries, "session_start appended an entry");
-  assert.equal(after.statuses, before.statuses + 1, "session_start did not re-apply the readonly status");
-  assert.deepEqual(user.statuses().at(-1), ["pstack-ro", "readonly"]);
-  assert.deepEqual(user.activeTools(), READONLY_TOOLS);
+  expect(after.entries, "session_start appended an entry").toBe(before.entries);
+  expect(after.statuses, "session_start did not re-apply the readonly status").toBe(before.statuses + 1);
+  expect(user.statuses().at(-1)).toEqual(["pstack-ro", "readonly"]);
+  expect(user.activeTools()).toEqual(READONLY_TOOLS);
 }
 
 async function runReadonlySession(user) {

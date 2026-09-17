@@ -1,5 +1,4 @@
-import { after, test } from "node:test";
-import assert from "node:assert/strict";
+import { afterAll, expect, test } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,7 +10,7 @@ import { saveRun, loadRun } from "../../../extensions/loop/run-store.ts";
 const dir = mkdtempSync(join(tmpdir(), "pstack-runs-"));
 process.env.PSTACK_RUNS_DIR = dir;
 
-after(() => {
+afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -63,37 +62,28 @@ function waitingRecord(runId: string) {
 
 test("pstack_run registers the mandated action set", async () => {
   const env = fakeRunEnv();
-  assert.equal(env.tool().name, "pstack_run");
+  expect(env.tool().name).toBe("pstack_run");
   const error = await env.tool().execute("t", { action: "bogus" }, undefined, undefined, env.ctx).catch((err: Error) => err);
-  assert.ok(error instanceof Error);
+  expect(error instanceof Error).toBeTruthy();
   for (const action of MANDATED_ACTIONS) {
-    assert.equal(error.message.includes(action), true, `error names action ${action}`);
+    expect(error.message.includes(action), `error names action ${action}`).toBe(true);
   }
 });
 
 test("arm without a predicate errors before arming a loop", async () => {
   const env = fakeRunEnv();
-  await assert.rejects(
-    () => env.tool().execute("t", { action: "arm", intervalSeconds: 30 }, undefined, undefined, env.ctx),
-    /predicate required to arm a run/,
-  );
+  await expect(() => env.tool().execute("t", { action: "arm", intervalSeconds: 30 }, undefined, undefined, env.ctx)).rejects.toThrow(/predicate required to arm a run/);
 });
 
 test("arm without intervalSeconds errors", async () => {
   const env = fakeRunEnv();
-  await assert.rejects(
-    () => env.tool().execute("t", { action: "arm", predicate: "ci green" }, undefined, undefined, env.ctx),
-    /intervalSeconds required to arm a run/,
-  );
+  await expect(() => env.tool().execute("t", { action: "arm", predicate: "ci green" }, undefined, undefined, env.ctx)).rejects.toThrow(/intervalSeconds required to arm a run/);
 });
 
 test("verify without evidence errors", async () => {
   const env = fakeRunEnv();
   saveRun(waitingRecord("run-verify"));
-  await assert.rejects(
-    () => env.tool().execute("t", { action: "verify", runId: "run-verify" }, undefined, undefined, env.ctx),
-    /evidence required to verify an iteration/,
-  );
+  await expect(() => env.tool().execute("t", { action: "verify", runId: "run-verify" }, undefined, undefined, env.ctx)).rejects.toThrow(/evidence required to verify an iteration/);
 });
 
 function fakeFullEnv() {
@@ -124,7 +114,7 @@ test("arm routes the run through the heartbeat wake path and stop removes it", a
   const env = fakeFullEnv();
   const run = env.tools.get("pstack_run");
   const loop = env.tools.get("pstack_loop");
-  assert.ok(run && loop);
+  expect(run && loop).toBeTruthy();
   const armed = await run.execute(
     "t",
     { action: "arm", runId: "run-arm", predicate: "ci green", intervalSeconds: 60, maxFires: 5 },
@@ -132,22 +122,19 @@ test("arm routes the run through the heartbeat wake path and stop removes it", a
     undefined,
     env.ctx,
   );
-  assert.equal((armed as { details: { run: RunRecord } }).details.run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
+  expect((armed as { details: { run: RunRecord } }).details.run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
   const listed = await loop.execute("t", { action: "list" }, undefined, undefined, env.ctx);
-  assert.match(textOf(listed), /run-arm mode=interval/);
+  expect(textOf(listed)).toMatch(/run-arm mode=interval/);
   const stopped = await run.execute("t", { action: "stop", runId: "run-arm" }, undefined, undefined, env.ctx);
-  assert.match(textOf(stopped), /stopped run-arm/);
+  expect(textOf(stopped)).toMatch(/stopped run-arm/);
 });
 
 test("state reports a stored run and rejects an unknown id", async () => {
   const env = fakeRunEnv();
   saveRun(waitingRecord("run-state"));
   const result = (await env.tool().execute("t", { action: "state", runId: "run-state" }, undefined, undefined, env.ctx)) as { content: Array<{ text: string }> };
-  assert.match(result.content.at(0)?.text ?? "", /run-state phase=WAIT_FOR_EVENT_OR_HEARTBEAT/);
-  await assert.rejects(
-    () => env.tool().execute("t", { action: "state", runId: "run-missing" }, undefined, undefined, env.ctx),
-    /unknown run run-missing/,
-  );
+  expect(result.content.at(0)?.text ?? "").toMatch(/run-state phase=WAIT_FOR_EVENT_OR_HEARTBEAT/);
+  await expect(() => env.tool().execute("t", { action: "state", runId: "run-missing" }, undefined, undefined, env.ctx)).rejects.toThrow(/unknown run run-missing/);
 });
 
 test("session_shutdown blocks every run armed in this process", async () => {
@@ -169,7 +156,7 @@ test("session_shutdown blocks every run armed in this process", async () => {
   const ctx = { ui: { setStatus() {}, notify() {} } };
   registerHeartbeat(pi as never);
   registerLoopController(pi as never);
-  assert.ok(tool && shutdown, "the controller registers pstack_run and a shutdown handler");
+  expect(tool && shutdown, "the controller registers pstack_run and a shutdown handler").toBeTruthy();
   await tool.execute(
     "t",
     { action: "arm", runId: "run-shutdown", predicate: "ci green", intervalSeconds: 60 },
@@ -179,8 +166,8 @@ test("session_shutdown blocks every run armed in this process", async () => {
   );
   shutdown();
   const record = loadRun("run-shutdown");
-  assert.equal(record?.phase, "BLOCKED");
-  assert.match(record?.blockedReason ?? "", /local runtime session ended without completion/);
+  expect(record?.phase).toBe("BLOCKED");
+  expect(record?.blockedReason ?? "").toMatch(/local runtime session ended without completion/);
 });
 
 function shutdownEnv() {
@@ -220,11 +207,11 @@ test("a run armed after a shutdown is still tracked and blocked by the next shut
   const first = shutdownEnv();
   await armRun(first, "run-after-1");
   first.shutdown();
-  assert.equal(loadRun("run-after-1")?.phase, "BLOCKED");
+  expect(loadRun("run-after-1")?.phase).toBe("BLOCKED");
 
   const second = shutdownEnv();
   await armRun(second, "run-after-2");
-  assert.equal(loadRun("run-after-2")?.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
+  expect(loadRun("run-after-2")?.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
   second.shutdown();
-  assert.equal(loadRun("run-after-2")?.phase, "BLOCKED");
+  expect(loadRun("run-after-2")?.phase).toBe("BLOCKED");
 });

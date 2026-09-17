@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -155,6 +154,31 @@ function lastGhCall(bin: string): string {
   return lines.at(-1) ?? "";
 }
 
+interface FakeGit {
+  stdout?: string;
+  stderr?: string;
+  code?: number;
+}
+
+// recallGitLog pipes stdout/stderr through one expression, so the stderr-only and
+// empty-output arms only run when a git on PATH answers with that shape. A real
+// repo cannot produce either with a zero exit, hence the shim.
+function installFakeGit(bin: string, options: FakeGit = {}): void {
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, "git-stdout.txt"), options.stdout ?? "", "utf8");
+  writeFileSync(join(bin, "git-stderr.txt"), options.stderr ?? "", "utf8");
+  const lines = [
+    "#!/bin/sh",
+    `cat ${JSON.stringify(join(bin, "git-stderr.txt"))} 1>&2`,
+    `cat ${JSON.stringify(join(bin, "git-stdout.txt"))}`,
+    `exit ${options.code ?? 0}`,
+    "",
+  ];
+  const script = join(bin, "git");
+  writeFileSync(script, lines.join("\n"), "utf8");
+  chmodSync(script, 0o755);
+}
+
 async function withPath<T>(bin: string, run: () => Promise<T>): Promise<T> {
   const saved = process.env.PATH ?? "";
   process.env.PATH = `${bin}:${saved}`;
@@ -167,64 +191,61 @@ async function withPath<T>(bin: string, run: () => Promise<T>): Promise<T> {
 
 test("sessions-functions-01 scores a session snippet from the literal query", () => {
   const base = hitsFromSessionSnippets(["/tmp/s.jsonl\n  plain"], "");
-  assert.deepEqual(base, [
+  expect(base).toEqual([
     { source: "session", score: 20, title: "/tmp/s.jsonl", detail: "plain", ref: "/tmp/s.jsonl" },
   ]);
 
   const exact = hitsFromSessionSnippets(["/tmp/a.jsonl\n  alpha here"], "alpha");
-  assert.equal(exact[0].score, 35);
+  expect(exact[0].score).toBe(35);
   const late = hitsFromSessionSnippets([`/tmp/a.jsonl\n  ${"z".repeat(90)}alpha`], "alpha");
-  assert.equal(late[0].score, 33);
+  expect(late[0].score).toBe(33);
   const tokenOnly = hitsFromSessionSnippets(["/tmp/a.jsonl\n  alpha only"], "alpha beta");
-  assert.equal(tokenOnly[0].score, 23);
+  expect(tokenOnly[0].score).toBe(23);
   const shortTokens = hitsFromSessionSnippets(["/tmp/a.jsonl\n  ab only"], "ab alpha");
-  assert.equal(shortTokens[0].score, 20);
+  expect(shortTokens[0].score).toBe(20);
 
   const blank = hitsFromSessionSnippets([""], "");
-  assert.equal(blank[0].title, "");
-  assert.equal(blank[0].detail, "session");
-  assert.equal(blank[0].ref, "");
+  expect(blank[0].title).toBe("");
+  expect(blank[0].detail).toBe("session");
+  expect(blank[0].ref).toBe("");
 
   const longPath = hitsFromSessionSnippets([`${"p".repeat(200)}\n  body`], "");
-  assert.equal(longPath[0].title.length, 120);
+  expect(longPath[0].title.length).toBe(120);
   const longDetail = hitsFromSessionSnippets(["/tmp/d.jsonl\n  " + "d".repeat(500)], "");
-  assert.equal(longDetail[0].detail.length, 400);
+  expect(longDetail[0].detail.length).toBe(400);
 });
 
 test("sessions-functions-02 parses git log lines into hits with short and full shas", () => {
-  assert.deepEqual(hitsFromGitLog("", "x"), []);
-  assert.deepEqual(hitsFromGitLog("git log unavailable: boom", "x"), []);
-  assert.deepEqual(hitsFromGitLog("(no git log hits)", "x"), []);
+  expect(hitsFromGitLog("", "x")).toEqual([]);
+  expect(hitsFromGitLog("git log unavailable: boom", "x")).toEqual([]);
+  expect(hitsFromGitLog("(no git log hits)", "x")).toEqual([]);
 
   const one = hitsFromGitLog("abc1234 fix the bug", "fix");
-  assert.deepEqual(one, [
+  expect(one).toEqual([
     { source: "git", score: 30, title: "fix the bug", detail: "abc1234 fix the bug", ref: "abc1234" },
   ]);
 
   const longSha = hitsFromGitLog(`${"a".repeat(40)} subject`, "");
-  assert.equal(longSha[0].ref, "a".repeat(40));
-  assert.equal(longSha[0].title, "subject");
+  expect(longSha[0].ref).toBe("a".repeat(40));
+  expect(longSha[0].title).toBe("subject");
 
   const noSha = hitsFromGitLog("zzz not a sha", "");
-  assert.equal(noSha[0].ref, undefined);
-  assert.equal(noSha[0].title, "zzz not a sha");
-  assert.equal(hitsFromGitLog("abc12 short", "")[0].ref, undefined);
+  expect(noSha[0].ref).toBe(undefined);
+  expect(noSha[0].title).toBe("zzz not a sha");
+  expect(hitsFromGitLog("abc12 short", "")[0].ref).toBe(undefined);
 
   const multi = hitsFromGitLog("abc1234 one\n\nabc1234 two\n", "");
-  assert.deepEqual(
-    multi.map((hit) => hit.title),
-    ["one", "two"],
-  );
+  expect(multi.map((hit) => hit.title)).toEqual(["one", "two"]);
 });
 
 test("sessions-functions-03 parses gh PR lines and rejects the unavailable markers", () => {
-  assert.deepEqual(hitsFromGhPrs("", ""), []);
-  assert.deepEqual(hitsFromGhPrs("(gh not available — skipped PR corpus)", ""), []);
-  assert.deepEqual(hitsFromGhPrs("(no matching PRs)", ""), []);
-  assert.deepEqual(hitsFromGhPrs("gh pr list failed: boom", ""), []);
+  expect(hitsFromGhPrs("", "")).toEqual([]);
+  expect(hitsFromGhPrs("(gh not available — skipped PR corpus)", "")).toEqual([]);
+  expect(hitsFromGhPrs("(no matching PRs)", "")).toEqual([]);
+  expect(hitsFromGhPrs("gh pr list failed: boom", "")).toEqual([]);
 
   const row = hitsFromGhPrs("#42 [OPEN] topic pr (branch) 2026-01-01 https://example.test/42", "topic");
-  assert.deepEqual(row, [
+  expect(row).toEqual([
     {
       source: "gh",
       score: 28 + 5,
@@ -235,13 +256,13 @@ test("sessions-functions-03 parses gh PR lines and rejects the unavailable marke
   ]);
 
   const long = hitsFromGhPrs(`#7 ${"t".repeat(400)}`, "");
-  assert.equal(long[0].title.length, 140);
-  assert.equal(long[0].detail.length, 300);
-  assert.equal(long[0].ref, "#7");
+  expect(long[0].title.length).toBe(140);
+  expect(long[0].detail.length).toBe(300);
+  expect(long[0].ref).toBe("#7");
 
   const noHash = hitsFromGhPrs("plain line", "");
-  assert.equal(noHash[0].ref, undefined);
-  assert.equal(noHash[0].title, "plain line");
+  expect(noHash[0].ref).toBe(undefined);
+  expect(noHash[0].title).toBe("plain line");
 });
 
 test("sessions-functions-04 ranks by score, then source priority, then title", () => {
@@ -251,22 +272,16 @@ test("sessions-functions-04 ranks by score, then source priority, then title", (
     { source: "session", score: 20, title: "delta", detail: "" },
     { source: "session", score: 40, title: "top", detail: "" },
   ];
-  assert.deepEqual(
-    rankRecallHits(tied).map((hit) => hit.title),
-    ["top", "delta", "gamma", "beta"],
-  );
-  assert.equal(rankRecallHits(tied, 1).length, 1);
-  assert.equal(rankRecallHits(tied, 1)[0].title, "top");
-  assert.deepEqual(rankRecallHits([], 5), []);
+  expect(rankRecallHits(tied).map((hit) => hit.title)).toEqual(["top", "delta", "gamma", "beta"]);
+  expect(rankRecallHits(tied, 1).length).toBe(1);
+  expect(rankRecallHits(tied, 1)[0].title).toBe("top");
+  expect(rankRecallHits([], 5)).toEqual([]);
 
   const sameSource: RecallHit[] = [
     { source: "session", score: 20, title: "zeta", detail: "" },
     { source: "session", score: 20, title: "alpha", detail: "" },
   ];
-  assert.deepEqual(
-    rankRecallHits(sameSource).map((hit) => hit.title),
-    ["alpha", "zeta"],
-  );
+  expect(rankRecallHits(sameSource).map((hit) => hit.title)).toEqual(["alpha", "zeta"]);
 
   const many: RecallHit[] = Array.from({ length: 35 }, (_, index) => ({
     source: "git" as const,
@@ -274,8 +289,8 @@ test("sessions-functions-04 ranks by score, then source priority, then title", (
     title: `t-${String(index).padStart(2, "0")}`,
     detail: "",
   }));
-  assert.equal(rankRecallHits(many).length, 30);
-  assert.equal(rankRecallHits(many)[0].score, 34);
+  expect(rankRecallHits(many).length).toBe(30);
+  expect(rankRecallHits(many)[0].score).toBe(34);
 });
 
 test("sessions-functions-05 builds the ranked corpus with literal sections and block", () => {
@@ -286,29 +301,23 @@ test("sessions-functions-05 builds the ranked corpus with literal sections and b
     gitLog: "abc1234 topic commit",
     ghPrs: "#42 [OPEN] topic pr (branch) 2026-01-01 https://example.test/42",
   });
-  assert.equal(corpus.query, "topic");
-  assert.deepEqual(
-    corpus.hits.map((hit) => `${hit.source}:${hit.score}`),
-    ["session:35", "gh:33", "git:30"],
-  );
-  assert.deepEqual(corpus.sections, {
+  expect(corpus.query).toBe("topic");
+  expect(corpus.hits.map((hit) => `${hit.source}:${hit.score}`)).toEqual(["session:35", "gh:33", "git:30"]);
+  expect(corpus.sections).toEqual({
     sessions: "/tmp/s.jsonl\n  topic session body",
     git: "abc1234 topic commit",
     gh: "#42 [OPEN] topic pr (branch) 2026-01-01 https://example.test/42",
   });
-  assert.equal(
-    corpus.rankedBlock,
-    [
+  expect(corpus.rankedBlock).toBe([
       "1. [session score=35] /tmp/s.jsonl ⟨/tmp/s.jsonl⟩\n   topic session body",
       "2. [gh score=33] #42 [OPEN] topic pr (branch) 2026-01-01 https://example.test/42 ⟨#42⟩\n   #42 [OPEN] topic pr (branch) 2026-01-01 https://example.test/42",
       "3. [git score=30] topic commit ⟨abc1234⟩\n   abc1234 topic commit",
-    ].join("\n"),
-  );
+    ].join("\n"));
 
   const empty = buildRankedRecallCorpus({ query: "", days: 3, sessionSnippets: [], gitLog: "", ghPrs: "" });
-  assert.deepEqual(empty.hits, []);
-  assert.equal(empty.rankedBlock, "(no ranked hits)");
-  assert.deepEqual(empty.sections, {
+  expect(empty.hits).toEqual([]);
+  expect(empty.rankedBlock).toBe("(no ranked hits)");
+  expect(empty.sections).toEqual({
     sessions: "(no session hits)",
     git: "(no git log hits)",
     gh: "(no gh PR hits)",
@@ -322,10 +331,7 @@ test("sessions-functions-05 builds the ranked corpus with literal sections and b
     ghPrs: "",
     limit: 2,
   });
-  assert.deepEqual(
-    limited.hits.map((hit) => hit.title),
-    ["/a", "/b"],
-  );
+  expect(limited.hits.map((hit) => hit.title)).toEqual(["/a", "/b"]);
 });
 
 test("sessions-functions-06 formats the recall body with four ordered sections", () => {
@@ -336,9 +342,7 @@ test("sessions-functions-06 formats the recall body with four ordered sections",
     gitLog: "abc1234 topic commit",
     ghPrs: "#42 [OPEN] topic pr (branch) 2026-01-01 https://example.test/42",
   });
-  assert.equal(
-    formatRankedRecallBody(corpus, 7),
-    [
+  expect(formatRankedRecallBody(corpus, 7)).toBe([
       "## Recall corpus (local, ranked)",
       "query=topic days=7",
       "",
@@ -353,14 +357,10 @@ test("sessions-functions-06 formats the recall body with four ordered sections",
       "",
       "### gh PRs",
       "#42 [OPEN] topic pr (branch) 2026-01-01 https://example.test/42",
-    ].join("\n"),
-  );
+    ].join("\n"));
 
   const empty = buildRankedRecallCorpus({ query: "", days: 3, sessionSnippets: [], gitLog: "", ghPrs: "" });
-  assert.deepEqual(
-    formatRankedRecallBody(empty, 3).split("\n").slice(0, 2),
-    ["## Recall corpus (local, ranked)", "query=(none) days=3"],
-  );
+  expect(formatRankedRecallBody(empty, 3).split("\n").slice(0, 2)).toEqual(["## Recall corpus (local, ranked)", "query=(none) days=3"]);
 });
 
 test("sessions-functions-07 reads a real git log in a temp repo", async () => {
@@ -375,16 +375,16 @@ test("sessions-functions-07 reads a real git log in a temp repo", async () => {
     });
 
     const all = await recallGitLog(repo, "", 20);
-    assert.equal(all.includes("first commit"), true);
-    assert.equal(all.includes("second commit"), true);
+    expect(all.includes("first commit")).toBe(true);
+    expect(all.includes("second commit")).toBe(true);
 
     const filtered = await recallGitLog(repo, "first", 20);
-    assert.equal(filtered.includes("first commit"), true);
-    assert.equal(filtered.includes("second commit"), false);
+    expect(filtered.includes("first commit")).toBe(true);
+    expect(filtered.includes("second commit")).toBe(false);
 
-    assert.equal((await recallGitLog(repo, "", 1)).split("\n").length, 1);
-    assert.equal((await recallGitLog(repo, "", 0)).split("\n").length, 1);
-    assert.match(await recallGitLog(join(repo, "missing"), "", 20), /^git log unavailable: /);
+    expect((await recallGitLog(repo, "", 1)).split("\n").length).toBe(1);
+    expect((await recallGitLog(repo, "", 0)).split("\n").length).toBe(1);
+    expect(await recallGitLog(join(repo, "missing"), "", 20)).toMatch(/^git log unavailable: /);
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
@@ -395,10 +395,10 @@ test("sessions-functions-08 shapes gh PR output from a faked gh on PATH", async 
   const cwd = tempDir("pstack-sessions-ghcwd-");
   try {
     installFakeGh(bin, { versionCode: 127 });
-    assert.equal(await withPath(bin, () => recallGhPrs(cwd, "topic")), "(gh not available — skipped PR corpus)");
+    expect(await withPath(bin, () => recallGhPrs(cwd, "topic"))).toBe("(gh not available — skipped PR corpus)");
 
     installFakeGh(bin, { stdout: "[]" });
-    assert.equal(await withPath(bin, () => recallGhPrs(cwd, "topic")), "(no matching PRs)");
+    expect(await withPath(bin, () => recallGhPrs(cwd, "topic"))).toBe("(no matching PRs)");
 
     const row = {
       number: 42,
@@ -409,16 +409,10 @@ test("sessions-functions-08 shapes gh PR output from a faked gh on PATH", async 
       headRefName: "branch",
     };
     installFakeGh(bin, { stdout: JSON.stringify([row]) });
-    assert.equal(
-      await withPath(bin, () => recallGhPrs(cwd, "topic")),
-      "#42 [OPEN] topic pr (branch) 2026-01-01T00:00:00Z https://example.test/42",
-    );
-    assert.equal(
-      lastGhCall(bin),
-      "pr list --limit 10 --search topic --json number,title,state,updatedAt,url,headRefName",
-    );
+    expect(await withPath(bin, () => recallGhPrs(cwd, "topic"))).toBe("#42 [OPEN] topic pr (branch) 2026-01-01T00:00:00Z https://example.test/42");
+    expect(lastGhCall(bin)).toBe("pr list --limit 10 --search topic --json number,title,state,updatedAt,url,headRefName");
 
-    assert.equal(lastGhCall(bin).includes("--limit 10"), true);
+    expect(lastGhCall(bin).includes("--limit 10")).toBe(true);
   } finally {
     rmSync(bin, { recursive: true, force: true });
     rmSync(cwd, { recursive: true, force: true });
@@ -431,19 +425,16 @@ test("sessions-functions-09 defaults the gh search and clamps its limit", async 
   try {
     installFakeGh(bin, { stdout: "[]" });
     await withPath(bin, () => recallGhPrs(cwd, "   ", 500));
-    assert.equal(
-      lastGhCall(bin),
-      "pr list --limit 50 --search sort:updated-desc --json number,title,state,updatedAt,url,headRefName",
-    );
+    expect(lastGhCall(bin)).toBe("pr list --limit 50 --search sort:updated-desc --json number,title,state,updatedAt,url,headRefName");
 
     await withPath(bin, () => recallGhPrs(cwd, "topic", 0));
-    assert.equal(lastGhCall(bin).includes("--limit 1"), true);
+    expect(lastGhCall(bin).includes("--limit 1")).toBe(true);
 
     installFakeGh(bin, { stdout: "", stderr: "boom" });
-    assert.equal(await withPath(bin, () => recallGhPrs(cwd, "topic")), "boom");
+    expect(await withPath(bin, () => recallGhPrs(cwd, "topic"))).toBe("boom");
 
     installFakeGh(bin, { stdout: "not json" });
-    assert.equal((await withPath(bin, () => recallGhPrs(cwd, "topic"))).startsWith("gh pr list failed: "), true);
+    expect((await withPath(bin, () => recallGhPrs(cwd, "topic"))).startsWith("gh pr list failed: ")).toBe(true);
   } finally {
     rmSync(bin, { recursive: true, force: true });
     rmSync(cwd, { recursive: true, force: true });
@@ -453,23 +444,23 @@ test("sessions-functions-09 defaults the gh search and clamps its limit", async 
 test("sessions-functions-10 recalls an empty query over the fallback session lines", async () => {
   await withSandbox(async (sandbox, tool) => {
     const path = writeSessionFile(sandbox.sessionDir, "empty-query.jsonl", "body without the marker\n");
-    assert.equal(path.endsWith("empty-query.jsonl"), true);
+    expect(path.endsWith("empty-query.jsonl")).toBe(true);
     installFakeGh(sandbox.bin, { versionCode: 127 });
 
     const result = await callTool(tool, { action: "recall", limit: 5, days: 30 }, sandbox.cwd);
     const body = result.content[0].text;
-    assert.equal(result.details.sessionHits, 1);
-    assert.equal(result.details.rankedHits, 1);
-    assert.deepEqual(result.details.corpus, ["sessions", "git-log", "gh-prs", "ranked-merge"]);
+    expect(result.details.sessionHits).toBe(1);
+    expect(result.details.rankedHits).toBe(1);
+    expect(result.details.corpus).toEqual(["sessions", "git-log", "gh-prs", "ranked-merge"]);
     const top = result.details.top as Array<{ source: string; score: number; title: string }>;
-    assert.equal(top[0].source, "session");
-    assert.equal(top[0].score, 20);
-    assert.match(top[0].title, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}/);
-    assert.equal(top[0].title.includes(sandbox.sessionDir), true);
-    assert.equal(body.startsWith("## Recall corpus (local, ranked)\nquery=(none) days=30\n"), true);
-    assert.match(body, /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}.*empty-query\.jsonl/);
-    assert.match(body, /### git log\ngit log unavailable: /);
-    assert.equal(body.includes("(gh not available — skipped PR corpus)"), true);
+    expect(top[0].source).toBe("session");
+    expect(top[0].score).toBe(20);
+    expect(top[0].title).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}/);
+    expect(top[0].title.includes(sandbox.sessionDir)).toBe(true);
+    expect(body.startsWith("## Recall corpus (local, ranked)\nquery=(none) days=30\n")).toBe(true);
+    expect(body).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}.*empty-query\.jsonl/);
+    expect(body).toMatch(/### git log\ngit log unavailable: /);
+    expect(body.includes("(gh not available — skipped PR corpus)")).toBe(true);
   });
 });
 
@@ -480,13 +471,13 @@ test("sessions-functions-11 recalls a query and reports a null gh finding", asyn
 
     const result = await callTool(tool, { action: "recall", query: "querymarker", days: 30 }, sandbox.cwd);
     const body = result.content[0].text;
-    assert.equal(result.details.sessionHits, 1);
-    assert.equal(result.details.rankedHits, 1);
+    expect(result.details.sessionHits).toBe(1);
+    expect(result.details.rankedHits).toBe(1);
     const top = result.details.top as Array<{ source: string; title: string }>;
-    assert.equal(top[0].source, "session");
-    assert.equal(top[0].title, path);
-    assert.equal(body.includes("(no matching PRs)"), true);
-    assert.match(body, /### git log\ngit log unavailable: /);
+    expect(top[0].source).toBe("session");
+    expect(top[0].title).toBe(path);
+    expect(body.includes("(no matching PRs)")).toBe(true);
+    expect(body).toMatch(/### git log\ngit log unavailable: /);
   });
 });
 
@@ -496,44 +487,66 @@ test("sessions-functions-12 lists, greps, and resolves the current session file"
     const newer = writeSessionFile(sandbox.sessionDir, "newer.jsonl", "grepmarker line\n");
 
     const listed = await callTool(tool, { action: "list", limit: 5 }, sandbox.cwd);
-    assert.deepEqual(
-      (listed.details.files as Array<{ path: string }>).map((file) => file.path),
-      [newer, older],
-    );
-    assert.equal(listed.content[0].text.split("\n").length, 2);
+    expect((listed.details.files as Array<{ path: string }>).map((file) => file.path)).toEqual([newer, older]);
+    expect(listed.content[0].text.split("\n").length).toBe(2);
 
     const noise = writeSessionFile(sandbox.sessionDir, "noise.jsonl", "nothing here\n");
     const grepped = await callTool(tool, { action: "grep", query: "grepmarker" }, sandbox.cwd);
-    assert.equal(grepped.details.hitCount, 1);
-    assert.equal(grepped.content[0].text, `${newer}\n  grepmarker line`);
-    assert.equal(grepped.content[0].text.includes(noise), false);
+    expect(grepped.details.hitCount).toBe(1);
+    expect(grepped.content[0].text).toBe(`${newer}\n  grepmarker line`);
+    expect(grepped.content[0].text.includes(noise)).toBe(false);
 
-    await assert.rejects(() => callTool(tool, { action: "grep" }, sandbox.cwd), /query required for grep/);
-    await assert.rejects(
-      () => callTool(tool, { action: "summarize" }, sandbox.cwd),
-      /action must be list\|grep\|current\|recall/,
-    );
+    await expect(() => callTool(tool, { action: "grep" }, sandbox.cwd)).rejects.toThrow(/query required for grep/);
+    await expect(() => callTool(tool, { action: "summarize" }, sandbox.cwd)).rejects.toThrow(/action must be list\|grep\|current\|recall/);
 
-    assert.equal((await callTool(tool, { action: "current" }, sandbox.cwd)).details.file, "(unknown)");
+    expect((await callTool(tool, { action: "current" }, sandbox.cwd)).details.file).toBe("(unknown)");
     process.env.PI_SESSION_FILE = "/tmp/env-session.jsonl";
-    assert.equal((await callTool(tool, { action: "current" }, sandbox.cwd)).details.file, "/tmp/env-session.jsonl");
+    expect((await callTool(tool, { action: "current" }, sandbox.cwd)).details.file).toBe("/tmp/env-session.jsonl");
     const fromManager = await callTool(tool, { action: "current" }, sandbox.cwd, {
       getSessionFile: () => "/tmp/manager-session.jsonl",
     });
-    assert.equal(fromManager.details.file, "/tmp/manager-session.jsonl");
-    assert.equal(fromManager.content[0].text, "current session: /tmp/manager-session.jsonl");
+    expect(fromManager.details.file).toBe("/tmp/manager-session.jsonl");
+    expect(fromManager.content[0].text).toBe("current session: /tmp/manager-session.jsonl");
   });
 });
 
 test("sessions-functions-13 reports empty results and the no-hit grep message", async () => {
   await withSandbox(async (sandbox, tool) => {
     const listed = await callTool(tool, { action: "list" }, sandbox.cwd);
-    assert.equal(listed.content[0].text, "(no sessions found in known Pi dirs)");
-    assert.deepEqual(listed.details.files, []);
+    expect(listed.content[0].text).toBe("(no sessions found in known Pi dirs)");
+    expect(listed.details.files).toEqual([]);
 
     writeSessionFile(sandbox.sessionDir, "notarget.jsonl", "unrelated\n");
     const grepped = await callTool(tool, { action: "grep", query: "absentmarker" }, sandbox.cwd);
-    assert.equal(grepped.details.hitCount, 0);
-    assert.equal(grepped.content[0].text, "(no hits for absentmarker)");
+    expect(grepped.details.hitCount).toBe(0);
+    expect(grepped.content[0].text).toBe("(no hits for absentmarker)");
   });
+});
+
+test("sessions-functions-14 prefers git stderr, then the no-hits marker, when stdout is empty", async () => {
+  const bin = tempDir("pstack-sessions-git-");
+  const cwd = tempDir("pstack-sessions-gitcwd-");
+  try {
+    installFakeGit(bin, { stdout: "", stderr: "warning: no git output" });
+    expect(await withPath(bin, () => recallGitLog(cwd, ""))).toBe("warning: no git output");
+
+    installFakeGit(bin, { stdout: "", stderr: "" });
+    expect(await withPath(bin, () => recallGitLog(cwd, ""))).toBe("(no git log hits)");
+  } finally {
+    rmSync(bin, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("sessions-functions-15 parses empty gh stdout as an empty PR list", async () => {
+  const bin = tempDir("pstack-sessions-gh-");
+  const cwd = tempDir("pstack-sessions-ghcwd-");
+  try {
+    installFakeGh(bin, { stdout: "", stderr: "" });
+    expect(await withPath(bin, () => recallGhPrs(cwd, "topic"))).toBe("(no matching PRs)");
+    expect(lastGhCall(bin)).toBe("pr list --limit 10 --search topic --json number,title,state,updatedAt,url,headRefName");
+  } finally {
+    rmSync(bin, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });

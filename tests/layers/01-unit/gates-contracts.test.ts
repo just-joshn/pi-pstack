@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { registerGates } from "../../../extensions/gates/index.ts";
 
 interface ExecResult {
@@ -63,18 +62,18 @@ const JSON_ARGS = "state,mergedAt,mergeStateStatus,statusCheckRollup,reviewDecis
 test("gates-01 registers the /pstack-gates command for a single PR argument", () => {
   const env = fakeGatesEnv([]);
   const spec = env.commands.get("pstack-gates");
-  assert.ok(spec, "pstack-gates must be registered");
-  assert.equal(typeof spec?.handler, "function");
-  assert.match(spec?.description ?? "", /fail closed/);
-  assert.match(spec?.description ?? "", /Usage: \/pstack-gates <pr>/);
+  expect(spec, "pstack-gates must be registered").toBeTruthy();
+  expect(typeof spec?.handler).toBe("function");
+  expect(spec?.description ?? "").toMatch(/fail closed/);
+  expect(spec?.description ?? "").toMatch(/Usage: \/pstack-gates <pr>/);
 });
 
 test("gates-03 shows a usage error when no PR is supplied", async () => {
   const env = fakeGatesEnv([]);
   await env.handler("   ");
-  assert.deepEqual(env.calls(), [], "a usage error must not call gh");
-  assert.deepEqual(env.messages(), [], "a usage error sends no follow-up");
-  assert.deepEqual(env.notifications(), [
+  expect(env.calls(), "a usage error must not call gh").toEqual([]);
+  expect(env.messages(), "a usage error sends no follow-up").toEqual([]);
+  expect(env.notifications()).toEqual([
     {
       message: "Usage: /pstack-gates <pr>. Also run /skill:unslop → /skill:no-comments → prove-it-works.",
       level: "error",
@@ -85,18 +84,18 @@ test("gates-03 shows a usage error when no PR is supplied", async () => {
 test("gates-04 fails closed when gh pr view errors or returns invalid JSON", async () => {
   const failed = fakeGatesEnv([{ code: 1, stdout: "", stderr: "gh: not authenticated" }]);
   await failed.handler("42");
-  assert.deepEqual(failed.notifications(), [
+  expect(failed.notifications()).toEqual([
     { message: "Gate check FAILED (fail closed): cannot view PR \u2014 gh: not authenticated", level: "error" },
   ]);
-  assert.deepEqual(failed.messages(), [], "a failed view sends no follow-up");
-  assert.deepEqual(failed.calls(), [{ command: "gh", args: ["pr", "view", "42", "--json", JSON_ARGS] }]);
+  expect(failed.messages(), "a failed view sends no follow-up").toEqual([]);
+  expect(failed.calls()).toEqual([{ command: "gh", args: ["pr", "view", "42", "--json", JSON_ARGS] }]);
 
   const invalid = fakeGatesEnv([{ code: 0, stdout: "<html>nope", stderr: "" }]);
   await invalid.handler("42");
-  assert.deepEqual(invalid.notifications(), [
+  expect(invalid.notifications()).toEqual([
     { message: "Gate check FAILED (fail closed): invalid gh JSON", level: "error" },
   ]);
-  assert.deepEqual(invalid.messages(), [], "invalid JSON sends no follow-up");
+  expect(invalid.messages(), "invalid JSON sends no follow-up").toEqual([]);
 });
 
 test("gates-05 notifies an error and sends a do-not-ship follow-up on a gate problem", async () => {
@@ -117,10 +116,10 @@ test("gates-05 notifies an error and sends a do-not-ship follow-up on a gate pro
   ]);
   await env.handler("#42");
   const problems = "mergeStateStatus=BLOCKED; check ci=FAILURE; reviewDecision=CHANGES_REQUESTED";
-  assert.deepEqual(env.notifications(), [
+  expect(env.notifications()).toEqual([
     { message: `Gate check FAILED (fail closed): ${problems}`, level: "error" },
   ]);
-  assert.deepEqual(env.messages(), [
+  expect(env.messages()).toEqual([
     `pstack-gates FAIL for PR 42: ${problems}. Do not ship. Fix gates, then re-run /pstack-gates 42. Also: unslop → no-comments → prove-it-works.`,
   ]);
 });
@@ -142,10 +141,10 @@ test("gates-06 notifies pass and sends the still-run-unslop follow-up with no pr
     },
   ]);
   await env.handler("#7");
-  assert.deepEqual(env.notifications(), [{ message: "Gate check PASS for PR 7 (CLEAN)", level: "info" }]);
-  assert.deepEqual(env.messages(), [
+  expect(env.notifications()).toEqual([{ message: "Gate check PASS for PR 7 (CLEAN)", level: "info" }]);
+  expect(env.messages()).toEqual([
     "pstack-gates PASS for PR 7 (Tiny fix) https://example.test/pr/7. Still run unslop → no-comments → prove-it-works on the real artifact before merge.",
   ]);
-  assert.equal(env.calls()[0].args.includes("7"), true, "the # prefix is stripped before gh");
-  assert.equal(env.calls()[0].args.includes("#7"), false);
+  expect(env.calls()[0].args.includes("7"), "the # prefix is stripped before gh").toBe(true);
+  expect(env.calls()[0].args.includes("#7")).toBe(false);
 });

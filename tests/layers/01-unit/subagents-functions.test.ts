@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -137,58 +136,58 @@ async function waitForJob(id: string, status: string) {
 }
 
 test("parsePositiveInt falls back on empty and non-numeric input and clamps to the range", () => {
-  assert.equal(parsePositiveInt(undefined, 7, 1, 10), 7);
-  assert.equal(parsePositiveInt("", 7, 1, 10), 7);
-  assert.equal(parsePositiveInt("abc", 7, 1, 10), 7);
-  assert.equal(parsePositiveInt("3", 7, 1, 10), 3);
-  assert.equal(parsePositiveInt("0", 7, 1, 10), 1);
-  assert.equal(parsePositiveInt("999", 7, 1, 10), 10);
+  expect(parsePositiveInt(undefined, 7, 1, 10)).toBe(7);
+  expect(parsePositiveInt("", 7, 1, 10)).toBe(7);
+  expect(parsePositiveInt("abc", 7, 1, 10)).toBe(7);
+  expect(parsePositiveInt("3", 7, 1, 10)).toBe(3);
+  expect(parsePositiveInt("0", 7, 1, 10)).toBe(1);
+  expect(parsePositiveInt("999", 7, 1, 10)).toBe(10);
 });
 
 test("output caps expose the documented byte and timeout literals", () => {
-  assert.equal(MAX_OUTPUT_BYTES, 51200);
-  assert.equal(DEFAULT_TIMEOUT_MS, 600000);
-  assert.equal(MAX_TIMEOUT_MS, 1800000);
+  expect(MAX_OUTPUT_BYTES).toBe(51200);
+  expect(DEFAULT_TIMEOUT_MS).toBe(600000);
+  expect(MAX_TIMEOUT_MS).toBe(1800000);
 });
 
 test("truncate keeps a long single line visible and ignores a failing persist dir", () => {
   const single = truncate("x".repeat(200), { maxBytes: 32 });
-  assert.match(single.text, /^x+\.\.\. \[truncated\]/);
-  assert.match(single.text, /\[Output truncated: 1 of 1 lines \(\d+B of 200B\)\. Set persistOutput:true/);
-  assert.equal(single.outputPath, undefined);
+  expect(single.text).toMatch(/^x+\.\.\. \[truncated\]/);
+  expect(single.text).toMatch(/\[Output truncated: 1 of 1 lines \(\d+B of 200B\)\. Set persistOutput:true/);
+  expect(single.outputPath).toBe(undefined);
 
   const dir = tempDir();
   try {
     const blocker = join(dir, "blocker");
     writeFileSync(blocker, "not a directory", "utf8");
     const capped = truncate("y".repeat(400), { maxBytes: 16, persistDir: blocker, tag: "t" });
-    assert.equal(capped.outputPath, undefined);
-    assert.match(capped.text, /Set persistOutput:true/);
+    expect(capped.outputPath).toBe(undefined);
+    expect(capped.text).toMatch(/Set persistOutput:true/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("appendCapped appends under the cap, holds at the cap, and truncates past it", () => {
-  assert.equal(appendCapped("abc", "def", 10), "abcdef");
-  assert.equal(appendCapped("0123456789", "xyz", 10), "0123456789");
+  expect(appendCapped("abc", "def", 10)).toBe("abcdef");
+  expect(appendCapped("0123456789", "xyz", 10)).toBe("0123456789");
   const over = appendCapped("abc", "defgh", 5);
-  assert.equal(over.includes("fgh"), false);
-  assert.match(over, /^abcde/);
-  assert.match(over, /\[Output truncated: 1 of 1 lines \(\d+B of 8B\)\./);
+  expect(over.includes("fgh")).toBe(false);
+  expect(over).toMatch(/^abcde/);
+  expect(over).toMatch(/\[Output truncated: 1 of 1 lines \(\d+B of 8B\)\./);
 });
 
 test("resolveSessionMode prefers the input, then the env, then isolated", () => {
   const previous = process.env.PSTACK_CHILD_SESSION;
   Reflect.deleteProperty(process.env, "PSTACK_CHILD_SESSION");
   try {
-    assert.equal(resolveSessionMode({ task: "t" }), "isolated");
-    assert.equal(resolveSessionMode({ task: "t", sessionMode: "ephemeral" }), "ephemeral");
+    expect(resolveSessionMode({ task: "t" })).toBe("isolated");
+    expect(resolveSessionMode({ task: "t", sessionMode: "ephemeral" })).toBe("ephemeral");
     process.env.PSTACK_CHILD_SESSION = "ephemeral";
-    assert.equal(resolveSessionMode({ task: "t" }), "ephemeral");
-    assert.equal(resolveSessionMode({ task: "t", sessionMode: "isolated" }), "isolated");
+    expect(resolveSessionMode({ task: "t" })).toBe("ephemeral");
+    expect(resolveSessionMode({ task: "t", sessionMode: "isolated" })).toBe("isolated");
     process.env.PSTACK_CHILD_SESSION = "bogus";
-    assert.equal(resolveSessionMode({ task: "t" }), "isolated");
+    expect(resolveSessionMode({ task: "t" })).toBe("isolated");
   } finally {
     if (previous === undefined) Reflect.deleteProperty(process.env, "PSTACK_CHILD_SESSION");
     else process.env.PSTACK_CHILD_SESSION = previous;
@@ -201,33 +200,24 @@ test("resolveChildSessionDir mints, reuses, resumes, and rejects unsafe session 
     mkdirSync(join(root, "prior"));
     writeFileSync(join(root, "afile"), "x", "utf8");
     const minted = resolveChildSessionDir({ task: "t", sessionMode: "isolated" }, root);
-    assert.equal(minted.sessionMode, "isolated");
-    assert.equal(minted.continueSession, false);
-    assert.equal(minted.sessionDir?.startsWith(join(root, ".pi", "pstack-child-sessions")), true);
+    expect(minted.sessionMode).toBe("isolated");
+    expect(minted.continueSession).toBe(false);
+    expect(minted.sessionDir?.startsWith(join(root, ".pi", "pstack-child-sessions"))).toBe(true);
 
     const reused = resolveChildSessionDir({ task: "t", sessionMode: "isolated", sessionDir: "given" }, root);
-    assert.equal(reused.sessionDir, join(root, "given"));
-    assert.equal(reused.continueSession, false);
+    expect(reused.sessionDir).toBe(join(root, "given"));
+    expect(reused.continueSession).toBe(false);
 
     const resumed = resolveChildSessionDir({ task: "t", resumeSessionDir: "prior" }, root);
-    assert.deepEqual(resumed, { sessionMode: "isolated", sessionDir: join(root, "prior"), continueSession: true });
+    expect(resumed).toEqual({ sessionMode: "isolated", sessionDir: join(root, "prior"), continueSession: true });
 
     const ephemeral = resolveChildSessionDir({ task: "t", sessionMode: "ephemeral" }, root);
-    assert.deepEqual(ephemeral, { sessionMode: "ephemeral", continueSession: false });
-    assert.equal(ephemeral.sessionDir, undefined);
+    expect(ephemeral).toEqual({ sessionMode: "ephemeral", continueSession: false });
+    expect(ephemeral.sessionDir).toBe(undefined);
 
-    assert.throws(
-      () => resolveChildSessionDir({ task: "t", sessionMode: "ephemeral", resumeSessionDir: "prior" }, root),
-      /resumeSessionDir conflicts with sessionMode=ephemeral/,
-    );
-    assert.throws(
-      () => resolveChildSessionDir({ task: "t", resumeSessionDir: "afile" }, root),
-      /resumeSessionDir is not a directory/,
-    );
-    assert.throws(
-      () => resolveChildSessionDir({ task: "t", resumeSessionDir: "missing" }, root),
-      /resumeSessionDir missing or unreadable/,
-    );
+    expect(() => resolveChildSessionDir({ task: "t", sessionMode: "ephemeral", resumeSessionDir: "prior" }, root)).toThrow(/resumeSessionDir conflicts with sessionMode=ephemeral/);
+    expect(() => resolveChildSessionDir({ task: "t", resumeSessionDir: "afile" }, root)).toThrow(/resumeSessionDir is not a directory/);
+    expect(() => resolveChildSessionDir({ task: "t", resumeSessionDir: "missing" }, root)).toThrow(/resumeSessionDir missing or unreadable/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -238,9 +228,9 @@ test("resolveChildSessionDir mints a distinct directory for each simultaneous sp
   try {
     const first = resolveChildSessionDir({ task: "a", sessionMode: "isolated" }, root);
     const second = resolveChildSessionDir({ task: "b", sessionMode: "isolated" }, root);
-    assert.equal(typeof first.sessionDir, "string");
-    assert.notEqual(first.sessionDir, second.sessionDir);
-    assert.equal(first.sessionDir?.includes("pstack-child-sessions"), true);
+    expect(typeof first.sessionDir).toBe("string");
+    expect(first.sessionDir).not.toBe(second.sessionDir);
+    expect(first.sessionDir?.includes("pstack-child-sessions")).toBe(true);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -250,19 +240,19 @@ test("createJobRegistryCell replaces the whole cell on every write", () => {
   const cell = createJobRegistryCell<{ id: string }>();
   cell.putJob({ id: "a" });
   cell.putJob({ id: "b" });
-  assert.deepEqual(cell.jobs().map((job) => job.id), ["a", "b"]);
+  expect(cell.jobs().map((job) => job.id)).toEqual(["a", "b"]);
   cell.putJob({ id: "b", replaced: true } as { id: string });
-  assert.deepEqual(cell.job("b"), { id: "b", replaced: true });
-  assert.equal(cell.job("missing"), undefined);
+  expect(cell.job("b")).toEqual({ id: "b", replaced: true });
+  expect(cell.job("missing")).toBe(undefined);
   const controller = new AbortController();
   cell.putController("b", controller);
-  assert.deepEqual(cell.controllerIds(), ["b"]);
-  assert.equal(cell.controller("b"), controller);
+  expect(cell.controllerIds()).toEqual(["b"]);
+  expect(cell.controller("b")).toBe(controller);
   cell.dropController("b");
-  assert.equal(cell.controller("b"), undefined);
-  assert.deepEqual(cell.controllerIds(), []);
+  expect(cell.controller("b")).toBe(undefined);
+  expect(cell.controllerIds()).toEqual([]);
   cell.reset();
-  assert.deepEqual(cell.jobs(), []);
+  expect(cell.jobs()).toEqual([]);
 });
 
 test("runChildTask picks the last assistant text, forwards stopReason, and maps the exit code", async () => {
@@ -283,13 +273,13 @@ test("runChildTask picks the last assistant text, forwards stopReason, and maps 
       "test/parent",
       undefined,
     );
-    assert.equal(result.output, "first");
-    assert.equal(result.stopReason, "max_tokens");
-    assert.equal(result.exitCode, 5);
-    assert.equal(result.model, "test/parent");
-    assert.equal(result.task, "brief");
-    assert.equal(result.role, undefined);
-    assert.equal(result.sessionDir, undefined);
+    expect(result.output).toBe("first");
+    expect(result.stopReason).toBe("max_tokens");
+    expect(result.exitCode).toBe(5);
+    expect(result.model).toBe("test/parent");
+    expect(result.task).toBe("brief");
+    expect(result.role).toBe(undefined);
+    expect(result.sessionDir).toBe(undefined);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -306,8 +296,8 @@ test("runChildTask ignores malformed stdout lines and keeps the parseable ones",
       "test/parent",
       undefined,
     );
-    assert.equal(result.output, "after-garbage");
-    assert.equal(result.exitCode, 0);
+    expect(result.output).toBe("after-garbage");
+    expect(result.exitCode).toBe(0);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -324,10 +314,10 @@ test("runChildTask reports (no output) when the child emits nothing", async () =
       "test/parent",
       undefined,
     );
-    assert.equal(result.output, "(no output)");
-    assert.equal(result.stderr, "");
-    assert.equal(result.stopReason, undefined);
-    assert.equal(result.exitCode, 0);
+    expect(result.output).toBe("(no output)");
+    expect(result.stderr).toBe("");
+    expect(result.stopReason).toBe(undefined);
+    expect(result.exitCode).toBe(0);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -344,8 +334,8 @@ test("runChildTask caps a mid-stream stdout flood and marks the trailer", async 
       "test/parent",
       undefined,
     );
-    assert.equal(result.output, "after-cap\n\n[Mid-stream output capped at 51200 bytes.]");
-    assert.equal(result.exitCode, 0);
+    expect(result.output).toBe("after-cap\n\n[Mid-stream output capped at 51200 bytes.]");
+    expect(result.exitCode).toBe(0);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -365,9 +355,9 @@ test("runChildTask caps the stderr stream and reports the truncated trailer", as
       "test/parent",
       undefined,
     );
-    assert.equal(result.output, "stderr-cap-ok\n\n[Mid-stream output capped at 51200 bytes.]");
-    assert.match(result.stderr, /\[Output truncated:/);
-    assert.equal(result.stderr.includes("tail"), false);
+    expect(result.output).toBe("stderr-cap-ok\n\n[Mid-stream output capped at 51200 bytes.]");
+    expect(result.stderr).toMatch(/\[Output truncated:/);
+    expect(result.stderr.includes("tail")).toBe(false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -384,10 +374,10 @@ test("runChildTask maps a timeout to exit 124 and the timeout stopReason", async
       "test/parent",
       undefined,
     );
-    assert.equal(result.exitCode, 124);
-    assert.equal(result.stopReason, "timeout");
-    assert.equal(result.output, "(timed out)");
-    assert.deepEqual(lastSpawn().killSignals, ["SIGTERM"]);
+    expect(result.exitCode).toBe(124);
+    expect(result.stopReason).toBe("timeout");
+    expect(result.output).toBe("(timed out)");
+    expect(lastSpawn().killSignals).toEqual(["SIGTERM"]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -406,9 +396,9 @@ test("runChildTask maps a pre-aborted signal to exit 130 and the aborted stopRea
       "test/parent",
       controller.signal,
     );
-    assert.equal(result.exitCode, 130);
-    assert.equal(result.stopReason, "aborted");
-    assert.deepEqual(lastSpawn().killSignals, ["SIGTERM"]);
+    expect(result.exitCode).toBe(130);
+    expect(result.stopReason).toBe("aborted");
+    expect(lastSpawn().killSignals).toEqual(["SIGTERM"]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -429,22 +419,22 @@ test("withChildSlot queues past the cap and releases the waiter in order", async
   );
   const queued = childRunner.withChildSlot(async () => "queued");
   const busy = childRunner.childConcurrencyStats();
-  assert.equal(busy.active, cap);
-  assert.equal(busy.cap, cap);
-  assert.equal(busy.waiting, 1);
+  expect(busy.active).toBe(cap);
+  expect(busy.cap).toBe(cap);
+  expect(busy.waiting).toBe(1);
   for (const open of release) open();
   const results = await Promise.all([...held, queued]);
-  assert.deepEqual(results, [...Array.from({ length: cap }, () => "held"), "queued"]);
+  expect(results).toEqual([...Array.from({ length: cap }, () => "held"), "queued"]);
   const idle = childRunner.childConcurrencyStats();
-  assert.equal(idle.active, 0);
-  assert.equal(idle.waiting, 0);
+  expect(idle.active).toBe(0);
+  expect(idle.waiting).toBe(0);
 });
 
 test("piInvocation falls back to the pi binary when running from a bunfs bundle", () => {
   const script = process.argv[1];
   process.argv[1] = "/$bunfs/root/pi";
   try {
-    assert.deepEqual(childRunner.piInvocation(["--mode", "json"]), {
+    expect(childRunner.piInvocation(["--mode", "json"])).toEqual({
       command: "pi",
       args: ["--mode", "json"],
     });
@@ -464,14 +454,14 @@ test("enqueueBackgroundChild records a literal job id and a failed job when the 
       root,
       "test/parent",
     );
-    assert.match(job.id, /^bg-1-[0-9a-z]+$/);
-    assert.equal(job.status, "queued");
-    assert.equal(job.model, "test/parent");
-    assert.equal(job.taskPreview, "brief");
+    expect(job.id).toMatch(/^bg-1-[0-9a-z]+$/);
+    expect(job.status).toBe("queued");
+    expect(job.model).toBe("test/parent");
+    expect(job.taskPreview).toBe("brief");
     const failed = await waitForJob(job.id, "failed");
-    assert.equal(failed?.status, "failed");
-    assert.equal(failed?.error, "spawn ENOENT");
-    assert.equal(failed?.result, undefined);
+    expect(failed?.status).toBe("failed");
+    expect(failed?.error).toBe("spawn ENOENT");
+    expect(failed?.result).toBe(undefined);
   } finally {
     childRunner.__resetBackgroundJobsForTests();
     rmSync(root, { recursive: true, force: true });
@@ -492,10 +482,10 @@ test("enqueueBackgroundChild keeps a finished job when the completion callback t
       },
     );
     const done = await waitForJob(job.id, "done");
-    assert.equal(done?.status, "done");
-    assert.equal(done?.error, "completion callback failed: boom");
-    assert.equal(done?.result?.output, "done-output");
-    assert.equal(done?.result?.exitCode, 0);
+    expect(done?.status).toBe("done");
+    expect(done?.error).toBe("completion callback failed: boom");
+    expect(done?.result?.output).toBe("done-output");
+    expect(done?.result?.exitCode).toBe(0);
   } finally {
     childRunner.__resetBackgroundJobsForTests();
     rmSync(root, { recursive: true, force: true });
@@ -516,24 +506,24 @@ test("prepareChildInput survives a throwing getActiveTools and honors inheritPar
       ctx,
       throwing as never,
     );
-    assert.equal(withoutTools.model, "test/model");
-    assert.equal(withoutTools.role, "general");
-    assert.equal(withoutTools.background, false);
-    assert.equal(withoutTools.childInput.tools, undefined);
+    expect(withoutTools.model).toBe("test/model");
+    expect(withoutTools.role).toBe("general");
+    expect(withoutTools.background).toBe(false);
+    expect(withoutTools.childInput.tools).toBe(undefined);
 
     const inheriting = subagents.prepareChildInput(
       { task: "brief", sessionMode: "ephemeral", model: "inherit-parent" },
       ctx,
       { getActiveTools: () => ["read", "pstack_jobs"] } as never,
     );
-    assert.deepEqual(inheriting.childInput.tools, ["read", "pstack_jobs"]);
+    expect(inheriting.childInput.tools).toEqual(["read", "pstack_jobs"]);
 
     const disabled = subagents.prepareChildInput(
       { task: "brief", sessionMode: "ephemeral", model: "inherit-parent", inheritParentTools: false },
       ctx,
       { getActiveTools: () => ["read", "pstack_jobs"] } as never,
     );
-    assert.equal(disabled.childInput.tools, undefined);
+    expect(disabled.childInput.tools).toBe(undefined);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -560,9 +550,9 @@ test("runPreparedChild emits the background spawn onUpdate before returning the 
       },
       pi: { sendUserMessage() {} } as never,
     });
-    assert.deepEqual(updates, ["Spawning general on test/model in background…"]);
-    assert.equal(reply.details.background, true);
-    assert.match(reply.details.jobId as string, /^bg-1-[0-9a-z]+$/);
+    expect(updates).toEqual(["Spawning general on test/model in background…"]);
+    expect(reply.details.background).toBe(true);
+    expect(reply.details.jobId as string).toMatch(/^bg-1-[0-9a-z]+$/);
     await delay(30);
   } finally {
     childRunner.__resetBackgroundJobsForTests();

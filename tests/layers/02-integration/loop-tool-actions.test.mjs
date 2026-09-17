@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { withSession } from "../../support/session.mjs";
@@ -23,7 +22,7 @@ function seeded(runId, steps, now = 1000) {
 
 function runTool(f) {
   const tool = f.tool("pstack_run");
-  assert.ok(tool, "pstack_run is registered by the loaded extension");
+  expect(tool, "pstack_run is registered by the loaded extension").toBeTruthy();
   const ctx = { ui: f.ui.context };
   return (params) => tool.definition.execute("probe", params, undefined, undefined, ctx);
 }
@@ -38,45 +37,39 @@ test("loaded instance arms a run and reports the literal store path line", async
   await withSession(async (f) => {
     const { call } = calls(f);
     const armed = await call({ action: "arm", runId: "it-arm", predicate: "ci green", intervalSeconds: 60, maxFires: 4 });
-    assert.equal(armed.details.run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
-    assert.equal(armed.details.run.maxFires, 4);
-    assert.equal(
-      armed.content[0].text,
-      "it-arm phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/4 predicate=ci green\nrun it-arm predicate defined: ci green",
-    );
+    expect(armed.details.run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+    expect(armed.details.run.maxFires).toBe(4);
+    expect(armed.content[0].text).toBe("it-arm phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/4 predicate=ci green\nrun it-arm predicate defined: ci green");
     const listed = await call({ action: "list" });
-    assert.equal(listed.content[0].text, "it-arm phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/4 predicate=ci green");
+    expect(listed.content[0].text).toBe("it-arm phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/4 predicate=ci green");
     const state = await call({ action: "state", runId: "it-arm" });
-    assert.equal(state.details.run.predicate, "ci green");
+    expect(state.details.run.predicate).toBe("ci green");
     const stopped = await call({ action: "stop", runId: "it-arm" });
-    assert.equal(stopped.content[0].text, "stopped it-arm");
+    expect(stopped.content[0].text).toBe("stopped it-arm");
   });
 });
 
 test("loaded instance rejects the documented invalid arm inputs with literal messages", async () => {
   await withSession(async (f) => {
     const { call } = calls(f);
-    await assert.rejects(() => call({ action: "arm", intervalSeconds: 30 }), /predicate required to arm a run/);
-    await assert.rejects(() => call({ action: "arm", predicate: "ci green" }), /intervalSeconds required to arm a run/);
-    await assert.rejects(() => call({ action: "state", runId: "it-missing" }), /unknown run it-missing/);
-    await assert.rejects(() => call({ action: "nope" }), /action must be arm\|state\|iterate/);
+    await expect(() => call({ action: "arm", intervalSeconds: 30 })).rejects.toThrow(/predicate required to arm a run/);
+    await expect(() => call({ action: "arm", predicate: "ci green" })).rejects.toThrow(/intervalSeconds required to arm a run/);
+    await expect(() => call({ action: "state", runId: "it-missing" })).rejects.toThrow(/unknown run it-missing/);
+    await expect(() => call({ action: "nope" })).rejects.toThrow(/action must be arm\|state\|iterate/);
   });
 });
 
 test("loaded instance refuses a traversal runId without arming a loop or writing a record", async () => {
   await withSession(async (f) => {
     const { call, dir } = calls(f);
-    await assert.rejects(
-      () => call({ action: "arm", runId: "../evil", predicate: "ci green", intervalSeconds: 30 }),
-      /invalid runId: \.\.\/evil/,
-    );
+    await expect(() => call({ action: "arm", runId: "../evil", predicate: "ci green", intervalSeconds: 30 })).rejects.toThrow(/invalid runId: \.\.\/evil/);
     const loop = f.tool("pstack_loop");
     const status = await loop.definition.execute("probe", { action: "status" }, undefined, undefined, {
       ui: f.ui.context,
     });
-    assert.equal(status.content[0].text, "(no active loops)");
+    expect(status.content[0].text).toBe("(no active loops)");
     const stored = existsSync(dir) ? readdirSync(dir).filter((name) => name.endsWith(".json")) : [];
-    assert.deepEqual(stored, []);
+    expect(stored).toEqual([]);
   });
 });
 
@@ -85,19 +78,19 @@ test("loaded instance iterate on a freshly armed run is ignored and advances onc
     const { call } = calls(f);
     await call({ action: "arm", runId: "it-wait", predicate: "ci green", intervalSeconds: 30 });
     const ignored = await call({ action: "iterate", runId: "it-wait", step: "try" });
-    assert.equal(ignored.details.run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
-    assert.equal(ignored.details.run.iterations.length, 0);
-    assert.deepEqual(ignored.details.effects, []);
-    assert.deepEqual(ignored.details.ignored, [
+    expect(ignored.details.run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+    expect(ignored.details.run.iterations.length).toBe(0);
+    expect(ignored.details.effects).toEqual([]);
+    expect(ignored.details.ignored).toEqual([
       { event: "iteration_started", phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" },
     ]);
-    assert.match(ignored.content[0].text, /ignored iteration_started in phase WAIT_FOR_EVENT_OR_HEARTBEAT/);
+    expect(ignored.content[0].text).toMatch(/ignored iteration_started in phase WAIT_FOR_EVENT_OR_HEARTBEAT/);
     saveRun(seeded("it-go", RESUMED));
     const opened = await call({ action: "iterate", runId: "it-go", step: "patch the reducer" });
-    assert.equal(opened.details.run.phase, "ACT");
-    assert.equal(opened.details.run.iterations[0].action, "patch the reducer");
-    assert.equal(opened.details.run.iterations[0].n, 1);
-    assert.deepEqual(opened.details.ignored, []);
+    expect(opened.details.run.phase).toBe("ACT");
+    expect(opened.details.run.iterations[0].action).toBe("patch the reducer");
+    expect(opened.details.run.iterations[0].n).toBe(1);
+    expect(opened.details.ignored).toEqual([]);
   });
 });
 
@@ -114,9 +107,9 @@ test("loaded instance names the ignored event and phase for every out-of-phase a
     for (const [params, event] of cases) {
       await call({ action: "arm", runId: "it-ignore", predicate: "ci green", intervalSeconds: 30 });
       const result = await call({ runId: "it-ignore", ...params });
-      assert.equal(result.details.run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
-      assert.deepEqual(result.details.ignored, [{ event, phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
-      assert.match(result.content[0].text, new RegExp(`ignored ${event} in phase WAIT_FOR_EVENT_OR_HEARTBEAT`));
+      expect(result.details.run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+      expect(result.details.ignored).toEqual([{ event, phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
+      expect(result.content[0].text).toMatch(new RegExp(`ignored ${event} in phase WAIT_FOR_EVENT_OR_HEARTBEAT`));
     }
   });
 });
@@ -125,17 +118,17 @@ test("loaded instance verify advances, then the checkpoint chain completes the r
   await withSession(async (f) => {
     const { call } = calls(f);
     saveRun(seeded("it-verify", VERIFYING));
-    await assert.rejects(() => call({ action: "verify", runId: "it-verify" }), /evidence required to verify an iteration/);
+    await expect(() => call({ action: "verify", runId: "it-verify" })).rejects.toThrow(/evidence required to verify an iteration/);
     const advanced = await call({ action: "verify", runId: "it-verify", evidence: "exit 0", verification: "npm test" });
-    assert.equal(advanced.details.run.phase, "COMMIT_IF_ADVANCED_OR_DISCARD");
-    assert.equal(advanced.details.run.iterations[0].verdict, "advanced");
-    assert.equal(advanced.details.run.iterations[0].verification, "npm test");
+    expect(advanced.details.run.phase).toBe("COMMIT_IF_ADVANCED_OR_DISCARD");
+    expect(advanced.details.run.iterations[0].verdict).toBe("advanced");
+    expect(advanced.details.run.iterations[0].verification).toBe("npm test");
     const checkpointed = await call({ action: "checkpoint", runId: "it-verify" });
-    assert.equal(checkpointed.details.run.phase, "CHECKPOINT");
+    expect(checkpointed.details.run.phase).toBe("CHECKPOINT");
     const checked = await call({ action: "checkpoint", runId: "it-verify" });
-    assert.equal(checked.details.run.phase, "CHECK_PREDICATE");
+    expect(checked.details.run.phase).toBe("CHECK_PREDICATE");
     const unmet = await call({ action: "checkpoint", runId: "it-verify" });
-    assert.equal(unmet.details.run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
+    expect(unmet.details.run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
   });
 });
 
@@ -145,12 +138,12 @@ test("loaded instance verify predicateMet completes the run and stops the armed 
     await call({ action: "arm", runId: "it-done", predicate: "ci green", intervalSeconds: 30 });
     saveRun({ ...seeded("it-done", ACTING), updatedAt: 2000 });
     const done = await call({ action: "verify", runId: "it-done", evidence: "checks green", predicateMet: true });
-    assert.equal(done.details.run.phase, "COMPLETE");
-    assert.equal(typeof done.details.run.completedAt, "number");
-    assert.match(done.content[0].text, /run it-done COMPLETE: predicate met with evidence/);
+    expect(done.details.run.phase).toBe("COMPLETE");
+    expect(typeof done.details.run.completedAt).toBe("number");
+    expect(done.content[0].text).toMatch(/run it-done COMPLETE: predicate met with evidence/);
     const loop = f.tool("pstack_loop");
     const listed = await loop.definition.execute("probe", { action: "list" }, undefined, undefined, { ui: f.ui.context });
-    assert.equal(listed.content[0].text, "(no active loops)");
+    expect(listed.content[0].text).toBe("(no active loops)");
   });
 });
 
@@ -159,22 +152,22 @@ test("loaded instance discard, inconclusive, blocked and handoff record their li
     const { call } = calls(f);
     saveRun(seeded("it-discard", ACTING));
     const discarded = await call({ action: "discard", runId: "it-discard", reason: "metric flat", evidence: "flat" });
-    assert.equal(discarded.details.run.iterations[0].verdict, "discarded");
-    assert.equal(discarded.details.run.consecutiveDiscards, 1);
-    assert.match(discarded.content[0].text, /discarded: metric flat/);
+    expect(discarded.details.run.iterations[0].verdict).toBe("discarded");
+    expect(discarded.details.run.consecutiveDiscards).toBe(1);
+    expect(discarded.content[0].text).toMatch(/discarded: metric flat/);
     saveRun(seeded("it-incon", ACTING));
     const inconclusive = await call({ action: "inconclusive", runId: "it-incon", reason: "ambiguous" });
-    assert.equal(inconclusive.details.run.iterations[0].verdict, "inconclusive");
-    assert.match(inconclusive.content[0].text, /inconclusive: ambiguous/);
+    expect(inconclusive.details.run.iterations[0].verdict).toBe("inconclusive");
+    expect(inconclusive.content[0].text).toMatch(/inconclusive: ambiguous/);
     saveRun(seeded("it-blocked", RESUMED));
     const blocked = await call({ action: "blocked", runId: "it-blocked", reason: "awaiting review" });
-    assert.equal(blocked.details.run.phase, "BLOCKED");
-    assert.equal(blocked.details.run.blockedReason, "awaiting review");
+    expect(blocked.details.run.phase).toBe("BLOCKED");
+    expect(blocked.details.run.blockedReason).toBe("awaiting review");
     saveRun(seeded("it-handoff", RESUMED));
     const handed = await call({ action: "handoff", runId: "it-handoff", endpoint: "https://worker.example" });
-    assert.equal(handed.details.run.phase, "BLOCKED");
-    assert.deepEqual(handed.details.run.remote, { required: true, handedOff: true, endpoint: "https://worker.example" });
-    await assert.rejects(() => call({ action: "blocked", runId: "it-handoff" }), /reason required to mark a run blocked/);
-    await assert.rejects(() => call({ action: "handoff", runId: "it-handoff" }), /endpoint required for a hosted handoff/);
+    expect(handed.details.run.phase).toBe("BLOCKED");
+    expect(handed.details.run.remote).toEqual({ required: true, handedOff: true, endpoint: "https://worker.example" });
+    await expect(() => call({ action: "blocked", runId: "it-handoff" })).rejects.toThrow(/reason required to mark a run blocked/);
+    await expect(() => call({ action: "handoff", runId: "it-handoff" })).rejects.toThrow(/endpoint required for a hosted handoff/);
   });
 });

@@ -114,6 +114,15 @@ export function runNode(args, options = {}) {
   return runProcess(process.execPath, args, options);
 }
 
+/**
+ * Run the repo's own Vitest CLI, so a predicate observes the runner the layers
+ * use. Nested inside a Vitest worker this still picks up the root
+ * `vitest.config.ts` from the repo root.
+ */
+export function runVitest(args, options = {}) {
+  return runProcess("npx", ["vitest", ...args], options);
+}
+
 /** Listen on an ephemeral loopback port and always close the server afterwards. */
 export async function withServer(server, fn) {
   const port = await new Promise((resolvePromise, rejectPromise) => {

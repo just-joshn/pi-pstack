@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -108,12 +107,9 @@ test("pstack_deslop returns the no-findings sentinel when the diff carries no sl
     cwd: "/tmp/pstack-clean-diff",
     ui: {},
   });
-  assert.equal(result.content.length, 1);
-  assert.equal(
-    result.content[0].text,
-    "pstack_deslop: no common slop patterns in added lines (still run /skill:unslop on prose surfaces).",
-  );
-  assert.deepEqual(result.details, {
+  expect(result.content.length).toBe(1);
+  expect(result.content[0].text).toBe("pstack_deslop: no common slop patterns in added lines (still run /skill:unslop on prose surfaces).");
+  expect(result.details).toEqual({
     findings: [],
     suggestions: [],
     cwd: "/tmp/pstack-clean-diff",
@@ -124,14 +120,8 @@ test("pstack_control_ui refuses a private-address probe without reaching fetch",
   const env = companionEnv([]);
   const fetchState = fakeFetch(() => ({ status: 200, ok: true, body: "should not run" }));
   try {
-    await assert.rejects(
-      env.tool("pstack_control_ui").execute("t", { url: "http://127.0.0.1:9/" }),
-      {
-        message:
-          "pstack_control_ui refused http://127.0.0.1:9/: host '127.0.0.1' is a private, loopback, or link-local target",
-      },
-    );
-    assert.deepEqual(fetchState.urls(), []);
+    await expect(env.tool("pstack_control_ui").execute("t", { url: "http://127.0.0.1:9/" })).rejects.toThrow("pstack_control_ui refused http://127.0.0.1:9/: host '127.0.0.1' is a private, loopback, or link-local target");
+    expect(fetchState.urls()).toEqual([]);
   } finally {
     fetchState.restore();
   }
@@ -141,17 +131,11 @@ test("pstack_control_ui refuses a metadata host even when it is allowlisted", as
   const env = companionEnv([]);
   const fetchState = fakeFetch(() => ({ status: 200, ok: true, body: "should not run" }));
   try {
-    await assert.rejects(
-      env.tool("pstack_control_ui").execute("t", {
+    await expect(env.tool("pstack_control_ui").execute("t", {
         url: "http://metadata.google.internal/",
         allowHosts: ["metadata.google.internal"],
-      }),
-      {
-        message:
-          "pstack_control_ui refused http://metadata.google.internal/: host 'metadata.google.internal' is a metadata or local-only host",
-      },
-    );
-    assert.deepEqual(fetchState.urls(), []);
+      })).rejects.toThrow("pstack_control_ui refused http://metadata.google.internal/: host 'metadata.google.internal' is a metadata or local-only host");
+    expect(fetchState.urls()).toEqual([]);
   } finally {
     fetchState.restore();
   }
@@ -163,10 +147,10 @@ test("pstack_control_ui honours a PSTACK_CONTROL_UI_ALLOW_HOSTS dev-server opt-i
   try {
     await withEnv("PSTACK_CONTROL_UI_ALLOW_HOSTS", "127.0.0.1:8123", async () => {
       const result = await env.tool("pstack_control_ui").execute("t", { url: "http://127.0.0.1:8123/" });
-      assert.equal(result.content[0].text, "HTTP 200 ok=true\n\ndev server up");
-      assert.deepEqual(result.details, { status: 200, ok: true });
+      expect(result.content[0].text).toBe("HTTP 200 ok=true\n\ndev server up");
+      expect(result.details).toEqual({ status: 200, ok: true });
     });
-    assert.deepEqual(fetchState.urls(), ["http://127.0.0.1:8123/"]);
+    expect(fetchState.urls()).toEqual(["http://127.0.0.1:8123/"]);
   } finally {
     fetchState.restore();
   }
@@ -175,14 +159,11 @@ test("pstack_control_ui honours a PSTACK_CONTROL_UI_ALLOW_HOSTS dev-server opt-i
 test("pstack_control_cli refuses an interpreter when PSTACK_CONTROL_CLI_INTERPRETERS=0", async () => {
   const env = companionEnv(() => ({ code: 0, stdout: "ok", stderr: "" }));
   await withEnv("PSTACK_CONTROL_CLI_INTERPRETERS", "0", async () => {
-    await assert.rejects(
-      env.tool("pstack_control_cli").execute("t", { argv: ["node", "--version"] }),
-      { message: "interpreter 'node' requires an explicit allowInterpreters opt-in" },
-    );
+    await expect(env.tool("pstack_control_cli").execute("t", { argv: ["node", "--version"] })).rejects.toThrow("interpreter 'node' requires an explicit allowInterpreters opt-in");
     const allowed = await env.tool("pstack_control_cli").execute("t", { argv: ["git", "status"] });
-    assert.equal(allowed.content[0].text, "exit 0\n\nok\n");
+    expect(allowed.content[0].text).toBe("exit 0\n\nok\n");
   });
-  assert.deepEqual(env.calls().map((call) => call.command), ["git"]);
+  expect(env.calls().map((call) => call.command)).toEqual(["git"]);
 });
 
 test("applySafeDeletes skips unknown files, non-delete actions, and lines with no target file", async () => {
@@ -222,8 +203,8 @@ test("applySafeDeletes skips unknown files, non-delete actions, and lines with n
         safeDelete: true,
       },
     ]);
-    assert.deepEqual(result, { applied: 0, files: [] });
-    assert.deepEqual(readdirSync(dir), []);
+    expect(result).toEqual({ applied: 0, files: [] });
+    expect(readdirSync(dir)).toEqual([]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

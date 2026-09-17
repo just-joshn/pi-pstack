@@ -3,8 +3,7 @@
  * the cancel path, and session shutdown. These drive those paths through the
  * public API and assert what a caller can observe.
  */
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -98,7 +97,7 @@ function makeHarness(cwd: string): Harness {
 
 function tempCwd(t: { after: (fn: () => void) => void }): string {
   const cwd = mkdtempSync(join(tmpdir(), "pstack-background-registry-"));
-  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  t.onTestFinished(() => rmSync(cwd, { recursive: true, force: true }));
   return cwd;
 }
 
@@ -119,11 +118,8 @@ test("a background spawn is recorded and listed while it runs", async (t) => {
   spawned = [];
   const harness = makeHarness(tempCwd(t));
   const jobId = await runningJobId(harness, "registry brief");
-  assert.equal(childRunner.getBackgroundJob(jobId)?.status, "running");
-  assert.deepEqual(
-    childRunner.listBackgroundJobs().map((job) => job.id),
-    [jobId],
-  );
+  expect(childRunner.getBackgroundJob(jobId)?.status).toBe("running");
+  expect(childRunner.listBackgroundJobs().map((job) => job.id)).toEqual([jobId]);
   childRunner.abortAllBackgroundJobs();
 });
 
@@ -133,10 +129,10 @@ test("cancelling a running job reaches the child process it owns", async (t) => 
   const harness = makeHarness(tempCwd(t));
   const jobId = await runningJobId(harness, "cancel brief");
   const aborted = childRunner.abortBackgroundJob(jobId);
-  assert.equal(aborted?.status, "aborted");
-  assert.deepEqual(spawned.at(-1)?.killSignals, ["SIGTERM"]);
-  assert.equal(childRunner.abortBackgroundJob(jobId)?.status, "aborted");
-  assert.equal(childRunner.getBackgroundJob(jobId)?.status, "aborted");
+  expect(aborted?.status).toBe("aborted");
+  expect(spawned.at(-1)?.killSignals).toEqual(["SIGTERM"]);
+  expect(childRunner.abortBackgroundJob(jobId)?.status).toBe("aborted");
+  expect(childRunner.getBackgroundJob(jobId)?.status).toBe("aborted");
 });
 
 test("session shutdown aborts an in-flight job and drops its record", async (t) => {
@@ -145,7 +141,7 @@ test("session shutdown aborts an in-flight job and drops its record", async (t) 
   const harness = makeHarness(tempCwd(t));
   const jobId = await runningJobId(harness, "shutdown brief");
   harness.shutdown();
-  assert.equal(childRunner.getBackgroundJob(jobId), undefined);
-  assert.deepEqual(childRunner.listBackgroundJobs(), []);
-  assert.deepEqual(spawned.at(-1)?.killSignals, ["SIGTERM"]);
+  expect(childRunner.getBackgroundJob(jobId)).toBe(undefined);
+  expect(childRunner.listBackgroundJobs()).toEqual([]);
+  expect(spawned.at(-1)?.killSignals).toEqual(["SIGTERM"]);
 });

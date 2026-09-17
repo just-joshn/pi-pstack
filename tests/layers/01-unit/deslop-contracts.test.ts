@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -146,30 +145,27 @@ function fakePi(options: { committed?: string; unstaged?: string } = {}) {
 test("deslop-01 registers the pstack_deslop tool and returns severity-ranked findings", async () => {
   const h = fakePi({ committed: COMMITTED_DIFF, unstaged: UNSTAGED_DIFF });
   const tool = h.deslop();
-  assert.equal(tool.name, "pstack_deslop");
-  assert.equal(tool.label, "Pstack Deslop");
-  assert.equal(tool.promptSnippet, "Scan diff for prose/code slop before commit");
-  assert.deepEqual(Object.keys(tool.parameters.properties), [
+  expect(tool.name).toBe("pstack_deslop");
+  expect(tool.label).toBe("Pstack Deslop");
+  expect(tool.promptSnippet).toBe("Scan diff for prose/code slop before commit");
+  expect(Object.keys(tool.parameters.properties)).toEqual([
     "base",
     "paths",
     "applySafe",
     "autoApply",
     "dryRun",
   ]);
-  assert.equal(typeof tool.execute, "function");
+  expect(typeof tool.execute).toBe("function");
 
   const dir = fixtureDir({ "app.ts": APP_ORIGINAL, "working.ts": WORKING_ORIGINAL });
   try {
     const out = await tool.execute("t", {}, undefined, undefined, { cwd: dir, ui: {} });
-    assert.deepEqual(
-      out.details.findings.map((f) => [f.severity, f.label, f.count]),
-      [
+    expect(out.details.findings.map((f) => [f.severity, f.label, f.count])).toEqual([
         ["high", "narration / alibi comment", 2],
         ["high", "debug console in diff", 1],
         ["low", "empty comment line", 1],
-      ],
-    );
-    assert.match(out.content[0].text, /^pstack_deslop findings:/);
+      ]);
+    expect(out.content[0].text).toMatch(/^pstack_deslop findings:/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -179,16 +175,13 @@ test("deslop-02 rejects invalid base refs and accepts a clean ref", async () => 
   const h = fakePi({ committed: COMMITTED_DIFF });
   const ctx = { cwd: "/tmp", ui: {} };
   for (const bad of ["-x", "main..HEAD", "feature branch", ".hidden"]) {
-    await assert.rejects(
-      () => h.deslop().execute("t", { base: bad }, undefined, undefined, ctx),
-      /invalid git diff base/,
-    );
+    await expect(() => h.deslop().execute("t", { base: bad }, undefined, undefined, ctx)).rejects.toThrow(/invalid git diff base/);
   }
-  assert.equal(h.execCalls().length, 0, "a rejected base never reaches git");
+  expect(h.execCalls().length, "a rejected base never reaches git").toBe(0);
 
   await h.deslop().execute("t", { base: "develop" }, undefined, undefined, ctx);
-  assert.equal(h.execCalls()[0].cmd, "git");
-  assert.deepEqual(h.execCalls()[0].args, ["diff", "-U3", "develop...HEAD"]);
+  expect(h.execCalls()[0].cmd).toBe("git");
+  expect(h.execCalls()[0].args).toEqual(["diff", "-U3", "develop...HEAD"]);
 });
 
 test("deslop-03 scans committed and unstaged diffs with the expected git args", async () => {
@@ -196,63 +189,51 @@ test("deslop-03 scans committed and unstaged diffs with the expected git args", 
   const dir = fixtureDir({ "app.ts": APP_ORIGINAL, "working.ts": WORKING_ORIGINAL });
   try {
     const out = await h.deslop().execute("t", {}, undefined, undefined, { cwd: dir, ui: {} });
-    assert.deepEqual(
-      h.execCalls().map((c) => c.args),
-      [
+    expect(h.execCalls().map((c) => c.args)).toEqual([
         ["diff", "-U3", "main...HEAD"],
         ["diff", "-U3"],
-      ],
-    );
-    assert.deepEqual(
-      out.details.suggestions.map((s) => s.file),
-      ["app.ts", "app.ts", "app.ts", "working.ts"],
-    );
-    assert.equal(out.details.suggestions[3].line, "// NOTE: legacy shim");
+      ]);
+    expect(out.details.suggestions.map((s) => s.file)).toEqual(["app.ts", "app.ts", "app.ts", "working.ts"]);
+    expect(out.details.suggestions[3].line).toBe("// NOTE: legacy shim");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("deslop-04 enforces 19 rules categorized into three severities", () => {
-  assert.equal(SLOP_PATTERNS.length, 19);
+  expect(SLOP_PATTERNS.length).toBe(19);
   const counts = SLOP_PATTERNS.reduce(
     (acc: Record<string, number>, p) => ({ ...acc, [p.severity]: (acc[p.severity] ?? 0) + 1 }),
     {},
   );
-  assert.deepEqual(counts, { high: 7, medium: 9, low: 3 });
-  assert.deepEqual([...new Set(SLOP_PATTERNS.map((p) => p.severity))].toSorted(), [
+  expect(counts).toEqual({ high: 7, medium: 9, low: 3 });
+  expect([...new Set(SLOP_PATTERNS.map((p) => p.severity))].toSorted()).toEqual([
     "high",
     "low",
     "medium",
   ]);
-  assert.equal(new Set(SLOP_PATTERNS.map((p) => p.label)).size, 19);
-  assert.deepEqual(
-    [...new Set(SLOP_PATTERNS.map((p) => p.suggestion))].toSorted(),
-    ["delete-line", "remove-emoji", "rewrite-prose", "tighten-type"],
-  );
+  expect(new Set(SLOP_PATTERNS.map((p) => p.label)).size).toBe(19);
+  expect([...new Set(SLOP_PATTERNS.map((p) => p.suggestion))].toSorted()).toEqual(["delete-line", "remove-emoji", "rewrite-prose", "tighten-type"]);
 });
 
 test("deslop-05 applySafeDeletes removes safe comments and keeps console and code", async () => {
   const dir = fixtureDir({ "app.ts": APP_ORIGINAL });
   try {
     const { suggestions, rankedLabels } = scanAddedLinesForSlop(APP_SUGGESTION_ROWS);
-    assert.deepEqual(
-      suggestions.map((s) => [s.label, s.severity, s.safeDelete]),
-      [
+    expect(suggestions.map((s) => [s.label, s.severity, s.safeDelete])).toEqual([
         ["narration / alibi comment", "high", true],
         ["debug console in diff", "high", false],
         ["empty comment line", "low", true],
-      ],
-    );
-    assert.deepEqual(rankedLabels, [
+      ]);
+    expect(rankedLabels).toEqual([
       "narration / alibi comment",
       "debug console in diff",
       "empty comment line",
     ]);
 
     const result = await applySafeDeletes(dir, suggestions);
-    assert.deepEqual(result, { applied: 2, files: ["app.ts"] });
-    assert.equal(readFileSync(join(dir, "app.ts"), "utf8"), APP_CLEAN);
+    expect(result).toEqual({ applied: 2, files: ["app.ts"] });
+    expect(readFileSync(join(dir, "app.ts"), "utf8")).toBe(APP_CLEAN);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -278,18 +259,15 @@ test("deslop-06 dryRun overrides applySafe and autoApply without mutating files"
         },
       },
     );
-    assert.equal(confirmCalls, 0, "dryRun returns before the autoApply prompt");
-    assert.deepEqual(out.details.apply, {
+    expect(confirmCalls, "dryRun returns before the autoApply prompt").toBe(0);
+    expect(out.details.apply).toEqual({
       applied: 0,
       files: ["app.ts", "working.ts"],
       dryRun: true,
     });
-    assert.match(
-      out.content[0].text,
-      /dryRun: would remove 3 safeDelete line\(s\) across 2 file\(s\) \(no writes\)$/,
-    );
-    assert.equal(readFileSync(join(dir, "app.ts"), "utf8"), APP_ORIGINAL);
-    assert.equal(readFileSync(join(dir, "working.ts"), "utf8"), WORKING_ORIGINAL);
+    expect(out.content[0].text).toMatch(/dryRun: would remove 3 safeDelete line\(s\) across 2 file\(s\) \(no writes\)$/);
+    expect(readFileSync(join(dir, "app.ts"), "utf8")).toBe(APP_ORIGINAL);
+    expect(readFileSync(join(dir, "working.ts"), "utf8")).toBe(WORKING_ORIGINAL);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -312,15 +290,15 @@ test("deslop-07 autoApply prompts before deleting and honors decline or missing 
         },
       },
     });
-    assert.deepEqual(prompts, [
+    expect(prompts).toEqual([
       {
         title: "pstack_deslop autoApply",
         msg: "Delete 3 safe slop line(s)?",
         contentBefore: APP_ORIGINAL,
       },
     ]);
-    assert.deepEqual(accepted.details.apply, { applied: 3, files: ["app.ts", "working.ts"] });
-    assert.equal(readFileSync(join(dir, "app.ts"), "utf8"), APP_CLEAN);
+    expect(accepted.details.apply).toEqual({ applied: 3, files: ["app.ts", "working.ts"] });
+    expect(readFileSync(join(dir, "app.ts"), "utf8")).toBe(APP_CLEAN);
 
     writeFileSync(join(dir, "app.ts"), APP_ORIGINAL, "utf8");
     writeFileSync(join(dir, "working.ts"), WORKING_ORIGINAL, "utf8");
@@ -328,19 +306,16 @@ test("deslop-07 autoApply prompts before deleting and honors decline or missing 
       cwd: dir,
       ui: { confirm: async () => false },
     });
-    assert.equal(declined.details.apply, undefined);
-    assert.match(declined.content[0].text, /autoApply: declined by operator$/);
-    assert.equal(readFileSync(join(dir, "app.ts"), "utf8"), APP_ORIGINAL);
+    expect(declined.details.apply).toBe(undefined);
+    expect(declined.content[0].text).toMatch(/autoApply: declined by operator$/);
+    expect(readFileSync(join(dir, "app.ts"), "utf8")).toBe(APP_ORIGINAL);
 
     const skipped = await h.deslop().execute("t", { autoApply: true }, undefined, undefined, {
       cwd: dir,
       ui: {},
     });
-    assert.match(
-      skipped.content[0].text,
-      /autoApply: skipped \(no UI confirm available; pass applySafe:true to apply\)$/,
-    );
-    assert.equal(readFileSync(join(dir, "app.ts"), "utf8"), APP_ORIGINAL);
+    expect(skipped.content[0].text).toMatch(/autoApply: skipped \(no UI confirm available; pass applySafe:true to apply\)$/);
+    expect(readFileSync(join(dir, "app.ts"), "utf8")).toBe(APP_ORIGINAL);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -348,7 +323,7 @@ test("deslop-07 autoApply prompts before deleting and honors decline or missing 
 
 test("deslop-08 the deslop command queues the deslop plus unslop prompt", async () => {
   const h = fakePi();
-  assert.deepEqual([...h.commands.keys()], ["deslop"]);
+  expect([...h.commands.keys()]).toEqual(["deslop"]);
   let notices: Array<{ msg: string; level: string }> = [];
   await h.commands.get("deslop")!.handler([], {
     ui: {
@@ -357,54 +332,48 @@ test("deslop-08 the deslop command queues the deslop plus unslop prompt", async 
       },
     },
   });
-  assert.deepEqual(h.sent(), [
+  expect(h.sent()).toEqual([
     {
       text: "Run pstack_deslop on the current diff against main (consider applySafe:true for safe comment deletes), then apply /skill:unslop to any prose surfaces and fix remaining findings with edit.",
       opts: { expandPromptTemplates: true, deliverAs: "followUp" },
     },
   ]);
-  assert.deepEqual(notices, [{ msg: "Queued deslop twin", level: "info" }]);
+  expect(notices).toEqual([{ msg: "Queued deslop twin", level: "info" }]);
 });
 
 test("deslop-09 defaults the base parameter to main", async () => {
   const h = fakePi({ committed: COMMITTED_DIFF });
   const out = await h.deslop().execute("t", {}, undefined, undefined, { cwd: "/tmp", ui: {} });
-  assert.deepEqual(h.execCalls()[0].args, ["diff", "-U3", "main...HEAD"]);
-  assert.equal(out.details.findings.length, 3);
+  expect(h.execCalls()[0].args).toEqual(["diff", "-U3", "main...HEAD"]);
+  expect(out.details.findings.length).toBe(3);
 });
 
 test("deslop-10 restricts the scan with the paths array and rejects unsafe paths", async () => {
   const h = fakePi({ committed: COMMITTED_DIFF });
   const ctx = { cwd: "/tmp", ui: {} };
   await h.deslop().execute("t", { paths: ["src", "lib"] }, undefined, undefined, ctx);
-  assert.deepEqual(h.execCalls()[0].args, ["diff", "-U3", "main...HEAD", "--", "src", "lib"]);
-  assert.deepEqual(h.execCalls()[1].args, ["diff", "-U3"]);
+  expect(h.execCalls()[0].args).toEqual(["diff", "-U3", "main...HEAD", "--", "src", "lib"]);
+  expect(h.execCalls()[1].args).toEqual(["diff", "-U3"]);
 
   for (const bad of [["-x"], ["src\0evil"]]) {
-    await assert.rejects(
-      () => h.deslop().execute("t", { paths: bad }, undefined, undefined, ctx),
-      /invalid path/,
-    );
+    await expect(() => h.deslop().execute("t", { paths: bad }, undefined, undefined, ctx)).rejects.toThrow(/invalid path/);
   }
-  assert.equal(h.execCalls().length, 2, "a rejected path never reaches git");
+  expect(h.execCalls().length, "a rejected path never reaches git").toBe(2);
 });
 
 test("deslop-11 applySafe true mutates files and reports removed lines", async () => {
   const h = fakePi({ committed: COMMITTED_DIFF, unstaged: UNSTAGED_DIFF });
-  assert.equal(h.deslop().parameters.properties.applySafe.type, "boolean");
+  expect(h.deslop().parameters.properties.applySafe.type).toBe("boolean");
   const dir = fixtureDir({ "app.ts": APP_ORIGINAL, "working.ts": WORKING_ORIGINAL });
   try {
     const out = await h.deslop().execute("t", { applySafe: true }, undefined, undefined, {
       cwd: dir,
       ui: {},
     });
-    assert.deepEqual(out.details.apply, { applied: 3, files: ["app.ts", "working.ts"] });
-    assert.match(
-      out.content[0].text,
-      /applySafe: removed 3 line\(s\) in 2 file\(s\): app\.ts, working\.ts$/,
-    );
-    assert.equal(readFileSync(join(dir, "app.ts"), "utf8"), APP_CLEAN);
-    assert.equal(readFileSync(join(dir, "working.ts"), "utf8"), WORKING_CLEAN);
+    expect(out.details.apply).toEqual({ applied: 3, files: ["app.ts", "working.ts"] });
+    expect(out.content[0].text).toMatch(/applySafe: removed 3 line\(s\) in 2 file\(s\): app\.ts, working\.ts$/);
+    expect(readFileSync(join(dir, "app.ts"), "utf8")).toBe(APP_CLEAN);
+    expect(readFileSync(join(dir, "working.ts"), "utf8")).toBe(WORKING_CLEAN);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -412,7 +381,7 @@ test("deslop-11 applySafe true mutates files and reports removed lines", async (
 
 test("deslop-12 autoApply true is accepted and confirms before mutation", async () => {
   const h = fakePi({ committed: COMMITTED_DIFF, unstaged: UNSTAGED_DIFF });
-  assert.equal(h.deslop().parameters.properties.autoApply.type, "boolean");
+  expect(h.deslop().parameters.properties.autoApply.type).toBe("boolean");
   const dir = fixtureDir({ "app.ts": APP_ORIGINAL, "working.ts": WORKING_ORIGINAL });
   let prompts = 0;
   try {
@@ -425,9 +394,9 @@ test("deslop-12 autoApply true is accepted and confirms before mutation", async 
         },
       },
     });
-    assert.equal(prompts, 1);
-    assert.deepEqual(out.details.apply, { applied: 3, files: ["app.ts", "working.ts"] });
-    assert.equal(readFileSync(join(dir, "app.ts"), "utf8"), APP_CLEAN);
+    expect(prompts).toBe(1);
+    expect(out.details.apply).toEqual({ applied: 3, files: ["app.ts", "working.ts"] });
+    expect(readFileSync(join(dir, "app.ts"), "utf8")).toBe(APP_CLEAN);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -435,19 +404,19 @@ test("deslop-12 autoApply true is accepted and confirms before mutation", async 
 
 test("deslop-13 dryRun true is accepted and reports without writing", async () => {
   const h = fakePi({ committed: COMMITTED_DIFF, unstaged: UNSTAGED_DIFF });
-  assert.equal(h.deslop().parameters.properties.dryRun.type, "boolean");
+  expect(h.deslop().parameters.properties.dryRun.type).toBe("boolean");
   const dir = fixtureDir({ "app.ts": APP_ORIGINAL, "working.ts": WORKING_ORIGINAL });
   try {
     const out = await h.deslop().execute("t", { dryRun: true }, undefined, undefined, {
       cwd: dir,
       ui: {},
     });
-    assert.deepEqual(out.details.apply, {
+    expect(out.details.apply).toEqual({
       applied: 0,
       files: ["app.ts", "working.ts"],
       dryRun: true,
     });
-    assert.equal(readFileSync(join(dir, "app.ts"), "utf8"), APP_ORIGINAL);
+    expect(readFileSync(join(dir, "app.ts"), "utf8")).toBe(APP_ORIGINAL);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -456,26 +425,26 @@ test("deslop-13 dryRun true is accepted and reports without writing", async () =
 test("deslop-14 caps suggestions at 80", async () => {
   const rows = Array.from({ length: 100 }, (_, i) => ({ file: "app.ts", text: `Simply value ${i}` }));
   const { suggestions, rankedLabels } = scanAddedLinesForSlop(rows);
-  assert.equal(suggestions.length, 80);
-  assert.equal(suggestions[0].line, "Simply value 0");
-  assert.equal(suggestions[79].line, "Simply value 79");
-  assert.deepEqual(rankedLabels, ["hedge/filler adverb"]);
+  expect(suggestions.length).toBe(80);
+  expect(suggestions[0].line).toBe("Simply value 0");
+  expect(suggestions[79].line).toBe("Simply value 79");
+  expect(rankedLabels).toEqual(["hedge/filler adverb"]);
 
   const diff = ["+++ b/app.ts", ...rows.map((r) => `+${r.text}`)].join("\n");
   const h = fakePi({ committed: diff });
   const out = await h.deslop().execute("t", {}, undefined, undefined, { cwd: "/tmp", ui: {} });
-  assert.equal(out.details.suggestions.length, 80);
+  expect(out.details.suggestions.length).toBe(80);
 });
 
 test("deslop-15 limits samples to 5 per rule", async () => {
   const rows = Array.from({ length: 7 }, (_, i) => `+console.log(${i + 1})`);
   const h = fakePi({ committed: ["+++ b/app.ts", ...rows].join("\n") });
   const out = await h.deslop().execute("t", {}, undefined, undefined, { cwd: "/tmp", ui: {} });
-  assert.equal(out.details.findings.length, 1);
+  expect(out.details.findings.length).toBe(1);
   const finding = out.details.findings[0];
-  assert.equal(finding.label, "debug console in diff");
-  assert.equal(finding.count, 7);
-  assert.deepEqual(finding.samples, [
+  expect(finding.label).toBe("debug console in diff");
+  expect(finding.count).toBe(7);
+  expect(finding.samples).toEqual([
     "app.ts: console.log(1)",
     "app.ts: console.log(2)",
     "app.ts: console.log(3)",
@@ -488,11 +457,11 @@ test("deslop-16 limits the fix block to 25 lines", async () => {
   const rows = Array.from({ length: 30 }, (_, i) => `+Simply value ${i}`);
   const h = fakePi({ committed: ["+++ b/app.ts", ...rows].join("\n") });
   const out = await h.deslop().execute("t", {}, undefined, undefined, { cwd: "/tmp", ui: {} });
-  assert.equal(out.details.suggestions.length, 30);
+  expect(out.details.suggestions.length).toBe(30);
   const marker = "Structured fixes (apply via edit, or re-run with applySafe:true for safeDelete lines):\n";
   const block = out.content[0].text.split(marker)[1].split("\n\nThen /skill:unslop")[0];
   const lines = block.split("\n");
-  assert.equal(lines.length, 25);
-  assert.equal(lines[0], "- rewrite-prose [medium] app.ts: Simply value 0 (hedge/filler adverb)");
-  assert.equal(lines[24], "- rewrite-prose [medium] app.ts: Simply value 24 (hedge/filler adverb)");
+  expect(lines.length).toBe(25);
+  expect(lines[0]).toBe("- rewrite-prose [medium] app.ts: Simply value 0 (hedge/filler adverb)");
+  expect(lines[24]).toBe("- rewrite-prose [medium] app.ts: Simply value 24 (hedge/filler adverb)");
 });

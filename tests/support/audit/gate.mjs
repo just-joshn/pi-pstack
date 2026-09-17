@@ -10,13 +10,14 @@ import {
   repoPath,
   runNode,
   runProcess,
+  runVitest,
   verdict,
   withNamedTempDir,
   withTempDir,
 } from "./harness.mjs";
 
-const COVERAGE_FUNCTIONS = /--test-coverage-functions=(\d+)/;
-const COVERAGE_INCLUDE = /--test-coverage-include=(?:"([^"]+)"|(\S+))/g;
+const COVERAGE_THRESHOLD_MIN = 80;
+const FLAKE_FILE = "tests/layers/01-unit/integrations-registry.test.ts";
 const SCRIPT_REFERENCE = /npm run ([a-z0-9:_-]+)|npm-run-all\s+(.+)/g;
 
 function packageScripts() {
@@ -61,29 +62,41 @@ async function gateTypecheckInTest() {
   );
 }
 
+/**
+ * Import the config the gates are checked against, so a moved threshold is read
+ * from the real object instead of a regex over its source.
+ */
+async function vitestCoverage() {
+  const config = await import(new URL("../../../vitest.config.ts", import.meta.url).href);
+  const coverage = config.default?.test?.coverage;
+  if (!coverage) throw new Error("vitest.config.ts declares no test.coverage block");
+  return coverage;
+}
+
 async function gateCoverageFunctions() {
-  const scripts = packageScripts();
-  const body = scripts["test:coverage"];
-  if (!body) return fail("package.json has no test:coverage script");
-  const match = COVERAGE_FUNCTIONS.exec(body);
-  if (!match) return fail(`test:coverage sets no --test-coverage-functions threshold: ${body}`);
+  const coverage = await vitestCoverage();
+  const { functions, branches } = coverage.thresholds ?? {};
+  if (typeof functions !== "number") {
+    return fail(
+      `vitest.config.ts test.coverage.thresholds declares no functions threshold: ${JSON.stringify(coverage.thresholds ?? null)}`,
+    );
+  }
+  const enough = functions >= COVERAGE_THRESHOLD_MIN && typeof branches === "number" && branches >= COVERAGE_THRESHOLD_MIN;
   return verdict(
-    Number(match[1]) >= 80,
-    `test:coverage enforces --test-coverage-functions=${match[1]}`,
-    `test:coverage sets --test-coverage-functions=${match[1]}, below the required 80`,
+    enough,
+    `vitest.config.ts enforces coverage thresholds functions=${functions}, branches=${branches}`,
+    `vitest.config.ts coverage thresholds are functions=${functions}, branches=${branches}; both must be at least ${COVERAGE_THRESHOLD_MIN}`,
   );
 }
 
 async function gateCoverageScope() {
-  const scripts = packageScripts();
-  const body = scripts["test:coverage"];
-  if (!body) return fail("package.json has no test:coverage script");
-  const includes = [...body.matchAll(COVERAGE_INCLUDE)].map((match) => match[1] ?? match[2]);
-  const covered = includes.some((glob) => glob.startsWith("services/"));
+  const coverage = await vitestCoverage();
+  const includes = coverage.include ?? [];
+  const covered = includes.some((glob) => String(glob).startsWith("services/"));
   return verdict(
     covered,
-    `test:coverage includes services: ${includes.join(", ")}`,
-    `--test-coverage-include covers only ${includes.join(", ") || "(nothing)"}; services/** is never measured`,
+    `vitest.config.ts coverage include covers services: ${includes.join(", ")}`,
+    `vitest.config.ts test.coverage.include covers only ${includes.join(", ") || "(nothing)"}; services/** is never measured`,
   );
 }
 
@@ -98,45 +111,34 @@ const CHILD_POLICY = JSON.stringify({
   isolation: "session",
 });
 
+/** Vitest's exit code plus its output tail, which names the failing file. */
 function summarize(run) {
-  const failLine = /# fail (\d+)/.exec(run.stdout);
-  const failed = failLine ? failLine[1] : "unknown";
-  const first = run.stdout
+  const lines = `${run.stdout}\n${run.stderr}`
     .split("\n")
-    .find((line) => line.trimStart().startsWith("not ok"));
-  const assertion = run.stdout.split("\n").find((line) => line.includes("AssertionError"));
-  return `${failed} failing test(s); first: ${(first ?? "(none captured)").trim()}${assertion ? ` | ${assertion.trim()}` : ""}`;
-}
-
-function unitTestFiles() {
-  const dir = repoPath("tests/layers/01-unit");
-  return readdirSync(dir)
-    .filter((name) => name.endsWith(".test.ts"))
-    .toSorted()
-    .map((name) => join(dir, name));
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const tail = lines.slice(-4).join(" | ") || "(no output captured)";
+  return `exit ${run.code}${run.timedOut ? " (timed out)" : ""}: ${tail}`;
 }
 
 async function gateSelfHosting() {
-  const run = await runNode(["--test", "--test-reporter=tap", ...unitTestFiles()], {
+  const run = await runVitest(["run", "--project", "unit"], {
     env: { PSTACK_CHILD_POLICY: CHILD_POLICY },
   });
   return verdict(
     run.code === 0,
     "the unit layer passes with PSTACK_CHILD_POLICY set in the environment",
-    `the unit layer fails when PSTACK_CHILD_POLICY is inherited (exit ${run.code}): ${summarize(run)}`,
+    `the unit layer fails when PSTACK_CHILD_POLICY is inherited (${summarize(run)})`,
   );
 }
 
 async function gateTmpdirFlake() {
   return await withNamedTempDir("harness-evil", async (dir) => {
-    const run = await runNode(
-      ["--test", "--test-reporter=tap", repoPath("tests/layers/01-unit/integrations-registry.test.ts")],
-      { env: { TMPDIR: dir } },
-    );
+    const run = await runVitest(["run", "--project", "unit", FLAKE_FILE], { env: { TMPDIR: dir } });
     return verdict(
       run.code === 0,
       `integrations-registry passes with TMPDIR=${dir}`,
-      `integrations-registry fails under TMPDIR=${dir} (exit ${run.code}): ${summarize(run)}`,
+      `integrations-registry fails under TMPDIR=${dir} (${summarize(run)})`,
     );
   });
 }
@@ -262,7 +264,7 @@ async function gateSanitizerSync() {
 export const GATE_PREDICATES = Object.freeze([
   { id: "GATE-01", description: "the repo has a strict typecheck script and it exits 0", run: gateTypecheckClean },
   { id: "GATE-02", description: "npm test transitively invokes the typecheck script", run: gateTypecheckInTest },
-  { id: "GATE-03", description: "the coverage gate enforces --test-coverage-functions>=80", run: gateCoverageFunctions },
+  { id: "GATE-03", description: "enforces a functions coverage threshold of at least 80", run: gateCoverageFunctions },
   { id: "GATE-04", description: "the coverage scope includes services/**", run: gateCoverageScope },
   { id: "GATE-05", description: "the unit suite is self-hosting-safe under PSTACK_CHILD_POLICY", run: gateSelfHosting },
   { id: "GATE-06", description: "the unit suite does not flake on a TMPDIR containing '-e'", run: gateTmpdirFlake },

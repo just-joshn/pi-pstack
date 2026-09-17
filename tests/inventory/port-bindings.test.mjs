@@ -5,10 +5,9 @@
  * the byte-identical set carries no leftover token now that the port checker
  * scans it.
  */
-import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { extname, join } from "node:path";
-import test from "node:test";
+import { expect, test } from "vitest";
 import { repoRoot } from "../support/repo-root.mjs";
 import { leftoverTokens } from "../../port/bindings/index.mjs";
 import { resolveUpstreamRoot, walkArtifacts } from "../../compat/lib/inventory.mjs";
@@ -45,38 +44,35 @@ function identicalText(rel) {
 
 test("swarm states the concurrency cap without shrinking N", () => {
   const text = read("skills/swarm/SKILL.md");
-  assert.ok(text.includes("N is total workers; the Pi concurrency cap is 8"), "the worker total and the cap stay distinct");
-  assert.ok(!text.includes("accepts at most 8 per call"), "N is not capped at 8 per call");
+  expect(text.includes("N is total workers; the Pi concurrency cap is 8"), "the worker total and the cap stay distinct").toBeTruthy();
+  expect(!text.includes("accepts at most 8 per call"), "N is not capped at 8 per call").toBeTruthy();
 });
 
 test("why names one spawn tool per subagent config block", () => {
   const text = read("skills/why/SKILL.md");
   const taskRole = text.split("- `role`: `general` via `pstack_task`").length - 1;
-  assert.equal(taskRole, 2, "both the investigator and synthesizer stanzas name pstack_task");
-  assert.ok(
-    !text.includes("- `role`: `general` via `pstack_spawn`"),
-    "the why stanzas do not name the pstack_spawn alias alongside pstack_task",
-  );
+  expect(taskRole, "both the investigator and synthesizer stanzas name pstack_task").toBe(2);
+  expect(!text.includes("- `role`: `general` via `pstack_spawn`"), "the why stanzas do not name the pstack_spawn alias alongside pstack_task").toBeTruthy();
 });
 
 test("worktree-audit scans only this workspace's session directory", () => {
   const text = read("skills/poteto-mode/scripts/worktree-audit.sh");
-  assert.ok(text.includes('transcripts="$pi_home/sessions/--$slug--"'), "the transcript path is scoped to the encoded workspace");
-  assert.ok(text.includes("# Transcripts dir: $HOME/.pi/agent/sessions"), "the comment documents the store root");
+  expect(text.includes('transcripts="$pi_home/sessions/--$slug--"'), "the transcript path is scoped to the encoded workspace").toBeTruthy();
+  expect(text.includes("# Transcripts dir: $HOME/.pi/agent/sessions"), "the comment documents the store root").toBeTruthy();
   const unscoped = text
     .split("\n")
     .filter((line) => !line.trim().startsWith("#"))
     .filter((line) => /\$HOME\/\.pi\/agent\/sessions|~\/\.pi\/agent\/sessions/.test(line));
-  assert.deepEqual(unscoped, [], `unscoped session-store reads: ${unscoped.join(" | ")}`);
+  expect(unscoped, `unscoped session-store reads: ${unscoped.join(" | ")}`).toEqual([]);
 });
 
 test("no byte-identical ported file carries a leftover token", () => {
-  assert.ok(upstream, "pinned upstream clone missing; run `npm run parity:check` first");
+  expect(upstream, "pinned upstream clone missing; run `npm run parity:check` first").toBeTruthy();
   const scoped = LOCK.scoped ?? [];
   const artifacts = walkArtifacts(upstream.root, scoped).filter((rel) => scoped.some((dir) => rel.startsWith(`${dir}/`)));
   const offenders = artifacts.flatMap((rel) => {
     const text = identicalText(rel);
     return text === null ? [] : scanLeftovers(rel, text).map((hit) => `${rel}: ${hit}`);
   });
-  assert.deepEqual(offenders, [], `leftover tokens survive in byte-identical files:\n${offenders.join("\n")}`);
+  expect(offenders, `leftover tokens survive in byte-identical files:\n${offenders.join("\n")}`).toEqual([]);
 });

@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import { ok } from "node:assert/strict";
+import { expect, test } from "vitest";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmuxAvailable, withTmux } from "../../support/tmux-driver.mjs";
@@ -29,9 +28,9 @@ export default function (pi: ExtensionAPI) {
 
         const startIdx = pane.indexOf("SESSION_START:startup");
         const markerIdx = pane.indexOf("TUI_MARKER_V1");
-        ok(startIdx !== -1);
-        ok(markerIdx !== -1);
-        ok(startIdx < markerIdx);
+        expect(startIdx !== -1).toBeTruthy();
+        expect(markerIdx !== -1).toBeTruthy();
+        expect(startIdx < markerIdx).toBeTruthy();
       },
       { cwd: tmp.cwd, env: tmp.env(), argv: ["pi", "-a", "--no-session"] },
     );

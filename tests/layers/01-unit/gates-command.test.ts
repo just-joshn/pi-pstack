@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { registerGates } from "../../../extensions/gates/index.ts";
 
 type Handler = (args: string, ctx: unknown) => Promise<void>;
@@ -41,9 +40,9 @@ test("/pstack-gates fails a PR that the merge gate would block", async () => {
     reviewDecision: null,
   });
   await env.commands.get("pstack-gates")?.handler("42", env.ctx);
-  assert.equal(env.notifications().at(-1)?.level, "error");
-  assert.match(env.notifications().at(-1)?.message ?? "", /mergeStateStatus=BLOCKED/);
-  assert.match(env.messages().at(-1) ?? "", /Do not ship/);
+  expect(env.notifications().at(-1)?.level).toBe("error");
+  expect(env.notifications().at(-1)?.message ?? "").toMatch(/mergeStateStatus=BLOCKED/);
+  expect(env.messages().at(-1) ?? "").toMatch(/Do not ship/);
 });
 
 test("/pstack-gates passes a merge-ready PR", async () => {
@@ -54,7 +53,7 @@ test("/pstack-gates passes a merge-ready PR", async () => {
     reviewDecision: "APPROVED",
   });
   await env.commands.get("pstack-gates")?.handler("42", env.ctx);
-  assert.equal(env.notifications().at(-1)?.level, "info");
-  assert.match(env.notifications().at(-1)?.message ?? "", /Gate check PASS/);
-  assert.match(env.messages().at(-1) ?? "", /Still run unslop/);
+  expect(env.notifications().at(-1)?.level).toBe("info");
+  expect(env.notifications().at(-1)?.message ?? "").toMatch(/Gate check PASS/);
+  expect(env.messages().at(-1) ?? "").toMatch(/Still run unslop/);
 });

@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { repoRoot } from "../../support/repo-root.mjs";
@@ -20,7 +19,7 @@ function missingSteps(text: string, needles: string[]): string[] {
 }
 
 function assertSteps(label: string, text: string, needles: string[]): void {
-  assert.deepEqual(missingSteps(text, needles), [], `${label} must keep every mandated step`);
+  expect(missingSteps(text, needles), `${label} must keep every mandated step`).toEqual([]);
 }
 
 const WHY_CATEGORY_HEADINGS = [
@@ -85,7 +84,7 @@ test("how skill keeps the simple and complex branches and the configured roles",
 
 test("why skill keeps all seven evidence categories and the null-finding rule", () => {
   const text = skill("why");
-  assert.equal(WHY_CATEGORY_HEADINGS.length, 7, "the roster stays at seven evidence categories");
+  expect(WHY_CATEGORY_HEADINGS.length, "the roster stays at seven evidence categories").toBe(7);
   assertSteps("why", text, WHY_CATEGORY_HEADINGS);
   assertSteps("why", text, [
     "Aim for a complete **coverage map**, not a minimal one.",
@@ -168,10 +167,10 @@ test("automate-me skill keeps the placement paths and the two-step corroboration
 
 test("poteto-mode skill keeps the 23-playbook table and the todos contract", () => {
   const text = skill("poteto-mode");
-  assert.equal(PLAYBOOK_IDS.length, 23, "the playbook table stays at 23 entries");
+  expect(PLAYBOOK_IDS.length, "the playbook table stays at 23 entries").toBe(23);
   const section = text.slice(text.indexOf("## Playbooks"));
   const ids = [...section.matchAll(/playbooks\/([a-z0-9-]+)\.md/g)].map((match) => match[1]);
-  assert.deepEqual(ids, PLAYBOOK_IDS, "the playbook table lists every playbook once, in order");
+  expect(ids, "the playbook table lists every playbook once, in order").toEqual(PLAYBOOK_IDS);
   assertSteps("poteto-mode", text, [
     "Open a todolist whose first items are the matched playbook's steps, copied in verbatim, before any task-specific todos.",
     "A step you choose not to do stays in the list with a one-line `skip: <reason>`.",
@@ -196,14 +195,14 @@ test("slash command shims register every workflow skill name", () => {
   registerSkillCommands(pi);
   const registered = names();
   const absent = WORKFLOW_COMMAND_NAMES.filter((name) => !registered.includes(name));
-  assert.deepEqual(absent, [], "every workflow skill keeps its /name shim");
+  expect(absent, "every workflow skill keeps its /name shim").toEqual([]);
 });
 
 test("the extension entry registers the poteto runtime before the readonly runtime", () => {
   const text = file("extensions/index.ts");
   const potetoAt = text.indexOf("createPotetoRuntime(pi,");
   const readonlyAt = text.indexOf("createReadonlyRuntime(pi)");
-  assert.equal(potetoAt >= 0, true, "the poteto runtime is registered");
-  assert.equal(readonlyAt >= 0, true, "the readonly runtime is registered");
-  assert.equal(potetoAt < readonlyAt, true, "the poteto runtime registers before the readonly runtime");
+  expect(potetoAt >= 0, "the poteto runtime is registered").toBe(true);
+  expect(readonlyAt >= 0, "the readonly runtime is registered").toBe(true);
+  expect(potetoAt < readonlyAt, "the poteto runtime registers before the readonly runtime").toBe(true);
 });

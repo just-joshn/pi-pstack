@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { withRpc } from "../../support/rpc-client.mjs";
@@ -20,35 +19,29 @@ test("setup-pstack writes the chosen budget to the HOME config", async () => {
     const promptDone = rpc.prompt("/setup-pstack");
 
     const select = await rpc.ui("select");
-    assert.equal(select.title, "pstack budget");
-    assert.deepEqual(select.options, BUDGET_OPTIONS);
+    expect(select.title).toBe("pstack budget");
+    expect(select.options).toEqual(BUDGET_OPTIONS);
     rpc.respondUi(select.id, { value: "medium — high reasoning" });
 
     const confirm = await rpc.ui("confirm");
-    assert.equal(confirm.title, "Write defaults?");
-    assert.match(
-      confirm.message,
-      /^Write role defaults \(inherit-parent \/ mapped provider ids — no bare marketing slugs\) \(budget: medium — high reasoning\) to .*pstack-models\.json\?$/,
-    );
-    assert.ok(confirm.message.includes(rpc.tmp.home), `confirm missing HOME: ${confirm.message}`);
+    expect(confirm.title).toBe("Write defaults?");
+    expect(confirm.message).toMatch(/^Write role defaults \(inherit-parent \/ mapped provider ids — no bare marketing slugs\) \(budget: medium — high reasoning\) to .*pstack-models\.json\?$/);
+    expect(confirm.message.includes(rpc.tmp.home), `confirm missing HOME: ${confirm.message}`).toBeTruthy();
     rpc.respondUi(confirm.id, { confirmed: true });
 
     const notify = await rpc.ui("notify");
-    assert.match(
-      notify.message,
-      /^Wrote .*pstack-models\.json \(edit to set real provider\/id\)\. Bare Cursor marketing slugs are mapped or refused\.$/,
-    );
-    assert.equal(notify.notifyType, "info");
+    expect(notify.message).toMatch(/^Wrote .*pstack-models\.json \(edit to set real provider\/id\)\. Bare Cursor marketing slugs are mapped or refused\.$/);
+    expect(notify.notifyType).toBe("info");
 
     const response = await promptDone;
-    assert.equal(response.success, true);
+    expect(response.success).toBe(true);
 
     const path = configPath(rpc);
-    assert.ok(existsSync(path), `config not written at ${path}`);
+    expect(existsSync(path), `config not written at ${path}`).toBeTruthy();
     const config = JSON.parse(readFileSync(path, "utf8"));
-    assert.equal(config.budget, "medium — high reasoning");
-    assert.equal(config.version, 1);
-    assert.equal(config.roles["feature, refactoring"], "inherit-parent");
+    expect(config.budget).toBe("medium — high reasoning");
+    expect(config.version).toBe(1);
+    expect(config.roles["feature, refactoring"]).toBe("inherit-parent");
   });
 });
 
@@ -63,13 +56,13 @@ test("setup-pstack cancelled on a rejected confirm does not write", async () => 
     rpc.respondUi(confirm.id, { confirmed: false });
 
     const notify = await rpc.ui("notify");
-    assert.equal(notify.message, "setup-pstack cancelled");
+    expect(notify.message).toBe("setup-pstack cancelled");
 
     const response = await promptDone;
-    assert.equal(response.success, true);
+    expect(response.success).toBe(true);
 
     const path = configPath(rpc);
-    assert.equal(existsSync(path), false, `config written despite cancel at ${path}`);
+    expect(existsSync(path), `config written despite cancel at ${path}`).toBe(false);
   });
 });
 
@@ -77,19 +70,19 @@ test("pstack-readonly toggles the notify and status surface", async () => {
   await withRpc(async (rpc) => {
     const on = rpc.prompt("/pstack-readonly");
     const onNotify = await rpc.ui("notify");
-    assert.equal(onNotify.message, "Session readonly on (command): write/edit/bash blocked.");
-    assert.equal(onNotify.notifyType, "info");
+    expect(onNotify.message).toBe("Session readonly on (command): write/edit/bash blocked.");
+    expect(onNotify.notifyType).toBe("info");
     const onStatus = await rpc.ui("setStatus");
-    assert.equal(onStatus.statusKey, "pstack-ro");
-    assert.equal(onStatus.statusText, "readonly");
+    expect(onStatus.statusKey).toBe("pstack-ro");
+    expect(onStatus.statusText).toBe("readonly");
     await on;
 
     const off = rpc.prompt("/pstack-readonly-off");
     const offNotify = await rpc.ui("notify");
-    assert.equal(offNotify.message, "Session readonly off.");
+    expect(offNotify.message).toBe("Session readonly off.");
     const offStatus = await rpc.ui("setStatus");
-    assert.equal(offStatus.statusKey, "pstack-ro");
-    assert.equal(offStatus.statusText, undefined);
+    expect(offStatus.statusKey).toBe("pstack-ro");
+    expect(offStatus.statusText).toBe(undefined);
     await off;
   });
 });

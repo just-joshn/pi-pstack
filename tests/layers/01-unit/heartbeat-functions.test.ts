@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import {
   COMMAND_MAX_FIRES,
   DEFAULT_INTERVAL_SECONDS,
@@ -59,26 +58,26 @@ function liveList<T>() {
 test("createRun starts with empty stores and nextLoopId counts up per run", () => {
   const env = fakePi();
   const run = createRun(env.pi as never);
-  assert.equal(run.loops.size, 0);
-  assert.equal(run.resources.size, 0);
-  assert.equal(run.seq, 0);
-  assert.equal(nextLoopId(run), "loop-1");
-  assert.equal(nextLoopId(run), "loop-2");
-  assert.equal(run.seq, 2);
+  expect(run.loops.size).toBe(0);
+  expect(run.resources.size).toBe(0);
+  expect(run.seq).toBe(0);
+  expect(nextLoopId(run)).toBe("loop-1");
+  expect(nextLoopId(run)).toBe("loop-2");
+  expect(run.seq).toBe(2);
 });
 
 test("state constants keep their documented literals", () => {
-  assert.equal(DEFAULT_INTERVAL_SECONDS, 1800);
-  assert.equal(DEFAULT_MAX_FIRES, 50);
-  assert.equal(COMMAND_MAX_FIRES, 100);
-  assert.equal(MIN_INTERVAL_SECONDS, 5);
+  expect(DEFAULT_INTERVAL_SECONDS).toBe(1800);
+  expect(DEFAULT_MAX_FIRES).toBe(50);
+  expect(COMMAND_MAX_FIRES).toBe(100);
+  expect(MIN_INTERVAL_SECONDS).toBe(5);
 });
 
 test("armLoop stores an interval loop with the documented defaults and a live timer", () => {
   const env = fakePi();
   const run = createRun(env.pi as never);
   const state = armLoop(run, { id: "loop-a", prompt: "tick" });
-  assert.deepEqual(state, {
+  expect(state).toEqual({
     id: "loop-a",
     mode: "interval",
     prompt: "tick",
@@ -90,29 +89,23 @@ test("armLoop stores an interval loop with the documented defaults and a live ti
     watchArgv: [],
     lastFireAt: 0,
   });
-  assert.equal(run.loops.get("loop-a"), state);
-  assert.equal(run.resources.get("loop-a")?.timer !== undefined, true);
-  assert.equal(run.resources.get("loop-a")?.watcherRunning, false);
+  expect(run.loops.get("loop-a")).toBe(state);
+  expect(run.resources.get("loop-a")?.timer !== undefined).toBe(true);
+  expect(run.resources.get("loop-a")?.watcherRunning).toBe(false);
   stopAllLoops(run);
-  assert.equal(run.resources.size, 0);
+  expect(run.resources.size).toBe(0);
 });
 
 test("armLoop rejects the deprecated watchCommand, a missing prompt, a bad mode, and an empty watcher argv", () => {
   const env = fakePi();
   const run = createRun(env.pi as never);
-  assert.throws(() => armLoop(run, { prompt: "x", watchCommand: "bash -lc echo hi" }), {
-    message: "watchCommand is rejected (no bash -lc of model strings); pass watchArgv as an argv array",
-  });
-  assert.throws(() => armLoop(run, { mode: "interval" }), { message: "prompt required to arm" });
-  assert.throws(() => armLoop(run, { mode: "cron", prompt: "x" }), {
-    message: "mode must be interval|settle|watcher|dynamic",
-  });
-  assert.throws(() => armLoop(run, { id: "loop-w", mode: "watcher", prompt: "x" }), {
-    message: "watchArgv required for mode=watcher",
-  });
-  assert.deepEqual([...run.loops.keys()], []);
-  assert.deepEqual([...run.resources.keys()], []);
-  assert.equal(run.seq, 1);
+  expect(() => armLoop(run, { prompt: "x", watchCommand: "bash -lc echo hi" })).toThrow("watchCommand is rejected (no bash -lc of model strings); pass watchArgv as an argv array");
+  expect(() => armLoop(run, { mode: "interval" })).toThrow("prompt required to arm");
+  expect(() => armLoop(run, { mode: "cron", prompt: "x" })).toThrow("mode must be interval|settle|watcher|dynamic");
+  expect(() => armLoop(run, { id: "loop-w", mode: "watcher", prompt: "x" })).toThrow("watchArgv required for mode=watcher");
+  expect([...run.loops.keys()]).toEqual([]);
+  expect([...run.resources.keys()]).toEqual([]);
+  expect(run.seq).toBe(1);
 });
 
 test("re-arming a live id disarms the prior loop and stores the new state", () => {
@@ -120,23 +113,23 @@ test("re-arming a live id disarms the prior loop and stores the new state", () =
   const run = createRun(env.pi as never);
   const first = armLoop(run, { id: "loop-r", prompt: "first", intervalSeconds: 3600 });
   const second = armLoop(run, { id: "loop-r", prompt: "second", intervalSeconds: 60 });
-  assert.equal(first === second, false);
-  assert.equal(first.armed, true);
-  assert.equal(first.prompt, "first");
-  assert.equal(run.loops.get("loop-r"), second);
-  assert.equal(second.prompt, "second");
-  assert.equal(second.intervalMs, 60000);
-  assert.equal(run.loops.size, 1);
-  assert.equal(run.resources.get("loop-r")?.timer !== undefined, true);
+  expect(first === second).toBe(false);
+  expect(first.armed).toBe(true);
+  expect(first.prompt).toBe("first");
+  expect(run.loops.get("loop-r")).toBe(second);
+  expect(second.prompt).toBe("second");
+  expect(second.intervalMs).toBe(60000);
+  expect(run.loops.size).toBe(1);
+  expect(run.resources.get("loop-r")?.timer !== undefined).toBe(true);
   stopAllLoops(run);
 });
 
 test("dispatch and startArmedLoop return undefined for an unknown loop id", () => {
   const env = fakePi();
   const run = createRun(env.pi as never);
-  assert.equal(dispatch(run, "loop-missing", { type: "tick", reason: "interval" }), undefined);
-  assert.equal(startArmedLoop(run, "loop-missing"), undefined);
-  assert.deepEqual(env.users(), []);
+  expect(dispatch(run, "loop-missing", { type: "tick", reason: "interval" })).toBe(undefined);
+  expect(startArmedLoop(run, "loop-missing")).toBe(undefined);
+  expect(env.users()).toEqual([]);
 });
 
 test("startArmedLoop arms a stored loop and returns that same state value", () => {
@@ -151,10 +144,10 @@ test("startArmedLoop arms a stored loop and returns that same state value", () =
     watchArgv: [],
   });
   run.loops.set("loop-s", state);
-  assert.equal(run.resources.has("loop-s"), false);
+  expect(run.resources.has("loop-s")).toBe(false);
   const returned = startArmedLoop(run, "loop-s");
-  assert.equal(returned, state);
-  assert.equal(run.resources.get("loop-s")?.timer !== undefined, true);
+  expect(returned).toBe(state);
+  expect(run.resources.get("loop-s")?.timer !== undefined).toBe(true);
   stopAllLoops(run);
 });
 
@@ -163,35 +156,35 @@ test("a tick that exceeds maxFires stops the loop and announces it on the messag
   const run = createRun(env.pi as never);
   armLoop(run, { id: "loop-1", mode: "interval", prompt: "tick", intervalSeconds: 3600, maxFires: 1 });
   const fired = dispatch(run, "loop-1", { type: "tick", reason: "interval" });
-  assert.equal(fired?.fires, 1);
-  assert.equal(fired?.armed, true);
-  assert.equal(fired?.lastFireReason, "interval");
-  assert.deepEqual(env.users(), [
+  expect(fired?.fires).toBe(1);
+  expect(fired?.armed).toBe(true);
+  expect(fired?.lastFireReason).toBe("interval");
+  expect(env.users()).toEqual([
     { text: "[pstack_loop loop-1 fire 1/1 reason=interval]\ntick", opts: { deliverAs: "followUp" } },
   ]);
   const stopped = dispatch(run, "loop-1", { type: "tick", reason: "interval" });
-  assert.equal(stopped?.fires, 2);
-  assert.equal(stopped?.armed, false);
-  assert.deepEqual(env.customs(), [
+  expect(stopped?.fires).toBe(2);
+  expect(stopped?.armed).toBe(false);
+  expect(env.customs()).toEqual([
     {
       customType: "pstack-loop",
       content: "pstack_loop loop-1 stopped after 1 fires.",
       display: true,
     },
   ]);
-  assert.equal(env.users().length, 1);
-  assert.equal(run.loops.has("loop-1"), false);
-  assert.equal(run.resources.has("loop-1"), false);
+  expect(env.users().length).toBe(1);
+  expect(run.loops.has("loop-1")).toBe(false);
+  expect(run.resources.has("loop-1")).toBe(false);
 });
 
 test("stopLoop disarms a stored loop and releases its timer and resources", () => {
   const env = fakePi();
   const run = createRun(env.pi as never);
   armLoop(run, { id: "loop-d", prompt: "tick", intervalSeconds: 3600 });
-  assert.equal(run.resources.get("loop-d")?.timer !== undefined, true);
+  expect(run.resources.get("loop-d")?.timer !== undefined).toBe(true);
   stopLoop(run, "loop-d");
-  assert.equal(run.loops.has("loop-d"), false);
-  assert.equal(run.resources.has("loop-d"), false);
+  expect(run.loops.has("loop-d")).toBe(false);
+  expect(run.resources.has("loop-d")).toBe(false);
 });
 
 test("stopAllLoops clears every loop and every resource", () => {
@@ -200,12 +193,12 @@ test("stopAllLoops clears every loop and every resource", () => {
   armLoop(run, { id: "loop-a", prompt: "a", intervalSeconds: 3600 });
   armLoop(run, { id: "loop-b", mode: "watcher", prompt: "b", watchArgv: ["waiter-b"] });
   armLoop(run, { id: "loop-c", mode: "dynamic", prompt: "c", intervalSeconds: 3600, watchArgv: ["waiter-c"] });
-  assert.equal(run.loops.size, 3);
-  assert.equal(run.resources.size, 3);
-  assert.equal(run.resources.get("loop-b")?.watcherRunning, true);
+  expect(run.loops.size).toBe(3);
+  expect(run.resources.size).toBe(3);
+  expect(run.resources.get("loop-b")?.watcherRunning).toBe(true);
   stopAllLoops(run);
-  assert.equal(run.loops.size, 0);
-  assert.equal(run.resources.size, 0);
+  expect(run.loops.size).toBe(0);
+  expect(run.resources.size).toBe(0);
 });
 
 test("a watcher exit fires the loop with the watcher reason and keeps it armed", () => {
@@ -213,17 +206,17 @@ test("a watcher exit fires the loop with the watcher reason and keeps it armed",
   const run = createRun(env.pi as never);
   armLoop(run, { id: "loop-w", mode: "watcher", prompt: "wake", watchArgv: ["watch-pr", "--status-only"], maxFires: 1 });
   const fired = dispatch(run, "loop-w", { type: "watcher-exit", code: 0, output: "READY" });
-  assert.equal(fired?.fires, 1);
-  assert.equal(fired?.armed, true);
-  assert.equal(fired?.lastFireReason, "watcher");
-  assert.deepEqual(env.users(), [
+  expect(fired?.fires).toBe(1);
+  expect(fired?.armed).toBe(true);
+  expect(fired?.lastFireReason).toBe("watcher");
+  expect(env.users()).toEqual([
     {
       text: "[pstack_loop loop-w fire 1/1 reason=watcher]\nwake\n\n--- watcher output ---\nREADY",
       opts: { deliverAs: "followUp" },
     },
   ]);
   stopAllLoops(run);
-  assert.equal(run.loops.size, 0);
+  expect(run.loops.size).toBe(0);
 });
 
 test("an aborted parent signal aborts the watcher it started", async () => {
@@ -233,13 +226,13 @@ test("an aborted parent signal aborts the watcher it started", async () => {
   armLoop(run, { id: "loop-p", mode: "watcher", prompt: "wake", watchArgv: ["watch-pr"] }, parent.signal);
   await flush();
   const watcherSignal = env.signals()[0];
-  assert.equal(env.signals().length, 1);
-  assert.equal(watcherSignal?.aborted, false);
+  expect(env.signals().length).toBe(1);
+  expect(watcherSignal?.aborted).toBe(false);
   parent.abort();
-  assert.equal(watcherSignal?.aborted, true);
-  assert.equal(run.resources.get("loop-p")?.watcherRunning, true);
+  expect(watcherSignal?.aborted).toBe(true);
+  expect(run.resources.get("loop-p")?.watcherRunning).toBe(true);
   stopAllLoops(run);
-  assert.equal(run.loops.size, 0);
+  expect(run.loops.size).toBe(0);
 });
 
 test("a watcher rejection whose value cannot be stringified still records the crash on the loop", async () => {
@@ -254,10 +247,10 @@ test("a watcher rejection whose value cannot be stringified still records the cr
   await flush();
   await flush();
   const state = run.loops.get("loop-p");
-  assert.equal(state?.armed, true);
-  assert.equal(state?.fires, 1);
-  assert.equal(state?.lastFireReason, "watcher-error");
-  assert.deepEqual(env.users(), [
+  expect(state?.armed).toBe(true);
+  expect(state?.fires).toBe(1);
+  expect(state?.lastFireReason).toBe("watcher-error");
+  expect(env.users()).toEqual([
     {
       text: "[pstack_loop loop-p fire 1/50 reason=watcher-error]\nwake\n\n--- watcher failed ---\ncannot stringify watcher failure",
       opts: { deliverAs: "followUp" },
@@ -280,14 +273,14 @@ test("the pstack-loop command notifies the usage string for an argument it canno
   };
   registerHeartbeat(pi as never);
   const handler = commands.get("pstack-loop")?.handler;
-  assert.equal(typeof handler, "function");
+  expect(typeof handler).toBe("function");
   const ui = {
     notify(message: string, level: string) {
       notices.add({ message, level });
     },
   };
   await handler?.("not a loop argument", { ui });
-  assert.deepEqual(notices.all(), [
+  expect(notices.all()).toEqual([
     {
       message:
         "Usage: /pstack-loop <seconds> <prompt>  |  /pstack-loop status|list  |  /pstack-loop stop [id]  |  /pstack-loop off",
@@ -297,5 +290,5 @@ test("the pstack-loop command notifies the usage string for an argument it canno
 });
 
 test("__testCoalesceMs exposes the dynamic coalesce window used by the loop tool", () => {
-  assert.equal(__testCoalesceMs(), 2500);
+  expect(__testCoalesceMs()).toBe(2500);
 });

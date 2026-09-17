@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import { strictEqual, ok } from "node:assert/strict";
+import { expect, test } from "vitest";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmuxAvailable, withTmux } from "../../support/tmux-driver.mjs";
@@ -37,7 +36,7 @@ export default function (pi: ExtensionAPI) {
         const afterReload = await fx.waitForText("RELOAD_MARKER_V2", 10000);
         const v2Idx = afterReload.lastIndexOf("RELOAD_MARKER_V2");
         const v1Idx = afterReload.lastIndexOf("RELOAD_MARKER_V1");
-        ok(v2Idx > v1Idx, "RELOAD_MARKER_V2 must be the most recent marker after reload");
+        expect(v2Idx > v1Idx, "RELOAD_MARKER_V2 must be the most recent marker after reload").toBeTruthy();
 
         const syntaxError = `import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 export default function (pi: ExtensionAPI) {
@@ -47,7 +46,7 @@ export default function (pi: ExtensionAPI) {
         fx.sendLiteral("/reload");
         fx.send("Enter");
         const errorPane = await fx.waitForText("Failed to load extension", 10000);
-        ok(errorPane.includes("[Extension issues]"), "extension issues block missing");
+        expect(errorPane.includes("[Extension issues]"), "extension issues block missing").toBeTruthy();
       },
       { cwd: tmp.cwd, env: tmp.env(), argv: ["pi", "-a", "--no-session"] },
     );

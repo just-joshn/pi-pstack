@@ -8,7 +8,7 @@
  * Teardown always runs: `session_shutdown`, env and argv restores, and temp-root removal. A failed
  * journey still contributes whatever it observed.
  */
-import assert from "node:assert/strict";
+import { expect } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -93,8 +93,8 @@ function createRecorder() {
 }
 
 function assertRegistrationParity(host, probe) {
-  assert.deepEqual([...host.tools.keys()].toSorted(), probe.toolNames.toSorted(), "tool registration drifted");
-  assert.deepEqual([...host.commands.keys()].toSorted(), probe.commandNames.toSorted(), "command registration drifted");
+  expect([...host.tools.keys()].toSorted(), "tool registration drifted").toEqual(probe.toolNames.toSorted());
+  expect([...host.commands.keys()].toSorted(), "command registration drifted").toEqual(probe.commandNames.toSorted());
 }
 
 async function createProbe(entry) {

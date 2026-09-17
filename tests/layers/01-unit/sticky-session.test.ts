@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import {
   AUTO_READONLY_PLAYBOOKS,
   PLAYBOOK_ASSIGN_SCORE,
@@ -15,36 +14,36 @@ import {
 } from "../../../extensions/sticky-session.ts";
 
 test("shouldAssignPlaybook keeps an ongoing playbook until a strong match arrives", () => {
-  assert.equal(shouldAssignPlaybook(null, 2), true, "first assignment may be weak");
-  assert.equal(shouldAssignPlaybook("babysit", 2), false, "a casual turn must not reassign");
-  assert.equal(shouldAssignPlaybook("babysit", PLAYBOOK_ASSIGN_SCORE - 1), false);
-  assert.equal(shouldAssignPlaybook("babysit", PLAYBOOK_ASSIGN_SCORE), true);
-  assert.equal(shouldAssignPlaybook("babysit", 9), true);
+  expect(shouldAssignPlaybook(null, 2), "first assignment may be weak").toBe(true);
+  expect(shouldAssignPlaybook("babysit", 2), "a casual turn must not reassign").toBe(false);
+  expect(shouldAssignPlaybook("babysit", PLAYBOOK_ASSIGN_SCORE - 1)).toBe(false);
+  expect(shouldAssignPlaybook("babysit", PLAYBOOK_ASSIGN_SCORE)).toBe(true);
+  expect(shouldAssignPlaybook("babysit", 9)).toBe(true);
 });
 
 test("stickyEntryPayload round-trips enabled match through parseStickyEntry", () => {
   const payload = stickyEntryPayload(true, { id: "bug-fix", score: 7 });
-  assert.equal(payload.enabled, true);
-  assert.equal(payload.matchedPlaybookId, "bug-fix");
-  assert.equal(payload.matchedScore, 7);
-  assert.equal(typeof payload.updatedAt, "number");
+  expect(payload.enabled).toBe(true);
+  expect(payload.matchedPlaybookId).toBe("bug-fix");
+  expect(payload.matchedScore).toBe(7);
+  expect(typeof payload.updatedAt).toBe("number");
 
   const restored = parseStickyEntry(payload);
-  assert.equal(restored.enabled, true);
-  assert.equal(restored.matchedPlaybookId, "bug-fix");
-  assert.equal(restored.matchedScore, 7);
-  assert.equal(restored.updatedAt, payload.updatedAt);
+  expect(restored.enabled).toBe(true);
+  expect(restored.matchedPlaybookId).toBe("bug-fix");
+  expect(restored.matchedScore).toBe(7);
+  expect(restored.updatedAt).toBe(payload.updatedAt);
 });
 
 test("stickyEntryPayload(false) clears the matched playbook id to null", () => {
   const payload = stickyEntryPayload(false);
-  assert.equal(payload.enabled, false);
-  assert.equal(payload.matchedPlaybookId, null);
-  assert.equal(payload.matchedScore, undefined);
+  expect(payload.enabled).toBe(false);
+  expect(payload.matchedPlaybookId).toBe(null);
+  expect(payload.matchedScore).toBe(undefined);
 
   const restored = parseStickyEntry(payload);
-  assert.equal(restored.enabled, false);
-  assert.equal(restored.matchedPlaybookId, null);
+  expect(restored.enabled).toBe(false);
+  expect(restored.matchedPlaybookId).toBe(null);
 });
 
 test("parseStickyEntry returns a disabled entry for garbage input instead of throwing", () => {
@@ -54,28 +53,28 @@ test("parseStickyEntry returns a disabled entry for garbage input instead of thr
     matchedScore: undefined,
     updatedAt: undefined,
   };
-  assert.deepEqual(parseStickyEntry(null), disabled);
-  assert.deepEqual(parseStickyEntry(undefined), disabled);
-  assert.deepEqual(parseStickyEntry({}), disabled);
-  assert.deepEqual(parseStickyEntry({ enabled: "yes" }), disabled);
-  assert.deepEqual(parseStickyEntry("garbage"), disabled);
-  assert.deepEqual(parseStickyEntry(0), disabled);
+  expect(parseStickyEntry(null)).toEqual(disabled);
+  expect(parseStickyEntry(undefined)).toEqual(disabled);
+  expect(parseStickyEntry({})).toEqual(disabled);
+  expect(parseStickyEntry({ enabled: "yes" })).toEqual(disabled);
+  expect(parseStickyEntry("garbage")).toEqual(disabled);
+  expect(parseStickyEntry(0)).toEqual(disabled);
 });
 
 test("parseStickyEntry keeps only typed fields and trims the playbook id", () => {
-  assert.deepEqual(parseStickyEntry({ enabled: true, matchedPlaybookId: "  bug-fix  " }), {
+  expect(parseStickyEntry({ enabled: true, matchedPlaybookId: "  bug-fix  " })).toEqual({
     enabled: true,
     matchedPlaybookId: "bug-fix",
     matchedScore: undefined,
     updatedAt: undefined,
   });
-  assert.deepEqual(parseStickyEntry({ enabled: true, matchedPlaybookId: 42 }), {
+  expect(parseStickyEntry({ enabled: true, matchedPlaybookId: 42 })).toEqual({
     enabled: true,
     matchedPlaybookId: undefined,
     matchedScore: undefined,
     updatedAt: undefined,
   });
-  assert.deepEqual(parseStickyEntry({ enabled: true, matchedScore: "7" }), {
+  expect(parseStickyEntry({ enabled: true, matchedScore: "7" })).toEqual({
     enabled: true,
     matchedPlaybookId: undefined,
     matchedScore: undefined,
@@ -84,7 +83,7 @@ test("parseStickyEntry keeps only typed fields and trims the playbook id", () =>
 });
 
 test("parseReadonlyEntry round-trips an armed entry", () => {
-  assert.deepEqual(parseReadonlyEntry({ enabled: true, reason: "command" }), {
+  expect(parseReadonlyEntry({ enabled: true, reason: "command" })).toEqual({
     enabled: true,
     reason: "command",
     updatedAt: undefined,
@@ -92,12 +91,12 @@ test("parseReadonlyEntry round-trips an armed entry", () => {
 });
 
 test("parseReadonlyEntry returns a disabled entry for garbage input", () => {
-  assert.deepEqual(parseReadonlyEntry(null), {
+  expect(parseReadonlyEntry(null)).toEqual({
     enabled: false,
     reason: undefined,
     updatedAt: undefined,
   });
-  assert.deepEqual(parseReadonlyEntry({ enabled: "yes", reason: 7 }), {
+  expect(parseReadonlyEntry({ enabled: "yes", reason: 7 })).toEqual({
     enabled: false,
     reason: undefined,
     updatedAt: undefined,
@@ -105,53 +104,47 @@ test("parseReadonlyEntry returns a disabled entry for garbage input", () => {
 });
 
 test("shouldMatchStickyInput accepts interactive, rpc, and unknown provenance only", () => {
-  assert.equal(shouldMatchStickyInput("interactive"), true);
-  assert.equal(shouldMatchStickyInput("rpc"), true);
-  assert.equal(shouldMatchStickyInput(undefined), true);
-  assert.equal(shouldMatchStickyInput("extension"), false);
-  assert.equal(shouldMatchStickyInput(""), false);
+  expect(shouldMatchStickyInput("interactive")).toBe(true);
+  expect(shouldMatchStickyInput("rpc")).toBe(true);
+  expect(shouldMatchStickyInput(undefined)).toBe(true);
+  expect(shouldMatchStickyInput("extension")).toBe(false);
+  expect(shouldMatchStickyInput("")).toBe(false);
 });
 
 test("shouldAutoArmReadonly arms only the investigation playbook", () => {
-  assert.deepEqual([...AUTO_READONLY_PLAYBOOKS], ["investigation"]);
-  assert.equal(shouldAutoArmReadonly("investigation"), true);
-  assert.equal(shouldAutoArmReadonly("bug-fix"), false);
-  assert.equal(shouldAutoArmReadonly(undefined), false);
-  assert.equal(shouldAutoArmReadonly(null), false);
+  expect([...AUTO_READONLY_PLAYBOOKS]).toEqual(["investigation"]);
+  expect(shouldAutoArmReadonly("investigation")).toBe(true);
+  expect(shouldAutoArmReadonly("bug-fix")).toBe(false);
+  expect(shouldAutoArmReadonly(undefined)).toBe(false);
+  expect(shouldAutoArmReadonly(null)).toBe(false);
 });
 
 test("shouldAutoArmFromPlaybookMatch requires investigation, a short text, and arm or score >= 5", () => {
-  assert.equal(shouldAutoArmFromPlaybookMatch("investigation", false, 1, "short ask"), false);
-  assert.equal(shouldAutoArmFromPlaybookMatch("investigation", false, 4, "short ask"), false);
-  assert.equal(shouldAutoArmFromPlaybookMatch("investigation", false, 5, "short ask"), true);
-  assert.equal(shouldAutoArmFromPlaybookMatch("investigation", true, 0, "short ask"), true);
-  assert.equal(shouldAutoArmFromPlaybookMatch("bug-fix", true, 9, "short ask"), false);
-  assert.equal(shouldAutoArmFromPlaybookMatch("investigation", true, 9, "x".repeat(401)), false);
+  expect(shouldAutoArmFromPlaybookMatch("investigation", false, 1, "short ask")).toBe(false);
+  expect(shouldAutoArmFromPlaybookMatch("investigation", false, 4, "short ask")).toBe(false);
+  expect(shouldAutoArmFromPlaybookMatch("investigation", false, 5, "short ask")).toBe(true);
+  expect(shouldAutoArmFromPlaybookMatch("investigation", true, 0, "short ask")).toBe(true);
+  expect(shouldAutoArmFromPlaybookMatch("bug-fix", true, 9, "short ask")).toBe(false);
+  expect(shouldAutoArmFromPlaybookMatch("investigation", true, 9, "x".repeat(401))).toBe(false);
 });
 
 test("shouldAutoArmFromSkillText arms only an explicit investigation skill invocation", () => {
-  assert.equal(shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/investigation"), true);
-  assert.equal(shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/investigation dig in"), true);
-  assert.equal(shouldAutoArmFromSkillText("  /skill:poteto-mode playbooks/investigation  "), true);
-  assert.equal(shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/bug-fix"), false);
-  assert.equal(shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/investigation-extra"), false);
-  assert.equal(shouldAutoArmFromSkillText("please /skill:poteto-mode playbooks/investigation"), false);
+  expect(shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/investigation")).toBe(true);
+  expect(shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/investigation dig in")).toBe(true);
+  expect(shouldAutoArmFromSkillText("  /skill:poteto-mode playbooks/investigation  ")).toBe(true);
+  expect(shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/bug-fix")).toBe(false);
+  expect(shouldAutoArmFromSkillText("/skill:poteto-mode playbooks/investigation-extra")).toBe(false);
+  expect(shouldAutoArmFromSkillText("please /skill:poteto-mode playbooks/investigation")).toBe(false);
 });
 
 test("forcePotetoSkillMessage prefixes the playbook path and keeps an existing invocation", () => {
-  assert.equal(
-    forcePotetoSkillMessage("fix the parser", "bug-fix"),
-    "/skill:poteto-mode playbooks/bug-fix fix the parser",
-  );
-  assert.equal(forcePotetoSkillMessage("", "bug-fix"), "/skill:poteto-mode playbooks/bug-fix");
-  assert.equal(
-    forcePotetoSkillMessage("/skill:poteto-mode playbooks/bug-fix do it", "bug-fix"),
-    "/skill:poteto-mode playbooks/bug-fix do it",
-  );
+  expect(forcePotetoSkillMessage("fix the parser", "bug-fix")).toBe("/skill:poteto-mode playbooks/bug-fix fix the parser");
+  expect(forcePotetoSkillMessage("", "bug-fix")).toBe("/skill:poteto-mode playbooks/bug-fix");
+  expect(forcePotetoSkillMessage("/skill:poteto-mode playbooks/bug-fix do it", "bug-fix")).toBe("/skill:poteto-mode playbooks/bug-fix do it");
   const withoutPlaybook = forcePotetoSkillMessage("investigate the flake");
-  assert.equal(withoutPlaybook, "/skill:poteto-mode investigate the flake");
+  expect(withoutPlaybook).toBe("/skill:poteto-mode investigate the flake");
 
   const output = forcePotetoSkillMessage("fix the parser", "bug-fix");
-  assert.ok(output.includes("/skill:poteto-mode"), `missing skill marker in ${output}`);
-  assert.ok(output.includes("bug-fix"), `missing playbook id in ${output}`);
+  expect(output.includes("/skill:poteto-mode"), `missing skill marker in ${output}`).toBeTruthy();
+  expect(output.includes("bug-fix"), `missing playbook id in ${output}`).toBeTruthy();
 });

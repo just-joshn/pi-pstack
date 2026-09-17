@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { expect } from "vitest";
 import { realpathSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,7 +39,7 @@ const HANGING_CHILD_SOURCE = ["setInterval(() => {}, 1000);", ""].join("\n");
 
 function backgroundJobId(text) {
   const match = /^Background job (bg-\S+) started /.exec(text);
-  assert.ok(match, `unexpected background start: ${text}`);
+  expect(match, `unexpected background start: ${text}`).toBeTruthy();
   return match[1];
 }
 
@@ -48,18 +48,18 @@ async function abortAndCancel(user) {
   const running = await user.tool("pstack_spawn", { task: SPAWN_TASK, background: true });
   const runningId = backgroundJobId(running.content[0].text);
   const first = await user.tool("pstack_jobs", { action: "abort", id: runningId });
-  assert.equal(first.content[0].text, `abort requested; job ${runningId} status=aborted`);
+  expect(first.content[0].text).toBe(`abort requested; job ${runningId} status=aborted`);
   const awaited = await user.tool("pstack_jobs", { action: "await", id: runningId, timeoutMs: 5000 });
-  assert.equal(awaited.details.job.status, "aborted");
+  expect(awaited.details.job.status).toBe("aborted");
   const rows = await user.tool("pstack_jobs", { action: "list" });
-  assert.ok(rows.content[0].text.includes(`${runningId} status=aborted`), rows.content[0].text);
+  expect(rows.content[0].text.includes(`${runningId} status=aborted`), rows.content[0].text).toBeTruthy();
 
   const second = await user.tool("pstack_spawn", { task: SPAWN_TASK, background: true });
   const secondId = backgroundJobId(second.content[0].text);
   const cancelled = await user.tool("pstack_jobs", { action: "cancel", id: secondId });
-  assert.equal(cancelled.content[0].text, `abort requested; job ${secondId} status=aborted`);
+  expect(cancelled.content[0].text).toBe(`abort requested; job ${secondId} status=aborted`);
   const settled = await user.tool("pstack_jobs", { action: "await", id: secondId, timeoutMs: 5000 });
-  assert.equal(settled.details.job.status, "aborted");
+  expect(settled.details.job.status).toBe("aborted");
 }
 
 function expectedChildBody(user, tools, task) {
@@ -74,13 +74,13 @@ function expectedChildBody(user, tools, task) {
 
 function spawnHeadDir(head, model = PARENT_MODEL) {
   const prefix = `### pstack_spawn (general, ${model}, exit 0, sessionDir=`;
-  assert.ok(head.startsWith(prefix), `unexpected spawn head: ${head}`);
-  assert.ok(head.endsWith(")"), `spawn head has no closing paren: ${head}`);
+  expect(head.startsWith(prefix), `unexpected spawn head: ${head}`).toBeTruthy();
+  expect(head.endsWith(")"), `spawn head has no closing paren: ${head}`).toBeTruthy();
   return head.slice(prefix.length, -1);
 }
 
 function assertSessionDir(user, dir) {
-  assert.ok(dir.startsWith(user.path(".pi/pstack-child-sessions/c-")), `unexpected child session dir: ${dir}`);
+  expect(dir.startsWith(user.path(".pi/pstack-child-sessions/c-")), `unexpected child session dir: ${dir}`).toBeTruthy();
 }
 
 async function syncSpawn(user) {
@@ -88,86 +88,74 @@ async function syncSpawn(user) {
   const [plainHead, plainBody] = plain.content[0].text.split("\n\n");
   const plainDir = spawnHeadDir(plainHead);
   assertSessionDir(user, plainDir);
-  assert.equal(plain.details.sessionDir, plainDir);
-  assert.equal(plain.details.readonly, false);
-  assert.equal(plainBody, expectedChildBody(user, PARENT_TOOLS, SPAWN_TASK));
+  expect(plain.details.sessionDir).toBe(plainDir);
+  expect(plain.details.readonly).toBe(false);
+  expect(plainBody).toBe(expectedChildBody(user, PARENT_TOOLS, SPAWN_TASK));
 
   const readonly = await user.tool("pstack_spawn", { task: SPAWN_TASK, background: false, readonly: true });
   const [readonlyHead, readonlyBody] = readonly.content[0].text.split("\n\n");
   assertSessionDir(user, spawnHeadDir(readonlyHead));
-  assert.equal(readonly.details.readonly, true);
-  assert.equal(readonlyBody, expectedChildBody(user, READONLY_TOOLS, SPAWN_TASK));
+  expect(readonly.details.readonly).toBe(true);
+  expect(readonlyBody).toBe(expectedChildBody(user, READONLY_TOOLS, SPAWN_TASK));
 
   const isolated = await user.tool("pstack_spawn", { task: SPAWN_TASK, background: false, inheritParentTools: false });
   const [isolatedHead, isolatedBody] = isolated.content[0].text.split("\n\n");
   assertSessionDir(user, spawnHeadDir(isolatedHead));
-  assert.equal(isolatedBody, expectedChildBody(user, "none", SPAWN_TASK));
+  expect(isolatedBody).toBe(expectedChildBody(user, "none", SPAWN_TASK));
 }
 
 async function backgroundJob(user) {
   const spawned = await user.tool("pstack_spawn", { task: SPAWN_TASK, background: true });
   const started = spawned.content[0].text;
   const match = /^Background job (bg-1-[a-z0-9]+) started \(role=general, model=acceptance\/parent sessionDir=/.exec(started);
-  assert.ok(match, `unexpected background start: ${started}`);
+  expect(match, `unexpected background start: ${started}`).toBeTruthy();
   const jobId = match[1];
-  assert.ok(started.includes(`Poll with pstack_jobs action=status|await id=${jobId}.`), started);
-  assert.ok(started.endsWith("Concurrency 1/8 (waiting 0). Jobs remain queryable for this session."), started);
-  assert.equal(spawned.details.jobId, jobId);
-  assert.equal(spawned.details.background, true);
-  assert.equal(spawned.details.status, "queued");
+  expect(started.includes(`Poll with pstack_jobs action=status|await id=${jobId}.`), started).toBeTruthy();
+  expect(started.endsWith("Concurrency 1/8 (waiting 0). Jobs remain queryable for this session."), started).toBeTruthy();
+  expect(spawned.details.jobId).toBe(jobId);
+  expect(spawned.details.background).toBe(true);
+  expect(spawned.details.status).toBe("queued");
 
   const list = await user.tool("pstack_jobs", { action: "list" });
-  assert.ok(list.content[0].text.startsWith("concurrency "), list.content[0].text);
-  assert.ok(list.content[0].text.includes(`${jobId} status=`), list.content[0].text);
-  assert.ok(list.content[0].text.includes("role=general model=acceptance/parent"), list.content[0].text);
-  assert.equal(list.details.jobs.some((job) => job.id === jobId), true);
+  expect(list.content[0].text.startsWith("concurrency "), list.content[0].text).toBeTruthy();
+  expect(list.content[0].text.includes(`${jobId} status=`), list.content[0].text).toBeTruthy();
+  expect(list.content[0].text.includes("role=general model=acceptance/parent"), list.content[0].text).toBeTruthy();
+  expect(list.details.jobs.some((job) => job.id === jobId)).toBe(true);
 
   const awaited = await user.tool("pstack_jobs", { action: "await", id: jobId });
   const awaitedText = awaited.content[0].text;
-  assert.ok(awaitedText.startsWith(`### pstack_jobs await (${jobId}, status=done, sessionDir=`), awaitedText);
-  assert.equal(awaitedText.slice(awaitedText.indexOf("\n\n") + 2), expectedChildBody(user, PARENT_TOOLS, SPAWN_TASK));
-  assert.equal(awaited.details.job.status, "done");
+  expect(awaitedText.startsWith(`### pstack_jobs await (${jobId}, status=done, sessionDir=`), awaitedText).toBeTruthy();
+  expect(awaitedText.slice(awaitedText.indexOf("\n\n") + 2)).toBe(expectedChildBody(user, PARENT_TOOLS, SPAWN_TASK));
+  expect(awaited.details.job.status).toBe("done");
 
   const status = await user.tool("pstack_jobs", { action: "status", id: jobId });
   const statusText = status.content[0].text;
-  assert.ok(statusText.startsWith(`${jobId} status=done role=general model=acceptance/parent`), statusText);
-  assert.ok(statusText.includes("\n\nexit 0\n"), statusText);
-  assert.ok(statusText.endsWith(expectedChildBody(user, PARENT_TOOLS, SPAWN_TASK)), statusText);
+  expect(statusText.startsWith(`${jobId} status=done role=general model=acceptance/parent`), statusText).toBeTruthy();
+  expect(statusText.includes("\n\nexit 0\n"), statusText).toBeTruthy();
+  expect(statusText.endsWith(expectedChildBody(user, PARENT_TOOLS, SPAWN_TASK)), statusText).toBeTruthy();
 
   const complete = user.messages().at(-1);
-  assert.ok(
-    String(complete?.text).startsWith(
+  expect(String(complete?.text).startsWith(
       `### pstack_spawn background complete (${jobId}, general, acceptance/parent, exit 0, status=done, sessionDir=`,
-    ),
-    String(complete?.text),
-  );
-  assert.equal(complete?.options?.deliverAs, "followUp");
+    ), String(complete?.text)).toBeTruthy();
+  expect(complete?.options?.deliverAs).toBe("followUp");
 
-  await assert.rejects(
-    async () => user.tool("pstack_jobs", { action: "status", id: "bg-nope" }),
-    { message: "unknown job: bg-nope" },
-  );
+  await expect(async () => user.tool("pstack_jobs", { action: "status", id: "bg-nope" })).rejects.toThrow("unknown job: bg-nope");
 }
 
 async function spawnRefusals(user) {
-  await assert.rejects(
-    async () => user.tool("pstack_spawn", { task: SPAWN_TASK, background: false, resumeSessionDir: "missing-session" }),
-    { message: `resumeSessionDir missing or unreadable: ${user.path("missing-session")}` },
-  );
+  await expect(async () => user.tool("pstack_spawn", { task: SPAWN_TASK, background: false, resumeSessionDir: "missing-session" })).rejects.toThrow(`resumeSessionDir missing or unreadable: ${user.path("missing-session")}`);
   const bareSlug = [
     "Refused bare model slug 'bare-slug'.",
     "Pass provider/id (e.g. anthropic/claude-sonnet-4-5), inherit-parent, or auto.",
     "Known maps: grok-4.6-fast-xhigh, grok-4.6, claude-fable-5-1-thinking-max, claude-opus-5-thinking-xhigh, gpt-5.6-sol-max, cursor-grok-4.6-medium-fast",
   ].join(" ");
-  await assert.rejects(
-    async () => user.tool("pstack_spawn", { task: SPAWN_TASK, background: false, model: "bare-slug" }),
-    { message: bareSlug },
-  );
+  await expect(async () => user.tool("pstack_spawn", { task: SPAWN_TASK, background: false, model: "bare-slug" })).rejects.toThrow(bareSlug);
 
   const mapped = await user.tool("pstack_spawn", { task: SPAWN_TASK, background: false, model: "grok-4.6" });
   const [mappedHead, mappedBody] = mapped.content[0].text.split("\n\n");
   assertSessionDir(user, spawnHeadDir(mappedHead, "xai/grok-4"));
-  assert.equal(mappedBody.split("\n")[1], "stub-child model=xai/grok-4");
+  expect(mappedBody.split("\n")[1]).toBe("stub-child model=xai/grok-4");
 }
 
 async function resumeArgv(user) {
@@ -175,9 +163,9 @@ async function resumeArgv(user) {
   user.write(".pi/resume-me/seed.jsonl", "{}\n");
   const result = await user.tool("pstack_spawn", { task: SPAWN_TASK, background: false, resumeSessionDir: ".pi/resume-me" });
   const [head, body] = result.content[0].text.split("\n\n");
-  assert.equal(spawnHeadDir(head), user.path(".pi/resume-me"));
+  expect(spawnHeadDir(head)).toBe(user.path(".pi/resume-me"));
   const lines = body.split("\n");
-  assert.deepEqual(lines.slice(0, 4), [
+  expect(lines.slice(0, 4)).toEqual([
     `stub-child cwd=${childCwd(user)}`,
     `stub-child model=${PARENT_MODEL}`,
     `stub-child tools=${PARENT_TOOLS}`,
@@ -185,10 +173,10 @@ async function resumeArgv(user) {
   ]);
   const argv = JSON.parse(lines[4].slice("stub-child argv=".length));
   const dirAt = argv.indexOf("--session-dir");
-  assert.equal(argv[dirAt + 1], user.path(".pi/resume-me"));
-  assert.equal(argv.includes("--continue"), true);
-  assert.equal(argv.includes("--no-session"), false);
-  assert.equal(lines[5], "PASS");
+  expect(argv[dirAt + 1]).toBe(user.path(".pi/resume-me"));
+  expect(argv.includes("--continue")).toBe(true);
+  expect(argv.includes("--no-session")).toBe(false);
+  expect(lines[5]).toBe("PASS");
 }
 
 async function runDelegateOneChild(user) {
@@ -206,41 +194,32 @@ function swarmWorkers() {
 async function swarmCoverage(user) {
   const result = await user.tool("pstack_swarm", { workers: swarmWorkers(), selection: "coverage" });
   const text = result.content[0].text;
-  assert.ok(
-    text.startsWith(
+  expect(text.startsWith(
       "## Swarm report (coverage)\n\n| # | model | verdict | exit | stop | cwd |\n|---|-------|---------|------|------|-----|\n",
-    ),
-    text.slice(0, 200),
-  );
+    ), text.slice(0, 200)).toBeTruthy();
   const cwds = result.details.results.map((entry) => entry.cwd);
-  assert.equal(cwds.length, SWARM_TASKS.length);
-  assert.equal(new Set(cwds).size, SWARM_TASKS.length, `swarm workers shared a worktree: ${cwds.join(", ")}`);
+  expect(cwds.length).toBe(SWARM_TASKS.length);
+  expect(new Set(cwds).size, `swarm workers shared a worktree: ${cwds.join(", ")}`).toBe(SWARM_TASKS.length);
   for (const [index, cwd] of cwds.entries()) {
-    assert.ok(text.includes(`| ${index + 1} | ${PARENT_MODEL} | PASS | exit 0 | - | ${cwd} |`), text.slice(0, 400));
-    assert.ok(text.includes(`### Worker ${index + 1} (${PARENT_MODEL}, exit 0, cwd ${cwd})`), cwd);
-    assert.ok(cwd.startsWith(`${user.path(".pstack-worktrees")}/auto-`), `worker not isolated: ${cwd}`);
+    expect(text.includes(`| ${index + 1} | ${PARENT_MODEL} | PASS | exit 0 | - | ${cwd} |`), text.slice(0, 400)).toBeTruthy();
+    expect(text.includes(`### Worker ${index + 1} (${PARENT_MODEL}, exit 0, cwd ${cwd})`), cwd).toBeTruthy();
+    expect(cwd.startsWith(`${user.path(".pstack-worktrees")}/auto-`), `worker not isolated: ${cwd}`).toBeTruthy();
   }
-  assert.deepEqual(result.details.verdicts, ["PASS", "PASS", "PASS"]);
-  assert.equal(result.details.selection, "coverage");
+  expect(result.details.verdicts).toEqual(["PASS", "PASS", "PASS"]);
+  expect(result.details.selection).toBe("coverage");
 }
 
 async function swarmBestOf(user) {
   const result = await user.tool("pstack_swarm", { workers: swarmWorkers(), selection: "best-of" });
-  assert.ok(result.content[0].text.startsWith("## Swarm report (best-of)\n\n"));
-  assert.ok(result.content[0].text.includes("\n\nDeclared rule `best-of`: take worker 1 (PASS).\n\n"));
-  assert.equal(result.details.selection, "best-of");
-  assert.equal(result.details.winner, 0);
+  expect(result.content[0].text.startsWith("## Swarm report (best-of)\n\n")).toBeTruthy();
+  expect(result.content[0].text.includes("\n\nDeclared rule `best-of`: take worker 1 (PASS).\n\n")).toBeTruthy();
+  expect(result.details.selection).toBe("best-of");
+  expect(result.details.winner).toBe(0);
 }
 
 async function swarmDupCwdRefusal(user) {
   const shared = user.path("shared-writer");
-  await assert.rejects(
-    async () => user.tool("pstack_swarm", { workers: [{ task: "one", cwd: shared }, { task: "two", cwd: shared }] }),
-    {
-      message:
-        `multi-writer isolation: worker-2 and worker-1 share cwd ${shared}; pass unique cwd or omit cwd for auto worktree`,
-    },
-  );
+  await expect(async () => user.tool("pstack_swarm", { workers: [{ task: "one", cwd: shared }, { task: "two", cwd: shared }] })).rejects.toThrow(`multi-writer isolation: worker-2 and worker-1 share cwd ${shared}; pass unique cwd or omit cwd for auto worktree`);
 }
 
 function arenaCandidates() {
@@ -253,18 +232,18 @@ function arenaCandidates() {
 async function arenaDefault(user) {
   const result = await user.tool("pstack_arena", { prompt: ARENA_PROMPT, candidates: arenaCandidates() });
   const text = result.content[0].text;
-  assert.ok(text.startsWith("## Arena candidates\n\n### alpha (acceptance/parent, exit 0)"), text.slice(0, 120));
+  expect(text.startsWith("## Arena candidates\n\n### alpha (acceptance/parent, exit 0)"), text.slice(0, 120)).toBeTruthy();
   const cwds = result.details.results.map((entry) => entry.cwd);
-  assert.equal(result.details.results.length, 2);
-  assert.equal(new Set(cwds).size, 2, `arena candidates shared a worktree: ${cwds.join(", ")}`);
-  assert.deepEqual(result.details.results.map((entry) => entry.outputPath), ["artifact-alpha.md", "artifact-beta.md"]);
+  expect(result.details.results.length).toBe(2);
+  expect(new Set(cwds).size, `arena candidates shared a worktree: ${cwds.join(", ")}`).toBe(2);
+  expect(result.details.results.map((entry) => entry.outputPath)).toEqual(["artifact-alpha.md", "artifact-beta.md"]);
   for (const [index, label] of ["alpha", "beta"].entries()) {
-    assert.ok(text.includes(`### ${label} (${PARENT_MODEL}, exit 0)`), label);
-    assert.ok(text.includes(`path: artifact-${label}.md`), label);
-    assert.ok(text.includes(`Write your artifact under: artifact-${label}.md`), label);
-    assert.ok(cwds[index].startsWith(`${user.path(".pstack-worktrees")}/auto-`), `candidate not isolated: ${cwds[index]}`);
+    expect(text.includes(`### ${label} (${PARENT_MODEL}, exit 0)`), label).toBeTruthy();
+    expect(text.includes(`path: artifact-${label}.md`), label).toBeTruthy();
+    expect(text.includes(`Write your artifact under: artifact-${label}.md`), label).toBeTruthy();
+    expect(cwds[index].startsWith(`${user.path(".pstack-worktrees")}/auto-`), `candidate not isolated: ${cwds[index]}`).toBeTruthy();
   }
-  assert.equal(text.includes("## Cross-judge ("), false);
+  expect(text.includes("## Cross-judge (")).toBe(false);
 }
 
 async function arenaCrossJudge(user) {
@@ -275,12 +254,12 @@ async function arenaCrossJudge(user) {
     rubric: "Prefer the smallest diff",
   });
   const text = result.content[0].text;
-  assert.equal(text.split("## Cross-judge (").length - 1, 1, "expected exactly one cross-judge section");
+  expect(text.split("## Cross-judge (").length - 1, "expected exactly one cross-judge section").toBe(1);
   const judge = text.slice(text.indexOf("## Cross-judge ("));
-  assert.ok(judge.startsWith(`## Cross-judge (${PARENT_MODEL})\n\n`), judge.slice(0, 80));
-  assert.ok(judge.includes(`stub-child tools=${READONLY_TOOLS}`), "cross-judge child is not readonly");
-  assert.ok(text.endsWith("\n\nNext: pick a base and graft per the arena skill."));
-  assert.equal(result.details.results.length, 2);
+  expect(judge.startsWith(`## Cross-judge (${PARENT_MODEL})\n\n`), judge.slice(0, 80)).toBeTruthy();
+  expect(judge.includes(`stub-child tools=${READONLY_TOOLS}`), "cross-judge child is not readonly").toBeTruthy();
+  expect(text.endsWith("\n\nNext: pick a base and graft per the arena skill.")).toBeTruthy();
+  expect(result.details.results.length).toBe(2);
 }
 
 async function runFanOutSwarmArena(user) {
@@ -311,19 +290,16 @@ function installLoopExec(user) {
 async function armLoop(user, params) {
   const armed = await user.tool("pstack_loop", { action: "arm", ...params });
   const watcher = params.watchArgv?.length ? " watcher=on" : "";
-  assert.equal(
-    armed.content[0].text,
-    `Armed ${params.id} mode=${params.mode} intervalSeconds=${params.intervalSeconds} maxFires=${params.maxFires}${watcher} coalesceMs=2500`,
-  );
-  assert.equal(armed.details.id, params.id);
-  assert.equal(armed.details.mode, params.mode);
-  assert.equal(user.status("pstack-loop"), params.id);
+  expect(armed.content[0].text).toBe(`Armed ${params.id} mode=${params.mode} intervalSeconds=${params.intervalSeconds} maxFires=${params.maxFires}${watcher} coalesceMs=2500`);
+  expect(armed.details.id).toBe(params.id);
+  expect(armed.details.mode).toBe(params.mode);
+  expect(user.status("pstack-loop")).toBe(params.id);
 }
 
 async function stopLoop(user, id) {
   const stopped = await user.tool("pstack_loop", { action: "stop", id });
-  assert.equal(stopped.content[0].text, "stopped");
-  assert.equal(user.status("pstack-loop"), undefined);
+  expect(stopped.content[0].text).toBe("stopped");
+  expect(user.status("pstack-loop")).toBe(undefined);
 }
 
 async function expectFire(user, opts) {
@@ -331,15 +307,15 @@ async function expectFire(user, opts) {
     `[pstack_loop ${opts.id} fire ${opts.fires}/${opts.maxFires} reason=${opts.reason}]\n` +
     `${opts.prompt}\n\n--- ${opts.label} ---\n${opts.output}`;
   await user.waitFor(() => user.message() === expected, 5000, `loop ${opts.id} fire`);
-  assert.equal(user.message(), expected);
-  assert.equal(user.messages().at(-1)?.options?.deliverAs, "followUp");
+  expect(user.message()).toBe(expected);
+  expect(user.messages().at(-1)?.options?.deliverAs).toBe("followUp");
 }
 
 async function loopStatus(user, row) {
   const status = await user.tool("pstack_loop", { action: "status" });
-  assert.equal(status.content[0].text, row);
+  expect(status.content[0].text).toBe(row);
   const list = await user.tool("pstack_loop", { action: "list" });
-  assert.equal(list.content[0].text, row);
+  expect(list.content[0].text).toBe(row);
 }
 
 async function watcherWake(user) {
@@ -360,10 +336,7 @@ async function watcherWake(user) {
     label: "watcher output",
     output: "watcher: checks green",
   });
-  assert.equal(
-    user.execCalls().some((call) => call.command === "watch-stub" && call.args[0] === "--once"),
-    true,
-  );
+  expect(user.execCalls().some((call) => call.command === "watch-stub" && call.args[0] === "--once")).toBe(true);
   await loopStatus(user, "w1 mode=watcher fires=1/1 armed=true lastReason=watcher");
   await stopLoop(user, "w1");
 }
@@ -413,7 +386,7 @@ async function dynamicReArm(user) {
     5000,
     "dynamic watcher re-arm",
   );
-  assert.equal(user.execCalls().filter((call) => call.command === "dyn-stub").length, 2);
+  expect(user.execCalls().filter((call) => call.command === "dyn-stub").length).toBe(2);
   await stopLoop(user, "d1");
 }
 
@@ -427,8 +400,8 @@ async function intervalAndSettleArms(user) {
 async function expectTimerFire(user, opts) {
   const expected = `[pstack_loop ${opts.id} fire ${opts.fires}/${opts.maxFires} reason=${opts.reason}]\n${opts.prompt}`;
   await user.waitFor(() => user.message() === expected, 8000, `loop ${opts.id} timer fire`);
-  assert.equal(user.message(), expected);
-  assert.equal(user.messages().at(-1)?.options?.deliverAs, "followUp");
+  expect(user.message()).toBe(expected);
+  expect(user.messages().at(-1)?.options?.deliverAs).toBe("followUp");
 }
 
 async function settleFire(user) {
@@ -446,44 +419,32 @@ async function intervalFire(user) {
 
 async function loopCommand(user) {
   await user.command("pstack-loop", "status");
-  assert.deepEqual(user.notifications().at(-1), ["info", "(no active loops)"]);
+  expect(user.notifications().at(-1)).toEqual(["info", "(no active loops)"]);
   await user.command("pstack-loop", "45 keep the tests green");
-  assert.deepEqual(user.notifications().at(-1), ["info", "Armed loop-1 every 45s"]);
-  assert.equal(user.status("pstack-loop"), "loop-1");
+  expect(user.notifications().at(-1)).toEqual(["info", "Armed loop-1 every 45s"]);
+  expect(user.status("pstack-loop")).toBe("loop-1");
   await user.command("pstack-loop", "status");
-  assert.deepEqual(user.notifications().at(-1), ["info", "loop-1 mode=interval fires=0/100 armed=true lastReason=-"]);
+  expect(user.notifications().at(-1)).toEqual(["info", "loop-1 mode=interval fires=0/100 armed=true lastReason=-"]);
   await user.command("pstack-loop", "stop loop-1");
-  assert.deepEqual(user.notifications().at(-1), ["info", "Stopped loop-1"]);
-  assert.equal(user.status("pstack-loop"), undefined);
+  expect(user.notifications().at(-1)).toEqual(["info", "Stopped loop-1"]);
+  expect(user.status("pstack-loop")).toBe(undefined);
   await user.command("pstack-loop", "off");
-  assert.deepEqual(user.notifications().at(-1), ["info", "All pstack loops stopped."]);
+  expect(user.notifications().at(-1)).toEqual(["info", "All pstack loops stopped."]);
   await user.command("pstack-loop", "not-a-number please");
-  assert.deepEqual(user.notifications().at(-1), [
+  expect(user.notifications().at(-1)).toEqual([
     "error",
     "Usage: /pstack-loop <seconds> <prompt>  |  /pstack-loop status|list  |  /pstack-loop stop [id]  |  /pstack-loop off",
   ]);
 }
 
 async function loopRefusals(user) {
-  await assert.rejects(
-    async () => user.tool("pstack_loop", { action: "arm", mode: "watcher", prompt: "x", watchCommand: "bash -lc true" }),
-    { message: WATCH_COMMAND_ERROR },
-  );
-  await assert.rejects(
-    async () => user.tool("pstack_loop", { action: "arm", mode: "sometimes", prompt: "x" }),
-    { message: "mode must be interval|settle|watcher|dynamic" },
-  );
-  await assert.rejects(
-    async () => user.tool("pstack_loop", { action: "arm", mode: "watcher", prompt: "x" }),
-    { message: "watchArgv required for mode=watcher" },
-  );
-  await assert.rejects(
-    async () => user.tool("pstack_loop", { action: "arm", mode: "interval" }),
-    { message: "prompt required to arm" },
-  );
+  await expect(async () => user.tool("pstack_loop", { action: "arm", mode: "watcher", prompt: "x", watchCommand: "bash -lc true" })).rejects.toThrow(WATCH_COMMAND_ERROR);
+  await expect(async () => user.tool("pstack_loop", { action: "arm", mode: "sometimes", prompt: "x" })).rejects.toThrow("mode must be interval|settle|watcher|dynamic");
+  await expect(async () => user.tool("pstack_loop", { action: "arm", mode: "watcher", prompt: "x" })).rejects.toThrow("watchArgv required for mode=watcher");
+  await expect(async () => user.tool("pstack_loop", { action: "arm", mode: "interval" })).rejects.toThrow("prompt required to arm");
   const stopped = await user.tool("pstack_loop", { action: "stop" });
-  assert.equal(stopped.content[0].text, "stopped");
-  assert.equal(user.status("pstack-loop"), undefined);
+  expect(stopped.content[0].text).toBe("stopped");
+  expect(user.status("pstack-loop")).toBe(undefined);
 }
 
 async function runLoopModes(user) {
@@ -530,57 +491,48 @@ async function watchPrDrive(user) {
   const result = await user.tool("pstack_babysit", { pr: "42" });
   const text = result.content[0].text;
   const hint = "--- pstack_loop dynamic arm (default babysit recipe watch-pr-drive) ---";
-  assert.ok(text.startsWith(`${WATCH_OUTPUT}\n\n${hint}\n`), text.slice(0, 200));
-  assert.equal(text.split(hint).length, 2);
-  assert.ok(text.endsWith(`watchArgv=${JSON.stringify(driveWatchArgv())}`), text.slice(-120));
-  assert.equal(result.details.code, 0);
-  assert.equal(result.details.via, "watch-pr");
-  assert.equal(result.details.recipeId, "watch-pr-drive");
-  assert.deepEqual(result.details.watchArgv, driveWatchArgv());
-  assert.deepEqual(result.details.loopArm, driveLoopArm());
-  assert.deepEqual(lastBunScriptCall(user).args, [WATCH_PR_SCRIPT_ABS, "--pr", "42"]);
-  assert.equal(user.execCalls().some((call) => call.command === "bun" && call.args[0] === "--version"), true);
+  expect(text.startsWith(`${WATCH_OUTPUT}\n\n${hint}\n`), text.slice(0, 200)).toBeTruthy();
+  expect(text.split(hint).length).toBe(2);
+  expect(text.endsWith(`watchArgv=${JSON.stringify(driveWatchArgv())}`), text.slice(-120)).toBeTruthy();
+  expect(result.details.code).toBe(0);
+  expect(result.details.via).toBe("watch-pr");
+  expect(result.details.recipeId).toBe("watch-pr-drive");
+  expect(result.details.watchArgv).toEqual(driveWatchArgv());
+  expect(result.details.loopArm).toEqual(driveLoopArm());
+  expect(lastBunScriptCall(user).args).toEqual([WATCH_PR_SCRIPT_ABS, "--pr", "42"]);
+  expect(user.execCalls().some((call) => call.command === "bun" && call.args[0] === "--version")).toBe(true);
 }
 
 async function watchPrStatusOnly(user) {
   const result = await user.tool("pstack_babysit", { pr: "42", statusOnly: true });
-  assert.equal(result.details.recipeId, "watch-pr-status");
-  assert.equal(result.details.via, "watch-pr");
-  assert.deepEqual(result.details.watchArgv, ["bun", WATCH_PR_SCRIPT_REL, "--pr", "42", "--status-only"]);
-  assert.ok(result.content[0].text.includes("--- pstack_loop dynamic arm (default babysit recipe watch-pr-status) ---"));
-  assert.deepEqual(lastBunScriptCall(user).args, [WATCH_PR_SCRIPT_ABS, "--pr", "42", "--status-only"]);
+  expect(result.details.recipeId).toBe("watch-pr-status");
+  expect(result.details.via).toBe("watch-pr");
+  expect(result.details.watchArgv).toEqual(["bun", WATCH_PR_SCRIPT_REL, "--pr", "42", "--status-only"]);
+  expect(result.content[0].text.includes("--- pstack_loop dynamic arm (default babysit recipe watch-pr-status) ---")).toBeTruthy();
+  expect(lastBunScriptCall(user).args).toEqual([WATCH_PR_SCRIPT_ABS, "--pr", "42", "--status-only"]);
 }
 
 async function ghChecksRecipe(user) {
   user.installFakeGh({ "pr checks 42 --watch": { code: 0, stdout: GH_OUTPUT, stderr: "" } });
   const result = await user.tool("pstack_babysit", { pr: "42", recipeId: "gh-checks-watch" });
   const text = result.content[0].text;
-  assert.equal(result.details.via, "gh-recipe");
-  assert.equal(result.details.recipeId, "gh-checks-watch");
-  assert.ok(text.startsWith(`${GH_OUTPUT}\n\n--- pstack_loop dynamic arm ---\n`), text.slice(0, 120));
-  assert.equal(text.includes("watchArgv="), false);
-  assert.equal(text.includes("(default babysit recipe"), false);
-  assert.deepEqual(result.details.watchArgv, ["gh", "pr", "checks", "42", "--watch"]);
+  expect(result.details.via).toBe("gh-recipe");
+  expect(result.details.recipeId).toBe("gh-checks-watch");
+  expect(text.startsWith(`${GH_OUTPUT}\n\n--- pstack_loop dynamic arm ---\n`), text.slice(0, 120)).toBeTruthy();
+  expect(text.includes("watchArgv=")).toBe(false);
+  expect(text.includes("(default babysit recipe")).toBe(false);
+  expect(result.details.watchArgv).toEqual(["gh", "pr", "checks", "42", "--watch"]);
   const ghCall = user.execCalls().filter((call) => call.command === "gh").at(-1);
-  assert.deepEqual(ghCall.args, ["pr", "checks", "42", "--watch"]);
+  expect(ghCall.args).toEqual(["pr", "checks", "42", "--watch"]);
 }
 
 async function babysitRefusals(user) {
-  await assert.rejects(
-    async () => user.tool("pstack_babysit", { pr: "42", recipeId: "watch-pr-queued-stack" }),
-    { message: "recipeId=watch-pr-queued-stack requires stackPrs (bottom-to-top PR numbers)" },
-  );
-  await assert.rejects(
-    async () => user.tool("pstack_babysit", { pr: "42", recipeId: "watch-pr-nope" }),
-    {
-      message:
-        "unknown babysit recipeId 'watch-pr-nope'. Known: watch-pr-status, watch-pr-drive, watch-pr-stack, watch-pr-queued-stack, gh-checks-watch, gh-view-json",
-    },
-  );
+  await expect(async () => user.tool("pstack_babysit", { pr: "42", recipeId: "watch-pr-queued-stack" })).rejects.toThrow("recipeId=watch-pr-queued-stack requires stackPrs (bottom-to-top PR numbers)");
+  await expect(async () => user.tool("pstack_babysit", { pr: "42", recipeId: "watch-pr-nope" })).rejects.toThrow("unknown babysit recipeId 'watch-pr-nope'. Known: watch-pr-status, watch-pr-drive, watch-pr-stack, watch-pr-queued-stack, gh-checks-watch, gh-view-json");
   const bare = await user.tool("pstack_babysit", { pr: "42", armLoopHint: false });
-  assert.equal(bare.content[0].text, WATCH_OUTPUT);
-  assert.equal(bare.details.loopArm, undefined);
-  assert.equal(bare.content[0].text.includes("--- pstack_loop dynamic arm"), false);
+  expect(bare.content[0].text).toBe(WATCH_OUTPUT);
+  expect(bare.details.loopArm).toBe(undefined);
+  expect(bare.content[0].text.includes("--- pstack_loop dynamic arm")).toBe(false);
 }
 
 async function runBabysitAPr(user) {

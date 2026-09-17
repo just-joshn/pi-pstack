@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -56,7 +55,7 @@ function captureSwarm(): CapturedTool {
     },
   };
   registerSwarm(pi as never);
-  assert.ok(tool, "registerSwarm must register a tool");
+  expect(tool, "registerSwarm must register a tool").toBeTruthy();
   return tool;
 }
 
@@ -126,17 +125,17 @@ function withFakeGit(parent: string): { logPath: string; restore: () => void } {
 
 test("swarm-01 registers pstack_swarm with a worker array and an aggregate report", () => {
   const tool = captureSwarm();
-  assert.equal(tool.name, "pstack_swarm");
-  assert.equal(tool.promptSnippet, "Parallel pstack workers with aggregated report");
-  assert.deepEqual(tool.parameters.required, ["workers"]);
-  assert.equal(tool.parameters.properties.workers.minItems, 1);
-  assert.equal(tool.parameters.properties.workers.maxItems, MAX_SWARM_WORKERS);
-  assert.ok(MAX_SWARM_WORKERS > 8, "N is the total worker count; the schema must accept more than the concurrency cap");
-  assert.equal(typeof tool.execute, "function");
+  expect(tool.name).toBe("pstack_swarm");
+  expect(tool.promptSnippet).toBe("Parallel pstack workers with aggregated report");
+  expect(tool.parameters.required).toEqual(["workers"]);
+  expect(tool.parameters.properties.workers.minItems).toBe(1);
+  expect(tool.parameters.properties.workers.maxItems).toBe(MAX_SWARM_WORKERS);
+  expect(MAX_SWARM_WORKERS > 8, "N is the total worker count; the schema must accept more than the concurrency cap").toBeTruthy();
+  expect(typeof tool.execute).toBe("function");
 
   const source = readFileSync(join(ROOT, "extensions/orchestration/swarm.ts"), "utf8");
-  assert.equal(source.includes('name: "pstack_swarm"'), true, "the tool literal the registry scan discovers");
-  assert.equal(source.includes("## Swarm report"), true, "one aggregated report is assembled");
+  expect(source.includes('name: "pstack_swarm"'), "the tool literal the registry scan discovers").toBe(true);
+  expect(source.includes("## Swarm report"), "one aggregated report is assembled").toBe(true);
 });
 
 test("swarm-02 isolates each worker in a unique worktree even when N equals 1", async () => {
@@ -152,16 +151,12 @@ test("swarm-02 isolates each worker in a unique worktree even when N equals 1", 
       undefined,
       swarmCtx(parent),
     );
-    assert.equal(solo.details.results.length, 1);
+    expect(solo.details.results.length).toBe(1);
     const soloCwd = resolve(solo.details.results[0].cwd);
-    assert.notEqual(soloCwd, resolve(parent), "N=1 must not run in the parent cwd");
-    assert.equal(
-      soloCwd.startsWith(join(resolve(parent), WORKTREE_DIR)),
-      true,
-      `expected a worktree under ${WORKTREE_DIR}, got ${soloCwd}`,
-    );
-    assert.match(solo.content[0].text, /## Swarm report \(coverage\)/);
-    assert.match(readFileSync(git.logPath, "utf8"), /worktree add -b pstack\//);
+    expect(soloCwd, "N=1 must not run in the parent cwd").not.toBe(resolve(parent));
+    expect(soloCwd.startsWith(join(resolve(parent), WORKTREE_DIR)), `expected a worktree under ${WORKTREE_DIR}, got ${soloCwd}`).toBe(true);
+    expect(solo.content[0].text).toMatch(/## Swarm report \(coverage\)/);
+    expect(readFileSync(git.logPath, "utf8")).toMatch(/worktree add -b pstack\//);
 
     const trio = await tool.execute(
       "t",
@@ -173,11 +168,11 @@ test("swarm-02 isolates each worker in a unique worktree even when N equals 1", 
       swarmCtx(parent),
     );
     const dirs = trio.details.results.map((entry) => resolve(entry.cwd));
-    assert.equal(dirs.length, 3);
-    assert.equal(new Set(dirs).size, 3, "each worker gets its own directory");
+    expect(dirs.length).toBe(3);
+    expect(new Set(dirs).size, "each worker gets its own directory").toBe(3);
     for (const dir of dirs) {
-      assert.notEqual(dir, resolve(parent));
-      assert.equal(dir.startsWith(join(resolve(parent), WORKTREE_DIR)), true);
+      expect(dir).not.toBe(resolve(parent));
+      expect(dir.startsWith(join(resolve(parent), WORKTREE_DIR))).toBe(true);
     }
   } finally {
     restoreScript();
@@ -210,16 +205,16 @@ test("swarm-05 waits for all workers and aggregates their outputs into one deter
     );
 
     const report = result.content[0].text;
-    assert.equal(result.content.length, 1, "one aggregated report");
-    assert.equal(result.details.results.length, 3, "every worker result is present");
-    assert.deepEqual(result.details.verdicts, ["PASS", "PASS", "PASS"]);
-    assert.deepEqual(updates, ["1/3 swarm workers done", "2/3 swarm workers done", "3/3 swarm workers done"]);
-    assert.match(report, /## Swarm report \(coverage\)/);
+    expect(result.content.length, "one aggregated report").toBe(1);
+    expect(result.details.results.length, "every worker result is present").toBe(3);
+    expect(result.details.verdicts).toEqual(["PASS", "PASS", "PASS"]);
+    expect(updates).toEqual(["1/3 swarm workers done", "2/3 swarm workers done", "3/3 swarm workers done"]);
+    expect(report).toMatch(/## Swarm report \(coverage\)/);
     for (const worker of workers) {
-      assert.equal(report.includes(worker.task), true, `report carries ${worker.task}`);
+      expect(report.includes(worker.task), `report carries ${worker.task}`).toBe(true);
     }
-    assert.equal(report.indexOf("worker brief 0") < report.indexOf("worker brief 1"), true);
-    assert.equal(report.indexOf("worker brief 1") < report.indexOf("worker brief 2"), true);
+    expect(report.indexOf("worker brief 0") < report.indexOf("worker brief 1")).toBe(true);
+    expect(report.indexOf("worker brief 1") < report.indexOf("worker brief 2")).toBe(true);
   } finally {
     restoreScript();
     rmSync(parent, { recursive: true, force: true });

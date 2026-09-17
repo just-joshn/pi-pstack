@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { chmodSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -42,11 +41,8 @@ test("a bare name whose first PATH match is outside the trusted directories is r
     writeExecutable(join(dir, "git"));
     withPath(dir, () => {
       const result = resolveTrustedCommand("git");
-      assert.equal(result.ok, false);
-      assert.match(
-        result.ok === false ? result.reason : "",
-        /resolves to '.*git', outside a trusted binary directory/,
-      );
+      expect(result.ok).toBe(false);
+      expect(result.ok === false ? result.reason : "").toMatch(/resolves to '.*git', outside a trusted binary directory/);
     });
   });
 });
@@ -56,9 +52,9 @@ test("a bare name whose first PATH match is a trusted directory is passed throug
     writeExecutable(join(dir, "git"));
     withPath(dir, () => {
       const result = resolveTrustedCommand("git", { trustedDirs: [dir] });
-      assert.equal(result.ok, true);
-      assert.equal(result.ok === true ? result.command : "", "git");
-      assert.equal(result.ok === true ? result.realPath : "", realpathSync(join(dir, "git")));
+      expect(result.ok).toBe(true);
+      expect(result.ok === true ? result.command : "").toBe("git");
+      expect(result.ok === true ? result.realPath : "").toBe(realpathSync(join(dir, "git")));
     });
   });
 });
@@ -67,9 +63,9 @@ test("the operator can extend the trusted directories for a toolchain install", 
   withTempBinDir((dir) => {
     writeExecutable(join(dir, "npm"));
     withPath(dir, () => {
-      assert.equal(resolveTrustedCommand("npm").ok, false, "the extra directory is not trusted yet");
+      expect(resolveTrustedCommand("npm").ok, "the extra directory is not trusted yet").toBe(false);
       const extended = [...DEFAULT_TRUSTED_BIN_DIRS, dir];
-      assert.equal(resolveTrustedCommand("npm", { trustedDirs: extended }).ok, true);
+      expect(resolveTrustedCommand("npm", { trustedDirs: extended }).ok).toBe(true);
     });
   });
 });
@@ -81,15 +77,15 @@ test("PATH resolution trusts the located directory, not the symlink target", () 
     symlinkSync(outside, join(dir, "git"));
     withPath(dir, () => {
       const result = resolveTrustedCommand("git", { trustedDirs: [dir] });
-      assert.equal(result.ok, true, "exec runs the entry it finds, so the entry's directory is the trust boundary");
+      expect(result.ok, "exec runs the entry it finds, so the entry's directory is the trust boundary").toBe(true);
     });
   });
 });
 
 test("a bare name nothing on PATH matches is passed through to report ENOENT", () => {
   const result = resolveTrustedCommand("git", { pathEnv: "/nonexistent-pstack-bin" });
-  assert.equal(result.ok, true);
-  assert.equal(result.ok === true ? result.command : "", "git");
+  expect(result.ok).toBe(true);
+  expect(result.ok === true ? result.command : "").toBe("git");
 });
 
 test("an absolute path outside the trusted directories is refused even when it exists", () => {
@@ -97,8 +93,8 @@ test("an absolute path outside the trusted directories is refused even when it e
     const evil = join(dir, "git");
     writeExecutable(evil);
     const result = resolveTrustedCommand(evil);
-    assert.equal(result.ok, false);
-    assert.match(result.ok === false ? result.reason : "", /not in a trusted binary directory/);
+    expect(result.ok).toBe(false);
+    expect(result.ok === false ? result.reason : "").toMatch(/not in a trusted binary directory/);
   });
 });
 
@@ -107,14 +103,14 @@ test("an interpreter is refused without the opt-in and located unchecked with it
     writeExecutable(join(dir, "node"));
     withPath(dir, () => {
       const refused = resolveTrustedCommand("node", { commandAllowlist: COMPANION_ALLOWLIST });
-      assert.equal(refused.ok, false);
-      assert.match(refused.ok === false ? refused.reason : "", /requires an explicit allowInterpreters opt-in/);
+      expect(refused.ok).toBe(false);
+      expect(refused.ok === false ? refused.reason : "").toMatch(/requires an explicit allowInterpreters opt-in/);
       const opted = resolveTrustedCommand("node", {
         commandAllowlist: COMPANION_ALLOWLIST,
         allowInterpreters: true,
       });
-      assert.equal(opted.ok, true, "the opt-in is a grant of arbitrary execution, so the location adds nothing");
-      assert.equal(opted.ok === true ? opted.command : "", "node");
+      expect(opted.ok, "the opt-in is a grant of arbitrary execution, so the location adds nothing").toBe(true);
+      expect(opted.ok === true ? opted.command : "").toBe("node");
     });
   });
 });
@@ -124,8 +120,8 @@ test("a name outside the allowlist is refused before any path is inspected", () 
     writeExecutable(join(dir, "rm"));
     withPath(dir, () => {
       const result = resolveTrustedCommand("rm", { trustedDirs: [dir] });
-      assert.equal(result.ok, false);
-      assert.match(result.ok === false ? result.reason : "", /not in control_cli allowlist/);
+      expect(result.ok).toBe(false);
+      expect(result.ok === false ? result.reason : "").toMatch(/not in control_cli allowlist/);
     });
   });
 });

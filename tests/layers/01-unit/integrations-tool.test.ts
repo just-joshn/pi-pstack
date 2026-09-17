@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -58,7 +57,7 @@ function integrationsEnv(handler: (call: ExecCall) => ExecResult = defaultExec):
   return {
     tool(name) {
       const found = registered.find((candidate) => candidate.name === name);
-      assert.ok(found, `${name} is registered`);
+      expect(found, `${name} is registered`).toBeTruthy();
       return found;
     },
     calls: () => calls,
@@ -109,30 +108,24 @@ test("integrations-tool-01 registers pstack_integrations with the mandated actio
   const env = integrationsEnv();
   const tool = env.tool("pstack_integrations");
 
-  assert.equal(tool.name, "pstack_integrations");
-  assert.equal(tool.label, "Pstack Integrations");
-  assert.equal(tool.promptSnippet, "Report integration capability availability and query a configured adapter");
-  assert.deepEqual(tool.promptGuidelines, [
+  expect(tool.name).toBe("pstack_integrations");
+  expect(tool.label).toBe("Pstack Integrations");
+  expect(tool.promptSnippet).toBe("Report integration capability availability and query a configured adapter");
+  expect(tool.promptGuidelines).toEqual([
     "pstack_integrations must report an unavailable category as a null finding, never skip it",
     "pstack_integrations capability availability comes from the tool, not from guessing tool names",
   ]);
 
   const accepted = { action: "query", capability: "team-chat", query: "x", paths: ["a"], limit: 1 };
-  assert.equal(Check(tool.parameters, accepted), true);
-  assert.equal(Check(tool.parameters, { capability: "team-chat" }), false);
-  assert.equal(Check(tool.parameters, { action: "list", limit: 0 }), false);
-  assert.equal(Check(tool.parameters, { action: "list", limit: 201 }), false);
-  assert.equal(Check(tool.parameters, { action: "list", paths: "a" }), false);
+  expect(Check(tool.parameters, accepted)).toBe(true);
+  expect(Check(tool.parameters, { capability: "team-chat" })).toBe(false);
+  expect(Check(tool.parameters, { action: "list", limit: 0 })).toBe(false);
+  expect(Check(tool.parameters, { action: "list", limit: 201 })).toBe(false);
+  expect(Check(tool.parameters, { action: "list", paths: "a" })).toBe(false);
 
   const ctx = { cwd: tempCwd() };
-  await assert.rejects(
-    () => tool.execute("t", { action: "bogus" }, undefined, undefined, ctx),
-    /action must be one of/,
-  );
-  await assert.rejects(
-    () => tool.execute("t", { action: "query" }, undefined, undefined, ctx),
-    /capability must be one of/,
-  );
+  await expect(() => tool.execute("t", { action: "bogus" }, undefined, undefined, ctx)).rejects.toThrow(/action must be one of/);
+  await expect(() => tool.execute("t", { action: "query" }, undefined, undefined, ctx)).rejects.toThrow(/capability must be one of/);
 });
 
 test("integrations-tool-02 lists all nine categories with availability and tool names", async () => {
@@ -144,27 +137,21 @@ test("integrations-tool-02 lists all nine categories with availability and tool 
 
     const list = await tool.execute("t", { action: "list" }, undefined, undefined, { cwd });
     const rows = list.content[0].text.split("\n").slice(1);
-    assert.equal(rows.length, 9);
-    assert.deepEqual(
-      rows.map((row) => row.split(":")[0]),
-      INTEGRATION_CATEGORIES,
-    );
-    assert.equal(
-      rows.every((row) => row.includes("tool=")),
-      true,
-    );
-    assert.equal(rows[0].includes("unavailable"), true);
-    assert.equal(rows[0].includes("pstack_integrations"), true);
-    assert.equal(rows[1].includes(join(dir, "integrations.json")), true);
-    assert.equal(list.details.total, 9);
-    assert.equal(list.details.available, 2);
+    expect(rows.length).toBe(9);
+    expect(rows.map((row) => row.split(":")[0])).toEqual(INTEGRATION_CATEGORIES);
+    expect(rows.every((row) => row.includes("tool="))).toBe(true);
+    expect(rows[0].includes("unavailable")).toBe(true);
+    expect(rows[0].includes("pstack_integrations")).toBe(true);
+    expect(rows[1].includes(join(dir, "integrations.json"))).toBe(true);
+    expect(list.details.total).toBe(9);
+    expect(list.details.available).toBe(2);
 
     const status = await tool.execute("t", { action: "status" }, undefined, undefined, { cwd });
     const probe = await tool.execute("t", { action: "probe" }, undefined, undefined, { cwd });
-    assert.equal(status.details.total, 9);
-    assert.equal(probe.details.total, 9);
-    assert.deepEqual(availabilityTokens(status), availabilityTokens(list));
-    assert.deepEqual(availabilityTokens(probe), availabilityTokens(list));
+    expect(status.details.total).toBe(9);
+    expect(probe.details.total).toBe(9);
+    expect(availabilityTokens(status)).toEqual(availabilityTokens(list));
+    expect(availabilityTokens(probe)).toEqual(availabilityTokens(list));
   });
 });
 
@@ -183,16 +170,16 @@ test("integrations-tool-03 returns an explicit coverage gap and never substitute
       { cwd },
     );
     const text = result.content[0].text;
-    assert.equal(text.includes("coverage gap"), true);
-    assert.equal(text.includes("missing prerequisite"), true);
-    assert.equal(text.includes(join(dir, "integrations.json")), true);
-    assert.equal(text.includes("pstack_source_control"), false);
-    assert.equal(result.details.coverageGap, true);
-    assert.equal(result.details.substituted, false);
-    assert.equal(result.details.availability, "unavailable");
-    assert.equal(result.details.capability, "issue-tracker");
+    expect(text.includes("coverage gap")).toBe(true);
+    expect(text.includes("missing prerequisite")).toBe(true);
+    expect(text.includes(join(dir, "integrations.json"))).toBe(true);
+    expect(text.includes("pstack_source_control")).toBe(false);
+    expect(result.details.coverageGap).toBe(true);
+    expect(result.details.substituted).toBe(false);
+    expect(result.details.availability).toBe("unavailable");
+    expect(result.details.capability).toBe("issue-tracker");
 
-    assert.deepEqual(env.calls(), [], "an unavailable command-adapter query spawns nothing");
+    expect(env.calls(), "an unavailable command-adapter query spawns nothing").toEqual([]);
   });
 });
 
@@ -210,8 +197,8 @@ test("integrations-tool-04 runs a configured command adapter and returns its out
     const tool = env.tool("pstack_integrations");
 
     const list = await tool.execute("t", { action: "list" }, undefined, undefined, { cwd });
-    assert.equal(list.content[0].text.includes("team-chat: available"), true);
-    assert.equal(list.content[0].text.includes("command adapter 'node' (2 args)"), true);
+    expect(list.content[0].text.includes("team-chat: available")).toBe(true);
+    expect(list.content[0].text.includes("command adapter 'node' (2 args)")).toBe(true);
 
     const query = await tool.execute(
       "t",
@@ -221,11 +208,11 @@ test("integrations-tool-04 runs a configured command adapter and returns its out
       { cwd },
     );
     const nodeCalls = env.calls().filter((call) => call.command === "node");
-    assert.equal(nodeCalls.length, 1);
-    assert.deepEqual(nodeCalls[0].args, ["-e", "process.stdout.write('message-42')", "topic"]);
-    assert.equal(query.content[0].text.includes("message-42"), true);
-    assert.equal(query.content[0].text.includes("exit 0"), true);
-    assert.equal(query.details.coverageGap, false);
+    expect(nodeCalls.length).toBe(1);
+    expect(nodeCalls[0].args).toEqual(["-e", "process.stdout.write('message-42')", "topic"]);
+    expect(query.content[0].text.includes("message-42")).toBe(true);
+    expect(query.content[0].text.includes("exit 0")).toBe(true);
+    expect(query.details.coverageGap).toBe(false);
 
     const callsBefore = env.calls().length;
     const delegated = await tool.execute(
@@ -235,10 +222,10 @@ test("integrations-tool-04 runs a configured command adapter and returns its out
       undefined,
       { cwd },
     );
-    assert.equal(delegated.details.delegatedTo, "pstack_control_cli");
-    assert.equal(delegated.details.executed, false);
-    assert.equal(delegated.details.coverageGap, false);
-    assert.equal(env.calls().length, callsBefore, "the pointer runs no adapter and no probe");
+    expect(delegated.details.delegatedTo).toBe("pstack_control_cli");
+    expect(delegated.details.executed).toBe(false);
+    expect(delegated.details.coverageGap).toBe(false);
+    expect(env.calls().length, "the pointer runs no adapter and no probe").toBe(callsBefore);
   });
 });
 
@@ -251,9 +238,9 @@ test("integrations-tool-05 probes source-control inside a real git work tree", a
     const tool = gitOnly.tool("pstack_integrations");
 
     const probe = await tool.execute("t", { action: "probe" }, undefined, undefined, { cwd: repo });
-    assert.equal(probe.content[0].text.includes("source-control: available-git-only"), true);
-    assert.equal(probe.details.available, 3);
-    assert.equal(probe.details.total, 9);
+    expect(probe.content[0].text.includes("source-control: available-git-only")).toBe(true);
+    expect(probe.details.available).toBe(3);
+    expect(probe.details.total).toBe(9);
 
     const gap = await tool.execute(
       "t",
@@ -262,24 +249,16 @@ test("integrations-tool-05 probes source-control inside a real git work tree", a
       undefined,
       { cwd: repo },
     );
-    assert.equal(gap.content[0].text.includes("coverage gap"), true);
-    assert.equal(gap.content[0].text.includes("gh"), true);
-    assert.equal(gap.details.coverageGap, true);
-    assert.equal(
-      gitOnly.calls().some((call) => call.command === "gh" && call.args[0] === "search"),
-      false,
-      "no gh search call without gh on PATH",
-    );
-    assert.equal(
-      gitOnly.calls().some((call) => call.command === "git" && call.args[0] === "rev-parse"),
-      true,
-      "the git work tree probe ran",
-    );
+    expect(gap.content[0].text.includes("coverage gap")).toBe(true);
+    expect(gap.content[0].text.includes("gh")).toBe(true);
+    expect(gap.details.coverageGap).toBe(true);
+    expect(gitOnly.calls().some((call) => call.command === "gh" && call.args[0] === "search"), "no gh search call without gh on PATH").toBe(false);
+    expect(gitOnly.calls().some((call) => call.command === "git" && call.args[0] === "rev-parse"), "the git work tree probe ran").toBe(true);
 
     const withGh = integrationsEnv((call) => realExec(call, { code: 0, stdout: "gh version 2.101.0", stderr: "" }));
     const ghTool = withGh.tool("pstack_integrations");
     const full = await ghTool.execute("t", { action: "probe" }, undefined, undefined, { cwd: repo });
-    assert.equal(full.content[0].text.includes("source-control: available"), true);
+    expect(full.content[0].text.includes("source-control: available")).toBe(true);
 
     const log = await ghTool.execute(
       "t",
@@ -288,19 +267,19 @@ test("integrations-tool-05 probes source-control inside a real git work tree", a
       undefined,
       { cwd: repo },
     );
-    assert.equal(log.content[0].text.includes("log-line ONE"), true);
-    assert.equal(log.details.code, 0);
+    expect(log.content[0].text.includes("log-line ONE")).toBe(true);
+    expect(log.details.code).toBe(0);
   });
 });
 
 test("integrations-tool-06 allows read-only inventory and blocks a query under readonly", () => {
   const policy = READONLY_TOOL_POLICIES.pstack_integrations;
 
-  assert.equal(policy({ action: "list" }).action, "allow");
-  assert.equal(policy({ action: "status" }).action, "allow");
-  assert.equal(policy({ action: "probe" }).action, "allow");
+  expect(policy({ action: "list" }).action).toBe("allow");
+  expect(policy({ action: "status" }).action).toBe("allow");
+  expect(policy({ action: "probe" }).action).toBe("allow");
 
   const blocked = policy({ action: "query", capability: "issue-tracker" });
-  assert.equal(blocked.action, "block");
-  assert.equal(String(blocked.reason).includes("pstack_integrations query"), true);
+  expect(blocked.action).toBe("block");
+  expect(String(blocked.reason).includes("pstack_integrations query")).toBe(true);
 });

@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -38,10 +37,10 @@ function performHarnessCheck() {
       dir,
       300000,
     );
-    assert.equal(installPi.status, 0, `bun add of pinned pi packages failed:\n${installPi.output}`);
+    expect(installPi.status, `bun add of pinned pi packages failed:\n${installPi.output}`).toBe(0);
 
     const installHarness = run(["bun", "add", "-d", HARNESS_SPEC], dir, 300000);
-    assert.equal(installHarness.status, 0, `bun add -d ${HARNESS_SPEC} failed:\n${installHarness.output}`);
+    expect(installHarness.status, `bun add -d ${HARNESS_SPEC} failed:\n${installHarness.output}`).toBe(0);
 
     const imported = run(
       [process.execPath, "--input-type=module", "-e", "await import('@marcfargas/pi-test-harness')"],
@@ -50,17 +49,11 @@ function performHarnessCheck() {
     );
 
     if (imported.status === 0) {
-      assert.fail(
-        `${HARNESS_SPEC} now imports cleanly against pi ${PI_VERSION}. The layer 7 verdict is stale: ` +
-          "re-check the runtime rename surface and update tests/layers/07-third-party/README.md.",
-      );
+      expect.fail(`${HARNESS_SPEC} now imports cleanly against pi ${PI_VERSION}. The layer 7 verdict is stale: ` +
+          "re-check the runtime rename surface and update tests/layers/07-third-party/README.md.");
     }
 
-    assert.match(
-      imported.output,
-      /getModel/,
-      `expected the recorded getModel import break, got:\n${imported.output}`,
-    );
+    expect(imported.output, `expected the recorded getModel import break, got:\n${imported.output}`).toMatch(/getModel/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

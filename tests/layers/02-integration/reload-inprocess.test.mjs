@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -9,41 +8,29 @@ async function runReloadInprocessFlow(fixturePath, fixtureV1, fixtureV2, fixture
   await withSession(
     async (f) => {
       const loaded = f.session.resourceLoader.getExtensions();
-      assert.equal(loaded.errors.length, 0, `Extension load errors: ${JSON.stringify(loaded.errors)}`);
+      expect(loaded.errors.length, `Extension load errors: ${JSON.stringify(loaded.errors)}`).toBe(0);
 
       const commands = loaded.extensions.flatMap((e) => [...e.commands.keys()]);
-      assert.ok(commands.includes("fixture-marker"), "fixture-marker command missing");
+      expect(commands.includes("fixture-marker"), "fixture-marker command missing").toBeTruthy();
 
       await f.prompt("/fixture-marker");
-      assert.ok(
-        f.ui.notifications.some(([type, message]) => type === "info" && message === "RELOAD_MARKER_V1"),
-        `V1 notification not found: ${JSON.stringify(f.ui.notifications)}`,
-      );
+      expect(f.ui.notifications.some(([type, message]) => type === "info" && message === "RELOAD_MARKER_V1"), `V1 notification not found: ${JSON.stringify(f.ui.notifications)}`).toBeTruthy();
 
       writeFileSync(fixturePath, fixtureV2, "utf8");
       await f.reload();
 
       const reloadedAfterV2 = f.session.resourceLoader.getExtensions();
-      assert.equal(reloadedAfterV2.errors.length, 0, `Extension reload V2 errors: ${JSON.stringify(reloadedAfterV2.errors)}`);
+      expect(reloadedAfterV2.errors.length, `Extension reload V2 errors: ${JSON.stringify(reloadedAfterV2.errors)}`).toBe(0);
 
       await f.prompt("/fixture-marker");
-      assert.ok(
-        f.ui.notifications.some(([type, message]) => type === "info" && message === "RELOAD_MARKER_V2"),
-        `V2 notification not found: ${JSON.stringify(f.ui.notifications)}`,
-      );
-      assert.deepEqual(f.handlerErrors, [], `Handler errors: ${JSON.stringify(f.handlerErrors)}`);
+      expect(f.ui.notifications.some(([type, message]) => type === "info" && message === "RELOAD_MARKER_V2"), `V2 notification not found: ${JSON.stringify(f.ui.notifications)}`).toBeTruthy();
+      expect(f.handlerErrors, `Handler errors: ${JSON.stringify(f.handlerErrors)}`).toEqual([]);
 
       writeFileSync(fixturePath, fixtureBroken, "utf8");
-      await assert.rejects(
-        async () => await f.reload(),
-        (err) => {
-          assert.ok(
-            err.message.includes("Extension reload failed"),
-            `Expected reload error, got: ${err.message}`,
-          );
-          return true;
-        },
-      );
+      await expect(f.reload()).rejects.toSatisfy((err) => {
+        expect(err.message.includes("Extension reload failed"), `Expected reload error, got: ${err.message}`).toBeTruthy();
+        return true;
+      });
     },
     { extensionPaths: [fixturePath] },
   );

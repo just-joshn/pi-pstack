@@ -2,28 +2,16 @@
  * Repro + regression test: the "input" handler in extensions/index.ts must not match,
  * persist, force-invoke, or arm readonly on extension-injected text (event.source === "extension").
  * Drives the real default export, not a reimplementation.
- * Run: node --experimental-strip-types --import ./extensions/test/peer-deps.mjs extensions/test/sticky-input-source.mjs
+ * Run: npx vitest run --project extensions
  */
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-let failed = 0;
-
 // The handler gates auto-readonly on PSTACK_CHILD_ROLE; this test simulates a real
 // parent session (unset even when this test itself runs as a pstack child).
 Reflect.deleteProperty(process.env, "PSTACK_CHILD_ROLE");
-
-async function check(name, fn) {
-  try {
-    await fn();
-    process.stdout.write(`PASS ${name}\n`);
-  } catch (err) {
-    failed = failed + 1;
-    console.error(`FAIL ${name}:`, err?.message ?? err);
-  }
-}
 
 const ALL_TOOL_NAMES = [
   "read",
@@ -94,15 +82,15 @@ function fakeCtx() {
   };
 }
 
-await check("shouldMatchStickyInput: extension is rejected, interactive/rpc allowed", async () => {
+test("shouldMatchStickyInput: extension is rejected, interactive/rpc allowed", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/sticky-session.ts")).href);
-  assert.equal(mod.shouldMatchStickyInput("extension"), false);
-  assert.equal(mod.shouldMatchStickyInput("interactive"), true);
-  assert.equal(mod.shouldMatchStickyInput("rpc"), true);
-  assert.equal(mod.shouldMatchStickyInput(undefined), true);
+  expect(mod.shouldMatchStickyInput("extension")).toBe(false);
+  expect(mod.shouldMatchStickyInput("interactive")).toBe(true);
+  expect(mod.shouldMatchStickyInput("rpc")).toBe(true);
+  expect(mod.shouldMatchStickyInput(undefined)).toBe(true);
 });
 
-await check("interactive input matches bug-fix and does not arm readonly", async () => {
+test("interactive input matches bug-fix and does not arm readonly", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/index.ts")).href);
   const { api, handlers, appended } = makeFakeApi();
   mod.default(api);
@@ -113,12 +101,12 @@ await check("interactive input matches bug-fix and does not arm readonly", async
   const matched = appended.find(
     (e) => e.type === "pstack-poteto-mode" && e.data.matchedPlaybookId === "bug-fix",
   );
-  assert.ok(matched, `expected a pstack-poteto-mode entry matching bug-fix, got: ${JSON.stringify(appended)}`);
+  expect(matched, `expected a pstack-poteto-mode entry matching bug-fix, got: ${JSON.stringify(appended)}`).toBeTruthy();
   const readonly = appended.find((e) => e.type === "pstack-session-readonly");
-  assert.equal(readonly, undefined, `expected no readonly entry for bug-fix, got: ${JSON.stringify(readonly)}`);
+  expect(readonly, `expected no readonly entry for bug-fix, got: ${JSON.stringify(readonly)}`).toBe(undefined);
 });
 
-await check("interactive matching input returns transform action (no queued follow-up)", async () => {
+test("interactive matching input returns transform action (no queued follow-up)", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/index.ts")).href);
   const { api, handlers, calls } = makeFakeApi();
   mod.default(api);
@@ -126,14 +114,14 @@ await check("interactive matching input returns transform action (no queued foll
     { type: "input", text: "playbooks/bug-fix please deep audit", source: "interactive" },
     fakeCtx(),
   );
-  assert.deepEqual(result, {
+  expect(result).toEqual({
     action: "transform",
     text: "/skill:poteto-mode playbooks/bug-fix please deep audit",
   });
-  assert.equal(calls.sendUserMessage.length, 0, "must not call sendUserMessage; transform replaces the queued follow-up");
+  expect(calls.sendUserMessage.length, "must not call sendUserMessage; transform replaces the queued follow-up").toBe(0);
 });
 
-await check("extension-injected input does not match, persist, force-invoke, or arm readonly", async () => {
+test("extension-injected input does not match, persist, force-invoke, or arm readonly", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/index.ts")).href);
   const { api, handlers, appended, calls } = makeFakeApi();
   mod.default(api);
@@ -144,8 +132,8 @@ await check("extension-injected input does not match, persist, force-invoke, or 
     fakeCtx(),
   );
   const before = appended.filter((e) => e.type === "pstack-poteto-mode");
-  assert.ok(before.length >= 1);
-  assert.equal(before.at(-1).data.matchedPlaybookId, "bug-fix");
+  expect(before.length >= 1).toBeTruthy();
+  expect(before.at(-1).data.matchedPlaybookId).toBe("bug-fix");
 
   // Case 2: extension-injected text must be fully ignored.
   const appendedCountBefore = appended.length;
@@ -155,16 +143,16 @@ await check("extension-injected input does not match, persist, force-invoke, or 
     { type: "input", text: "playbooks/investigation how does it work", source: "extension" },
     fakeCtx(),
   );
-  assert.equal(appended.length, appendedCountBefore, `extension input must not appendEntry, got: ${JSON.stringify(appended.slice(appendedCountBefore))}`);
-  assert.equal(calls.sendUserMessage.length, sendCountBefore, "extension input must not call sendUserMessage");
-  assert.equal(calls.setActiveTools.length, setActiveCountBefore, "extension input must not call setActiveTools");
+  expect(appended.length, `extension input must not appendEntry, got: ${JSON.stringify(appended.slice(appendedCountBefore))}`).toBe(appendedCountBefore);
+  expect(calls.sendUserMessage.length, "extension input must not call sendUserMessage").toBe(sendCountBefore);
+  expect(calls.setActiveTools.length, "extension input must not call setActiveTools").toBe(setActiveCountBefore);
 
   // The matched playbook from the real user turn must still be bug-fix, not overwritten.
   const potetoEntries = appended.filter((e) => e.type === "pstack-poteto-mode");
-  assert.equal(potetoEntries.at(-1).data.matchedPlaybookId, "bug-fix");
+  expect(potetoEntries.at(-1).data.matchedPlaybookId).toBe("bug-fix");
 });
 
-await check("interactive investigation text still arms readonly for real users", async () => {
+test("interactive investigation text still arms readonly for real users", async () => {
   const mod = await import(pathToFileURL(resolve(ROOT, "extensions/index.ts")).href);
   const { api, handlers, appended } = makeFakeApi();
   mod.default(api);
@@ -173,13 +161,6 @@ await check("interactive investigation text still arms readonly for real users",
     fakeCtx(),
   );
   const readonly = appended.find((e) => e.type === "pstack-session-readonly");
-  assert.ok(readonly, `expected a readonly entry, got: ${JSON.stringify(appended)}`);
-  assert.equal(readonly.data.reason, "playbook:investigation");
+  expect(readonly, `expected a readonly entry, got: ${JSON.stringify(appended)}`).toBeTruthy();
+  expect(readonly.data.reason).toBe("playbook:investigation");
 });
-
-if (failed > 0) {
-  console.error(`\n${failed} check(s) failed`);
-  process.exit(1);
-} else {
-  process.stdout.write("\nAll checks passed\n");
-}

@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import {
   classifyIpLiteral,
   fetchFollowingSafeRedirects,
@@ -116,7 +115,7 @@ async function refusalReason(url: string, options: UrlPolicyOptions = {}): Promi
 
 async function assertAllowed(url: string, options: UrlPolicyOptions = {}): Promise<void> {
   const result = await validateProbeTarget(url, options);
-  assert.equal(result.ok, true, result.ok ? "" : `${url}: ${result.reason}`);
+  expect(result.ok, result.ok ? "" : `${url}: ${result.reason}`).toBe(true);
 }
 
 async function requireTarget(url: string): Promise<ProbeTarget> {
@@ -146,13 +145,13 @@ function stubRequest(responses: StubResponse[]) {
 
 test("url-policy refuses non-http(s) schemes", async () => {
   for (const url of NON_HTTP_URLS) {
-    assert.match(await refusalReason(url), /scheme/);
+    expect(await refusalReason(url)).toMatch(/scheme/);
   }
 });
 
 test("url-policy refuses private, loopback, and link-local literals", async () => {
   for (const url of PRIVATE_URLS) {
-    assert.match(await refusalReason(url), /private, loopback, or link-local/);
+    expect(await refusalReason(url)).toMatch(/private, loopback, or link-local/);
   }
 });
 
@@ -162,51 +161,45 @@ test("url-policy allows public IP literals without DNS", async () => {
 
 test("url-policy refuses metadata and local-only hostnames", async () => {
   for (const url of METADATA_URLS) {
-    assert.match(await refusalReason(url), /metadata or local-only/);
+    expect(await refusalReason(url)).toMatch(/metadata or local-only/);
   }
 });
 
 test("url-policy refuses credentials and malformed input", async () => {
-  assert.match(await refusalReason("http://user:pass@8.8.8.8/"), /credentials/);
-  assert.match(await refusalReason("not a url"), /not a valid absolute URL/);
-  assert.match(await refusalReason("   "), /non-empty string/);
+  expect(await refusalReason("http://user:pass@8.8.8.8/")).toMatch(/credentials/);
+  expect(await refusalReason("not a url")).toMatch(/not a valid absolute URL/);
+  expect(await refusalReason("   ")).toMatch(/non-empty string/);
   const nonString = await validateProbeTarget(42);
-  assert.equal(nonString.ok, false);
+  expect(nonString.ok).toBe(false);
 });
 
 test("ipv4 classification table covers every private range", () => {
   for (const [address, expected] of IPV4_TABLE) {
     const value = ipv4ToInt(address);
-    assert.equal(value === undefined ? undefined : isPrivateIPv4(value), expected, address);
+    expect(value === undefined ? undefined : isPrivateIPv4(value), address).toBe(expected);
   }
 });
 
 test("ipv6 literals classify by range and embedded IPv4", () => {
   for (const [address, expected] of IPV6_TABLE) {
-    assert.equal(classifyIpLiteral(address), expected, address);
+    expect(classifyIpLiteral(address), address).toBe(expected);
   }
 });
 
 test("url-policy refuses a public name that resolves to a private address", async () => {
   const resolve = resolverFor({ "evil.example.com": ["127.0.0.1"] });
-  assert.match(
-    await refusalReason("http://evil.example.com/", { resolve }),
-    /private, loopback, or link-local/,
-  );
+  expect(await refusalReason("http://evil.example.com/", { resolve })).toMatch(/private, loopback, or link-local/);
 });
 
 test("url-policy refuses when any resolved address is private", async () => {
   const resolve = resolverFor({ "mixed.example.com": ["8.8.8.8", "10.0.0.1"] });
-  assert.match(await refusalReason("http://mixed.example.com/", { resolve }), /private/);
+  expect(await refusalReason("http://mixed.example.com/", { resolve })).toMatch(/private/);
 });
 
 test("url-policy refuses when lookup fails or returns nothing", async () => {
-  assert.match(
-    await refusalReason("http://missing.example.com/", { resolve: failingResolver() }),
-    /could not be resolved/,
-  );
+  expect(await refusalReason("http://missing.example.com/", { resolve: failingResolver() })).toMatch(/could not be resolved/);
   const empty = resolverFor({ "empty.example.com": [] });
-  assert.match(await refusalReason("http://empty.example.com/", { resolve: empty }), /private/);
+  expect(await refusalReason("http://empty.example.com/", { resolve: empty })).toMatch(/private/);
 });
 
 test("url-policy allows an explicitly allowlisted private host", async () => {
@@ -217,34 +210,19 @@ test("url-policy allows an explicitly allowlisted private host", async () => {
 test("url-policy matches an allowlist entry carrying a port", async () => {
   await assertAllowed("http://127.0.0.1:5173/", { allowHosts: ["127.0.0.1:5173"] });
   await assertAllowed("http://[::1]:5173/", { allowHosts: ["[::1]:5173"] });
-  assert.match(
-    await refusalReason("http://127.0.0.1:9999/", { allowHosts: ["127.0.0.1:5173"] }),
-    /private, loopback, or link-local/,
-  );
+  expect(await refusalReason("http://127.0.0.1:9999/", { allowHosts: ["127.0.0.1:5173"] })).toMatch(/private, loopback, or link-local/);
 });
 
 test("url-policy refuses the metadata address range even when allowlisted", async () => {
-  assert.match(
-    await refusalReason("http://169.254.169.254/", { allowHosts: ["169.254.169.254"] }),
-    /metadata or local-only/,
-  );
-  assert.match(
-    await refusalReason("http://[::ffff:169.254.169.254]/", { allowHosts: ["::ffff:169.254.169.254"] }),
-    /metadata or local-only/,
-  );
+  expect(await refusalReason("http://169.254.169.254/", { allowHosts: ["169.254.169.254"] })).toMatch(/metadata or local-only/);
+  expect(await refusalReason("http://[::ffff:169.254.169.254]/", { allowHosts: ["::ffff:169.254.169.254"] })).toMatch(/metadata or local-only/);
 });
 
 test("url-policy keeps metadata hosts and local suffixes blocked even when allowlisted", async () => {
-  assert.match(
-    await refusalReason("http://metadata.google.internal/", {
+  expect(await refusalReason("http://metadata.google.internal/", {
       allowHosts: ["metadata.google.internal"],
-    }),
-    /metadata or local-only/,
-  );
-  assert.match(
-    await refusalReason("http://printer.local/", { allowHosts: ["printer.local"] }),
-    /metadata or local-only/,
-  );
+    })).toMatch(/metadata or local-only/);
+  expect(await refusalReason("http://printer.local/", { allowHosts: ["printer.local"] })).toMatch(/metadata or local-only/);
 });
 
 test("url-policy matches allowHosts exactly, not by suffix", async () => {
@@ -253,13 +231,10 @@ test("url-policy matches allowHosts exactly, not by suffix", async () => {
     "sub.evil.example.com": ["127.0.0.1"],
   });
   await assertAllowed("http://evil.example.com/", { resolve, allowHosts: ["evil.example.com"] });
-  assert.match(
-    await refusalReason("http://sub.evil.example.com/", {
+  expect(await refusalReason("http://sub.evil.example.com/", {
       resolve,
       allowHosts: ["evil.example.com"],
-    }),
-    /private/,
-  );
+    })).toMatch(/private/);
 });
 
 test("url-policy re-validates redirects and never requests a refused hop", async () => {
@@ -267,11 +242,8 @@ test("url-policy re-validates redirects and never requests a refused hop", async
   const stub = stubRequest([
     { status: 302, location: "http://169.254.169.254/latest/meta-data/" },
   ]);
-  await assert.rejects(
-    () => fetchFollowingSafeRedirects(stub.request, initial),
-    /redirect target refused/,
-  );
-  assert.deepEqual(stub.calls(), ["http://8.8.8.8/"]);
+  await expect(() => fetchFollowingSafeRedirects(stub.request, initial)).rejects.toThrow(/redirect target refused/);
+  expect(stub.calls()).toEqual(["http://8.8.8.8/"]);
 });
 
 test("url-policy follows a redirect chain that stays public", async () => {
@@ -281,19 +253,13 @@ test("url-policy follows a redirect chain that stays public", async () => {
     { status: 200, body: "fine" },
   ]);
   const response = await fetchFollowingSafeRedirects(stub.request, initial);
-  assert.equal(response.status, 200);
-  assert.deepEqual(stub.calls(), ["http://8.8.8.8/", "https://1.1.1.1/ok"]);
+  expect(response.status).toBe(200);
+  expect(stub.calls()).toEqual(["http://8.8.8.8/", "https://1.1.1.1/ok"]);
 });
 
 test("url-policy refuses a redirect without Location and an over-long chain", async () => {
   const initial = await requireTarget("http://8.8.8.8/");
-  await assert.rejects(
-    () => fetchFollowingSafeRedirects(stubRequest([{ status: 302 }]).request, initial),
-    /without a Location/,
-  );
+  await expect(() => fetchFollowingSafeRedirects(stubRequest([{ status: 302 }]).request, initial)).rejects.toThrow(/without a Location/);
   const loop = stubRequest([{ status: 302, location: "http://8.8.8.8/" }]);
-  await assert.rejects(
-    () => fetchFollowingSafeRedirects(loop.request, initial, { maxRedirects: 2 }),
-    /refused after 2 redirects/,
-  );
+  await expect(() => fetchFollowingSafeRedirects(loop.request, initial, { maxRedirects: 2 })).rejects.toThrow(/refused after 2 redirects/);
 });

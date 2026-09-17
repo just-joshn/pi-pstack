@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -91,24 +90,24 @@ test("registerPiOnlyCommands forwards the body and trimmed args", async () => {
   const env = recordingPi();
   registerPiOnlyCommands(env.pi, [{ name: "demo", description: "Demo", body: "BODY" }]);
   const command = env.commands().get("demo");
-  assert.equal(command?.description, "Demo");
+  expect(command?.description).toBe("Demo");
   await command?.handler("  extra  ", {});
   await command?.handler("   ", {});
-  assert.deepEqual(env.messages(), [
+  expect(env.messages()).toEqual([
     { content: "BODY extra", options: { expandPromptTemplates: true, deliverAs: "followUp" } },
     { content: "BODY", options: { expandPromptTemplates: true, deliverAs: "followUp" } },
   ]);
 });
 
 test("readSkillCommands tolerates a missing dir and dedupes names", () => {
-  assert.deepEqual(readSkillCommands("/definitely/missing/pstack-skills"), []);
+  expect(readSkillCommands("/definitely/missing/pstack-skills")).toEqual([]);
   const root = mkdtempSync(join(tmpdir(), "pstack-cmd-list-"));
   try {
     writeSkill(root, "first", ["name: dup", "description: First."]);
     writeSkill(root, "second", ["name: dup", "description: Second."]);
     writeSkill(root, "nameless", ["description: No name."]);
     mkdirSync(join(root, "no-file"), { recursive: true });
-    assert.deepEqual(readSkillCommands(root), [{ name: "dup", description: "First." }]);
+    expect(readSkillCommands(root)).toEqual([{ name: "dup", description: "First." }]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -128,7 +127,7 @@ test("registerSkillCommands skips reserved and shadowed names", () => {
       sendUserMessage() {},
     };
     registerSkillCommands(pi as never, { skillsDir: root, reserved: ["reserved-one"], shadowed: ["shadow-one"] });
-    assert.deepEqual(names, ["kept"]);
+    expect(names).toEqual(["kept"]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -170,7 +169,7 @@ test("a skill command renders chrome only when the host exposes a status line", 
     await commands.get("demo")?.handler("", themed);
     await commands.get("demo")?.handler("", plain);
     await commands.get("demo")?.handler("", {});
-    assert.deepEqual(statuses, [
+    expect(statuses).toEqual([
       ["pstack-skill", "[warning]crown demo"],
       ["pstack-skill", "crown demo"],
     ]);
@@ -181,14 +180,14 @@ test("a skill command renders chrome only when the host exposes a status line", 
 
 test("piPstack registers the command, tool, and input-hook surface", () => {
   const host = fakePstackHost();
-  assert.equal(host.commands.has("pstack-readonly"), true);
-  assert.equal(host.commands.has("poteto-mode"), true);
-  assert.equal(host.tools.has("pstack_spawn"), true);
-  assert.equal(host.tools.has("pstack_benny_wake"), true);
-  assert.equal(host.tools.has("pstack_ship"), true);
-  assert.equal(host.tools.size >= 17, true);
-  assert.equal(host.handlers().has("input"), true);
-  assert.equal(host.handlers().has("session_shutdown"), true);
+  expect(host.commands.has("pstack-readonly")).toBe(true);
+  expect(host.commands.has("poteto-mode")).toBe(true);
+  expect(host.tools.has("pstack_spawn")).toBe(true);
+  expect(host.tools.has("pstack_benny_wake")).toBe(true);
+  expect(host.tools.has("pstack_ship")).toBe(true);
+  expect(host.tools.size >= 17).toBe(true);
+  expect(host.handlers().has("input")).toBe(true);
+  expect(host.handlers().has("session_shutdown")).toBe(true);
 });
 
 test("the composition root arms and releases session readonly from the sticky playbook", async () => {
@@ -197,13 +196,13 @@ test("the composition root arms and releases session readonly from the sticky pl
   try {
     const host = fakePstackHost();
     await host.commands.get("poteto-mode")?.handler("why was this built", host.ctx);
-    assert.equal(host.active().includes("write"), false);
-    assert.equal(host.active().includes("edit"), false);
-    assert.deepEqual(host.statuses().at(-1), ["pstack-ro", "readonly"]);
+    expect(host.active().includes("write")).toBe(false);
+    expect(host.active().includes("edit")).toBe(false);
+    expect(host.statuses().at(-1)).toEqual(["pstack-ro", "readonly"]);
     const input = host.handlers().get("input")?.at(-1);
     input?.({ source: "interactive", text: "reproduce the bug fix root cause" }, host.ctx);
-    assert.equal(host.active().includes("write"), true);
-    assert.deepEqual(host.statuses().at(-1), ["pstack-ro", undefined]);
+    expect(host.active().includes("write")).toBe(true);
+    expect(host.statuses().at(-1)).toEqual(["pstack-ro", undefined]);
   } finally {
     restoreEnv("PSTACK_CHILD_ROLE", saved);
   }

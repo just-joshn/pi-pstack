@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -51,7 +50,7 @@ function captureArena(): CapturedTool {
     },
   };
   registerArena(pi as never);
-  assert.ok(tool, "registerArena must register a tool");
+  expect(tool, "registerArena must register a tool").toBeTruthy();
   return tool;
 }
 
@@ -124,17 +123,17 @@ function writePoolConfig(parent: string, model: string): void {
 
 test("arena-01 registers pstack_arena with a required prompt and one to eight candidates", () => {
   const tool = captureArena();
-  assert.equal(tool.name, "pstack_arena");
-  assert.equal(tool.promptSnippet, "Parallel design/code candidates for arena synthesis");
-  assert.deepEqual(tool.parameters.required, ["prompt", "candidates"]);
-  assert.equal(tool.parameters.properties.prompt.type, "string");
-  assert.equal(tool.parameters.properties.candidates.minItems, 1);
-  assert.equal(tool.parameters.properties.candidates.maxItems, 8);
-  assert.equal(tool.parameters.properties.candidates.maxItems, MAX_TASKS);
-  assert.equal(typeof tool.execute, "function");
+  expect(tool.name).toBe("pstack_arena");
+  expect(tool.promptSnippet).toBe("Parallel design/code candidates for arena synthesis");
+  expect(tool.parameters.required).toEqual(["prompt", "candidates"]);
+  expect(tool.parameters.properties.prompt.type).toBe("string");
+  expect(tool.parameters.properties.candidates.minItems).toBe(1);
+  expect(tool.parameters.properties.candidates.maxItems).toBe(8);
+  expect(tool.parameters.properties.candidates.maxItems).toBe(MAX_TASKS);
+  expect(typeof tool.execute).toBe("function");
 
   const source = readFileSync(join(ROOT, "extensions/orchestration/arena.ts"), "utf8");
-  assert.equal(source.includes('name: "pstack_arena"'), true, "the tool literal the registry scan discovers");
+  expect(source.includes('name: "pstack_arena"'), "the tool literal the registry scan discovers").toBe(true);
 });
 
 test("arena-02 isolates each candidate on a path that differs from the parent cwd", async () => {
@@ -155,14 +154,14 @@ test("arena-02 isolates each candidate on a path that differs from the parent cw
     );
 
     const dirs = outcome.details.results.map((entry) => resolve(entry.cwd));
-    assert.equal(dirs.length, 2);
-    assert.equal(new Set(dirs).size, 2, "candidates never share a directory");
+    expect(dirs.length).toBe(2);
+    expect(new Set(dirs).size, "candidates never share a directory").toBe(2);
     for (const dir of dirs) {
-      assert.notEqual(dir, resolve(parent), "no candidate may run in the parent cwd");
-      assert.equal(dir.startsWith(join(resolve(parent), WORKTREE_DIR)), true, `expected a worktree, got ${dir}`);
+      expect(dir, "no candidate may run in the parent cwd").not.toBe(resolve(parent));
+      expect(dir.startsWith(join(resolve(parent), WORKTREE_DIR)), `expected a worktree, got ${dir}`).toBe(true);
     }
     for (const dir of dirs) {
-      assert.equal(outcome.content[0].text.includes(`cwd: ${dir}`), true, `report names ${dir}`);
+      expect(outcome.content[0].text.includes(`cwd: ${dir}`), `report names ${dir}`).toBe(true);
     }
   } finally {
     restoreScript();
@@ -190,10 +189,10 @@ test("arena-03 plumbs the per-candidate output path into the child prompt", asyn
     );
 
     const report = outcome.content[0].text;
-    assert.equal(outcome.details.results[0].outputPath, "artifact-a.md");
-    assert.equal(report.includes("Write your artifact under: artifact-a.md"), true, "the prompt carries outputPath");
-    assert.equal(report.includes("Decide the retry policy"), true, "the shared prompt is still first");
-    assert.equal(report.includes("Also return a short rationale naming alternatives considered and rejected."), true);
+    expect(outcome.details.results[0].outputPath).toBe("artifact-a.md");
+    expect(report.includes("Write your artifact under: artifact-a.md"), "the prompt carries outputPath").toBe(true);
+    expect(report.includes("Decide the retry policy"), "the shared prompt is still first").toBe(true);
+    expect(report.includes("Also return a short rationale naming alternatives considered and rejected.")).toBe(true);
   } finally {
     restoreScript();
     rmSync(parent, { recursive: true, force: true });
@@ -223,10 +222,10 @@ test("arena-04 resolves the cross-judge from the pool or judgeModel and forces r
     );
     const poolReport = fromPool.content[0].text;
     const poolJudgeIndex = poolReport.indexOf("## Cross-judge (stub/pool-judge)");
-    assert.notEqual(poolJudgeIndex, -1, "the pool role names the judge model");
+    expect(poolJudgeIndex, "the pool role names the judge model").not.toBe(-1);
     const readonlyMarker = `stub-child tools=${READONLY_TOOLS.join(",")}`;
-    assert.equal(poolReport.slice(poolJudgeIndex).includes(readonlyMarker), true, "the judge runs readonly");
-    assert.equal(poolReport.slice(0, poolJudgeIndex).includes(readonlyMarker), false, "candidates are not readonly");
+    expect(poolReport.slice(poolJudgeIndex).includes(readonlyMarker), "the judge runs readonly").toBe(true);
+    expect(poolReport.slice(0, poolJudgeIndex).includes(readonlyMarker), "candidates are not readonly").toBe(false);
 
     const explicit = await tool.execute(
       "t",
@@ -235,7 +234,7 @@ test("arena-04 resolves the cross-judge from the pool or judgeModel and forces r
       undefined,
       arenaCtx(parent),
     );
-    assert.notEqual(explicit.content[0].text.indexOf("## Cross-judge (stub/explicit-judge)"), -1);
+    expect(explicit.content[0].text.indexOf("## Cross-judge (stub/explicit-judge)")).not.toBe(-1);
   } finally {
     restoreScript();
     rmSync(parent, { recursive: true, force: true });
@@ -269,14 +268,14 @@ test("arena-05 appends the cross-judge verdict to the report after the candidate
     );
 
     const report = outcome.content[0].text;
-    assert.equal(report.startsWith("## Arena candidates"), true);
+    expect(report.startsWith("## Arena candidates")).toBe(true);
     const judgeIndex = report.indexOf("## Cross-judge (stub/verdict-judge)");
-    assert.notEqual(judgeIndex, -1, "the judge section names the judge model");
-    assert.equal(judgeIndex > report.indexOf("### beta (stub/candidate-b"), true, "the judge follows the candidates");
+    expect(judgeIndex, "the judge section names the judge model").not.toBe(-1);
+    expect(judgeIndex > report.indexOf("### beta (stub/candidate-b"), "the judge follows the candidates").toBe(true);
     const judgeSection = report.slice(judgeIndex);
-    assert.equal(judgeSection.includes("You are an arena cross-judge"), true, "the judge verdict text is appended");
-    assert.equal(judgeSection.includes("Prefer the smaller diff"), true, "the rubric reached the judge");
-    assert.equal(report.indexOf("Next: pick a base and graft per the arena skill.") > judgeIndex, true);
+    expect(judgeSection.includes("You are an arena cross-judge"), "the judge verdict text is appended").toBe(true);
+    expect(judgeSection.includes("Prefer the smaller diff"), "the rubric reached the judge").toBe(true);
+    expect(report.indexOf("Next: pick a base and graft per the arena skill.") > judgeIndex).toBe(true);
   } finally {
     restoreScript();
     rmSync(parent, { recursive: true, force: true });

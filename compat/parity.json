@@ -1874,7 +1874,7 @@
       ],
       "classification": "ADAPTED-EQUIVALENT",
       "piMechanism": [
-        "tests/differential.mjs:1"
+        "tests/differential/differential.test.mjs:1"
       ],
       "prerequisites": [],
       "tests": [],
@@ -1886,7 +1886,7 @@
       ],
       "status": "verified",
       "evidence": [
-        "tests/differential.mjs:1"
+        "tests/differential/differential.test.mjs:1"
       ],
       "divergences": [],
       "exceptionJustification": null
@@ -1902,14 +1902,14 @@
       ],
       "classification": "ADAPTED-EQUIVALENT",
       "piMechanism": [
-        "tests/acceptance/run.mjs:1"
+        "tests/acceptance/acceptance.test.mjs:1"
       ],
       "prerequisites": [],
       "tests": [],
       "normalization": [],
       "status": "verified",
       "evidence": [
-        "tests/acceptance/run.mjs:1"
+        "tests/acceptance/acceptance.test.mjs:1"
       ],
       "divergences": [],
       "exceptionJustification": null

@@ -2,8 +2,7 @@
  * Host-adherence regression test: the ExtensionAPI rules the adapter must keep.
  * Each test name is cited by a spec/contracts/host.tsv row.
  */
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
@@ -119,10 +118,10 @@ test("host-01 sendUserMessage call sites in extensions pass deliverAs", () => {
     for (const match of text.matchAll(/pi\.sendUserMessage\(/g)) {
       matches = matches + 1;
       const call = text.slice(match.index ?? 0, (match.index ?? 0) + 400);
-      assert.equal(call.includes("deliverAs"), true, `${relative(ROOT, file)} needs deliverAs`);
+      expect(call.includes("deliverAs"), `${relative(ROOT, file)} needs deliverAs`).toBe(true);
     }
   }
-  assert.ok(matches >= 8, `expected the sendUserMessage call sites, found ${matches}`);
+  expect(matches >= 8, `expected the sendUserMessage call sites, found ${matches}`).toBeTruthy();
 });
 
 test("host-02 computeReadonlyTools preserves an unrelated tool", () => {
@@ -132,8 +131,8 @@ test("host-02 computeReadonlyTools preserves an unrelated tool", () => {
     ["read", "webfetch", "write", "pstack_ship"],
     blocked,
   );
-  assert.deepEqual(toolsBefore, ["read", "webfetch", "write", "pstack_ship"]);
-  assert.deepEqual(nextActive, ["read", "grep", "find", "ls", "webfetch"]);
+  expect(toolsBefore).toEqual(["read", "webfetch", "write", "pstack_ship"]);
+  expect(nextActive).toEqual(["read", "grep", "find", "ls", "webfetch"]);
 });
 
 test("host-03 closed choice parameters are JSON-schema enums", () => {
@@ -165,55 +164,51 @@ test("host-03 closed choice parameters are JSON-schema enums", () => {
   ];
   for (const [name, path] of checks) {
     const tool = env.tools.get(name);
-    assert.ok(tool, `${name} is registered`);
+    expect(tool, `${name} is registered`).toBeTruthy();
     const property = propertyAt(tool, path);
-    assert.equal(Array.isArray(property?.enum), true, `${name}.${path.join(".")} must be an enum`);
-    assert.ok((property?.enum ?? []).length >= 2, `${name}.${path.join(".")} must list choices`);
+    expect(Array.isArray(property?.enum), `${name}.${path.join(".")} must be an enum`).toBe(true);
+    expect((property?.enum ?? []).length >= 2, `${name}.${path.join(".")} must list choices`).toBeTruthy();
   }
   const task = env.tools.get("pstack_task");
   const filesystem = propertyAt(task as CapturedTool, ["permissions", "filesystem"]);
-  assert.deepEqual(filesystem?.enum, ["read-only", "workspace-write"]);
+  expect(filesystem?.enum).toEqual(["read-only", "workspace-write"]);
 });
 
 test("host-04 every promptGuidelines bullet names its registered tool", () => {
   const env = fakeExtensionApi();
-  assert.ok(env.tools.size >= 17, `expected the registered tool surface, found ${env.tools.size}`);
+  expect(env.tools.size >= 17, `expected the registered tool surface, found ${env.tools.size}`).toBeTruthy();
   let bullets = 0;
   for (const tool of env.tools.values()) {
     for (const bullet of tool.promptGuidelines ?? []) {
       bullets = bullets + 1;
-      assert.equal(
-        bullet.includes(tool.name),
-        true,
-        `${tool.name} guideline does not name the tool: ${bullet}`,
-      );
+      expect(bullet.includes(tool.name), `${tool.name} guideline does not name the tool: ${bullet}`).toBe(true);
     }
   }
-  assert.ok(bullets >= 40, `expected the guideline surface, found ${bullets}`);
+  expect(bullets >= 40, `expected the guideline surface, found ${bullets}`).toBeTruthy();
 });
 
 test("host-05 capToolOutput truncates and names the full-output path", () => {
   const big = `${"line\n".repeat(5000)}tail-marker`;
   const head = capToolOutput(big, { keep: "head", label: "host-head" });
-  assert.equal(head.truncated, true);
-  assert.match(head.text, /\[Output truncated: \d+ of \d+ lines/);
-  assert.equal(typeof head.outputPath, "string");
-  assert.equal(readFileSync(head.outputPath as string, "utf8"), big);
+  expect(head.truncated).toBe(true);
+  expect(head.text).toMatch(/\[Output truncated: \d+ of \d+ lines/);
+  expect(typeof head.outputPath).toBe("string");
+  expect(readFileSync(head.outputPath as string, "utf8")).toBe(big);
 
   const tail = capToolOutput(big, { keep: "tail", label: "host-tail" });
-  assert.equal(tail.truncated, true);
-  assert.equal(tail.text.includes("tail-marker"), true);
-  assert.equal(typeof tail.outputPath, "string");
+  expect(tail.truncated).toBe(true);
+  expect(tail.text.includes("tail-marker")).toBe(true);
+  expect(typeof tail.outputPath).toBe("string");
 
   const short = capToolOutput("small", { keep: "head", label: "host-short" });
-  assert.deepEqual(short, { text: "small", truncated: false });
+  expect(short).toEqual({ text: "small", truncated: false });
 });
 
 test("host-06 stripAtPrefix normalizes a leading at-sign", () => {
-  assert.equal(stripAtPrefix("@src/index.ts"), "src/index.ts");
-  assert.equal(stripAtPrefix("src/index.ts"), "src/index.ts");
-  assert.equal(stripAtPrefix("@"), "");
-  assert.equal(stripAtPrefix(undefined), undefined);
+  expect(stripAtPrefix("@src/index.ts")).toBe("src/index.ts");
+  expect(stripAtPrefix("src/index.ts")).toBe("src/index.ts");
+  expect(stripAtPrefix("@")).toBe("");
+  expect(stripAtPrefix(undefined)).toBe(undefined);
 });
 
 test("host-07 file-mutating tools await withFileMutationQueue", () => {
@@ -224,8 +219,8 @@ test("host-07 file-mutating tools await withFileMutationQueue", () => {
   ];
   for (const rel of targets) {
     const text = source(rel);
-    assert.match(text, /import \{[^}]*withFileMutationQueue[^}]*\}/s, `${rel} imports the helper`);
-    assert.match(text, /await withFileMutationQueue\(/, `${rel} awaits the queue`);
+    expect(text, `${rel} imports the helper`).toMatch(/import \{[^}]*withFileMutationQueue[^}]*\}/s);
+    expect(text, `${rel} awaits the queue`).toMatch(/await withFileMutationQueue\(/);
   }
 });
 
@@ -233,10 +228,7 @@ test("host-08 benny and control_ui error paths throw", async () => {
   const benny = fakeExtensionApi();
   registerBenny(benny.api as never);
   const wake = benny.tools.get("pstack_benny_wake") as CapturedTool;
-  await assert.rejects(
-    () => wake.execute("t", { action: "append", payload: "   " }),
-    /pstack_benny_wake append requires a non-empty payload JSON string/,
-  );
+  await expect(() => wake.execute("t", { action: "append", payload: "   " })).rejects.toThrow(/pstack_benny_wake append requires a non-empty payload JSON string/);
 
   const companions = fakeExtensionApi();
   registerCompanions(companions.api as never);
@@ -244,19 +236,16 @@ test("host-08 benny and control_ui error paths throw", async () => {
   const original = globalThis.fetch;
   globalThis.fetch = (() => Promise.reject(new Error("connection refused"))) as typeof fetch;
   try {
-    await assert.rejects(
-      () => probe.execute("t", { url: "http://127.0.0.1:1/", allowHosts: ["127.0.0.1"] }),
-      /pstack_control_ui failed: connection refused/,
-    );
+    await expect(() => probe.execute("t", { url: "http://127.0.0.1:1/", allowHosts: ["127.0.0.1"] })).rejects.toThrow(/pstack_control_ui failed: connection refused/);
   } finally {
     globalThis.fetch = original;
   }
 });
 
 test("host-09 projectConfigCwd gates project config on trust", () => {
-  assert.equal(projectConfigCwd({ cwd: "/repo" }), undefined);
-  assert.equal(projectConfigCwd({ cwd: "/repo", isProjectTrusted: () => false }), undefined);
-  assert.equal(projectConfigCwd({ cwd: "/repo", isProjectTrusted: () => true }), "/repo");
+  expect(projectConfigCwd({ cwd: "/repo" })).toBe(undefined);
+  expect(projectConfigCwd({ cwd: "/repo", isProjectTrusted: () => false })).toBe(undefined);
+  expect(projectConfigCwd({ cwd: "/repo", isProjectTrusted: () => true })).toBe("/repo");
 
   for (const rel of [
     "extensions/models/index.ts",
@@ -265,10 +254,10 @@ test("host-09 projectConfigCwd gates project config on trust", () => {
     "extensions/subagents/index.ts",
     "extensions/sessions/index.ts",
   ]) {
-    assert.equal(source(rel).includes("projectConfigCwd(ctx)"), true, `${rel} gated on trust`);
+    expect(source(rel).includes("projectConfigCwd(ctx)"), `${rel} gated on trust`).toBe(true);
   }
-  assert.equal(source("extensions/agents/task.ts").includes("isProjectTrusted: ctx.isProjectTrusted"), true);
-  assert.equal(source("extensions/models/index.ts").includes("loadModelsConfig(ctx.cwd)"), false);
+  expect(source("extensions/agents/task.ts").includes("isProjectTrusted: ctx.isProjectTrusted")).toBe(true);
+  expect(source("extensions/models/index.ts").includes("loadModelsConfig(ctx.cwd)")).toBe(false);
 });
 
 test("host-10 project config modules use CONFIG_DIR_NAME", () => {
@@ -280,15 +269,15 @@ test("host-10 project config modules use CONFIG_DIR_NAME", () => {
     "extensions/sessions/index.ts",
     "extensions/worktree/helpers.ts",
   ]) {
-    assert.match(source(rel), /CONFIG_DIR_NAME/, `${rel} imports CONFIG_DIR_NAME`);
+    expect(source(rel), `${rel} imports CONFIG_DIR_NAME`).toMatch(/CONFIG_DIR_NAME/);
   }
 });
 
 test("host-11 worktree shutdown cleanup reads ctx.cwd", () => {
   const text = source("extensions/worktree/index.ts");
   const handler = text.match(/pi\.on\("session_shutdown"[\s\S]{0,240}/)?.[0] ?? "";
-  assert.equal(handler.includes("ctx.cwd"), true, "shutdown cleanup reads ctx.cwd");
-  assert.equal(text.includes("process.cwd()"), false, "shutdown cleanup never reads process.cwd");
+  expect(handler.includes("ctx.cwd"), "shutdown cleanup reads ctx.cwd").toBe(true);
+  expect(text.includes("process.cwd()"), "shutdown cleanup never reads process.cwd").toBe(false);
 });
 
 test("host-12 session_shutdown clears jobs and blocks armed runs", async () => {
@@ -299,7 +288,7 @@ test("host-12 session_shutdown clears jobs and blocks armed runs", async () => {
   process.env.PSTACK_RUNS_DIR = dir;
   try {
     __seedBackgroundJobForTests({ id: "bg-host", status: "done", sessionDir: "/tmp/host" });
-    assert.equal(listBackgroundJobs().length, 1);
+    expect(listBackgroundJobs().length).toBe(1);
 
     const run = env.tools.get("pstack_run") as CapturedTool;
     const ctx = { ui: { setStatus() {}, notify() {} } };
@@ -310,14 +299,14 @@ test("host-12 session_shutdown clears jobs and blocks armed runs", async () => {
       undefined,
       ctx,
     );
-    assert.equal(loadRun("host-run")?.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
+    expect(loadRun("host-run")?.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
 
     const shutdown = env.handlers.session_shutdown ?? [];
-    assert.ok(shutdown.length > 0, "piPstack registers session_shutdown handlers");
+    expect(shutdown.length > 0, "piPstack registers session_shutdown handlers").toBeTruthy();
     for (const handler of shutdown) await handler();
-    assert.deepEqual(listBackgroundJobs(), []);
-    assert.equal(loadRun("host-run")?.phase, "BLOCKED");
-    assert.match(loadRun("host-run")?.blockedReason ?? "", /local runtime session ended/);
+    expect(listBackgroundJobs()).toEqual([]);
+    expect(loadRun("host-run")?.phase).toBe("BLOCKED");
+    expect(loadRun("host-run")?.blockedReason ?? "").toMatch(/local runtime session ended/);
 
     abortAllBackgroundJobs();
   } finally {

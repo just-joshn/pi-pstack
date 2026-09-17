@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { repoRoot } from "../../support/repo-root.mjs";
@@ -19,22 +18,22 @@ const universe = { allTools: ALL, activeTools: [...ALL] };
 
 test("computeReadonlyTools remembers the active set and strips write-blocked tools", () => {
   const result = computeReadonlyTools(ALL, ["write", "bash", "pstack_spawn"], WRITE_BLOCKED);
-  assert.deepEqual(result.toolsBefore, ["write", "bash", "pstack_spawn"]);
-  assert.deepEqual(result.nextActive, ["read", "grep", "find", "ls", "pstack_spawn"]);
+  expect(result.toolsBefore).toEqual(["write", "bash", "pstack_spawn"]);
+  expect(result.nextActive).toEqual(["read", "grep", "find", "ls", "pstack_spawn"]);
 });
 
 test("computeReadonlyTools falls back to all tools when none are active and keeps the read allowlist", () => {
   const result = computeReadonlyTools(["read", "write"], [], WRITE_BLOCKED);
-  assert.deepEqual(result.toolsBefore, ["read", "write"]);
-  assert.deepEqual(result.nextActive, ["read", "grep", "find", "ls"]);
+  expect(result.toolsBefore).toEqual(["read", "write"]);
+  expect(result.nextActive).toEqual(["read", "grep", "find", "ls"]);
 });
 
 test("computeReadonlyTools keeps read-only pstack tools and drops blocked ones", () => {
   const { nextActive } = computeReadonlyTools(ALL, [...ALL], WRITE_BLOCKED);
-  assert.equal(nextActive.includes("pstack_spawn"), true);
-  assert.equal(nextActive.includes("pstack_ship"), false);
-  assert.equal(nextActive.includes("write"), false);
-  assert.equal(nextActive.includes("bash"), false);
+  expect(nextActive.includes("pstack_spawn")).toBe(true);
+  expect(nextActive.includes("pstack_ship")).toBe(false);
+  expect(nextActive.includes("write")).toBe(false);
+  expect(nextActive.includes("bash")).toBe(false);
 });
 
 test("computeReadonlyTools preserves an unrelated tool and strips only write-blocked tools", () => {
@@ -43,9 +42,9 @@ test("computeReadonlyTools preserves an unrelated tool and strips only write-blo
     ["read", "webfetch", "pstack_ship", "write"],
     WRITE_BLOCKED,
   );
-  assert.deepEqual(result.nextActive, ["read", "grep", "find", "ls", "webfetch"]);
-  assert.equal(result.nextActive.includes("pstack_ship"), false);
-  assert.equal(result.nextActive.includes("write"), false);
+  expect(result.nextActive).toEqual(["read", "grep", "find", "ls", "webfetch"]);
+  expect(result.nextActive.includes("pstack_ship")).toBe(false);
+  expect(result.nextActive.includes("write")).toBe(false);
 });
 
 test("reduceSetEnabled disabling unions the pre-arm snapshot with tools added while readonly", () => {
@@ -55,10 +54,10 @@ test("reduceSetEnabled disabling unions the pre-arm snapshot with tools added wh
     { allTools: ALL, activeTools: ["read", "write"] },
     "command",
   ).state;
-  assert.deepEqual(armed.toolsBefore, ["read", "write"]);
+  expect(armed.toolsBefore).toEqual(["read", "write"]);
   const result = reduceSetEnabled(armed, false, { allTools: ALL, activeTools: ["read", "webfetch"] });
   const restore = result.effects.find((effect) => effect.type === "setActiveTools");
-  assert.deepEqual(restore, {
+  expect(restore).toEqual({
     type: "setActiveTools",
     tools: ["read", "write", "webfetch"],
     guarded: true,
@@ -67,60 +66,60 @@ test("reduceSetEnabled disabling unions the pre-arm snapshot with tools added wh
 
 test("reduceSetEnabled enabling returns the stripped active set and a readonly status", () => {
   const result = reduceSetEnabled(createInitialReadonlyState(), true, universe, "command");
-  assert.deepEqual(result.state, { enabled: true, toolsBefore: [...ALL], reason: "command" });
-  assert.deepEqual(result.effects.map((effect) => effect.type), [
+  expect(result.state).toEqual({ enabled: true, toolsBefore: [...ALL], reason: "command" });
+  expect(result.effects.map((effect) => effect.type)).toEqual([
     "appendEntry",
     "setActiveTools",
     "setStatus",
     "notify",
   ]);
   const status = result.effects.find((effect) => effect.type === "setStatus");
-  assert.deepEqual(status, { type: "setStatus", statusId: "pstack-ro", value: "readonly" });
+  expect(status).toEqual({ type: "setStatus", statusId: "pstack-ro", value: "readonly" });
 });
 
 test("reduceSetEnabled disabling restores the remembered tools through the guarded effect", () => {
   const armed = reduceSetEnabled(createInitialReadonlyState(), true, universe, "command").state;
   const result = reduceSetEnabled(armed, false, universe);
-  assert.deepEqual(result.state, { enabled: false, toolsBefore: undefined, reason: undefined });
+  expect(result.state).toEqual({ enabled: false, toolsBefore: undefined, reason: undefined });
   const restore = result.effects.find((effect) => effect.type === "setActiveTools");
-  assert.deepEqual(restore, { type: "setActiveTools", tools: [...ALL], guarded: true });
+  expect(restore).toEqual({ type: "setActiveTools", tools: [...ALL], guarded: true });
   const status = result.effects.find((effect) => effect.type === "setStatus");
-  assert.deepEqual(status, { type: "setStatus", statusId: "pstack-ro", value: undefined });
+  expect(status).toEqual({ type: "setStatus", statusId: "pstack-ro", value: undefined });
 });
 
 test("reduceSetEnabled is a no-op when the flag is unchanged", () => {
   const state = createInitialReadonlyState();
   const result = reduceSetEnabled(state, false, universe);
-  assert.equal(result.state, state);
-  assert.deepEqual(result.effects, []);
+  expect(result.state).toBe(state);
+  expect(result.effects).toEqual([]);
 });
 
 test("computeReadonlyTools preserves the read allowlist when the registry narrows", () => {
   const { nextActive } = computeReadonlyTools(["read", "pstack_sessions"], ["read"], WRITE_BLOCKED);
   for (const tool of READONLY_TOOLS) {
-    assert.ok(nextActive.includes(tool), `${tool} must survive the keep-set filter`);
+    expect(nextActive.includes(tool), `${tool} must survive the keep-set filter`).toBeTruthy();
   }
 });
 
 test("readonly policy blocks exec, writers, fan-out, and frame mutations", () => {
   const action = (tool: string, input: unknown) => READONLY_TOOL_POLICIES[tool](input).action;
-  assert.equal(action("bash", {}), "block");
-  assert.equal(action("pstack_loop", { action: "arm", prompt: "x" }), "block");
-  assert.equal(action("pstack_loop", {}), "block");
-  assert.equal(action("pstack_loop", { action: "status" }), "allow");
-  assert.equal(action("pstack_loop", { action: "list" }), "allow");
-  assert.equal(action("pstack_loop", { action: "stop" }), "allow");
-  assert.equal(action("pstack_decision_log", { phase: "x" }), "block");
-  assert.equal(action("pstack_benny_wake", { action: "append" }), "block");
-  assert.equal(action("pstack_benny_wake", { action: "drain" }), "block");
-  assert.equal(action("pstack_benny_wake", { action: "path" }), "allow");
-  assert.equal(action("pstack_swarm", { workers: [] }), "block");
-  assert.equal(action("pstack_arena", { prompt: "x", candidates: [] }), "block");
-  assert.equal(action("pstack_control_cli", { argv: ["git", "status"] }), "block");
-  assert.equal(action("pstack_spawn", { task: "x" }), "coerceReadonly");
-  assert.equal(action("pstack_spawn", { task: "x", readonly: true }), "allow");
-  assert.equal(action("pstack_spawn", { task: "x", role: "investigator" }), "allow");
-  assert.equal(action("pstack_sessions", { action: "list" }), "allow");
+  expect(action("bash", {})).toBe("block");
+  expect(action("pstack_loop", { action: "arm", prompt: "x" })).toBe("block");
+  expect(action("pstack_loop", {})).toBe("block");
+  expect(action("pstack_loop", { action: "status" })).toBe("allow");
+  expect(action("pstack_loop", { action: "list" })).toBe("allow");
+  expect(action("pstack_loop", { action: "stop" })).toBe("allow");
+  expect(action("pstack_decision_log", { phase: "x" })).toBe("block");
+  expect(action("pstack_benny_wake", { action: "append" })).toBe("block");
+  expect(action("pstack_benny_wake", { action: "drain" })).toBe("block");
+  expect(action("pstack_benny_wake", { action: "path" })).toBe("allow");
+  expect(action("pstack_swarm", { workers: [] })).toBe("block");
+  expect(action("pstack_arena", { prompt: "x", candidates: [] })).toBe("block");
+  expect(action("pstack_control_cli", { argv: ["git", "status"] })).toBe("block");
+  expect(action("pstack_spawn", { task: "x" })).toBe("coerceReadonly");
+  expect(action("pstack_spawn", { task: "x", readonly: true })).toBe("allow");
+  expect(action("pstack_spawn", { task: "x", role: "investigator" })).toBe("allow");
+  expect(action("pstack_sessions", { action: "list" })).toBe("allow");
 });
 
 function walkFiles(dir: string): string[] {
@@ -141,8 +140,8 @@ function registeredPstackTools(): string[] {
 
 test("every registered pstack tool has a readonly policy", () => {
   const tools = registeredPstackTools();
-  assert.ok(tools.length >= 14, `expected the pstack tool surface, found ${tools.length}`);
+  expect(tools.length >= 14, `expected the pstack tool surface, found ${tools.length}`).toBeTruthy();
   for (const tool of tools) {
-    assert.ok(tool in READONLY_TOOL_POLICIES, `${tool} has no readonly policy`);
+    expect(tool in READONLY_TOOL_POLICIES, `${tool} has no readonly policy`).toBeTruthy();
   }
 });

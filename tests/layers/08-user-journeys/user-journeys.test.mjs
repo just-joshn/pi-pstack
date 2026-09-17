@@ -1,12 +1,11 @@
 /**
  * Layer 8: user journeys.
  *
- * One node:test per journey, then a coverage-contract test over the whole run. The contract passes
+ * One Vitest test per journey, then a coverage-contract test over the whole run. The contract passes
  * when all critical journeys passed or at least 80% of the runtime behavior inventory was observed,
  * and every anti-vacuum guard holds. The machine-checked line is printed to stdout.
  */
-import { after, test } from "node:test";
-import assert from "node:assert/strict";
+import { afterAll, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createJourneyBench } from "../../user-journeys/harness.mjs";
@@ -39,27 +38,27 @@ test("coverage contract: 80% of user behavior or all critical journeys", () => {
   });
   process.stdout.write(`${formatCoverage(report)}\n`);
   for (const [guard, ok] of Object.entries(report.guards)) {
-    assert.equal(ok, true, `guard ${guard} failed; ${formatCoverage(report)}`);
+    expect(ok, `guard ${guard} failed; ${formatCoverage(report)}`).toBe(true);
   }
-  assert.equal(report.verdict, true, `coverage verdict failed; ${formatCoverage(report)}`);
+  expect(report.verdict, `coverage verdict failed; ${formatCoverage(report)}`).toBe(true);
 });
 
 test("journey registry integrity: unique ids, non-empty titles, all critical", () => {
   const ids = JOURNEYS.map((journey) => journey.id);
   const surfaces = ledgerSurfaces();
-  assert.ok(JOURNEYS.length >= 1, "journey registry is empty");
-  assert.equal(new Set(ids).size, ids.length, `duplicate journey ids: ${ids.join(", ")}`);
+  expect(JOURNEYS.length >= 1, "journey registry is empty").toBeTruthy();
+  expect(new Set(ids).size, `duplicate journey ids: ${ids.join(", ")}`).toBe(ids.length);
   for (const journey of JOURNEYS) {
-    assert.ok(journey.title.trim().length > 0, `empty title for ${journey.id}`);
-    assert.equal(journey.critical, true, `${journey.id} is not critical`);
-    assert.equal(typeof journey.run, "function", `${journey.id} has no run`);
-    assert.ok(Array.isArray(journey.surfaces) && journey.surfaces.length > 0, `${journey.id} has no surfaces`);
+    expect(journey.title.trim().length > 0, `empty title for ${journey.id}`).toBeTruthy();
+    expect(journey.critical, `${journey.id} is not critical`).toBe(true);
+    expect(typeof journey.run, `${journey.id} has no run`).toBe("function");
+    expect(Array.isArray(journey.surfaces) && journey.surfaces.length > 0, `${journey.id} has no surfaces`).toBeTruthy();
     for (const surface of journey.surfaces) {
-      assert.ok(surfaces.has(surface), `${journey.id} names unknown surface ${surface}`);
+      expect(surfaces.has(surface), `${journey.id} names unknown surface ${surface}`).toBeTruthy();
     }
   }
 });
 
-after(async () => {
+afterAll(async () => {
   await bench.dispose();
 });

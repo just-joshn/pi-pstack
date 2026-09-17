@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -120,19 +119,16 @@ test("arm records the predicate, the limits, and the literal arming notification
       remoteRequired: true,
     });
     const { run, effects } = runOf(result);
-    assert.equal(run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
-    assert.equal(run.predicate, "ci green");
-    assert.equal(run.maxFires, 7);
-    assert.equal(run.plateauLimit, 5);
-    assert.deepEqual(run.remote, { required: true, handedOff: false });
-    assert.equal(run.fires, 0);
-    assert.equal(run.iterations.length, 0);
-    assert.deepEqual(effects, [{ type: "notify", message: "run run-arm predicate defined: ci green" }]);
-    assert.equal(
-      textOf(result),
-      "run-arm phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/7 predicate=ci green\nrun run-arm predicate defined: ci green",
-    );
-    assert.deepEqual(env.sent(), []);
+    expect(run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+    expect(run.predicate).toBe("ci green");
+    expect(run.maxFires).toBe(7);
+    expect(run.plateauLimit).toBe(5);
+    expect(run.remote).toEqual({ required: true, handedOff: false });
+    expect(run.fires).toBe(0);
+    expect(run.iterations.length).toBe(0);
+    expect(effects).toEqual([{ type: "notify", message: "run run-arm predicate defined: ci green" }]);
+    expect(textOf(result)).toBe("run-arm phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/7 predicate=ci green\nrun run-arm predicate defined: ci green");
+    expect(env.sent()).toEqual([]);
   } finally {
     cleanup();
   }
@@ -144,10 +140,10 @@ test("arm without a runId generates one and leaves the default limits in place",
     const env = fakeEnv();
     const result = await env.run({ action: "arm", predicate: "docs written", intervalSeconds: 30 });
     const { run } = runOf(result);
-    assert.match(run.runId, /^run-[0-9a-z]+-[0-9a-z]{6}$/);
-    assert.equal(run.maxFires, 50);
-    assert.equal(run.plateauLimit, 3);
-    assert.deepEqual(run.remote, { required: false, handedOff: false });
+    expect(run.runId).toMatch(/^run-[0-9a-z]+-[0-9a-z]{6}$/);
+    expect(run.maxFires).toBe(50);
+    expect(run.plateauLimit).toBe(3);
+    expect(run.remote).toEqual({ required: false, handedOff: false });
   } finally {
     cleanup();
   }
@@ -165,7 +161,7 @@ test("arm clamps a below-floor interval and defaults the mode to dynamic when wa
       watchArgv: ["gh", "pr", "checks"],
     });
     const listed = await env.loopTool.execute("t", { action: "list" }, undefined, undefined, env.ctx);
-    assert.equal(textOf(listed), "run-watch mode=dynamic fires=0/50 armed=true lastReason=-");
+    expect(textOf(listed)).toBe("run-watch mode=dynamic fires=0/50 armed=true lastReason=-");
   } finally {
     cleanup();
   }
@@ -184,7 +180,7 @@ test("arm honours an explicit mode over the watchArgv default", async () => {
       watchArgv: ["gh", "pr", "checks"],
     });
     const listed = await env.loopTool.execute("t", { action: "list" }, undefined, undefined, env.ctx);
-    assert.match(textOf(listed), /run-settle mode=settle/);
+    expect(textOf(listed)).toMatch(/run-settle mode=settle/);
   } finally {
     cleanup();
   }
@@ -194,20 +190,11 @@ test("arm rejects a missing predicate, a non-numeric interval, and an unknown ru
   const cleanup = scopedRuns();
   try {
     const env = fakeEnv();
-    await assert.rejects(
-      () => env.run({ action: "arm", intervalSeconds: 30 }),
-      /predicate required to arm a run/,
-    );
-    await assert.rejects(
-      () => env.run({ action: "arm", predicate: "ci green", intervalSeconds: "30" }),
-      /intervalSeconds required to arm a run/,
-    );
-    await assert.rejects(() => env.run({ action: "iterate", runId: "run-nope" }), /unknown run run-nope/);
-    await assert.rejects(() => env.run({ action: "iterate" }), /runId required for this action/);
-    await assert.rejects(
-      () => env.run({ action: "mystery" }),
-      /action must be arm\|state\|iterate\|verify\|discard\|inconclusive\|checkpoint\|blocked\|handoff\|stop\|list/,
-    );
+    await expect(() => env.run({ action: "arm", intervalSeconds: 30 })).rejects.toThrow(/predicate required to arm a run/);
+    await expect(() => env.run({ action: "arm", predicate: "ci green", intervalSeconds: "30" })).rejects.toThrow(/intervalSeconds required to arm a run/);
+    await expect(() => env.run({ action: "iterate", runId: "run-nope" })).rejects.toThrow(/unknown run run-nope/);
+    await expect(() => env.run({ action: "iterate" })).rejects.toThrow(/runId required for this action/);
+    await expect(() => env.run({ action: "mystery" })).rejects.toThrow(/action must be arm\|state\|iterate\|verify\|discard\|inconclusive\|checkpoint\|blocked\|handoff\|stop\|list/);
   } finally {
     cleanup();
   }
@@ -220,11 +207,11 @@ test("state reads a stored run by id and falls back to the latest by updatedAt",
     saveRun({ ...seeded("run-old", DEFINED), updatedAt: 5000 });
     saveRun({ ...seeded("run-new", DEFINED), updatedAt: 9000 });
     const byId = await env.run({ action: "state", runId: "run-old" });
-    assert.equal(runOf(byId).run.runId, "run-old");
-    assert.deepEqual(runOf(byId).effects, []);
+    expect(runOf(byId).run.runId).toBe("run-old");
+    expect(runOf(byId).effects).toEqual([]);
     const latest = await env.run({ action: "state" });
-    assert.equal(runOf(latest).run.runId, "run-new");
-    await assert.rejects(() => env.run({ action: "state", runId: "run-absent" }), /unknown run run-absent/);
+    expect(runOf(latest).run.runId).toBe("run-new");
+    await expect(() => env.run({ action: "state", runId: "run-absent" })).rejects.toThrow(/unknown run run-absent/);
   } finally {
     cleanup();
   }
@@ -234,10 +221,10 @@ test("state with no runs recorded refuses instead of inventing a record", async 
   const cleanup = scopedRuns();
   try {
     const env = fakeEnv();
-    await assert.rejects(() => env.run({ action: "state" }), /no runs recorded/);
+    await expect(() => env.run({ action: "state" })).rejects.toThrow(/no runs recorded/);
     const listed = await env.run({ action: "list" });
-    assert.equal(textOf(listed), "(no runs)");
-    assert.deepEqual(listed.details, { runs: [], count: 0 });
+    expect(textOf(listed)).toBe("(no runs)");
+    expect(listed.details).toEqual({ runs: [], count: 0 });
   } finally {
     cleanup();
   }
@@ -250,14 +237,11 @@ test("iterate from WAIT reports the ignored event and phase instead of a silent 
     await env.run({ action: "arm", runId: "run-wait", predicate: "ci green", intervalSeconds: 30 });
     const result = await env.run({ action: "iterate", runId: "run-wait", step: "smallest change" });
     const { run, effects, ignored } = runOf(result);
-    assert.equal(run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
-    assert.equal(run.iterations.length, 0);
-    assert.deepEqual(effects, []);
-    assert.deepEqual(ignored, [{ event: "iteration_started", phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
-    assert.equal(
-      textOf(result),
-      "run-wait phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/50 predicate=ci green\nignored iteration_started in phase WAIT_FOR_EVENT_OR_HEARTBEAT",
-    );
+    expect(run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+    expect(run.iterations.length).toBe(0);
+    expect(effects).toEqual([]);
+    expect(ignored).toEqual([{ event: "iteration_started", phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
+    expect(textOf(result)).toBe("run-wait phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/50 predicate=ci green\nignored iteration_started in phase WAIT_FOR_EVENT_OR_HEARTBEAT");
   } finally {
     cleanup();
   }
@@ -270,12 +254,12 @@ test("iterate opens an iteration once the run has resumed, taking step before re
     saveRun(seeded("run-resumed", RESUMED));
     const fromStep = await env.run({ action: "iterate", runId: "run-resumed", step: "patch the reducer" });
     const { run } = runOf(fromStep);
-    assert.equal(run.phase, "ACT");
-    assert.equal(run.iterations.length, 1);
-    assert.equal(run.iterations[0]?.action, "patch the reducer");
-    assert.equal(run.iterations[0]?.n, 1);
-    assert.equal(run.iterations[0]?.verdict, "inconclusive");
-    assert.deepEqual(run.iterations[0]?.endedAt, undefined);
+    expect(run.phase).toBe("ACT");
+    expect(run.iterations.length).toBe(1);
+    expect(run.iterations[0]?.action).toBe("patch the reducer");
+    expect(run.iterations[0]?.n).toBe(1);
+    expect(run.iterations[0]?.verdict).toBe("inconclusive");
+    expect(run.iterations[0]?.endedAt).toEqual(undefined);
   } finally {
     cleanup();
   }
@@ -287,10 +271,10 @@ test("iterate falls back to reason and then to the literal action name", async (
     const env = fakeEnv();
     saveRun(seeded("run-reason", RESUMED));
     const fromReason = await env.run({ action: "iterate", runId: "run-reason", reason: "because" });
-    assert.equal(runOf(fromReason).run.iterations[0]?.action, "because");
+    expect(runOf(fromReason).run.iterations[0]?.action).toBe("because");
     saveRun(seeded("run-default", RESUMED));
     const fallback = await env.run({ action: "iterate", runId: "run-default" });
-    assert.equal(runOf(fallback).run.iterations[0]?.action, "iterate");
+    expect(runOf(fallback).run.iterations[0]?.action).toBe("iterate");
   } finally {
     cleanup();
   }
@@ -301,10 +285,7 @@ test("verify requires evidence and records the verification with an optional com
   try {
     const env = fakeEnv();
     saveRun(seeded("run-verify", VERIFYING));
-    await assert.rejects(
-      () => env.run({ action: "verify", runId: "run-verify" }),
-      /evidence required to verify an iteration/,
-    );
+    await expect(() => env.run({ action: "verify", runId: "run-verify" })).rejects.toThrow(/evidence required to verify an iteration/);
     const result = await env.run({
       action: "verify",
       runId: "run-verify",
@@ -313,13 +294,13 @@ test("verify requires evidence and records the verification with an optional com
       commit: "abc1234",
     });
     const { run, effects } = runOf(result);
-    assert.equal(run.phase, "COMMIT_IF_ADVANCED_OR_DISCARD");
-    assert.equal(run.iterations[0]?.verdict, "advanced");
-    assert.equal(run.iterations[0]?.verification, "npm test");
-    assert.equal(run.iterations[0]?.evidence, "exit 0");
-    assert.equal(run.iterations[0]?.commit, "abc1234");
-    assert.equal(run.consecutiveDiscards, 0);
-    assert.deepEqual(effects, [{ type: "notify", message: "run run-verify iteration 1 advanced" }]);
+    expect(run.phase).toBe("COMMIT_IF_ADVANCED_OR_DISCARD");
+    expect(run.iterations[0]?.verdict).toBe("advanced");
+    expect(run.iterations[0]?.verification).toBe("npm test");
+    expect(run.iterations[0]?.evidence).toBe("exit 0");
+    expect(run.iterations[0]?.commit).toBe("abc1234");
+    expect(run.consecutiveDiscards).toBe(0);
+    expect(effects).toEqual([{ type: "notify", message: "run run-verify iteration 1 advanced" }]);
   } finally {
     cleanup();
   }
@@ -332,9 +313,9 @@ test("verify defaults the verification label and omits an absent commit", async 
     saveRun(seeded("run-plain", ACTING));
     const result = await env.run({ action: "verify", runId: "run-plain", evidence: "measured" });
     const iteration = runOf(result).run.iterations[0];
-    assert.equal(iteration?.verification, "verify");
-    assert.equal(iteration?.commit, undefined);
-    assert.equal("commit" in (iteration ?? {}), false);
+    expect(iteration?.verification).toBe("verify");
+    expect(iteration?.commit).toBe(undefined);
+    expect("commit" in (iteration ?? {})).toBe(false);
   } finally {
     cleanup();
   }
@@ -353,25 +334,19 @@ test("verify predicateMet runs the checkpoint chain to COMPLETE and stops the lo
       predicateMet: true,
     });
     const { run, effects } = runOf(result);
-    assert.equal(run.phase, "COMPLETE");
-    assert.equal(typeof run.completedAt, "number");
-    assert.deepEqual(
-      effects.map((effect) => effect.type),
-      ["notify", "notify", "notify", "stop"],
-    );
-    assert.deepEqual(
-      effects.filter((effect) => effect.type === "notify").map((effect) => effect.message),
-      [
+    expect(run.phase).toBe("COMPLETE");
+    expect(typeof run.completedAt).toBe("number");
+    expect(effects.map((effect) => effect.type)).toEqual(["notify", "notify", "notify", "stop"]);
+    expect(effects.filter((effect) => effect.type === "notify").map((effect) => effect.message)).toEqual([
         "run run-done iteration 1 advanced",
         "run run-done checkpoint written at iteration 1",
         "run run-done COMPLETE: predicate met with evidence",
-      ],
-    );
-    assert.deepEqual(runOf(result).ignored, []);
-    assert.equal(run.iterations[0]?.verdict, "advanced");
-    assert.match(textOf(result), /run run-done COMPLETE: predicate met with evidence/);
+      ]);
+    expect(runOf(result).ignored).toEqual([]);
+    expect(run.iterations[0]?.verdict).toBe("advanced");
+    expect(textOf(result)).toMatch(/run run-done COMPLETE: predicate met with evidence/);
     const listed = await env.loopTool.execute("t", { action: "list" }, undefined, undefined, env.ctx);
-    assert.equal(textOf(listed), "(no active loops)");
+    expect(textOf(listed)).toBe("(no active loops)");
   } finally {
     cleanup();
   }
@@ -382,14 +357,14 @@ test("verify predicateMet from CHECK_PREDICATE skips the repeated checkpoint", a
   try {
     const env = fakeEnv();
     saveRun(seeded("run-at-check", CHECKPOINTED));
-    assert.equal(loadRun("run-at-check")?.phase, "CHECK_PREDICATE");
+    expect(loadRun("run-at-check")?.phase).toBe("CHECK_PREDICATE");
     const result = await env.run({
       action: "verify",
       runId: "run-at-check",
       evidence: "checks green",
       predicateMet: true,
     });
-    assert.equal(runOf(result).run.phase, "COMPLETE");
+    expect(runOf(result).run.phase).toBe("COMPLETE");
   } finally {
     cleanup();
   }
@@ -402,11 +377,11 @@ test("discard records the reason and starts the non-advancing counter", async ()
     saveRun(seeded("run-discard", ACTING));
     const result = await env.run({ action: "discard", runId: "run-discard", reason: "metric flat", evidence: "flat" });
     const { run, effects } = runOf(result);
-    assert.equal(run.phase, "COMMIT_IF_ADVANCED_OR_DISCARD");
-    assert.equal(run.iterations[0]?.verdict, "discarded");
-    assert.equal(run.iterations[0]?.evidence, "flat");
-    assert.equal(run.consecutiveDiscards, 1);
-    assert.deepEqual(effects, [{ type: "notify", message: "run run-discard iteration 1 discarded: metric flat" }]);
+    expect(run.phase).toBe("COMMIT_IF_ADVANCED_OR_DISCARD");
+    expect(run.iterations[0]?.verdict).toBe("discarded");
+    expect(run.iterations[0]?.evidence).toBe("flat");
+    expect(run.consecutiveDiscards).toBe(1);
+    expect(effects).toEqual([{ type: "notify", message: "run run-discard iteration 1 discarded: metric flat" }]);
   } finally {
     cleanup();
   }
@@ -418,14 +393,14 @@ test("discard defaults its reason and evidence and inconclusive counts as non-ad
     const env = fakeEnv();
     saveRun(seeded("run-plateau", ACTING));
     const discarded = await env.run({ action: "discard", runId: "run-plateau" });
-    assert.equal(runOf(discarded).run.iterations[0]?.evidence, "");
-    assert.match(textOf(discarded), /discarded: no improvement/);
+    expect(runOf(discarded).run.iterations[0]?.evidence).toBe("");
+    expect(textOf(discarded)).toMatch(/discarded: no improvement/);
     saveRun(seeded("run-incon", ACTING));
     const inconclusive = await env.run({ action: "inconclusive", runId: "run-incon", reason: "ambiguous" });
     const run = runOf(inconclusive).run;
-    assert.equal(run.iterations[0]?.verdict, "inconclusive");
-    assert.equal(run.consecutiveDiscards, 1);
-    assert.match(textOf(inconclusive), /inconclusive: ambiguous/);
+    expect(run.iterations[0]?.verdict).toBe("inconclusive");
+    expect(run.consecutiveDiscards).toBe(1);
+    expect(textOf(inconclusive)).toMatch(/inconclusive: ambiguous/);
   } finally {
     cleanup();
   }
@@ -437,17 +412,17 @@ test("checkpoint walks COMMIT to CHECKPOINT to CHECK_PREDICATE to WAIT and then 
     const env = fakeEnv();
     saveRun(seeded("run-cp", [...VERIFYING, { type: "iteration_verified", verification: "npm test", evidence: "exit 0" }]));
     const first = await env.run({ action: "checkpoint", runId: "run-cp" });
-    assert.equal(runOf(first).run.phase, "CHECKPOINT");
+    expect(runOf(first).run.phase).toBe("CHECKPOINT");
     const second = await env.run({ action: "checkpoint", runId: "run-cp" });
-    assert.equal(runOf(second).run.phase, "CHECK_PREDICATE");
+    expect(runOf(second).run.phase).toBe("CHECK_PREDICATE");
     const third = await env.run({ action: "checkpoint", runId: "run-cp" });
-    assert.equal(runOf(third).run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
-    assert.match(textOf(third), /predicate unresolved; waiting for event or heartbeat/);
+    expect(runOf(third).run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+    expect(textOf(third)).toMatch(/predicate unresolved; waiting for event or heartbeat/);
     const fourth = await env.run({ action: "checkpoint", runId: "run-cp" });
-    assert.equal(runOf(fourth).run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
-    assert.deepEqual(runOf(fourth).effects, []);
-    assert.deepEqual(runOf(fourth).ignored, [{ event: "checkpoint", phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
-    assert.match(textOf(fourth), /ignored checkpoint in phase WAIT_FOR_EVENT_OR_HEARTBEAT/);
+    expect(runOf(fourth).run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+    expect(runOf(fourth).effects).toEqual([]);
+    expect(runOf(fourth).ignored).toEqual([{ event: "checkpoint", phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
+    expect(textOf(fourth)).toMatch(/ignored checkpoint in phase WAIT_FOR_EVENT_OR_HEARTBEAT/);
   } finally {
     cleanup();
   }
@@ -468,10 +443,10 @@ test("every out-of-phase action names the ignored event and the phase without ra
     for (const [params, event] of cases) {
       await env.run({ action: "arm", runId: "run-ignore", predicate: "ci green", intervalSeconds: 30 });
       const result = await env.run({ runId: "run-ignore", ...params });
-      assert.equal(runOf(result).run.phase, "WAIT_FOR_EVENT_OR_HEARTBEAT");
-      assert.deepEqual(runOf(result).effects, []);
-      assert.deepEqual(runOf(result).ignored, [{ event, phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
-      assert.equal(textOf(result), `${summary}\nignored ${event} in phase WAIT_FOR_EVENT_OR_HEARTBEAT`);
+      expect(runOf(result).run.phase).toBe("WAIT_FOR_EVENT_OR_HEARTBEAT");
+      expect(runOf(result).effects).toEqual([]);
+      expect(runOf(result).ignored).toEqual([{ event, phase: "WAIT_FOR_EVENT_OR_HEARTBEAT" }]);
+      expect(textOf(result)).toBe(`${summary}\nignored ${event} in phase WAIT_FOR_EVENT_OR_HEARTBEAT`);
     }
   } finally {
     cleanup();
@@ -483,7 +458,7 @@ test("a terminal run names the terminal phase for every action it refuses", asyn
   try {
     const env = fakeEnv();
     saveRun(seeded("run-over", [...CHECKPOINTED, { type: "predicate_met", evidence: "ci green" }]));
-    assert.equal(loadRun("run-over")?.phase, "COMPLETE");
+    expect(loadRun("run-over")?.phase).toBe("COMPLETE");
     const cases: Array<[Record<string, unknown>, string]> = [
       [{ action: "iterate", step: "again" }, "iteration_started"],
       [{ action: "verify", evidence: "green" }, "iteration_verified"],
@@ -495,15 +470,12 @@ test("a terminal run names the terminal phase for every action it refuses", asyn
     ];
     for (const [params, event] of cases) {
       const result = await env.run({ runId: "run-over", ...params });
-      assert.equal(runOf(result).run.phase, "COMPLETE");
-      assert.deepEqual(runOf(result).effects, []);
-      assert.deepEqual(runOf(result).ignored, [{ event, phase: "COMPLETE" }]);
+      expect(runOf(result).run.phase).toBe("COMPLETE");
+      expect(runOf(result).effects).toEqual([]);
+      expect(runOf(result).ignored).toEqual([{ event, phase: "COMPLETE" }]);
     }
     const last = await env.run({ action: "iterate", runId: "run-over", step: "again" });
-    assert.equal(
-      textOf(last),
-      "run-over phase=COMPLETE iterations=1 discards=0 fires=1/50 predicate=ci green\nignored iteration_started in phase COMPLETE",
-    );
+    expect(textOf(last)).toBe("run-over phase=COMPLETE iterations=1 discards=0 fires=1/50 predicate=ci green\nignored iteration_started in phase COMPLETE");
   } finally {
     cleanup();
   }
@@ -514,22 +486,19 @@ test("verify predicateMet from CHECKPOINT completes and groups the ignored event
   try {
     const env = fakeEnv();
     saveRun(seeded("run-cp-verify", [...VERIFYING, { type: "iteration_verified", verification: "npm test", evidence: "exit 0" }, { type: "checkpoint" }]));
-    assert.equal(loadRun("run-cp-verify")?.phase, "CHECKPOINT");
+    expect(loadRun("run-cp-verify")?.phase).toBe("CHECKPOINT");
     const result = await env.run({
       action: "verify",
       runId: "run-cp-verify",
       evidence: "checks green",
       predicateMet: true,
     });
-    assert.equal(runOf(result).run.phase, "COMPLETE");
-    assert.deepEqual(runOf(result).ignored, [
+    expect(runOf(result).run.phase).toBe("COMPLETE");
+    expect(runOf(result).ignored).toEqual([
       { event: "iteration_verified", phase: "CHECKPOINT" },
       { event: "checkpoint", phase: "CHECKPOINT" },
     ]);
-    assert.equal(
-      textOf(result),
-      "run-cp-verify phase=COMPLETE iterations=1 discards=0 fires=1/50 predicate=ci green\nrun run-cp-verify COMPLETE: predicate met with evidence\nignored iteration_verified, checkpoint in phase CHECKPOINT",
-    );
+    expect(textOf(result)).toBe("run-cp-verify phase=COMPLETE iterations=1 discards=0 fires=1/50 predicate=ci green\nrun run-cp-verify COMPLETE: predicate met with evidence\nignored iteration_verified, checkpoint in phase CHECKPOINT");
   } finally {
     cleanup();
   }
@@ -540,19 +509,13 @@ test("blocked requires a reason and records it literally", async () => {
   try {
     const env = fakeEnv();
     saveRun(seeded("run-block", RESUMED));
-    await assert.rejects(
-      () => env.run({ action: "blocked", runId: "run-block" }),
-      /reason required to mark a run blocked/,
-    );
+    await expect(() => env.run({ action: "blocked", runId: "run-block" })).rejects.toThrow(/reason required to mark a run blocked/);
     const result = await env.run({ action: "blocked", runId: "run-block", reason: "awaiting review" });
     const { run, effects } = runOf(result);
-    assert.equal(run.phase, "BLOCKED");
-    assert.equal(run.blockedReason, "awaiting review");
-    assert.deepEqual(
-      effects.map((effect) => effect.type),
-      ["notify", "stop"],
-    );
-    assert.match(textOf(result), /blockedReason: awaiting review/);
+    expect(run.phase).toBe("BLOCKED");
+    expect(run.blockedReason).toBe("awaiting review");
+    expect(effects.map((effect) => effect.type)).toEqual(["notify", "stop"]);
+    expect(textOf(result)).toMatch(/blockedReason: awaiting review/);
   } finally {
     cleanup();
   }
@@ -563,27 +526,21 @@ test("handoff requires an endpoint and marks the run blocked with a recorded han
   try {
     const env = fakeEnv();
     saveRun(seeded("run-handoff", RESUMED));
-    await assert.rejects(
-      () => env.run({ action: "handoff", runId: "run-handoff" }),
-      /endpoint required for a hosted handoff/,
-    );
+    await expect(() => env.run({ action: "handoff", runId: "run-handoff" })).rejects.toThrow(/endpoint required for a hosted handoff/);
     const result = await env.run({
       action: "handoff",
       runId: "run-handoff",
       endpoint: "https://worker.example",
     });
     const { run, effects } = runOf(result);
-    assert.equal(run.phase, "BLOCKED");
-    assert.deepEqual(run.remote, { required: true, handedOff: true, endpoint: "https://worker.example" });
-    assert.deepEqual(
-      effects.map((effect) => effect.type),
-      ["handoff", "notify"],
-    );
-    assert.deepEqual(env.notifications(), [
+    expect(run.phase).toBe("BLOCKED");
+    expect(run.remote).toEqual({ required: true, handedOff: true, endpoint: "https://worker.example" });
+    expect(effects.map((effect) => effect.type)).toEqual(["handoff", "notify"]);
+    expect(env.notifications()).toEqual([
       "run run-handoff hosted handoff recorded for https://worker.example; no local continuation",
       "run run-handoff handed off to https://worker.example; BLOCKED locally until the hosted worker exists",
     ]);
-    assert.deepEqual(env.sent(), []);
+    expect(env.sent()).toEqual([]);
   } finally {
     cleanup();
   }
@@ -595,17 +552,14 @@ test("stop reports whether an armed loop existed and list renders every stored r
     const env = fakeEnv();
     await env.run({ action: "arm", runId: "run-stop", predicate: "ci green", intervalSeconds: 30 });
     const armed = await env.run({ action: "stop", runId: "run-stop" });
-    assert.equal(textOf(armed), "stopped run-stop");
-    assert.deepEqual(armed.details, { runId: "run-stop", stopped: true });
+    expect(textOf(armed)).toBe("stopped run-stop");
+    expect(armed.details).toEqual({ runId: "run-stop", stopped: true });
     const again = await env.run({ action: "stop", runId: "run-stop" });
-    assert.equal(textOf(again), "no armed loop for run-stop");
-    assert.deepEqual(again.details, { runId: "run-stop", stopped: false });
+    expect(textOf(again)).toBe("no armed loop for run-stop");
+    expect(again.details).toEqual({ runId: "run-stop", stopped: false });
     const listed = await env.run({ action: "list" });
-    assert.equal(
-      textOf(listed),
-      "run-stop phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/50 predicate=ci green",
-    );
-    assert.equal(listed.details.count, 1);
+    expect(textOf(listed)).toBe("run-stop phase=WAIT_FOR_EVENT_OR_HEARTBEAT iterations=0 discards=0 fires=0/50 predicate=ci green");
+    expect(listed.details.count).toBe(1);
   } finally {
     cleanup();
   }
@@ -639,11 +593,11 @@ test("no action is a silent no-op in any phase", async () => {
     for (const [phase, steps] of seeds) {
       for (const [name, params] of actions) {
         saveRun(seeded("run-matrix", steps));
-        assert.equal(loadRun("run-matrix")?.phase, phase);
+        expect(loadRun("run-matrix")?.phase).toBe(phase);
         const result = await env.run({ runId: "run-matrix", ...params });
         const advanced = runOf(result).run.phase !== phase;
         const reported = runOf(result).effects.length + runOf(result).ignored.length;
-        assert.ok(advanced || reported > 0, `${name} from ${phase} was a silent no-op`);
+        expect(advanced || reported > 0, `${name} from ${phase} was a silent no-op`).toBeTruthy();
       }
     }
   } finally {
@@ -658,13 +612,13 @@ test("session_shutdown blocks only the non-terminal runs armed in this process",
     await env.run({ action: "arm", runId: "run-live", predicate: "ci green", intervalSeconds: 30 });
     await env.run({ action: "arm", runId: "run-done", predicate: "ci green", intervalSeconds: 30 });
     const blocked = await env.run({ action: "blocked", runId: "run-done", reason: "already done" });
-    assert.equal(runOf(blocked).run.phase, "BLOCKED");
+    expect(runOf(blocked).run.phase).toBe("BLOCKED");
     env.shutdown();
-    assert.equal(loadRun("run-live")?.phase, "BLOCKED");
-    assert.equal(loadRun("run-live")?.blockedReason, "local runtime session ended without completion; hand off to a hosted worker or re-arm");
-    assert.equal(loadRun("run-done")?.blockedReason, "already done");
+    expect(loadRun("run-live")?.phase).toBe("BLOCKED");
+    expect(loadRun("run-live")?.blockedReason).toBe("local runtime session ended without completion; hand off to a hosted worker or re-arm");
+    expect(loadRun("run-done")?.blockedReason).toBe("already done");
     const listed = await env.loopTool.execute("t", { action: "list" }, undefined, undefined, env.ctx);
-    assert.equal(textOf(listed), "(no active loops)");
+    expect(textOf(listed)).toBe("(no active loops)");
   } finally {
     cleanup();
   }

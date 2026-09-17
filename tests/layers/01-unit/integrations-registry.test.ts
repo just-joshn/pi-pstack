@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -108,45 +107,42 @@ function captureExec(): { exec: ExecLike; calls: () => ExecRequest[] } {
 test("integrations-registry-01 inventories the nine capability categories from the policy table", () => {
   const entries = integrationEntries();
 
-  assert.equal(entries.length, 9);
-  assert.deepEqual(
-    entries.map((entry) => entry.id),
-    INTEGRATION_CATEGORIES,
-  );
+  expect(entries.length).toBe(9);
+  expect(entries.map((entry) => entry.id)).toEqual(INTEGRATION_CATEGORIES);
   for (const entry of entries) {
-    assert.equal(entry.title.trim().length > 0, true, `${entry.id} has a title`);
-    assert.equal(entry.toolName.length > 0, true, `${entry.id} names a tool`);
-    assert.equal(entry.toolName, INTEGRATION_CAPABILITIES[entry.id][0]);
+    expect(entry.title.trim().length > 0, `${entry.id} has a title`).toBe(true);
+    expect(entry.toolName.length > 0, `${entry.id} names a tool`).toBe(true);
+    expect(entry.toolName).toBe(INTEGRATION_CAPABILITIES[entry.id][0]);
   }
 });
 
 test("integrations-registry-02 reports a missing config entry as unavailable with the prerequisite named", () => {
   const dir = tempDir("registry-missing-");
   const config = loadIntegrationsConfig(dir);
-  assert.deepEqual(config.adapters, {});
+  expect(config.adapters).toEqual({});
 
   const status = decideStatus(integrationEntry("issue-tracker"), {
     gitWorkTree: true,
     ghOnPath: true,
     config,
   });
-  assert.equal(status.availability, "unavailable");
-  assert.equal(status.satisfiedBy, null);
-  assert.equal(status.missing?.includes(configPath(dir)), true);
-  assert.equal(status.missing?.includes("issue-tracker"), true);
+  expect(status.availability).toBe("unavailable");
+  expect(status.satisfiedBy).toBe(null);
+  expect(status.missing?.includes(configPath(dir))).toBe(true);
+  expect(status.missing?.includes("issue-tracker")).toBe(true);
 
   const line = formatStatusLine(status);
-  assert.equal(line.includes("unavailable"), true);
-  assert.equal(line.includes("missing"), true);
+  expect(line.includes("unavailable")).toBe(true);
+  expect(line.includes("missing")).toBe(true);
 
   const gap = gapForStatus(status);
-  assert.equal(gap.capability, "issue-tracker");
-  assert.equal(gap.missing, status.missing);
+  expect(gap.capability).toBe("issue-tracker");
+  expect(gap.missing).toBe(status.missing);
 });
 
 test("integrations-registry-03 rejects malformed adapter config with a clear error", () => {
   for (const scenario of MALFORMED_CASES) {
-    assert.throws(() => loadConfigFixture(scenario.raw), scenario.pattern, scenario.label);
+    expect(() => loadConfigFixture(scenario.raw), scenario.label).toThrow(scenario.pattern);
   }
 
   const dir = tempDir("registry-good-");
@@ -154,8 +150,8 @@ test("integrations-registry-03 rejects malformed adapter config with a clear err
     "team-chat": { adapter: "command", command: ["node", "-e", "1"], description: "chat" },
   });
   const config = loadIntegrationsConfig(dir);
-  assert.equal(config.source, file);
-  assert.deepEqual(config.adapters["team-chat"]?.command, ["node", "-e", "1"]);
+  expect(config.source).toBe(file);
+  expect(config.adapters["team-chat"]?.command).toEqual(["node", "-e", "1"]);
 });
 
 test("integrations-registry-04 decides source-control availability from git and gh", () => {
@@ -163,16 +159,16 @@ test("integrations-registry-04 decides source-control availability from git and 
   const entry = integrationEntry("source-control");
 
   const noTree = decideStatus(entry, { gitWorkTree: false, ghOnPath: true, config });
-  assert.equal(noTree.availability, "unavailable");
-  assert.equal(noTree.missing?.includes("git rev-parse --is-inside-work-tree"), true);
+  expect(noTree.availability).toBe("unavailable");
+  expect(noTree.missing?.includes("git rev-parse --is-inside-work-tree")).toBe(true);
 
   const gitOnly = decideStatus(entry, { gitWorkTree: true, ghOnPath: false, config });
-  assert.equal(gitOnly.availability, "available-git-only");
-  assert.equal(gitOnly.satisfiedBy?.includes("gh"), true);
+  expect(gitOnly.availability).toBe("available-git-only");
+  expect(gitOnly.satisfiedBy?.includes("gh")).toBe(true);
 
   const full = decideStatus(entry, { gitWorkTree: true, ghOnPath: true, config });
-  assert.equal(full.availability, "available");
-  assert.equal(AVAILABILITY.includes(full.availability), true);
+  expect(full.availability).toBe("available");
+  expect(AVAILABILITY.includes(full.availability)).toBe(true);
 
   const cli = integrationEntry("cli-tui");
   const missingTool = decideStatus(cli, {
@@ -181,8 +177,8 @@ test("integrations-registry-04 decides source-control availability from git and 
     config,
     registeredTools: ["pstack_control_ui"],
   });
-  assert.equal(missingTool.availability, "unavailable");
-  assert.equal(missingTool.missing?.includes("pstack_control_cli"), true);
+  expect(missingTool.availability).toBe("unavailable");
+  expect(missingTool.missing?.includes("pstack_control_cli")).toBe(true);
 
   const withTool = decideStatus(cli, {
     gitWorkTree: true,
@@ -190,43 +186,43 @@ test("integrations-registry-04 decides source-control availability from git and 
     config,
     registeredTools: ["pstack_control_cli"],
   });
-  assert.equal(withTool.availability, "available");
+  expect(withTool.availability).toBe("available");
 });
 
 test("integrations-registry-05 honors PSTACK_INTEGRATIONS_DIR for the config path", () => {
   withEnvDir((dir) => {
-    assert.equal(integrationsDir(), dir);
-    assert.equal(configPath(), join(dir, "integrations.json"));
+    expect(integrationsDir()).toBe(dir);
+    expect(configPath()).toBe(join(dir, "integrations.json"));
 
     const empty = loadIntegrationsConfig();
-    assert.equal(empty.source, join(dir, "integrations.json"));
-    assert.deepEqual(empty.adapters, {});
+    expect(empty.source).toBe(join(dir, "integrations.json"));
+    expect(empty.adapters).toEqual({});
 
     writeConfig(dir, {
       "long-form-docs": { adapter: "command", command: ["node", "-e", "1"], description: "docs" },
     });
     const loaded = loadIntegrationsConfig();
-    assert.equal(loaded.source, join(dir, "integrations.json"));
-    assert.deepEqual(loaded.adapters["long-form-docs"]?.command, ["node", "-e", "1"]);
+    expect(loaded.source).toBe(join(dir, "integrations.json"));
+    expect(loaded.adapters["long-form-docs"]?.command).toEqual(["node", "-e", "1"]);
   });
 });
 
 test("integrations-registry-06 derives tool names and kinds from the policy capability table", () => {
   for (const id of INTEGRATION_CATEGORIES) {
-    assert.equal(capabilityToolName(id), INTEGRATION_CAPABILITIES[id][0]);
+    expect(capabilityToolName(id)).toBe(INTEGRATION_CAPABILITIES[id][0]);
   }
-  assert.equal(isIntegrationCategory("team-chat"), true);
-  assert.equal(isIntegrationCategory("not-a-capability"), false);
+  expect(isIntegrationCategory("team-chat")).toBe(true);
+  expect(isIntegrationCategory("not-a-capability")).toBe(false);
 
   for (const entry of integrationEntries()) {
     const implemented = IMPLEMENTED.includes(entry.id);
-    assert.equal(entry.kind, implemented ? "implemented" : "prerequisite", `${entry.id} kind`);
-    assert.equal(PROBE_KINDS.includes(entry.probeSpec.kind), true, `${entry.id} probe kind`);
-    if (entry.id === "source-control") assert.equal(entry.probeSpec.kind, "source-control");
-    if (entry.id === "cli-tui" || entry.id === "browser-ui") assert.equal(entry.probeSpec.kind, "builtin-tool");
-    if (!implemented) assert.equal(entry.probeSpec.kind, "command-adapter");
+    expect(entry.kind, `${entry.id} kind`).toBe(implemented ? "implemented" : "prerequisite");
+    expect(PROBE_KINDS.includes(entry.probeSpec.kind), `${entry.id} probe kind`).toBe(true);
+    if (entry.id === "source-control") expect(entry.probeSpec.kind).toBe("source-control");
+    if (entry.id === "cli-tui" || entry.id === "browser-ui") expect(entry.probeSpec.kind).toBe("builtin-tool");
+    if (!implemented) expect(entry.probeSpec.kind).toBe("command-adapter");
   }
-  assert.equal(integrationEntries().filter((entry) => entry.kind === "prerequisite").length, 6);
+  expect(integrationEntries().filter((entry) => entry.kind === "prerequisite").length).toBe(6);
 });
 
 test("integrations-registry-07 never prints configured argv in the status line", () => {
@@ -242,23 +238,23 @@ test("integrations-registry-07 never prints configured argv in the status line",
     config,
   });
 
-  assert.equal(status.availability, "available");
+  expect(status.availability).toBe("available");
   const line = formatStatusLine(status);
   const withoutConfigPath = line.split(config.source).join("<config>");
 
-  assert.equal(withoutConfigPath.includes("command adapter 'node' (2 args)"), true);
-  assert.equal(withoutConfigPath.includes("<config>"), true, "status line names the config source");
+  expect(withoutConfigPath.includes("command adapter 'node' (2 args)")).toBe(true);
+  expect(withoutConfigPath.includes("<config>"), "status line names the config source").toBe(true);
   for (const arg of argv.slice(1)) {
-    assert.equal(withoutConfigPath.includes(arg), false, `status line leaks argv element ${arg}`);
+    expect(withoutConfigPath.includes(arg), `status line leaks argv element ${arg}`).toBe(false);
   }
-  assert.equal(line.includes("SECRET-TOKEN"), false);
+  expect(line.includes("SECRET-TOKEN")).toBe(false);
 });
 
 test("integrations-registry-08 builds source-control argv and plans the query grammar", async () => {
-  assert.deepEqual(gitLog([], 5), ["git", "log", "-n5", FORMAT_ARG]);
-  assert.deepEqual(gitLog(["src"], 5, "why"), ["git", "log", "-n5", FORMAT_ARG, "--grep=why", "--", "src"]);
-  assert.deepEqual(gitBlame("a.ts", 3), ["git", "blame", "-L", "3,3", "--porcelain", "--", "a.ts"]);
-  assert.deepEqual(ghPrSearch("term"), [
+  expect(gitLog([], 5)).toEqual(["git", "log", "-n5", FORMAT_ARG]);
+  expect(gitLog(["src"], 5, "why")).toEqual(["git", "log", "-n5", FORMAT_ARG, "--grep=why", "--", "src"]);
+  expect(gitBlame("a.ts", 3)).toEqual(["git", "blame", "-L", "3,3", "--porcelain", "--", "a.ts"]);
+  expect(ghPrSearch("term")).toEqual([
     "gh",
     "search",
     "prs",
@@ -269,49 +265,45 @@ test("integrations-registry-08 builds source-control argv and plans the query gr
     "20",
   ]);
 
-  assert.equal(planSourceControlQuery("", undefined, 5).mode, "log");
-  assert.equal(planSourceControlQuery("why", undefined, 5).mode, "log");
+  expect(planSourceControlQuery("", undefined, 5).mode).toBe("log");
+  expect(planSourceControlQuery("why", undefined, 5).mode).toBe("log");
 
   const blame = planSourceControlQuery("blame:src/a.ts:12", undefined, 5);
-  assert.equal(blame.mode, "blame");
-  assert.equal(blame.requiresGh, false);
-  assert.deepEqual(blame.argv, ["git", "blame", "-L", "12,12", "--porcelain", "--", "src/a.ts"]);
+  expect(blame.mode).toBe("blame");
+  expect(blame.requiresGh).toBe(false);
+  expect(blame.argv).toEqual(["git", "blame", "-L", "12,12", "--porcelain", "--", "src/a.ts"]);
 
   const prs = planSourceControlQuery("prs:topic", undefined, 5);
-  assert.equal(prs.mode, "prs");
-  assert.equal(prs.requiresGh, true);
-  assert.deepEqual(prs.argv, ghPrSearch("topic"));
+  expect(prs.mode).toBe("prs");
+  expect(prs.requiresGh).toBe(true);
+  expect(prs.argv).toEqual(ghPrSearch("topic"));
 
   const capture = captureExec();
   const outcome = await executeCommandAdapter(capture.exec, ["node", "-e", "1"], "topic");
-  assert.equal(outcome.stdout, "captured");
-  assert.equal(capture.calls()[0]?.command, "node");
-  assert.deepEqual(capture.calls()[0]?.args, ["-e", "1", "topic"]);
-  assert.equal(capture.calls()[0]?.timeoutMs, 120_000);
+  expect(outcome.stdout).toBe("captured");
+  expect(capture.calls()[0]?.command).toBe("node");
+  expect(capture.calls()[0]?.args).toEqual(["-e", "1", "topic"]);
+  expect(capture.calls()[0]?.timeoutMs).toBe(120_000);
 
   await executeCommandAdapter(capture.exec, ["node", "-e", "1"], "");
-  assert.deepEqual(capture.calls()[1]?.args, ["-e", "1"]);
+  expect(capture.calls()[1]?.args).toEqual(["-e", "1"]);
 
-  assert.throws(() => assertSafePath("-x", "git log pathspec"), /unsafe path/);
-  assert.throws(() => assertArgv(["-rf"], "command adapter"), /argv\[0\] must be a command name, not an option/);
+  expect(() => assertSafePath("-x", "git log pathspec")).toThrow(/unsafe path/);
+  expect(() => assertArgv(["-rf"], "command adapter")).toThrow(/argv\[0\] must be a command name, not an option/);
 });
 
 test("integrations-registry-09 advertises only real surfaces and dedupes the shared bridge", () => {
-  assert.deepEqual(integrationToolsFor("inherit"), [
+  expect(integrationToolsFor("inherit")).toEqual([
     "pstack_integrations",
     "pstack_control_ui",
     "pstack_control_cli",
   ]);
-  assert.deepEqual(integrationToolsFor(["issue-tracker"]), ["pstack_integrations"]);
-  assert.deepEqual(integrationToolsFor(["team-chat", "analytics"]), ["pstack_integrations"]);
-  assert.deepEqual(integrationToolsFor(["cli-tui"]), ["pstack_control_cli"]);
-  assert.deepEqual(integrationToolsFor("none"), []);
+  expect(integrationToolsFor(["issue-tracker"])).toEqual(["pstack_integrations"]);
+  expect(integrationToolsFor(["team-chat", "analytics"])).toEqual(["pstack_integrations"]);
+  expect(integrationToolsFor(["cli-tui"])).toEqual(["pstack_control_cli"]);
+  expect(integrationToolsFor("none")).toEqual([]);
 
   for (const entry of integrationEntries()) {
-    assert.equal(
-      entry.toolName === "pstack_integrations" || entry.toolName.startsWith("pstack_control_"),
-      true,
-      `${entry.id} must name a registered surface, got ${entry.toolName}`,
-    );
+    expect(entry.toolName === "pstack_integrations" || entry.toolName.startsWith("pstack_control_"), `${entry.id} must name a registered surface, got ${entry.toolName}`).toBe(true);
   }
 });

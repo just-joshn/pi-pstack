@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { registerShipping } from "../../../extensions/shipping/index.ts";
 
 interface ExecResult {
@@ -94,29 +93,26 @@ const gateOk: ExecResult = { code: 0, stdout: JSON.stringify(CLEAN_VIEW), stderr
 test("ship-01 registers pstack_ship with action required and pr, stackPrs, mergeMethod optional", () => {
   const env = fakePi([gateOk]);
   const tool = env.tool("pstack_ship");
-  assert.equal(tool.name, "pstack_ship");
-  assert.equal(tool.promptSnippet, "Merge or inspect a green PR stack with gh");
-  assert.equal(tool.parameters.type, "object");
-  assert.deepEqual(tool.parameters.required, ["action"]);
-  assert.deepEqual(Object.keys(tool.parameters.properties ?? {}).toSorted(), [
+  expect(tool.name).toBe("pstack_ship");
+  expect(tool.promptSnippet).toBe("Merge or inspect a green PR stack with gh");
+  expect(tool.parameters.type).toBe("object");
+  expect(tool.parameters.required).toEqual(["action"]);
+  expect(Object.keys(tool.parameters.properties ?? {}).toSorted()).toEqual([
     "action",
     "mergeMethod",
     "pr",
     "stackPrs",
   ]);
-  assert.equal(tool.parameters.properties?.action?.type, "string");
-  assert.equal(tool.parameters.properties?.pr?.type, "string");
-  assert.equal(tool.parameters.properties?.stackPrs?.type, "array");
-  assert.equal(tool.parameters.properties?.mergeMethod?.type, "string");
+  expect(tool.parameters.properties?.action?.type).toBe("string");
+  expect(tool.parameters.properties?.pr?.type).toBe("string");
+  expect(tool.parameters.properties?.stackPrs?.type).toBe("array");
+  expect(tool.parameters.properties?.mergeMethod?.type).toBe("string");
 });
 
 test("ship-11 fails closed in assertMergeGates on a nonzero view exit or invalid gh JSON", async () => {
   const failed = fakePi([{ code: 1, stdout: "", stderr: "gh: could not resolve PR" }]);
-  await assert.rejects(runShip(failed, { action: "gate-check", pr: "9" }), {
-    message:
-      "merge gate check failed (fail closed): cannot view PR \u2014 gh: could not resolve PR",
-  });
-  assert.deepEqual(argvLog(failed), [
+  await expect(runShip(failed, { action: "gate-check", pr: "9" })).rejects.toThrow("merge gate check failed (fail closed): cannot view PR \u2014 gh: could not resolve PR");
+  expect(argvLog(failed)).toEqual([
     [
       "gh",
       [
@@ -129,19 +125,17 @@ test("ship-11 fails closed in assertMergeGates on a nonzero view exit or invalid
     ],
   ]);
   const badJson = fakePi([{ code: 0, stdout: "<html>not json</html>", stderr: "" }]);
-  await assert.rejects(runShip(badJson, { action: "gate-check", pr: "9" }), {
-    message: "merge gate check failed (fail closed): invalid gh JSON",
-  });
+  await expect(runShip(badJson, { action: "gate-check", pr: "9" })).rejects.toThrow("merge gate check failed (fail closed): invalid gh JSON");
 });
 
 test("ship-12 runs the gate check before merging and merges with --squash by default", async () => {
   const env = fakePi([gateOk, { code: 0, stdout: "merged", stderr: "" }]);
   const result = await runShip(env, { action: "merge", pr: "#42" });
-  assert.deepEqual(argvLog(env), [
+  expect(argvLog(env)).toEqual([
     ["gh", GATE_VIEW_ARGV],
     ["gh", ["pr", "merge", "42", "--squash"]],
   ]);
-  assert.deepEqual(result.details.gate, CLEAN_VIEW);
+  expect(result.details.gate).toEqual(CLEAN_VIEW);
 });
 
 test("ship-13 maps mergeMethod to the gh flag", async () => {
@@ -162,17 +156,15 @@ test("ship-13 maps mergeMethod to the gh flag", async () => {
     await runShip(env, params);
     const mergeArgs = env.calls().at(-1)?.args ?? [];
     observed = [...observed, mergeArgs.at(-1) ?? "missing"];
-    assert.equal(mergeArgs.at(-1), flag, `mergeMethod=${String(method)}`);
+    expect(mergeArgs.at(-1), `mergeMethod=${String(method)}`).toBe(flag);
   }
-  assert.deepEqual(observed, ["--merge", "--rebase", "--squash", "--squash", "--squash"]);
+  expect(observed).toEqual(["--merge", "--rebase", "--squash", "--squash", "--squash"]);
 });
 
 test("ship-14 throws the fail-closed merge error when gh pr merge exits nonzero", async () => {
   const env = fakePi([gateOk, { code: 1, stdout: "", stderr: "merge conflict" }]);
-  await assert.rejects(runShip(env, { action: "merge", pr: "8" }), {
-    message: "gh pr merge failed (fail closed): merge conflict",
-  });
-  assert.deepEqual(argvLog(env), [
+  await expect(runShip(env, { action: "merge", pr: "8" })).rejects.toThrow("gh pr merge failed (fail closed): merge conflict");
+  expect(argvLog(env)).toEqual([
     [
       "gh",
       [
@@ -190,9 +182,9 @@ test("ship-14 throws the fail-closed merge error when gh pr merge exits nonzero"
 test("ship-15 returns gate-check PASS plus the JSON PR view", async () => {
   const env = fakePi([gateOk]);
   const result = await runShip(env, { action: "gate-check", pr: "#11" });
-  assert.equal(result.content[0].text, `gate-check PASS\n${JSON.stringify(CLEAN_VIEW, null, 2)}`);
-  assert.deepEqual(result.details.gate, CLEAN_VIEW);
-  assert.deepEqual(argvLog(env), [
+  expect(result.content[0].text).toBe(`gate-check PASS\n${JSON.stringify(CLEAN_VIEW, null, 2)}`);
+  expect(result.details.gate).toEqual(CLEAN_VIEW);
+  expect(argvLog(env)).toEqual([
     [
       "gh",
       [
@@ -208,26 +200,20 @@ test("ship-15 returns gate-check PASS plus the JSON PR view", async () => {
 
 test("ship-16 requires pr for view, merge, gate-check and rejects an unknown action", async () => {
   const env = fakePi([]);
-  await assert.rejects(runShip(env, { action: "view" }), { message: "pr required" });
-  await assert.rejects(runShip(env, { action: "merge" }), { message: "pr required for merge" });
-  await assert.rejects(runShip(env, { action: "gate-check" }), {
-    message: "pr required for gate-check",
-  });
-  await assert.rejects(runShip(env, { action: "bogus", pr: "1" }), {
-    message: "action must be view|merge|stack-status|gate-check",
-  });
-  assert.equal(env.calls().length, 0);
+  await expect(runShip(env, { action: "view" })).rejects.toThrow("pr required");
+  await expect(runShip(env, { action: "merge" })).rejects.toThrow("pr required for merge");
+  await expect(runShip(env, { action: "gate-check" })).rejects.toThrow("pr required for gate-check");
+  await expect(runShip(env, { action: "bogus", pr: "1" })).rejects.toThrow("action must be view|merge|stack-status|gate-check");
+  expect(env.calls().length).toBe(0);
 });
 
 test("ship-17 requires at least one PR for stack-status via stackPrs or pr", async () => {
   const empty = fakePi([]);
-  await assert.rejects(runShip(empty, { action: "stack-status" }), {
-    message: "stackPrs or pr required",
-  });
-  assert.equal(empty.calls().length, 0);
+  await expect(runShip(empty, { action: "stack-status" })).rejects.toThrow("stackPrs or pr required");
+  expect(empty.calls().length).toBe(0);
   const single = fakePi([{ code: 0, stdout: JSON.stringify({ ...CLEAN_VIEW, number: 7 }), stderr: "" }]);
   const result = await runShip(single, { action: "stack-status", pr: "#7" });
-  assert.deepEqual(argvLog(single), [
+  expect(argvLog(single)).toEqual([
     [
       "gh",
       [
@@ -239,17 +225,14 @@ test("ship-17 requires at least one PR for stack-status via stackPrs or pr", asy
       ],
     ],
   ]);
-  assert.equal(result.details.verdict, "ADVANCE");
-  assert.equal(result.details.frontier, "7");
+  expect(result.details.verdict).toBe("ADVANCE");
+  expect(result.details.frontier).toBe("7");
   const stacked = fakePi([
     { code: 0, stdout: JSON.stringify({ ...CLEAN_VIEW, number: 3, state: "MERGED", mergedAt: "2026-01-01T00:00:00Z" }), stderr: "" },
     { code: 0, stdout: JSON.stringify({ ...CLEAN_VIEW, number: 5 }), stderr: "" },
   ]);
   const stackResult = await runShip(stacked, { action: "stack-status", stackPrs: ["3", "5"] });
-  assert.deepEqual(
-    stacked.calls().map((call) => call.args[2]),
-    ["3", "5"],
-  );
-  assert.equal(stackResult.details.verdict, "ADVANCE");
-  assert.equal(stackResult.details.frontier, "5");
+  expect(stacked.calls().map((call) => call.args[2])).toEqual(["3", "5"]);
+  expect(stackResult.details.verdict).toBe("ADVANCE");
+  expect(stackResult.details.frontier).toBe("5");
 });

@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -35,33 +34,25 @@ function reasonOf(policy: PstackTaskPolicy, event: Event): string {
 
 test("probe 1: investigator cannot run an interpreter through pstack_control_cli", () => {
   const event = cli(["node", "-e", "require('fs').writeFileSync('/tmp/x','pwned')"]);
-  assert.equal(verdict(INVESTIGATOR, event)?.block, true);
-  assert.match(reasonOf(INVESTIGATOR, event), /shell none blocks pstack_control_cli/);
+  expect(verdict(INVESTIGATOR, event)?.block).toBe(true);
+  expect(reasonOf(INVESTIGATOR, event)).toMatch(/shell none blocks pstack_control_cli/);
 });
 
 test("probe 2: a shell-none policy refuses the tool, and the read path stays open for shell-full", () => {
-  assert.equal(verdict(INVESTIGATOR, cli(["git", "status"]))?.block, true);
-  assert.equal(
-    verdict(FILESYSTEM_READ_ONLY, cli(["git", "status"])),
-    undefined,
-    "a read-only command has nothing for the git or filesystem axis to refuse",
-  );
+  expect(verdict(INVESTIGATOR, cli(["git", "status"]))?.block).toBe(true);
+  expect(verdict(FILESYSTEM_READ_ONLY, cli(["git", "status"])), "a read-only command has nothing for the git or filesystem axis to refuse").toBe(undefined);
 });
 
 test("probe 3: git read blocks a push reached through pstack_control_cli", () => {
-  assert.equal(verdict(INVESTIGATOR, cli(["git", "push"]))?.block, true);
-  assert.match(reasonOf(FILESYSTEM_READ_ONLY, cli(["git", "push"])), /blocks 'git push'/);
+  expect(verdict(INVESTIGATOR, cli(["git", "push"]))?.block).toBe(true);
+  expect(reasonOf(FILESYSTEM_READ_ONLY, cli(["git", "push"]))).toMatch(/blocks 'git push'/);
 });
 
 test("probe 4: network none blocks pstack_control_ui", () => {
-  assert.equal(verdict(READONLY, ui("http://example.com"))?.block, true);
-  assert.match(reasonOf(READONLY, ui("http://example.com")), /network none blocks pstack_control_ui/);
-  assert.equal(verdict(NETWORK_NONE, ui("http://example.com"))?.block, true);
-  assert.equal(
-    verdict(compileTaskPolicy({ network: "allowed" }, "general"), ui("http://example.com")),
-    undefined,
-    "a granted network leaves the probe to the URL policy",
-  );
+  expect(verdict(READONLY, ui("http://example.com"))?.block).toBe(true);
+  expect(reasonOf(READONLY, ui("http://example.com"))).toMatch(/network none blocks pstack_control_ui/);
+  expect(verdict(NETWORK_NONE, ui("http://example.com"))?.block).toBe(true);
+  expect(verdict(compileTaskPolicy({ network: "allowed" }, "general"), ui("http://example.com")), "a granted network leaves the probe to the URL policy").toBe(undefined);
 });
 
 test("argv is inspected with the same write tables as a bash command", () => {
@@ -83,7 +74,7 @@ test("argv is inspected with the same write tables as a bash command", () => {
     ["curl", "-o", "/tmp/f", "https://example.com"],
   ];
   const leaks = blocked.filter((argv) => verdict(FILESYSTEM_READ_ONLY, cli(argv))?.block !== true);
-  assert.deepEqual(leaks, [], "every argv that writes or runs code must be blocked");
+  expect(leaks, "every argv that writes or runs code must be blocked").toEqual([]);
 
   const allowed = [
     ["git", "status"],
@@ -93,30 +84,27 @@ test("argv is inspected with the same write tables as a bash command", () => {
     ["sed", "-n", "1p", "f"],
   ];
   const refusals = allowed.filter((argv) => verdict(FILESYSTEM_READ_ONLY, cli(argv)) !== undefined);
-  assert.deepEqual(refusals, [], "the read paths stay open");
+  expect(refusals, "the read paths stay open").toEqual([]);
 });
 
 test("network none blocks an argv that reaches the network", () => {
-  assert.match(reasonOf(NETWORK_NONE, cli(["curl", "https://example.com"])), /network none blocks 'curl'/);
-  assert.match(reasonOf(NETWORK_NONE, cli(["git", "clone", "https://example.com/x.git"])), /network none blocks 'git clone'/);
-  assert.equal(verdict(NETWORK_NONE, cli(["git", "status"])), undefined);
+  expect(reasonOf(NETWORK_NONE, cli(["curl", "https://example.com"]))).toMatch(/network none blocks 'curl'/);
+  expect(reasonOf(NETWORK_NONE, cli(["git", "clone", "https://example.com/x.git"]))).toMatch(/network none blocks 'git clone'/);
+  expect(verdict(NETWORK_NONE, cli(["git", "status"]))).toBe(undefined);
 });
 
 test("a malformed or undecomposable command fails closed", () => {
   const malformed = [undefined, [], "git status", [7, "status"], ["git", 7], ["git\0status"], [""]];
   const leaks = malformed.filter((argv) => verdict(FILESYSTEM_READ_ONLY, cli(argv))?.block !== true);
-  assert.deepEqual(leaks, [], "every malformed argv must be blocked");
-  assert.match(reasonOf(FILESYSTEM_READ_ONLY, cli([])), /malformed command/);
-  assert.match(
-    reasonOf(FILESYSTEM_READ_ONLY, cli(["bash", "-c", "cat <<EOF"])),
-    /cannot enforce this policy/,
-  );
+  expect(leaks, "every malformed argv must be blocked").toEqual([]);
+  expect(reasonOf(FILESYSTEM_READ_ONLY, cli([]))).toMatch(/malformed command/);
+  expect(reasonOf(FILESYSTEM_READ_ONLY, cli(["bash", "-c", "cat <<EOF"]))).toMatch(/cannot enforce this policy/);
 });
 
 test("a shell-none policy refuses the tool even when every other axis would allow it", () => {
   const shellNone = compileTaskPolicy({ shell: "none" }, "general");
-  assert.match(reasonOf(shellNone, cli(["git", "status"])), /shell none blocks pstack_control_cli/);
-  assert.equal(verdict(shellNone, { toolName: "read", input: {} }), undefined);
+  expect(reasonOf(shellNone, cli(["git", "status"]))).toMatch(/shell none blocks pstack_control_cli/);
+  expect(verdict(shellNone, { toolName: "read", input: {} })).toBe(undefined);
 });
 
 type ToolCall = { command: string; args: string[] };
@@ -188,47 +176,35 @@ test("the tool refuses an untrusted PATH match and honours the operator trusted 
     chmodSync(fake, 0o755);
     await withEnv({ PATH: dir }, async () => {
       const refused = companionEnv();
-      await assert.rejects(
-        () => refused.tool("pstack_control_cli").execute("t", { argv: ["git", "status"] }),
-        /outside a trusted binary directory/,
-      );
-      assert.deepEqual(refused.execCalls(), [], "a refused command never reaches exec");
+      await expect(() => refused.tool("pstack_control_cli").execute("t", { argv: ["git", "status"] })).rejects.toThrow(/outside a trusted binary directory/);
+      expect(refused.execCalls(), "a refused command never reaches exec").toEqual([]);
 
       const trusted = companionEnv();
       await withEnv({ PSTACK_CONTROL_CLI_TRUSTED_DIRS: dir }, async () => {
         await trusted.tool("pstack_control_cli").execute("t", { argv: ["git", "status"] });
       });
-      assert.deepEqual(trusted.execCalls(), [{ command: "git", args: ["status"] }]);
+      expect(trusted.execCalls()).toEqual([{ command: "git", args: ["status"] }]);
     });
   });
 });
 
 test("the tool refuses an interpreter by default and runs it only under the operator opt-in", async () => {
   const off = companionEnv();
-  await assert.rejects(
-    () => off.tool("pstack_control_cli").execute("t", { argv: ["node", "-e", "1"] }),
-    /requires an explicit allowInterpreters opt-in/,
-  );
-  assert.deepEqual(off.execCalls(), []);
+  await expect(() => off.tool("pstack_control_cli").execute("t", { argv: ["node", "-e", "1"] })).rejects.toThrow(/requires an explicit allowInterpreters opt-in/);
+  expect(off.execCalls()).toEqual([]);
 
   const on = companionEnv();
   await withEnv({ PSTACK_CONTROL_CLI_INTERPRETERS: "1" }, async () => {
     await on.tool("pstack_control_cli").execute("t", { argv: ["node", "--version"] });
   });
-  assert.deepEqual(on.execCalls(), [{ command: "node", args: ["--version"] }]);
+  expect(on.execCalls()).toEqual([{ command: "node", args: ["--version"] }]);
 });
 
 test("a caller-supplied allowHosts value may only open loopback", async () => {
   const env = companionEnv();
   const probe = env.tool("pstack_control_ui");
-  await assert.rejects(
-    () => probe.execute("t", { url: "http://10.0.0.1/", allowHosts: ["10.0.0.1"] }),
-    /private, loopback, or link-local target/,
-  );
-  await assert.rejects(
-    () => probe.execute("t", { url: "http://169.254.169.254/latest", allowHosts: ["169.254.169.254"] }),
-    /metadata or local-only host/,
-  );
+  await expect(() => probe.execute("t", { url: "http://10.0.0.1/", allowHosts: ["10.0.0.1"] })).rejects.toThrow(/private, loopback, or link-local target/);
+  await expect(() => probe.execute("t", { url: "http://169.254.169.254/latest", allowHosts: ["169.254.169.254"] })).rejects.toThrow(/metadata or local-only host/);
 
   const original = globalThis.fetch;
   globalThis.fetch = (async () => ({
@@ -239,7 +215,7 @@ test("a caller-supplied allowHosts value may only open loopback", async () => {
   })) as unknown as typeof fetch;
   try {
     const result = await probe.execute("t", { url: "http://127.0.0.1:9/", allowHosts: ["127.0.0.1"] });
-    assert.equal(result.content[0]?.text, "HTTP 200 ok=true\n\nloopback body");
+    expect(result.content[0]?.text).toBe("HTTP 200 ok=true\n\nloopback body");
   } finally {
     globalThis.fetch = original;
   }

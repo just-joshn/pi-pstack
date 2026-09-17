@@ -1,5 +1,4 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,16 +15,8 @@ test("resolveRoleModel reads the project model config when given a cwd", () => {
       join(dir, ".pi", "pstack-models.json"),
       JSON.stringify({ version: 1, roles: { "swarm workers": "anthropic/claude-sonnet-4-5" } }),
     );
-    assert.equal(
-      resolveRoleModel("swarm workers", "xai/grok-4", 0, dir),
-      "anthropic/claude-sonnet-4-5",
-      "the project config must win over the parent model",
-    );
-    assert.equal(
-      resolveRoleModel("swarm workers", "xai/grok-4"),
-      undefined,
-      "without a cwd the project config is invisible",
-    );
+    expect(resolveRoleModel("swarm workers", "xai/grok-4", 0, dir), "the project config must win over the parent model").toBe("anthropic/claude-sonnet-4-5");
+    expect(resolveRoleModel("swarm workers", "xai/grok-4"), "without a cwd the project config is invisible").toBe(undefined);
   } finally {
     if (savedHome === undefined) Reflect.deleteProperty(process.env, "HOME");
     else process.env.HOME = savedHome;
