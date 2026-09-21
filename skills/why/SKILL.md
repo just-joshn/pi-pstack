@@ -59,9 +59,9 @@ Capture this as seed context (file paths, symbols, commits, PR numbers, linked t
 
 ### Discovery
 
-Before spawning investigators, run `pstack_integrations` with `action: status` to enumerate the capability categories and their availability. Spawn one investigator per available category. An unavailable category is a coverage gap: report it as a null finding naming its missing prerequisite, never skip it and never substitute another capability.
+Before spawning investigators, list the available MCP servers in this environment and what each can reach. In pi, MCP tools appear alongside your other tools; enumerate the MCP-provided tools you actually have in this session. If none are visible, record that as a coverage gap rather than guessing.
 
-Map each available capability to one evidence category:
+Map each available MCP to one evidence category:
 
 1. Source control history
 2. Issue / ticket tracker
@@ -78,9 +78,9 @@ Aim for a complete **coverage map**, not a minimal one. Document the null, don't
 Launch all matching investigators in a single message so they run concurrently. Don't ask one agent to cover multiple MCPs.
 
 Subagent config (each):
-- `role`: `general` via `pstack_task`
-- `model`: your configured why-investigators model (default `grok-4.6-fast-xhigh`)
-- `policy`: filesystem `read-only`, integrations `inherit` (via `pstack_task`, which compiles both axes independently). The read-only filesystem keeps the project untouched while the integration tools stay granted; readonly and integrations are not the same axis. Investigators still shouldn't write anything.
+- `agent`: `worker`
+- `model`: your configured why-investigators model from the pstack model rule (default: your fastest strong coding model, with the `:thinking` level your budget sets)
+- tools: unrestricted. **Do not restrict the toolset.** Investigators need MCP access, which a restricted toolset disables. Investigators still shouldn't write anything.
 
 Each investigator gets:
 1. The base prompt from `references/investigator-prompt.md`
@@ -122,9 +122,9 @@ If your scope assessment suggests a single-commit trivial target where the PR de
 
 Spawn one synthesizer subagent:
 
-- `role`: `general` via `pstack_task`
-- `model`: your configured why-synthesizer model (default `claude-fable-5-1-thinking-max`)
-- `policy`: filesystem `read-only`, integrations `inherit` (via `pstack_task`). The synthesizer's quality check spot-verifies citations, which can require integration tools; a read-only filesystem does not withdraw them.
+- `agent`: `worker`
+- `model`: your configured why-synthesizer model from the pstack model rule (default: your strongest reasoning model)
+- tools: unrestricted. The synthesizer's quality check spot-verifies citations, which can require MCP access. A restricted toolset defeats that.
 
 The synthesizer gets:
 1. The investigator findings, including any null results and any categories skipped with justification

@@ -2,15 +2,17 @@
 
 In this page you install the plugin, pick which models pstack uses, and run your first task. Setup is one command plus a short conversation.
 
-## Install the plugin
+## Install the package
 
-In a Pi session (or your shell), run:
+From the directory containing the pstack package, run:
 
-```text
-pi install <path-or-git:pi-pstack>
+```bash
+pi install /absolute/path/to/pstack
 ```
 
-Pi confirms the package is installed.
+pi lists the package's skills and extensions as it loads them. Confirm with `pi list`.
+
+You can also install straight from git (`pi install git:github.com/you/pstack@main`) or npm once published.
 
 ## Pick your models
 
@@ -20,11 +22,11 @@ Run:
 /setup-pstack
 ```
 
-[`/setup-pstack`](../../skills/setup-pstack/SKILL.md) detects the models you have access to, asks for a reasoning budget, shows you each role (code delegates, judgment, the review panels), and asks what you want. Answer the questions. It writes `~/.pi/agent/pstack-models.json`, a small rule every pstack skill reads.
+[`/setup-pstack`](../../skills/setup-pstack/SKILL.md) detects the models you have access to, asks for a reasoning budget, shows you each role (code delegates, judgment, the review panels), and asks what you want. Answer the questions. It writes a managed block into `~/.pi/agent/AGENTS.md`, a small rule every pstack skill reads.
 
 You only override what you care about. A role with no line in the rule keeps the skill's default. To restore a default later, delete that role's line, or just run `/setup-pstack` again.
 
-You might be wondering what happens if you use Auto. Set a role to `inherit-parent` or `auto` and pstack omits the subagent `model` field, so the subagent inherits your parent chat model. Both values mean the same thing, and neither is a model slug. For a panel role the value is a list, and one subagent runs per entry, so the list length sets the panel size. Setup also configures `swarm workers`, the default model for every `/swarm` worker unless a race names a model for each arm.
+You might be wondering what happens if you want a role to follow whatever you're using. Set a role to `inherit-parent` or `auto` and pstack omits the subagent `model` field, so the subagent inherits your session's model. Both values mean the same thing, and neither is a model id. For a panel role the value is a list, and one subagent runs per entry, so the list length sets the panel size. Setup also configures `swarm workers`, the default model for every `/swarm` worker unless a race names a model for each arm.
 
 ## Accept the verification offer, or don't
 
@@ -32,7 +34,7 @@ At the end of setup, `/setup-pstack` looks for a way to prove app behavior in yo
 
 Say yes and it writes `.pi/skills/verify-<app>/`, a project-local skill that teaches agents to drive your app the way a user does. It proves the skill works once before handing it over. Say no and setup moves on. You can run `/create-verification-skill` yourself any time. [Verify and ship](./06-verify-and-ship.md#create-a-project-verification-skill) covers when it earns its place.
 
-After setup, start a new chat. The model rule applies to new sessions.
+After setup, run `/reload` (or start a new session). The model rule applies to new sessions.
 
 ## Run your first task
 

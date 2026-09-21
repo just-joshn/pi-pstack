@@ -1,0 +1,7 @@
+ts	phase	decision	why	evidence	result
+2026-09-21T06:10:00Z	frame	treat ~/.pi/pstack as the native architecture to match, not the pstack_* twin	the live install is three extensions plus skills that call the subagent tool; the markdown spec says reimplement natively	tests/native-parity.mjs baseline 147 findings	framed
+2026-09-21T06:12:00Z	harness	wrote tests/native-parity.mjs before copying	so old vs new is a rerunnable script, not an eyeball	tests/native-parity.mjs	baseline fail 147
+2026-09-21T06:13:00Z	copy	rsync extensions, agents, skills, docs, automations, assets, README from ~/.pi/pstack	byte identity with the live native package is the predicate	node tests/native-parity.mjs	clean
+2026-09-21T06:14:00Z	subtract	deleted the pstack_* twin, port/, spec/, compat/, services/, obsolete test layers	converge on the native surface; throwaway compatibility is debt	git status deletions	removed
+2026-09-21T06:15:00Z	gate	run check-port over a package snapshot so .pi notes are not the gate	must not edit .pi/ or the copied checker	tests/run-check-port.mjs	check-port: clean
+2026-09-21T06:16:00Z	verify	npm test plus native-parity plus reference fingerprints	prove the real gates and that ~/.pi/ was not written	npm test 8/8; shasum -c fingerprints OK	VERIFIED

@@ -1143,7 +1143,7 @@ function branchSha({
     raw = execFileSync("git", ["rev-parse", branch], {
       cwd: repo,
       encoding: "utf8",
-      env: process.env,
+      env: { ...process.env, NO_COLOR: "1" },
       stdio: ["ignore", "pipe", "pipe"],
     });
   } catch (error) {

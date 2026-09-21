@@ -1,9 +1,9 @@
 {
-  "name": "@cursor-skill/poteto-mode-tools",
+  "name": "@pstack/poteto-mode-tools",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run",
+    "test": "bun test orch watch-pr",
     "typecheck": "tsc --project watch-pr/tsconfig.json --noEmit --strict"
   },
   "dependencies": {

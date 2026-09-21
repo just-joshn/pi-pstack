@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "bun:test";
 import {
   chmod,
   mkdir,
@@ -9,8 +9,6 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { realpathSync } from "node:fs";
-import { spawn, spawnSync } from "node:child_process";
-import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -22,7 +20,7 @@ import {
   type Store,
 } from "./store.ts";
 
-const SCRIPT = join(import.meta.dirname, "orch.ts");
+const SCRIPT = join(import.meta.dir, "orch.ts");
 const directories: string[] = [];
 const handles: Store[] = [];
 
@@ -64,10 +62,10 @@ function git({
   args: readonly string[];
   repo: string;
 }): string {
-  const result = spawnSync("git", ["-C", repo, ...args], { encoding: "utf8" });
-  if (result.status !== 0) {
+  const result = Bun.spawnSync(["git", "-C", repo, ...args]);
+  if (result.exitCode !== 0) {
     throw new Error(
-      `git ${args.join(" ")} failed: ${result.stderr}`
+      `git ${args.join(" ")} failed: ${result.stderr.toString()}`
     );
   }
   return result.stdout.toString().trim();
@@ -165,11 +163,11 @@ function runCli(
   args: readonly string[],
   env: Readonly<Record<string, string | undefined>> = process.env
 ): RunResult {
-  const result = spawnSync("bun", [SCRIPT, ...args], { env, encoding: "utf8" });
+  const result = Bun.spawnSync([process.execPath, SCRIPT, ...args], { env });
   return {
-    code: result.status ?? 1,
-    stdout: result.stdout,
-    stderr: result.stderr,
+    code: result.exitCode,
+    stdout: result.stdout.toString(),
+    stderr: result.stderr.toString(),
   };
 }
 
@@ -314,7 +312,7 @@ describe("Store", () => {
       report: "reports/u1.md",
     });
     expect(first.pointer).toMatchObject({ unit: "u1", status: "done" });
-    expect(first.filename.endsWith(".tsv")).toBe(true);
+    expect(first.filename).toEndWith(".tsv");
     await store.inbox.push({
       agent: "worker-2",
       unit: "u2",
@@ -336,8 +334,8 @@ describe("Store", () => {
 
   it("replaces a stale lock whose holder pid is dead", async () => {
     const { directory } = await initializedStore();
-    const exited = spawn("true");
-    await once(exited, "close");
+    const exited = Bun.spawn(["true"]);
+    await exited.exited;
     await writeFile(join(directory, ".orch.lock"), `${exited.pid}\n`);
 
     const stale: string[] = [];

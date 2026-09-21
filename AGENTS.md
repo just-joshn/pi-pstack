@@ -2,9 +2,9 @@
 
 ## Scope
 
-These rules govern project-owned code: `extensions/`, `tests/`, `port/`, `spec/`, and root scripts. Enforce them with `npm run conformance` (zero-dependency checker, wired into `npm test` as layer 0). The ledger files `spec/contracts/*.tsv`, `spec/surfaces.tsv`, and `spec/mechanisms.tsv` are data; `spec/spec-check.mjs` is the code the gate scans.
+These rules govern project-owned test and harness code under `tests/`. Enforce them with `npm run conformance` (zero-dependency checker, wired into `npm test`).
 
-The ported tree (`skills/`, `agents/`, `automations/`, `docs/`) is upstream pstack content held byte-exact by `port/port.mjs` against the commit pinned in `port/upstream.json`. Its style is upstream's and editing it is drift, so the checker reports it in warn-only mode (`npm run conformance -- --all`) rather than failing the gate.
+The native pstack surface (`extensions/`, `skills/`, `agents/`, `automations/`, `docs/`) matches the live Pi package at `~/.pi/pstack`. Do not restyle those files to this document. Their gate is `node skills/poteto-mode/scripts/check-port.mjs`, which rejects Cursor-only tokens, broken skill frontmatter, slash-alias drift, and dead relative links. `node tests/native-parity.mjs` compares the surface to `~/.pi/pstack` when that tree is present.
 
 ## Immutability (CRITICAL)
 
@@ -47,18 +47,7 @@ try {
 
 ## Input Validation
 
-ALWAYS validate user input:
-
-```typescript
-import { z } from 'zod'
-
-const schema = z.object({
-  email: z.string().email(),
-  age: z.number().int().min(0).max(150)
-})
-
-const validated = schema.parse(input)
-```
+ALWAYS validate user input at system boundaries. Trust internal types.
 
 ## Code Quality Checklist
 
@@ -69,7 +58,7 @@ Before marking work complete:
 - [ ] No deep nesting (>4 levels)
 - [ ] Proper error handling
 - [ ] No console.log statements
-- [ ] No hardcoded values
+- [ ] No hardcoded secrets
 - [ ] Immutable patterns used
 
 # Git Workflow Rules
@@ -102,46 +91,9 @@ When creating PRs:
 
 # Testing Rules
 
-## Minimum Test Coverage: 80%
+`npm test` runs `check-port`, conformance over `tests/`, and the Vitest unit project. `bun test skills/poteto-mode/scripts` runs the orch and watch-pr suites.
 
-Test Types (ALL required):
-1. **Unit Tests** - Individual functions, utilities, components
-2. **Integration Tests** - API endpoints, database operations
-3. **E2E Tests** - Critical user flows
-
-## Edge Cases to Test
-
-Every function must be tested with:
-- [ ] Null/undefined inputs
-- [ ] Empty arrays/strings
-- [ ] Invalid types
-- [ ] Boundary values (min/max)
-- [ ] Error conditions
-
-## Test Quality Checklist
-
-- [ ] Tests are independent (no shared state)
-- [ ] Test names describe behavior
-- [ ] Mocks used for external dependencies
-- [ ] Both happy path and error paths tested
-- [ ] No flaky tests
-
-# Performance Rules
-
-## Context Window Management
-
-Avoid last 20% of context window for:
-- Large-scale refactoring
-- Feature implementation spanning multiple files
-- Debugging complex interactions
-
-## Algorithm Efficiency
-
-Before implementing:
-- [ ] Consider time complexity
-- [ ] Avoid O(n^2) when O(n log n) possible
-- [ ] Use appropriate data structures
-- [ ] Cache expensive computations
+Test names describe behavior. Tests stay independent. Both happy path and error paths are required for new helpers.
 
 # Security Rules
 
@@ -149,30 +101,12 @@ Before implementing:
 
 Before ANY commit:
 - [ ] No hardcoded secrets (API keys, passwords, tokens)
-- [ ] All user inputs validated
-- [ ] SQL injection prevention (parameterized queries)
-- [ ] XSS prevention (sanitized HTML)
-- [ ] CSRF protection enabled
-- [ ] Authentication/authorization verified
-- [ ] Rate limiting on all endpoints
+- [ ] All user inputs validated at boundaries
 - [ ] Error messages don't leak sensitive data
 
 ## Secret Management
 
 ```typescript
-// NEVER: Hardcoded secrets
-const apiKey = "sk-proj-xxxxx"
-
-// ALWAYS: Environment variables
 const apiKey = process.env.API_KEY
 if (!apiKey) throw new Error('API_KEY not configured')
 ```
-
-## Security Response Protocol
-
-If security issue found:
-1. STOP immediately
-2. Use `security-reviewer` agent
-3. Fix CRITICAL issues before continuing
-4. Rotate any exposed secrets
-5. Review entire codebase for similar issues

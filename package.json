@@ -1,7 +1,7 @@
 {
   "name": "pi-pstack",
-  "version": "0.15.2-pi.0",
-  "description": "Local Pi twin of Cursor pstack v0.15.2 (max practical parity; see PARITY.md behavioral scorecard).",
+  "version": "0.15.2-pi.1",
+  "description": "if you want to go fast, go deep first. pstack helps you write less, but higher quality code. rigorous agent workflows you can parallelize with confidence.",
   "type": "module",
   "engines": {
     "bun": ">=1.0.0"
@@ -13,11 +13,13 @@
     "pi-package",
     "pstack",
     "poteto-mode",
-    "agent-skills",
     "workflow",
+    "principles",
+    "agent-style",
     "subagents",
     "unslop"
   ],
+  "category": "developer-tools",
   "files": [
     "extensions",
     "skills",
@@ -27,55 +29,28 @@
     "README.md",
     "LICENSE",
     "NOTICE",
-    "CHANGELOG.md",
-    "PARITY.md",
     "assets",
     ".gitignore"
   ],
   "pi": {
     "extensions": [
-      "./extensions/index.ts"
+      "./extensions/subagent/index.ts",
+      "./extensions/pstack-slash.ts",
+      "./extensions/todo.ts"
     ],
     "skills": [
       "./skills"
     ]
   },
   "scripts": {
-    "test": "npm run typecheck && node compat/check.mjs && node spec/spec-check.mjs && node tests/conformance.mjs && vitest run",
+    "test": "node tests/run-check-port.mjs && node tests/conformance.mjs && vitest run",
     "typecheck": "tsc -p tsconfig.json",
-    "compat:generate": "node compat/generate.mjs",
-    "compat:check": "node compat/check.mjs",
-    "compat:report": "node compat/report.mjs",
-    "compat:gate": "node compat/check.mjs && node compat/report.mjs --check && node spec/spec-check.mjs --require-complete && npm run test:differential && npm test && npm run parity:check",
-    "spec:check": "node spec/spec-check.mjs",
-    "spec:gate": "node spec/spec-check.mjs --require-complete && npm test && npm run parity:check && npm run test:differential && npm run test:acceptance && npm run test:coverage",
-    "test:differential": "vitest run --config vitest.opt-in.config.ts --project differential",
-    "test:acceptance": "vitest run --project acceptance",
-    "test:journeys": "vitest run --project user-journeys",
-    "test:coverage": "npm run test:coverage:unit && npm run test:coverage:integration && npm run test:coverage:e2e && npm run test:coverage:all",
-    "test:coverage:unit": "vitest run --project unit --coverage --coverage.include=\"extensions/**/*.{ts,mjs}\" --coverage.thresholds.branches=80 --coverage.thresholds.perFile=false",
-    "test:coverage:integration": "vitest run --project integration --coverage --coverage.include=\"extensions/index.ts\" --coverage.include=\"extensions/*/index.ts\" --coverage.include=\"extensions/commands/skill-commands.ts\" --coverage.thresholds.branches=80 --coverage.thresholds.perFile=false",
-    "test:coverage:e2e": "vitest run --project smoke --project reload --project rpc --project tui --project user-journeys --project acceptance --project hosted --coverage --coverage.include=\"services/**/*.mjs\" --coverage.thresholds.branches=80 --coverage.thresholds.perFile=false",
-    "test:coverage:all": "vitest run --coverage",
-    "test:conformance": "node tests/conformance.mjs",
-    "test:bootstrap": "node tests/support/link-peers.mjs",
+    "check-port": "node tests/run-check-port.mjs",
+    "native-parity": "node tests/native-parity.mjs",
+    "conformance": "node tests/conformance.mjs",
     "test:unit": "vitest run --project unit",
-    "test:hosted": "vitest run --project hosted",
-    "test:integration": "vitest run --project integration",
-    "test:inventory": "vitest run --project inventory",
-    "test:smoke": "vitest run --project smoke",
-    "test:reload": "vitest run --project reload",
-    "test:rpc": "vitest run --project rpc",
-    "test:tui": "vitest run --project tui",
-    "test:extensions": "vitest run --project extensions",
-    "test:third-party": "vitest run --config vitest.opt-in.config.ts --project third-party",
-    "test:scripts": "vitest run --project scripts",
-    "test:audit": "vitest run --config vitest.opt-in.config.ts --project audit",
-    "test:list": "vitest list",
-    "parity:check": "node port/port.mjs check && node port/contract.mjs && node port/alias.mjs",
-    "drift:report": "node port/drift.mjs report",
-    "parity:sync": "node port/port.mjs sync",
-    "conformance": "node tests/conformance.mjs"
+    "test:scripts": "bun test skills/poteto-mode/scripts",
+    "test:list": "vitest list"
   },
   "peerDependencies": {
     "@earendil-works/pi-agent-core": "*",
@@ -89,7 +64,6 @@
   },
   "devDependencies": {
     "@types/node": "^24.13.5",
-    "@vitest/coverage-v8": "^5.0.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
   }

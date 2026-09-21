@@ -53,7 +53,7 @@ Commit it only when the work is ambitious enough that a reviewer needs the trail
 
 ## Audit the log against the transcript
 
-At the end of the run, before handing back, check the log told the truth. Read this run's transcript under the active workspace's Pi session transcripts directory (the system prompt names the path). Don't glob across `~/.pi/agent/sessions/*/`. That reads unrelated private chats. Walk the log against what actually happened:
+At the end of the run, before handing back, check the log told the truth. Read this run's transcript under `~/.pi/agent/sessions/--<path>--/`, where `<path>` is the absolute working directory with the leading slash dropped and every remaining `/` replaced by `-` (so `/Users/you/proj` becomes `--Users-you-proj--`); the active session is the newest `.jsonl` there. Don't glob across `~/.pi/agent/sessions/*/`. That reads unrelated private chats. Walk the log against what actually happened:
 
 - Every row maps to a real action. Cut invented or aspirational entries.
 - Each row's evidence resolves and shows what the row claims.
