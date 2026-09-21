@@ -2,7 +2,7 @@
 
 ## what i want to automate
 
-i want two automations that work together in one slack issue channel.
+i want two scheduled agent runs that work together in one slack issue channel.
 
 ### automation 1: triage issue reports
 
@@ -54,7 +54,7 @@ start from [`configuration.example.yaml`](./templates/configuration.example.yaml
 
 ## for the agent
 
-the human enters setup by pointing their agent at this file. do not look for or invoke a discovered benny slash skill.
+the human enters setup by pointing the agent at this file. do not look for or invoke a discovered benny slash skill.
 
 1. ask which repository will run the automations.
 2. treat the directory containing this `FOR_AGENTS.md` as the source pack.
@@ -64,13 +64,13 @@ the human enters setup by pointing their agent at this file. do not look for or 
 6. verify that the copied `FOR_AGENTS.md` and `skills/setup-benny/SKILL.md` exist in the target repository.
 7. read and follow `.pi/automations/benny/skills/setup-benny/SKILL.md` directly from the target repository.
 
-i want you to merge this entry into the target repository's `.pi/settings.json`:
+i want you to merge a `packages` entry for pstack into the target repository's `.pi/settings.json`, using the same package source this pack was installed from (a local path or git spec):
 
 ```json
 {
-	"plugins": {
-		"pstack": { "enabled": true }
-	}
+	"packages": [
+		"/absolute/path/to/pstack"
+	]
 }
 ```
 
@@ -78,12 +78,12 @@ preserve every unrelated setting and plugin. preserve comments and valid jsonc s
 
 i want verification from a fresh agent rooted in the target repository. confirm that pstack's `how`, `why`, `tdd`, `unslop`, and the principle skills used by benny resolve in project scope. do not count skills loaded from the current session or a user-scoped install.
 
-if project-scoped plugins are unavailable or any shared dependency does not resolve, stop and explain what failed. do not add `.pi/automations/benny/skills/` to a plugin manifest or expect its files to appear in the slash-skill list.
+if project-scoped package resources are unavailable or any shared dependency does not resolve, stop and explain what failed. do not add `.pi/automations/benny/skills/` to a package manifest or expect its files to appear in the slash-skill list.
 
 tell me that `.pi/settings.json`, `.pi/automations/benny/`, and any referenced secret-free configuration must be committed before either automation is enabled. do not create or update an automation until i explicitly ask.
 
-for first-time creation, create two automations on a host you provide (a scheduled job, CI workflow, or Slack bot), one for triage and one for repro and fix. complete the live-prompt review, approval, readiness check, and trigger handoff for the first automation before starting the second.
+for first-time creation, write the two scheduled runs: a scheduler entry (cron, launchd, or CI schedule) per automation that runs `pi -p "$(cat .pi/automations/benny/templates/triage-automation-prompt.md)"` and `pi -p "$(cat .pi/automations/benny/templates/reproduce-automation-prompt.md)"` in the target repository, each teeing output to a log. review the draft prompt, the readiness check, and the schedule for the first automation before starting the second.
 
 paraphrase this intent and the finished configuration into each draft. the triage prompt must read and follow `.pi/automations/benny/skills/triage-issue-reports/SKILL.md`. the repro prompt must read and follow `.pi/automations/benny/skills/reproduce-and-fix-issues/SKILL.md`. use these repo-relative paths only after you confirm they are committed in the repository where the automation will run.
 
-for existing automations, validate the configuration, then use the concise field checklist in the copied setup file so i can edit each automation directly on its host. do not create duplicates.
+for existing automations, do not duplicate schedules. validate the configuration, then use the concise field checklist in the copied setup file so i can edit each scheduled run directly. do not create duplicates.

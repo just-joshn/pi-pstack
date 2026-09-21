@@ -19,8 +19,8 @@ Scan for:
 
 Findings must point to skills, tools, or MCPs invoked in this transcript. Speculative routings to skills the parent never opened do not count. To check whether a skill was used, scan the transcript for:
 
-- `read` tool calls against any `SKILL.md` file (workspace `.pi/skills/`, user-level `~/.pi/agent/skills/`, or package paths under `~/.pi/agent/npm/` and `~/.pi/agent/git/`)
-- `pstack_spawn` prompts that name a skill path
+- `Read` tool calls against any `SKILL.md` file (project `.pi/skills/`, user-level `~/.pi/agent/skills/`, or package-installed paths under `~/.pi/agent/`)
+- `Task` prompts that name a skill path
 - Tool calls (Shell, Grep, MCP, etc.) that match a skill's documented commands
 
 Two valid finding shapes:

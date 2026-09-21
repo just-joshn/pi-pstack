@@ -43,5 +43,5 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 ## Features
 
-- [Create a note](references/feature-map-example/create-note.md) covers browser and CLI creation, cancellation, persistence, and cleanup.
-- [Search notes](references/feature-map-example/search.md) covers toolbar, keyboard, and CLI search with matching, empty, and clear states.
+- [Create a note](./create-note.md) covers browser and CLI creation, cancellation, persistence, and cleanup.
+- [Search notes](./search.md) covers toolbar, keyboard, and CLI search with matching, empty, and clear states.

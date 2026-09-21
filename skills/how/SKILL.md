@@ -19,31 +19,28 @@ When in doubt, take the simple path.
 
 ## Step 2a. Explore (complex questions only)
 
-Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem. Spawn all explorers in a single message:
+Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem. Spawn all explorers in a single parallel subagent call:
 
-- `role`: `general` via `pstack_spawn`
-- `model`: your configured how-explorer model (default `grok-4.6-fast-xhigh`)
-- `readonly`: `true`
+- `agent`: `reviewer` (read-only)
+- `model`: your configured how-explorer model from the pstack model rule (default: your fastest strong coding model, with the `:thinking` level your budget sets)
 
 Each explorer gets the prompt in `references/explorer-prompt.md` with its angle filled in. Then go to Step 3.
 
 ## Step 2b. Direct Explain (simple questions)
 
-Spawn one agent via `pstack_spawn` that explores and explains in one pass:
+Spawn one subagent that explores and explains in one pass:
 
-- `role`: `general` via `pstack_spawn`
-- `model`: your configured how-explainer model (default `claude-fable-5-1-thinking-max`)
-- `readonly`: `true`
+- `agent`: `reviewer` (read-only)
+- `model`: your configured how-explainer model from the pstack model rule (default: your strongest reasoning model)
 
 Build its prompt from `references/explainer-prompt.md` without the explorer-findings section. Go to Step 4.
 
 ## Step 3. Synthesize (complex questions only)
 
-Once all explorers have returned, spawn one agent via `pstack_spawn` to synthesize their findings into one explanation:
+Once all explorers have returned, spawn one subagent to synthesize their findings into one explanation:
 
-- `role`: `general` via `pstack_spawn`
-- `model`: your configured how-explainer model (default `claude-fable-5-1-thinking-max`)
-- `readonly`: `true`
+- `agent`: `reviewer` (read-only)
+- `model`: your configured how-explainer model from the pstack model rule (default: your strongest reasoning model)
 
 Build its prompt from `references/explainer-prompt.md` with every explorer's findings filled in.
 

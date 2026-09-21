@@ -3,21 +3,11 @@ pi-pstack
 
 This package is a native Pi coding-agent port of the Cursor plugin "pstack"
 (https://github.com/cursor/plugins/tree/main/pstack), originally authored by
-Lauren Tan (poteto). Upstream license: MIT. Upstream cache used for this port:
-pstack v0.15.2.
+Lauren Tan (poteto). Upstream license: MIT. Upstream version: pstack v0.15.2.
 
-Philosophy, playbooks, and principle skills are preserved. Platform bindings
-(Task / subagent_type / Cursor paths) are rewritten for Pi:
-
-  pstack_spawn, pstack_swarm, pstack_arena, pstack_loop, pstack_decision_log,
-  pstack_worktree, pstack_deslop, pstack_control_cli, pstack_control_ui,
-  pstack_sessions, pstack_ship, pstack_babysit, pstack_benny_wake
+Philosophy, playbooks, and principle skills are preserved. The Pi host surface
+is the official subagent, slash, and todo extensions, plus skills that call
+those primitives. Model routing is an always-applied block in
+~/.pi/agent/AGENTS.md written by /setup-pstack.
 
 Built against official Pi package/extension APIs (@earendil-works/pi-coding-agent).
-
-Physical impossibilities only (closest twins shipped — see PARITY.md):
-  - Cursor plugin marketplace (.cursor-plugin) → package.json `pi` manifest
-  - Cursor cloud agent VMs → local pstack_spawn + pstack_worktree
-  - Cursor Automations Slack bus → pstack_benny_wake + pstack_loop + Benny skills
-  - Full Electron/IDE control-ui → pstack_control_ui HTTP probe + browser MCP
-  - Grok Bot update_state cards → make-bot-ui wake file / webhook twin
