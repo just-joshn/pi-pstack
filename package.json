@@ -4,7 +4,7 @@
   "description": "if you want to go fast, go deep first. pstack helps you write less, but higher quality code. rigorous agent workflows you can parallelize with confidence.",
   "type": "module",
   "license": "MIT",
-  "author": "Lauren Tan (original pstack); Pi port contributors (@just-joshn)",
+  "author": "Lauren Tan (pstack for Cursor); Pi port by just-joshn",
   "homepage": "https://github.com/just-joshn/pi-pstack",
   "repository": {
     "type": "git",
@@ -34,9 +34,7 @@
     "automations",
     "assets",
     "README.md",
-    "CHANGELOG.md",
-    "LICENSE",
-    "NOTICE"
+    "LICENSE"
   ],
   "pi": {
     "extensions": [
