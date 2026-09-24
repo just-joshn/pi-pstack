@@ -489,7 +489,7 @@ async function executeAwait(params: AwaitParameters | SubagentAwaitParameters, s
   const regex = pattern === undefined ? undefined : compileSafeRegex(pattern, "Await regex");
   const timeout = subagentAwait ? params.timeout_ms : params.block_until_ms;
   const store = getRunStore();
-  const result = await store.wait(id, timeout, regex, signal);
+  const result = await store.wait(id, timeout, regex, signal, true);
   const status = result.status;
   const completed = isTerminal(status);
   const transcript = isAgent ? store.transcript(id) : undefined;

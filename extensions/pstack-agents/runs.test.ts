@@ -395,6 +395,32 @@ describe("durable run store", () => {
     store.closeWatchers();
   });
 
+  test("an aborted Await detaches and the run finishes; an aborted foreground wait interrupts", async () => {
+    const root = testRoot();
+    const { sessionFile, branch, store, pi } = testHarness(root);
+    store.observe({ branch: () => branch, notify: (notification) => appendNotice(branch, notification), onChange: () => {}, onError: (error) => { throw error; } });
+    const detached = shellEntry(store, sessionFile, "sleep 1; printf 'DONE\\n'", { background: true });
+    store.prepare(detached);
+    recordLaunch(pi, detached);
+    await store.start(detached);
+    const awaitAbort = new AbortController();
+    const awaiting = store.wait(detached.id, 5000, undefined, awaitAbort.signal, true);
+    awaitAbort.abort();
+    await expect(awaiting).rejects.toThrow("keeps running");
+    expect(await waitForShellTerminal(store, detached.id)).toMatchObject({ state: "completed", exitCode: 0 });
+
+    const foreground = shellEntry(store, sessionFile, "sleep 30", { background: true });
+    store.prepare(foreground);
+    recordLaunch(pi, foreground);
+    await store.start(foreground);
+    const taskAbort = new AbortController();
+    const waiting = store.wait(foreground.id, 5000, undefined, taskAbort.signal);
+    taskAbort.abort();
+    await expect(waiting).rejects.toThrow("Run wait was aborted");
+    expect(await waitForShellTerminal(store, foreground.id)).toMatchObject({ state: "stopped" });
+    store.closeWatchers();
+  });
+
   test("does not execute one stable launch twice when start is retried concurrently", async () => {
     const root = testRoot();
     const { sessionFile, branch, store, pi } = testHarness(root);

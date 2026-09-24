@@ -145,7 +145,8 @@ export type RunStore = {
   resume(entry: LaunchEntry): Promise<RunReceipt>;
   ensure(id: RunId): Promise<RunReceipt>;
   status(id: RunId): Promise<RunStatus>;
-  wait(id: RunId, timeoutMs?: number, regex?: RegExp, signal?: AbortSignal): Promise<AwaitResult>;
+  /** `detachOnAbort`: an aborted Await leaves the run going; an aborted foreground Task interrupts it. */
+  wait(id: RunId, timeoutMs?: number, regex?: RegExp, signal?: AbortSignal, detachOnAbort?: boolean): Promise<AwaitResult>;
   interrupt(id: RunId): Promise<void>;
   transcript(id: RunId): string;
   outputLog(id: RunId): string;
@@ -683,7 +684,7 @@ export function createRunStore(options: StoreOptions): RunStore {
     async status(id) {
       return statusResult(id);
     },
-    async wait(id, timeoutMs, regex, signal) {
+    async wait(id, timeoutMs, regex, signal, detachOnAbort = false) {
       const launchEntry = findLaunch(observers?.branch() ?? [], id);
       if (regex && launchEntry.requestKind !== "shell") throw new Error("Await regex is supported only for Shell tasks");
       if (timeoutMs !== undefined && (timeoutMs < 0 || !Number.isFinite(timeoutMs))) throw new Error("Await timeout must be a finite non-negative number");
@@ -721,6 +722,7 @@ export function createRunStore(options: StoreOptions): RunStore {
           reject(error);
         };
         const abort = (): void => {
+          if (detachOnAbort) return fail(new Error(`Wait aborted; ${id} keeps running and its completion notice still arrives`));
           void store.interrupt(id).then(
             () => fail(new Error("Run wait was aborted")),
             (error: unknown) => fail(error instanceof Error ? error : new Error(String(error))),
