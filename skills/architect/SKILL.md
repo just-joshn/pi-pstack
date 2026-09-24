@@ -1,16 +1,18 @@
 ---
 name: architect
-description: "Sketch types, signatures, and module structure before code, then stay in the loop while implementation fills in. Use for /architect, 'architect this', 'design this', or non-trivial work where jumping to code would lock in the wrong shape."
+description: "Sketch types, signatures, and module structure before code, then stay in the loop while implementation fills in. Use for /skill:architect, 'architect this', 'design this', or non-trivial work where jumping to code would lock in the wrong shape."
 disable-model-invocation: true
 ---
 
 # Architect
 
+Loading this skill authorizes the Task calls it prescribes.
+
 Design before implementing. Sketch types, function signatures, class shapes, and module boundaries with `not implemented` bodies and pseudocode. Synthesize across multiple model perspectives, then fill in code against the chosen sketch. If implementation proves the sketch wrong, throw it out and redesign.
 
 ## Start
 
-Open a todolist with one entry per phase before starting.
+Open a todo list with one entry per phase before starting. On Pi, use the `todo` tool.
 
 1. Ground
 2. Sketch
@@ -30,7 +32,7 @@ Skip Phase A only when the work is genuinely greenfield with no surrounding syst
 
 Run the **arena** skill with the design-sketch task and the Phase A grounding artifacts. Pass `references/runner-prompt.md` as each runner's prompt. Each candidate produces a design package shaped per `references/rationale-template.md`.
 
-Use your configured architect runners from the pstack model rule (`~/.pi/agent/AGENTS.md`, written by `/setup-pstack`; default: 4 runners, one candidate per strong model family, each on its strongest reasoning model).
+Take the runners from the `architect runners` line in the pstack models block in `~/.pi/agent/AGENTS.md`, in place of the `arena runners` line. If the block or that line is missing, use `anthropic/claude-opus-5-5:max`, `openai-codex/gpt-5.6-sol:max`, and `anthropic/claude-sonnet-5:xhigh`. Spawn one runner per entry in that list, so a three-entry list is three runners. The list length is the floor, not a suggestion. Pass that list to arena as its runners. For an `inherit-parent` or `auto` entry, omit `model` so Task uses the parent model. Rejected entries follow the runner rules in the **arena** skill's Phase A.
 
 Design it twice. Require at least two structurally distinct candidates before synthesis, even when the first looks sufficient. This is the **exhaust-the-design-space** principle skill made concrete. Whole-shape alternatives, not point fixes inside one shape.
 
@@ -44,7 +46,7 @@ Arena returns one synthesized design package. The synthesis decision populates t
 
 Default: proceed directly to implementation with the synthesized design. No human checkpoint.
 
-Opt in to a checkpoint when the invoker explicitly asks: "/architect with checkpoint," "stop and show me before implementing," or similar. Then surface the synthesized design and pause for sign-off.
+Opt in to a checkpoint when the invoker explicitly asks: "/skill:architect with checkpoint," "stop and show me before implementing," or similar. Then surface the synthesized design and pause for sign-off.
 
 The synthesis can ship as its own commit either way, as the "scaffold first" mode of the **foundational-thinking** principle skill. Planned and scoped breakage during fill-in is fine, per the **outcome-oriented-execution** principle skill. For adversarial pressure on the design before implementing, run the **interrogate** skill on the synthesized sketch.
 

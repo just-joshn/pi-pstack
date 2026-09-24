@@ -1,0 +1,2 @@
+MERGE
+“The work the operator hands the autopilot, including every item in the request that starts it, is the queue, and its owners merge on a clean verdict.”

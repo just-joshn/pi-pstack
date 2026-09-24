@@ -16,7 +16,7 @@ Datadog answers "what was the production reality around the time this code was w
 
 ## How to search it
 
-Use the Datadog MCP. Start broad, then narrow.
+Use the Datadog MCP. Pi has no built-in MCP. When no MCP tool is available, use the local equivalent, the Datadog API via `curl` with the user's existing `DD_API_KEY`/`DD_APP_KEY` env vars, or `datadog-ci`, with the same queries. Never print or log credentials. With none of these, return a gap. Start broad, then narrow.
 
 1. **Identify the owning service(s).**
 

@@ -13,7 +13,7 @@ Slack is frequently where the *real* decisions got made, especially for smaller 
 
 ## How to search it
 
-Slack MCP tools vary. Check which Slack MCP is available and inspect its tool schema first. It may require `mcp_auth`. If authentication fails, stop and report the gap.
+Slack MCP tools vary. Pi has no built-in MCP. When no MCP tool is available, use the local equivalent, the Slack Web API via `curl` with an existing `SLACK_TOKEN`, or a local Slack export directory, with the same queries. Never print or log credentials. With none of these, return a gap. Check which Slack MCP is available and inspect its tool schema first. It may require `mcp_auth`. If authentication fails, stop and report the gap.
 
 1. **Author-bounded search.** Messages from the PR author around the PR merge date. Limits scope dramatically and often hits gold.
 2. **Keyword search for the feature name and key symbols.** Include misspellings and casual phrasings.

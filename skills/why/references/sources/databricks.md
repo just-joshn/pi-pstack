@@ -13,7 +13,7 @@ Databricks is the product-analytics, data-pipeline, and warehouse-telemetry laye
 
 ## How to search it
 
-Use the Databricks SQL MCP. Primary tool: `execute_sql_read_only`. If it returns a `statement_id`, poll with `poll_sql_result` rather than re-running.
+Use the Databricks SQL MCP. Pi has no built-in MCP. When no MCP tool is available, use the local equivalent, the `databricks` CLI (`databricks api post /api/2.0/sql/statements`) or `dbsqlcli`, with the same queries. Never print or log credentials. With none of these, return a gap. Primary tool: `execute_sql_read_only`. If it returns a `statement_id`, poll with `poll_sql_result` rather than re-running.
 
 **Orient before querying.** Schemas are company-specific. Probe before trusting a table name:
 

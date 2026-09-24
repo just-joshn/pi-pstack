@@ -6,7 +6,11 @@ disable-model-invocation: true
 
 # How
 
+Loading this skill authorizes the Task calls it prescribes.
+
 Explore the codebase to answer "how does X work?" questions. Produce architectural explanations at the level of a senior engineer onboarding onto a subsystem, enough to build a working mental model, not so much that it reads like annotated source code.
+
+Each spawn below names a role line in the pstack models block in `~/.pi/agent/AGENTS.md` and a default. Set `model` to that line's value, or to the default if the block or line is missing. Omit `model` when the value is `auto` or `inherit-parent`. If Task rejects a configured model, use the default and say so. If Task rejects the default, use the closest valid model of the same provider family from its error message.
 
 ## Step 1. Assess Complexity
 
@@ -15,32 +19,35 @@ If the scope is ambiguous, state your interpretation and explore. The user can r
 - **Simple** (a single module, a small utility, a narrow question such as "how does function X work"): no explorers. One explainer explores and explains in a single pass. Go to Step 2b.
 - **Complex** (a subsystem spanning multiple files or services, a cross-cutting feature, a full architectural overview): spawn parallel explorers first, then hand off to the explainer. Go to Step 2a.
 
-When in doubt, take the simple path.
+When in doubt, take the simple path. For a configured `inherit-parent` or `auto` model, omit `model` so Task uses the parent model.
 
 ## Step 2a. Explore (complex questions only)
 
-Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem. Spawn all explorers in a single parallel subagent call:
+Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem. Spawn all explorers in a single message, with one Task per angle:
 
-- `agent`: `reviewer` (read-only)
-- `model`: your configured how-explorer model from the pstack model rule (default: your fastest strong coding model, with the `:thinking` level your budget sets)
+- `subagent_type`: `generalPurpose`
+- `readonly`: `true`
+- `model`: the `how explorer` line, default `anthropic/claude-sonnet-5:xhigh`
 
 Each explorer gets the prompt in `references/explorer-prompt.md` with its angle filled in. Then go to Step 3.
 
 ## Step 2b. Direct Explain (simple questions)
 
-Spawn one subagent that explores and explains in one pass:
+Spawn one Task that explores and explains in one pass:
 
-- `agent`: `reviewer` (read-only)
-- `model`: your configured how-explainer model from the pstack model rule (default: your strongest reasoning model)
+- `subagent_type`: `generalPurpose`
+- `readonly`: `true`
+- `model`: the `how explainer` line, default `anthropic/claude-opus-5-5:max`
 
 Build its prompt from `references/explainer-prompt.md` without the explorer-findings section. Go to Step 4.
 
 ## Step 3. Synthesize (complex questions only)
 
-Once all explorers have returned, spawn one subagent to synthesize their findings into one explanation:
+Once all explorers have returned, spawn one Task to synthesize their findings into one explanation:
 
-- `agent`: `reviewer` (read-only)
-- `model`: your configured how-explainer model from the pstack model rule (default: your strongest reasoning model)
+- `subagent_type`: `generalPurpose`
+- `readonly`: `true`
+- `model`: the `how explainer` line, default `anthropic/claude-opus-5-5:max`
 
 Build its prompt from `references/explainer-prompt.md` with every explorer's findings filled in.
 

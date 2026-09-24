@@ -1,0 +1,2 @@
+PLAYBOOK:bug-fix
+Poteto-mode requires the matched bug-fix playbook steps to seed the todo list before task-specific steps; TDD does not replace them.

@@ -1,0 +1,15 @@
+id	decision	why	evidence	result
+1	Reinstall pi-subagents 0.70.1	Removed from settings.json and npm at 17:59; no subagent tool existed, so every pstack spawn was impossible	settings.json packages; pi --print probe returned PROBE_OK from a pstack-reader child	fixed
+2	Root-cause RS-3320 "idle subagents"	Four architect runners were active (35-49 turns each), not idle; workflowScript runs in-process, so quitting Pi at 00:46:22 stopped the workflow and all four children	async-subagent-runs/ea81372b.../events.jsonl child-status stopped reason subagent-action; pi-subagents src/extension/index.js:949	documented in pi-runtime.md
+3	Correct pi-runtime restart claim	Doc said async children survive a restart; true only for direct async runs, not workflow children	same as 2	fixed
+4	Add pstack-shell zero-token watcher	Cursor local /loop uses a monitored shell; the Pi port polled with a model child, spending tokens per check	interactive tmux run: fleet line "0 tokens", completion woke the session with LOOP_WAKE_probe	fixed; loop, babysit, shipping, autonomous-run, orchestrate, bug-fix, visual-parity rewired
+5	Make discovery checks non-executing	create-skill step 6 ran "pi --print /skill:<name>" in the repo; on vitest-testing it ran the full audit and edited 51 tracked files	rantizo-aam session 23:14Z tool calls at 00:09; pi --print --no-tools probe returned LOADED	fixed in create-skill and create-verification-skill
+6	Drop pi-subagents delegation bias	pi-subagents injects "Do not invoke subagents unless the operator requested delegation"; Sonnet reasoned from it to skip how's explainer	session thinking "rules caution against invoking subagents unless delegation was actually requested"; tool-description.js	fixed: toolDescriptionMode compact plus standing authorization in AGENTS.md block and setup-pstack shape
+7	Comment Sicko foreground	Cursor agent file has no is_background; Pi had async true	no-comments e2e: Comment Sicko spawned with no async flag, ran foreground, report inspected, 5 deletions	fixed
+8	questionnaire allowMultiple	AskQuestion allow_multiple had no Pi equivalent; automate-me had a workaround	tmux: [x] Alpha [x] Gamma returned "user selected: Alpha, Gamma"	fixed
+9	todo statuses and widget	TodoWrite has in_progress and cancelled and a persistent panel	print run listed [x] [~] [-]; tmux showed widget above editor	fixed
+10	deslop restored verbatim	Port had added scope rules and a typecheck step not in cursor-team-kit	diff against cursor-team-kit deslop is empty	fixed
+11	arena runner agent	Upstream names no subagent_type; poteto-agent only applies under poteto-mode	arena/SKILL.md Phase B	fixed
+12	poteto-agent resume wording	Upstream says resume the existing poteto-agent rather than spawn a sibling	agents/poteto-agent.md	fixed
+13	Parity lint	Encode the audit as a rerunnable check	node ~/.pi/agent/pstack/parity/check-parity.mjs prints 0 problems; mutation test caught 4 planted violations	added
+14	Not ported: benny automations, docs/guide	benny is a Slack and cloud automation pack; guide is human documentation	upstream automations/benny, docs/guide	skip

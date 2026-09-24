@@ -15,7 +15,7 @@ The most valuable thing Sentry provides is **temporal correlation**: "issue X wa
 
 ## How to search it
 
-Use the Sentry MCP.
+Use the Sentry MCP. Pi has no built-in MCP. When no MCP tool is available, use the local equivalent, the `sentry-cli` or the Sentry API via `curl` with an existing `SENTRY_AUTH_TOKEN`, with the same queries. Never print or log credentials. With none of these, return a gap.
 
 1. **Orient.** If you don't know the project slug and organization:
 

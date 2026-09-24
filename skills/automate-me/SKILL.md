@@ -1,20 +1,22 @@
 ---
 name: automate-me
-description: "Use for \"automate me\", \"create/update/refresh my -mode skill\", \"turn/capture my preferences or working style into a skill\", or wanting agents to follow how the user works. Drafts or revises a personal -mode skill via the authoring-a-skill playbook + unslop, optionally pulling fresh evidence from recent transcripts."
+description: "Use for \"automate me\", \"create/update/refresh my -mode skill\", \"turn/capture my preferences or working style into a skill\", or wanting agents to follow how the user works. Drafts or revises a personal -mode skill via create-skill + unslop, optionally pulling fresh evidence from recent transcripts."
 disable-model-invocation: true
 ---
 
 # Automate me
 
+Loading this skill authorizes the Task calls it prescribes.
+
 A guided flow for turning the user's working conventions into a skill agents will follow. The output is one `-mode` skill tailored to them (e.g. `jay-mode`, `priya-mode`).
 
-This skill orchestrates three others: an inline mining pass (see step 1), the **authoring-a-skill** playbook (authoring, at `poteto-mode/playbooks/authoring-a-skill.md`), and the **unslop** skill (prose discipline). It sequences them. It doesn't replace them.
+This skill orchestrates three others: an inline mining pass (see step 1), the **create-skill** skill (authoring), and the **unslop** skill (prose discipline). It sequences them. It doesn't replace them.
 
 ## Flow
 
 ### 0. Check for an existing skill
 
-Look for a `<handle>-mode` skill in the project's `.pi/skills/` and the user's `~/.pi/agent/skills/` (recursively, and in personal category directories such as `.pi/skills/<handle>/`). If one exists, confirm intent with a numbered question (unless they already said "update my skill" or similar):
+Look recursively for `.pi/skills/**/*-mode/SKILL.md`, `.agents/skills/**/*-mode/SKILL.md`, `~/.pi/agent/skills/**/*-mode/SKILL.md`, and `~/.agents/skills/**/*-mode/SKILL.md` matching the user's handle. Mode skills can live in a personal category directory (`.pi/skills/<handle>/`), not only at the top level. If one exists, confirm intent with one `questionnaire` question (Pi's `AskQuestion`; lettered options in chat when it reports no UI) unless they already said "update my skill" or similar:
 
 - Update the existing skill (default for repeat runs)
 - Start fresh (rare, ask why before doing it)
@@ -26,9 +28,9 @@ Update mode changes the rest of the flow:
 
 ### 1. Mine their history
 
-Locate the active project's transcripts before fanning out. pi stores sessions under `~/.pi/agent/sessions/--<path>--/` (`<path>` is the absolute working directory with the leading slash dropped and every remaining `/` replaced by `-`, so `/Users/you/proj` becomes `--Users-you-proj--`). Use only that path. Don't glob across `~/.pi/agent/sessions/*/`. That crosses project boundaries and reads private chats from unrelated projects.
+Locate the active workspace's transcripts before fanning out. They are the `*.jsonl` files in the directory holding `$PI_SESSION_FILE` (`~/.pi/agent/sessions/--<cwd with / as ->--/`). Use only that path. Don't glob across `~/.pi/agent/sessions/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.
 
-Survey recent agent conversations within that scope for recurring patterns. Run multiple parallel subagents across slices of history (e.g. last 2-4 weeks, split into 3 slices so each has enough material). Each slice mining subagent reads transcripts from the workspace-scoped path the parent provides, looks for the signals below, and returns a short structured list of patterns it saw with evidence pointers. Default signals worth hunting:
+Survey recent agent conversations within that scope for recurring patterns. Run one Task per history slice with `subagent_type: "generalPurpose"`, all in one message (e.g. the last 2-4 weeks, split into 3 slices so each has enough material). Each Task prompt names the workspace-scoped transcript path the parent provides. Each mining subagent looks for the signals below and returns a short structured list of patterns with evidence pointers. Default signals worth hunting:
 
 - Response preferences (length, tone, format, "dumb it down" corrections)
 - Delegation habits (subagents, models, specialized workflows, parallelism)
@@ -41,9 +43,9 @@ Cross-check across slices before elevating a signal. Patterns seen in 2+ slices 
 
 ### 2. Ask the user directly
 
-Mining misses intent that hasn't come up yet. Ask with numbered multi-choice options rather than asking the user to type from scratch.
+Mining misses intent that hasn't come up yet. Ask structured multi-choice questions with the `questionnaire` tool (lettered options in chat when it reports no UI), rather than asking the user to type from scratch.
 
-Shape: one or two questions with 4-6 options each, several picks allowed for category questions. Start broad ("Which areas matter most?"), then follow up on selected areas with specific options. After the structured rounds, one free-form chat question catches anything the options missed.
+Shape: one or two questions with 4-6 options each, `allowMultiple: true` for category questions. Start broad ("Which areas matter most?"), then follow up on selected areas with specific options. After the structured rounds, one free-form chat question catches anything the options missed.
 
 Don't dump 20 questions.
 
@@ -52,7 +54,7 @@ Don't dump 20 questions.
 Group the combined signals into sections. Common ones (use only what applies):
 
 - **Response style**: length, tone, format.
-- **Autonomy**: how much to do without asking, MCP tool use.
+- **Autonomy**: how much to do without asking, MCP and CLI tool use.
 - **Understand first**: which skills to reach for when scoping or investigating a change.
 - **Subagents**: default, parallelism, model-to-task, specialized workflows.
 - **Prose / code discipline**: principles, lint tools, style guides.
@@ -64,17 +66,17 @@ The **poteto-mode** skill shows the shape. Read it for granularity. Don't copy i
 
 ### 4. Draft the skill
 
-Follow the **authoring-a-skill** playbook (`poteto-mode/playbooks/authoring-a-skill.md`) to author the skill. Placement:
+Use the **create-skill** skill to author the skill. Placement:
 
-- Path: preserve an existing mode skill's category. For a new mode, use `.pi/skills/<handle>/<handle>-mode/SKILL.md` when the repo has an established personal category for that handle. Otherwise default to `.pi/skills/<handle>-mode/SKILL.md` in the project (or `~/.pi/agent/skills/<handle>-mode/` if the user prefers a personal skill).
+- Path: preserve an existing mode skill's category. For a new mode, use `.pi/skills/<handle>/<handle>-mode/SKILL.md` when the repo has an established personal category for that handle. Otherwise default to `.pi/skills/<handle>-mode/SKILL.md` in the project (or `~/.pi/agent/skills/<handle>-mode/` if the user prefers a personal skill). The frontmatter `name` must be `<handle>-mode`, lowercase letters, digits, and hyphens only, matching the directory.
 - Handle: the user's first name or chosen identifier.
-- Frontmatter `description`: trigger on their name + `/<handle>-mode` + "work in their style", not on generic keywords like "write code" or "review PR".
-- Frontmatter formatting: follow the authoring playbook's YAML rules. Keep `description` as one YAML scalar. Quote it or use `description: >-` with indented continuation lines when punctuation or wrapping requires it.
-- Frontmatter `disable-model-invocation: true` by default. Opt out only if the user explicitly wants their mode to apply on every turn.
+- Frontmatter `description`: trigger on their name + `/skill:<handle>-mode` + "work in their style", not on generic keywords like "write code" or "review PR".
+- Frontmatter formatting: follow `create-skill`'s YAML rules. Keep `description` as one YAML scalar. Quote it or use `description: >-` with indented continuation lines when punctuation or wrapping requires it.
+- Frontmatter `disable-model-invocation: true` by default. Opt out only if the user explicitly wants their mode to apply on every turn. In Pi, an every-turn mode also needs a one-line pointer in `~/.pi/agent/AGENTS.md`, since Pi has no sticky modes.
 
 ### 5. Iterate on prose
 
-Apply the **unslop** skill and the authoring playbook's writing guidelines to every line.
+Apply the **unslop** skill and `create-skill`'s writing guidelines to every line.
 
 Show the draft to the user and take feedback. Expect multiple iterations. Cut ruthlessly. A mode skill is not a manual.
 
@@ -93,12 +95,12 @@ Work in a worktree off main. Commit and open a PR. Don't push to main directly.
 
 ## Evaluation
 
-A `-mode` skill is subjective output. A test/iterate benchmark loop isn't useful here. Vibe-check with the user: does it read like them? Did it miss anything? Then ship.
+A `-mode` skill is subjective output. A `create-skill`-style test/iterate benchmark loop isn't useful here. Vibe-check with the user: does it read like them? Did it miss anything? Then ship.
 
 Run a description-optimization loop only if the skill's trigger accuracy turns out to be a problem in practice.
 
 ## When not to use
 
-- User wants a task-specific skill (not working conventions): the **authoring-a-skill** playbook alone, no mining required.
+- User wants a task-specific skill (not working conventions): `create-skill` alone, no mining required.
 - User wants to capture one narrow workflow (e.g. "how I write commit messages"). That's a regular skill, not a mode skill.
 

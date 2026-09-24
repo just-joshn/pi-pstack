@@ -1,0 +1,2 @@
+CMD: `ls -la ~/.pi/agent/skills/arena/`
+FIX: `~/.pi/agent/skills/arena/` (the installed copy)
