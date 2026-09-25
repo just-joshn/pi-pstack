@@ -343,6 +343,33 @@ describe("session shutdown lifecycle", () => {
   });
 });
 
+describe("SubagentAwait on a run launched by a child agent", () => {
+  test("reports the child's run read-only instead of Unknown id", async () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-descendant-"));
+    const { tools, hooks, context } = failureHarness(scratch);
+    const owner = "11111111-1111-4111-8111-111111111111";
+    const grandchild = "22222222-2222-4222-8222-222222222222";
+    const runDir = path.join(scratch, "sessions", "parent", owner, "pstack-agents", grandchild);
+    fs.mkdirSync(runDir, { recursive: true });
+    fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({ state: "completed", id: grandchild, attempt: 1, exitCode: 0, stopReason: "stop", updatedAt: 1, endedAt: 1 }));
+    fs.writeFileSync(path.join(runDir, "events.jsonl"), `${JSON.stringify({ sequence: 1, at: 1, type: "message", event: { role: "assistant", content: [{ type: "text", text: "CHILD_DONE" }] } })}\n`);
+    try {
+      await hooks.get("session_start")?.({}, context);
+      const result = await tools.get("SubagentAwait")?.execute("call-1", { agent_id: grandchild, timeout_ms: 0 }, undefined, undefined, context);
+      const text = result?.content[0]?.text ?? "";
+      expect(text).toContain(`Task ${grandchild} was launched by a child agent`);
+      expect(text).toContain("Status: completed");
+      expect(text).toContain(path.join(scratch, "sessions", "parent", owner, "session", grandchild, "session.jsonl"));
+      expect(text).toContain("CHILD_DONE");
+      expect(result?.usage).toBeUndefined();
+      await expect(tools.get("SubagentAwait")?.execute("call-2", { agent_id: "33333333-3333-4333-8333-333333333333", timeout_ms: 0 }, undefined, undefined, context)).rejects.toThrow("Unknown Task or Shell id");
+    } finally {
+      await hooks.get("session_shutdown")?.({}, context);
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("Shell timeout schema", () => {
   test("caps Shell timeout fields at the parser maximum", () => {
     const tools = new Map<string, { parameters: unknown }>();
