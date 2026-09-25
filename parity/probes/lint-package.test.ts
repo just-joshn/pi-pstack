@@ -1,70 +1,64 @@
-import { afterEach, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { expect, test } from "bun:test";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { lintPackage } from "../lint-package.mjs";
 
-const temporaryRoots: string[] = [];
-const AGENT_DIRECTORY_PHRASE = "Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`)";
+const root = path.join(import.meta.dir, "../..");
 
-afterEach(() => {
-	for (const root of temporaryRoots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
-
-function fixture() {
-	const root = mkdtempSync(join(tmpdir(), "pstack-package-lint-"));
-	temporaryRoots.push(root);
-	for (const directory of ["skills/example", "agents", "extensions"]) mkdirSync(join(root, directory), { recursive: true });
-	writeFileSync(join(root, "skills/example/SKILL.md"), "A portable skill.\n");
-	writeFileSync(join(root, "agents/example.md"), "A portable agent.\n");
-	writeFileSync(join(root, "extensions/example.ts"), "export {};\n");
-	return root;
+function withCopy(mutate: (dir: string) => string[]): string[] {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "lint-package-"));
+  try {
+    for (const entry of ["package.json", "skills", "agents", "extensions"]) cpSync(path.join(root, entry), path.join(dir, entry), { recursive: true });
+    const shipped = mutate(dir);
+    return lintPackage(dir, shipped);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
-test("lintPackage accepts documented agent-directory defaults and reports no findings", () => {
-	const root = fixture();
-	const skillPath = join(root, "skills/example/SKILL.md");
-	const skillText = `Use ${AGENT_DIRECTORY_PHRASE}.\n`;
-	writeFileSync(skillPath, skillText);
+const baseShipped = ["skills/how/SKILL.md", "agents/poteto-agent.md", "extensions/pstack-mode.ts"];
 
-	expect(lintPackage(root)).toEqual([]);
-	expect(readFileSync(skillPath, "utf8")).toBe(skillText);
+function append(dir: string, file: string, line: string): string[] {
+  writeFileSync(path.join(dir, file), `${readFileSync(path.join(dir, file), "utf8")}\n${line}\n`);
+  return [...new Set([...baseShipped, file])];
+}
+
+test("a clean copy of the package has no findings for the sampled files", () => {
+  expect(withCopy(() => baseShipped)).toEqual([]);
 });
 
-test("lintPackage reports missing and empty required roots", () => {
-	const root = mkdtempSync(join(tmpdir(), "pstack-package-lint-"));
-	temporaryRoots.push(root);
-	mkdirSync(join(root, "skills"));
-	writeFileSync(join(root, "skills/example.md"), "Portable skill.\n");
-	mkdirSync(join(root, "agents"));
-
-	const findings = lintPackage(root);
-	expect(findings).toContain("agents: empty required directory");
-	expect(findings).toContain("extensions: missing required directory");
+test.each([
+  ["skills/how/SKILL.md", "See `<pstack>/skills/why/SKILL.md`.", "unresolved <pstack> token"],
+  ["agents/poteto-agent.md", "Read /Users/alice/code/x.md first.", "absolute home path"],
+  ["skills/how/SKILL.md", "Write `$PI_CODING_AGENT_DIR/AGENTS.md`.", "bare $PI_CODING_AGENT_DIR/"],
+  ["skills/how/SKILL.md", "Open `~/.pi/agent/skills/why/SKILL.md`.", "package skill referenced at a user install path"],
+  ["skills/how/SKILL.md", "Edit `~/.pi/agent/extensions/todo.ts`.", "package extension or agent referenced at a user install path"],
+  ["extensions/pstack-mode.ts", "const d = join(homedir(), \".pi\", \"agent\");", "homedir() joined with .pi/agent"],
+])("catches a planted violation in %s: %s", (file, line, message) => {
+  const findings = withCopy((dir) => append(dir, file, line));
+  expect(findings).toHaveLength(1);
+  expect(findings[0]).toContain(message);
 });
 
-test("lintPackage reports package tokens and agent paths without editing owned files", () => {
-	const root = fixture();
-	const skillPath = join(root, "skills/example/SKILL.md");
-	const agentPath = join(root, "agents/example.md");
-	const extensionPath = join(root, "extensions/example.ts");
-	const skillText = "Read ~/.pi/agent/AGENTS.md and <pstack>/skills/example/SKILL.md.\n";
-	const agentText = "Read ~/.pi/agent/skills/example/SKILL.md and <pstack>/skills/example/SKILL.md.\n";
-	const extensionText = 'import { homedir } from "node:os";\nconst root = join(homedir(), ".pi/agent"); // <pstack>\nconst legacy = resolve(homedir(), ".pi", "agent");\n';
-	writeFileSync(skillPath, skillText);
-	writeFileSync(agentPath, agentText);
-	writeFileSync(extensionPath, extensionText);
+test("allows the documented user-data and generic user-skill locations", () => {
+  const findings = withCopy((dir) => append(dir, "skills/how/SKILL.md",
+    "Pi's agent directory (`~/.pi/agent` by default) holds `~/.pi/agent/AGENTS.md`, `~/.pi/agent/extensions/pstack-agents.json`, and user skills in `~/.pi/agent/skills/<name>/`; scripts use `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions`."));
+  expect(findings).toEqual([]);
+});
 
-	const findings = lintPackage(root);
-	expect(findings).toContain("skills/example/SKILL.md:1: unresolved <pstack> token");
-	expect(findings).toContain("skills/example/SKILL.md: expected the Pi agent-directory default phrase once, found 0");
-	expect(findings).toContain("skills/example/SKILL.md:1: agent-directory path appears outside the documented default phrase");
-	expect(findings).toContain("agents/example.md:1: unresolved <pstack> token");
-	expect(findings).toContain("agents/example.md:1: hard-coded Pi agent-directory path");
-	expect(findings).toContain("extensions/example.ts:2: unresolved <pstack> token");
-	expect(findings).toContain("extensions/example.ts:2: homedir() joined with .pi/agent");
-	expect(findings).toContain("extensions/example.ts:3: homedir() joined with .pi/agent");
-	expect(readFileSync(skillPath, "utf8")).toBe(skillText);
-	expect(readFileSync(agentPath, "utf8")).toBe(agentText);
-	expect(readFileSync(extensionPath, "utf8")).toBe(extensionText);
+test("catches manifest, skill frontmatter, and shipping mistakes", () => {
+  const findings = withCopy((dir) => {
+    const manifest = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8"));
+    manifest.pi.extensions.push("./extensions/missing.ts");
+    writeFileSync(path.join(dir, "package.json"), JSON.stringify(manifest));
+    const skill = path.join(dir, "skills/how/SKILL.md");
+    writeFileSync(skill, readFileSync(skill, "utf8").replace(/^name: how$/m, "name: how-else"));
+    return [...baseShipped, "extensions/todo.test.ts"];
+  });
+  expect(findings).toEqual([
+    "package.json: pi.extensions entry ./extensions/missing.ts does not exist",
+    "extensions/todo.test.ts: must not ship (extension test, node_modules, or parity tooling)",
+    "skills/how/SKILL.md: name how-else does not match its directory",
+  ]);
 });

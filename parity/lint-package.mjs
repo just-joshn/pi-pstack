@@ -1,75 +1,81 @@
 #!/usr/bin/env node
+// Lints what `npm pack` ships: portable paths, a valid manifest, and valid skills. Exit 1 with one line per finding.
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { packagePathsAt } from "./package-paths.mjs";
 
-const AGENT_DIRECTORY_PHRASE = "Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`)";
-const HOME_AGENT_PATH = /(?:~\/\.pi\/agent|\$HOME\/\.pi\/agent|\/(?:Users|home)\/[^/\s`'\"]+\/\.pi\/agent)/;
-const HOMEDIR_AGENT_JOIN = /\bhomedir\s*\(\s*\)[^;\n]{0,120}(?:\.pi\s*[\\/]\s*agent\b|\.pi["'`]\s*,\s*["'`]agent\b)/i;
+const TEXT = /\.(md|ts|mjs|js|json|sh|py|txt|tsv|ya?ml)$/;
+const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const ABSOLUTE_HOME = /(?:\/Users\/(?!you\/|<)[A-Za-z0-9._-]+\/|\/home\/(?!user\/|<)[A-Za-z0-9._-]+\/)/;
+const BARE_AGENT_DIR = /\$PI_CODING_AGENT_DIR\//;
+const HOMEDIR_AGENT = /homedir\(\)[^;\n]{0,120}\.pi["'`/\s,]+agent/;
 
-function filesUnder(root) {
-	return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
-		const path = resolve(root, entry.name);
-		if (entry.name === ".DS_Store" || entry.name === "node_modules") return [];
-		return entry.isDirectory() ? filesUnder(path) : [path];
-	});
+export function packFiles(root) {
+  const out = execFileSync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  return JSON.parse(out)[0].files.map((file) => file.path);
 }
 
-function addLineFindings(findings, root, file, text, predicate, message) {
-	text.split("\n").forEach((line, index) => {
-		if (predicate(line)) findings.push(`${relative(root, file)}:${index + 1}: ${message}`);
-	});
+function frontmatter(text) {
+  const match = /^---\n([\s\S]*?)\n---/.exec(text);
+  if (!match) return undefined;
+  const fields = {};
+  let key;
+  for (const line of match[1].split("\n")) {
+    const pair = /^([A-Za-z-]+):\s*(.*)$/.exec(line);
+    if (pair) {
+      key = pair[1];
+      fields[key] = pair[2].replace(/^["']|["']$/g, "");
+    } else if (key && /^\s+\S/.test(line) && fields[key] !== undefined && /^[>|]-?$/.test(fields[key].trim() || ">")) {
+      fields[key] = `${fields[key].replace(/^[>|]-?$/, "")} ${line.trim()}`.trim();
+    }
+  }
+  return fields;
 }
 
-export function lintPackage(absoluteRoot) {
-	const paths = packagePathsAt(absoluteRoot);
-	const findings = [];
-	const roots = [
-		[paths.skillsRoot, "skills"],
-		[paths.agentsRoot, "agents"],
-		[paths.extensionsRoot, "extensions"],
-	];
+export function lintPackage(root, shipped = packFiles(root)) {
+  const findings = [];
+  const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  const skillNames = readdirSync(join(root, "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const packageSkillRef = new RegExp(`~/\\.pi/agent/skills/(?:${skillNames.join("|")})(?:/|\\b)`);
+  const packageFileRef = /~\/\.pi\/agent\/(?:extensions\/(?!pstack-agents\.json)[A-Za-z0-9._-]+|agents\/[A-Za-z0-9._-]+)/;
 
-	for (const [root, label] of roots) {
-		if (!existsSync(root)) {
-			findings.push(`${label}: missing required directory`);
-			continue;
-		}
-		const files = filesUnder(root);
-		if (!files.length) findings.push(`${label}: empty required directory`);
-		for (const file of files) {
-			const text = readFileSync(file, "utf8");
-			addLineFindings(findings, paths.packageRoot, file, text, (line) => line.includes("<pstack>"), "unresolved <pstack> token");
+  for (const entry of manifest.pi?.extensions ?? []) if (!existsSync(join(root, entry))) findings.push(`package.json: pi.extensions entry ${entry} does not exist`);
+  for (const entry of manifest.pi?.skills ?? []) if (!existsSync(join(root, entry))) findings.push(`package.json: pi.skills entry ${entry} does not exist`);
+  if (!manifest.keywords?.includes("pi-package")) findings.push("package.json: keywords must include pi-package");
 
-			if (label === "skills") {
-				const phraseCount = text.split(AGENT_DIRECTORY_PHRASE).length - 1;
-				if ((text.includes("$PI_CODING_AGENT_DIR") || text.includes("~/.pi/agent")) && phraseCount !== 1) {
-					findings.push(`${relative(paths.packageRoot, file)}: expected the Pi agent-directory default phrase once, found ${phraseCount}`);
-				}
-				const prose = text.replaceAll(AGENT_DIRECTORY_PHRASE, "");
-				addLineFindings(findings, paths.packageRoot, file, prose, (line) => line.includes("~/.pi/agent"), "agent-directory path appears outside the documented default phrase");
-			}
+  for (const file of shipped) {
+    // Upstream skills ship their script tests; extension tests and dev tooling do not ship.
+    if (/^extensions\/.*\.test\.ts$|(^|\/)node_modules\/|^parity\//.test(file)) findings.push(`${file}: must not ship (extension test, node_modules, or parity tooling)`);
+    if (!TEXT.test(file)) continue;
+    const lines = readFileSync(join(root, file), "utf8").split("\n");
+    lines.forEach((line, index) => {
+      const at = `${file}:${index + 1}`;
+      if (line.includes("<pstack>")) findings.push(`${at}: unresolved <pstack> token`);
+      if (ABSOLUTE_HOME.test(line)) findings.push(`${at}: absolute home path`);
+      if (BARE_AGENT_DIR.test(line)) findings.push(`${at}: bare $PI_CODING_AGENT_DIR/ (unset by default); use \${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/`);
+      if (packageSkillRef.test(line)) findings.push(`${at}: package skill referenced at a user install path; use a skill-relative path or the skill name`);
+      if (packageFileRef.test(line)) findings.push(`${at}: package extension or agent referenced at a user install path`);
+      if (file.startsWith("extensions/") && HOMEDIR_AGENT.test(line)) findings.push(`${at}: homedir() joined with .pi/agent; use getAgentDir()`);
+    });
+  }
 
-			if (label !== "skills") {
-				addLineFindings(findings, paths.packageRoot, file, text, (line) => HOME_AGENT_PATH.test(line), "hard-coded Pi agent-directory path");
-			}
-			if (label === "extensions") {
-				addLineFindings(findings, paths.packageRoot, file, text, (line) => HOMEDIR_AGENT_JOIN.test(line), "homedir() joined with .pi/agent");
-			}
-		}
-	}
-
-	return findings.sort();
+  for (const name of skillNames) {
+    const file = join(root, "skills", name, "SKILL.md");
+    if (!existsSync(file)) { findings.push(`skills/${name}: missing SKILL.md`); continue; }
+    const fields = frontmatter(readFileSync(file, "utf8"));
+    if (!fields) { findings.push(`skills/${name}/SKILL.md: missing frontmatter`); continue; }
+    if (fields.name !== name) findings.push(`skills/${name}/SKILL.md: name ${fields.name} does not match its directory`);
+    if (!SKILL_NAME.test(name) || name.length > 64) findings.push(`skills/${name}: invalid skill name`);
+    if (!fields.description) findings.push(`skills/${name}/SKILL.md: missing description`);
+    else if (fields.description.length > 1024) findings.push(`skills/${name}/SKILL.md: description longer than 1024 characters`);
+  }
+  return findings;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-	const findings = lintPackage(packagePathsAt(fileURLToPath(new URL("..", import.meta.url))).packageRoot);
-	if (findings.length) {
-		console.error(findings.join("\n"));
-		console.error(`\npackage lint: ${findings.length} finding(s)`);
-		process.exitCode = 1;
-	} else {
-		console.log("package lint: 0 findings");
-	}
+  const findings = lintPackage(fileURLToPath(new URL("..", import.meta.url)));
+  for (const finding of findings) console.error(finding);
+  console.log(`package lint: ${findings.length} finding(s)`);
+  process.exitCode = findings.length ? 1 : 0;
 }
