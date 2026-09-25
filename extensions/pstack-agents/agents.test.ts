@@ -293,6 +293,20 @@ describe("resume execution settings", () => {
 });
 
 describe("Task boundary parsing", () => {
+  test("uses agent is_background only when run_in_background is omitted", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "empty-agent-dir");
+    const cwd = path.join(root, "project");
+    mkdirSync(agentDir, { recursive: true });
+    const context = taskContext(agentDir, cwd);
+    const base = { description: "Route", prompt: "Read the poteto workflow.", subagent_type: "poteto-agent" };
+
+    expect(parseTaskInput(base, context)).toMatchObject({ action: "start", runInBackground: true });
+    expect(parseTaskInput({ ...base, run_in_background: false }, context)).toMatchObject({ runInBackground: false });
+    expect(parseTaskInput({ ...base, run_in_background: true }, context)).toMatchObject({ runInBackground: true });
+    expect(parseAgentDefinition("---\nname: default-agent\ndescription: Default\n---\n", "/default.md", "user")?.isBackground).toBe(false);
+  });
+
   test("defaults to foreground and inherits the parent model and thinking level", () => {
     const root = tempRoot();
     const agentDir = path.join(root, "user");

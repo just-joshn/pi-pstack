@@ -21,6 +21,7 @@ export type AgentDefinition = {
   inheritGlobalContext: boolean;
   inheritSkills: boolean;
   allowNestedSubagents: boolean;
+  isBackground: boolean;
 };
 
 type AgentFrontmatter = {
@@ -33,6 +34,7 @@ type AgentFrontmatter = {
   inheritGlobalContext?: unknown;
   inheritSkills?: unknown;
   allowNestedSubagents?: unknown;
+  is_background?: unknown;
 };
 
 export type ModelScopePolicy = { enforce: boolean; allow: string[] };
@@ -147,6 +149,7 @@ export function parseAgentDefinition(content: string, filePath: string, source: 
     inheritGlobalContext: parseBoolean(frontmatter.inheritGlobalContext, false, "inheritGlobalContext"),
     inheritSkills: parseBoolean(frontmatter.inheritSkills, true, "inheritSkills"),
     allowNestedSubagents: parseBoolean(frontmatter.allowNestedSubagents, false, "allowNestedSubagents"),
+    isBackground: parseBoolean(frontmatter.is_background, false, "is_background"),
   };
 }
 
@@ -443,7 +446,7 @@ export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext)
   };
   const common = {
     request,
-    runInBackground: input.run_in_background === true,
+    runInBackground: input.run_in_background ?? agent.isBackground,
     cloudBaseBranch: input.cloud_base_branch,
   } as const;
   return id
