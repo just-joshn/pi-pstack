@@ -645,13 +645,8 @@ export default function registerPstackAgents(pi: ExtensionAPI): void {
   pi.on("session_start", async (_event, ctx) => {
     const previousStore = runStore;
     runStore = undefined;
-    if (previousStore) {
-      try {
-        await closeRunStore(previousStore, ctx.sessionManager.getBranch());
-      } catch (error) {
-        ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
-      }
-    }
+    // session_shutdown already stopped the old session's foreground runs; this ctx belongs to the new session.
+    previousStore?.closeWatchers();
     const store = createRunStoreForContext(ctx);
     runStore = store;
     store.observe({

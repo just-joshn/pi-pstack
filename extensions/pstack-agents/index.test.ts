@@ -109,7 +109,7 @@ function shutdownHookHarness(fixture: ReturnType<typeof shutdownRunFixture>) {
       getBranch: () => fixture.branch,
       getLeafId: () => fixture.branch.at(-1)?.id ?? null,
     },
-    ui: { setStatus: () => {}, notify: () => {} },
+    ui: { setStatus: () => {}, notify: (..._args: unknown[]) => {} },
   };
   return { hooks, context };
 }
@@ -176,7 +176,7 @@ describe("refresh status lifecycle", () => {
 });
 
 describe("session shutdown lifecycle", () => {
-  test("interrupts a foreground launch when session start replaces its store", async () => {
+  test("a session start that replaces the store leaves runs to session_shutdown and reads no new-session history", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-session-replacement-test-"));
     const fixture = shutdownRunFixture(root, "exec sleep 30", false);
     const { hooks, context } = shutdownHookHarness(fixture);
@@ -187,7 +187,15 @@ describe("session shutdown lifecycle", () => {
       fixture.store.closeWatchers();
       await waitForRunStatus(statusPath, "running");
       await hooks.get("session_start")?.({}, context);
+      const notices: string[] = [];
+      const originalNotify = context.ui.notify;
+      context.ui.notify = (...args: unknown[]) => { notices.push(String(args[0])); };
       await hooks.get("session_start")?.({}, context);
+      context.ui.notify = originalNotify;
+      expect(notices).toEqual([]);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      expect(readRunStatus(statusPath)?.state).toBe("running");
+      await hooks.get("session_shutdown")?.({}, context);
       expect(await waitForRunStatus(statusPath, "stopped")).toMatchObject({ state: "stopped" });
     } finally {
       await hooks.get("session_shutdown")?.({}, context);
