@@ -1,8 +1,118 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "bun:test";
-import registerPstackAgents from "./index.ts";
+import registerPstackAgents, { closeRunStore } from "./index.ts";
+import { createRunStore, RUN_ENTRY_TYPE, type LaunchEntry, type RunStore } from "./runs.ts";
+import { parseRunStatus, type RunStatus } from "./contracts.ts";
+import type { SessionEntry } from "@earendil-works/pi-coding-agent";
+
+const runnerPath = fileURLToPath(new URL("./runner.mjs", import.meta.url));
+let shutdownRunCounter = 0;
+
+function shutdownRunFixture(root: string, command: string, runInBackground: boolean) {
+  const sessionDir = path.join(root, "sessions");
+  fs.mkdirSync(sessionDir, { recursive: true });
+  const sessionFile = path.join(sessionDir, "parent.jsonl");
+  const sessionId = `shutdown-test-${process.pid}-${++shutdownRunCounter}`;
+  const storeOptions = {
+    sessionDir,
+    sessionFile,
+    sessionId,
+    runnerPath,
+    piCommand: process.execPath,
+    piArgsPrefix: [],
+    cwd: root,
+  };
+  const store = createRunStore(storeOptions);
+  const owner = {
+    sessionId,
+    sessionFile,
+    branchLeafAtLaunch: null,
+    toolCallId: `shutdown-test-call-${shutdownRunCounter}`,
+    depth: 0,
+  };
+  const requestKey = store.requestKey(owner);
+  const entry: LaunchEntry = {
+    kind: "launch",
+    id: store.idForRequestKey(requestKey),
+    attempt: 1,
+    requestKey,
+    owner,
+    request: { kind: "shell", command, cwd: root },
+    runInBackground,
+    createdAt: Date.now(),
+  };
+  const branch: SessionEntry[] = [{
+    type: "custom",
+    id: `shutdown-launch-${shutdownRunCounter}`,
+    parentId: null,
+    timestamp: new Date().toISOString(),
+    customType: RUN_ENTRY_TYPE,
+    data: entry,
+  }];
+  const runDirectory = path.join(sessionDir, "pstack-agents", entry.id);
+  return { branch, entry, runDirectory, sessionDir, sessionFile, sessionId, store };
+}
+
+function readRunStatus(statusPath: string): RunStatus | undefined {
+  try {
+    return parseRunStatus(JSON.parse(fs.readFileSync(statusPath, "utf8")));
+  } catch {
+    return undefined;
+  }
+}
+
+async function waitForRunStatus(statusPath: string, state: RunStatus["state"]): Promise<RunStatus> {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const status = readRunStatus(statusPath);
+    if (status?.state === state) return status;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error(`Run did not reach ${state}: ${statusPath}`);
+}
+
+async function stopShutdownRunFixture(fixture: ReturnType<typeof shutdownRunFixture>): Promise<void> {
+  const statusPath = path.join(fixture.runDirectory, "status.json");
+  const status = readRunStatus(statusPath);
+  if (status?.state === "starting" || status?.state === "running") {
+    const controlPath = path.join(fixture.runDirectory, "control", `interrupt-${fixture.entry.attempt}.json`);
+    fs.mkdirSync(path.dirname(controlPath), { recursive: true });
+    fs.writeFileSync(controlPath, JSON.stringify({ id: fixture.entry.id, attempt: fixture.entry.attempt, requestedAt: Date.now() }));
+    try {
+      await waitForRunStatus(statusPath, "stopped");
+    } catch {
+    }
+  }
+  fixture.store.closeWatchers();
+}
+
+function shutdownHookHarness(fixture: ReturnType<typeof shutdownRunFixture>) {
+  const hooks = new Map<string, (...args: unknown[]) => unknown>();
+  const pi = {
+    registerTool: () => {},
+    registerCommand: () => {},
+    on: (event: string, handler: (...args: unknown[]) => unknown) => hooks.set(event, handler),
+  };
+  registerPstackAgents(pi as never);
+  const context = {
+    cwd: path.dirname(fixture.sessionDir),
+    hasUI: true,
+    mode: "json",
+    isIdle: () => true,
+    sessionManager: {
+      getSessionDir: () => fixture.sessionDir,
+      getSessionFile: () => fixture.sessionFile,
+      getSessionId: () => fixture.sessionId,
+      getBranch: () => fixture.branch,
+      getLeafId: () => fixture.branch.at(-1)?.id ?? null,
+    },
+    ui: { setStatus: () => {}, notify: () => {} },
+  };
+  return { hooks, context };
+}
 
 function lifecycleHarness(ui: { setStatus: (...args: unknown[]) => void; notify: (...args: unknown[]) => void }) {
   const hooks = new Map<string, (...args: unknown[]) => unknown>();
@@ -62,6 +172,107 @@ describe("refresh status lifecycle", () => {
     await hooks.get("session_shutdown")?.({}, context);
     await starting;
     expect(calls).toEqual([]);
+  });
+});
+
+describe("session shutdown lifecycle", () => {
+  test("interrupts a foreground launch when session start replaces its store", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-session-replacement-test-"));
+    const fixture = shutdownRunFixture(root, "exec sleep 30", false);
+    const { hooks, context } = shutdownHookHarness(fixture);
+    const statusPath = path.join(fixture.runDirectory, "status.json");
+
+    try {
+      await fixture.store.start(fixture.entry);
+      fixture.store.closeWatchers();
+      await waitForRunStatus(statusPath, "running");
+      await hooks.get("session_start")?.({}, context);
+      await hooks.get("session_start")?.({}, context);
+      expect(await waitForRunStatus(statusPath, "stopped")).toMatchObject({ state: "stopped" });
+    } finally {
+      await hooks.get("session_shutdown")?.({}, context);
+      await stopShutdownRunFixture(fixture);
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("interrupts a running foreground launch once across repeated shutdown hooks", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-shutdown-foreground-test-"));
+    const fixture = shutdownRunFixture(root, "exec sleep 30", false);
+    const { hooks, context } = shutdownHookHarness(fixture);
+    const statusPath = path.join(fixture.runDirectory, "status.json");
+
+    try {
+      await fixture.store.start(fixture.entry);
+      fixture.store.closeWatchers();
+      expect((await waitForRunStatus(statusPath, "running")).state).toBe("running");
+      await hooks.get("session_start")?.({}, context);
+      let branchReads = 0;
+      context.sessionManager.getBranch = () => {
+        branchReads++;
+        return fixture.branch;
+      };
+      await hooks.get("session_shutdown")?.({}, context);
+      const readsAfterFirstShutdown = branchReads;
+      await hooks.get("session_shutdown")?.({}, context);
+      expect(branchReads).toBe(readsAfterFirstShutdown);
+      expect(await waitForRunStatus(statusPath, "stopped")).toMatchObject({ state: "stopped" });
+    } finally {
+      await hooks.get("session_shutdown")?.({}, context);
+      await stopShutdownRunFixture(fixture);
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("keeps a background launch running through shutdown and completes it after resume", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-shutdown-background-test-"));
+    const fixture = shutdownRunFixture(root, "sleep 1; printf 'BACKGROUND_DONE\\n'", true);
+    const { hooks, context } = shutdownHookHarness(fixture);
+    const statusPath = path.join(fixture.runDirectory, "status.json");
+    const outputPath = path.join(fixture.runDirectory, "output.log");
+
+    try {
+      await fixture.store.start(fixture.entry);
+      fixture.store.closeWatchers();
+      await waitForRunStatus(statusPath, "running");
+      await hooks.get("session_start")?.({}, context);
+      await hooks.get("session_shutdown")?.({}, context);
+      expect(readRunStatus(statusPath)?.state).toBe("running");
+      await hooks.get("session_start")?.({}, context);
+      expect(await waitForRunStatus(statusPath, "completed")).toMatchObject({ state: "completed", exitCode: 0 });
+      expect(fs.readFileSync(outputPath, "utf8")).toBe("BACKGROUND_DONE\n");
+    } finally {
+      await hooks.get("session_shutdown")?.({}, context);
+      await stopShutdownRunFixture(fixture);
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("closes watchers when a foreground interrupt throws", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-shutdown-error-test-"));
+    const fixture = shutdownRunFixture(root, "true", false);
+    const runningStatus: RunStatus = {
+      state: "running",
+      id: fixture.entry.id,
+      attempt: fixture.entry.attempt,
+      pid: process.pid,
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    let watchersClosed = false;
+    const failingStore = {
+      status: async () => runningStatus,
+      interrupt: async () => { throw new Error("interrupt marker unavailable"); },
+      closeWatchers: () => { watchersClosed = true; },
+    } satisfies Pick<RunStore, "status" | "interrupt" | "closeWatchers">;
+
+    try {
+      await expect(closeRunStore(failingStore, fixture.branch)).rejects.toThrow("interrupt marker unavailable");
+      expect(watchersClosed).toBe(true);
+    } finally {
+      fixture.store.closeWatchers();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 

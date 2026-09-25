@@ -226,6 +226,30 @@ function latestRuns(branch: readonly SessionEntry[]) {
   return [...byId.values()];
 }
 
+export async function closeRunStore(
+  store: Pick<RunStore, "status" | "interrupt" | "closeWatchers">,
+  branch: readonly SessionEntry[],
+): Promise<void> {
+  const errors: unknown[] = [];
+  try {
+    for (const launch of latestRuns(branch)) {
+      if (launch.runInBackground) continue;
+      try {
+        const status = await store.status(launch.id);
+        if (!isTerminal(status)) await store.interrupt(launch.id);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    if (errors.length) {
+      const messages = errors.map((error) => error instanceof Error ? error.message : String(error));
+      throw new AggregateError(errors, `Failed to stop foreground pstack-agents runs: ${messages.join("; ")}`);
+    }
+  } finally {
+    store.closeWatchers();
+  }
+}
+
 async function refreshStatus(ctx: ExtensionContext, store: RunStore): Promise<void> {
   try {
     if (runStore !== store) return;
@@ -621,7 +645,13 @@ export default function registerPstackAgents(pi: ExtensionAPI): void {
   pi.on("session_start", async (_event, ctx) => {
     const previousStore = runStore;
     runStore = undefined;
-    previousStore?.closeWatchers();
+    if (previousStore) {
+      try {
+        await closeRunStore(previousStore, ctx.sessionManager.getBranch());
+      } catch (error) {
+        ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+      }
+    }
     const store = createRunStoreForContext(ctx);
     runStore = store;
     store.observe({
@@ -669,10 +699,15 @@ export default function registerPstackAgents(pi: ExtensionAPI): void {
     return { entries, continue: continuation.kind === "continue" };
   });
 
-  pi.on("session_shutdown", () => {
+  pi.on("session_shutdown", async (_event, ctx) => {
     const store = runStore;
     runStore = undefined;
-    store?.closeWatchers();
+    if (!store) return;
+    try {
+      await closeRunStore(store, ctx.sessionManager.getBranch());
+    } catch (error) {
+      ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+    }
   });
 }
 
