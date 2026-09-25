@@ -9,7 +9,7 @@ The skill text is the upstream text wherever Pi can run it unchanged. The parity
 This package is tested on Pi 0.87.1. To install from GitHub, run:
 
 ```bash
-pi install git:github.com/just-joshn/pi-pstack@pi-package-0.15.5
+pi install git:github.com/just-joshn/pi-pstack@pi-pstack-0.15.5
 ```
 
 To install from a local checkout, run `pi install ./pi-pstack`. Pi records the package in `~/.pi/agent/settings.json`. Add `--local` to record it in the project's `.pi/settings.json` instead.
