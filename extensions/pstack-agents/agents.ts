@@ -1,10 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, loadProjectContextFiles, parseFrontmatter } from "@earendil-works/pi-coding-agent";
+import { packageResources } from "../package-resources.ts";
 import { parseRunId, type RunId } from "./contracts.ts";
 
 export type AgentName = string & { readonly __brand: "AgentName" };
-export type AgentSource = "user" | "project";
+export type AgentSource = "package" | "user" | "project";
 export type SystemPromptMode = "append" | "replace";
 
 export type AgentDefinition = {
@@ -216,10 +217,12 @@ export function parseAgentFiles(options: {
   projectTrusted: boolean;
   onSkipped?: (filePath: string, reason: string) => void;
 }): AgentDefinition[] {
+  const packageAgents = readAgentDirectory(packageResources.agentsDirectory, "package", options.onSkipped);
   const userAgents = readAgentDirectory(path.join(options.agentDir, "agents"), "user", options.onSkipped);
   const projectDir = options.projectTrusted ? nearestProjectAgentsDirectory(options.cwd) : undefined;
   const projectAgents = projectDir ? readAgentDirectory(projectDir, "project", options.onSkipped) : [];
   const byName = new Map<string, AgentDefinition>();
+  for (const agent of packageAgents) byName.set(agent.name, agent);
   for (const agent of userAgents) byName.set(agent.name, agent);
   for (const agent of projectAgents) byName.set(agent.name, agent);
   return [...byName.values()];

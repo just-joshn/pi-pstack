@@ -76,6 +76,31 @@ afterEach(() => {
 });
 
 describe("agent resolution", () => {
+  test("resolves bundled agents from an empty user agent directory", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "empty-agent-dir");
+    const cwd = path.join(root, "project");
+    mkdirSync(agentDir, { recursive: true });
+
+    const agents = parseAgentFiles({ agentDir, cwd, projectTrusted: false });
+    const requestedNames = ["generalPurpose", "poteto-agent", "pstack-general", "pstack-reader", "Comment Sicko"];
+
+    expect(requestedNames.map((name) => resolveAgent(name, agents).name)).toEqual([
+      "pstack-general",
+      "poteto-agent",
+      "pstack-general",
+      "pstack-reader",
+      "Comment Sicko",
+    ]);
+    expect(requestedNames.map((name) => resolveAgent(name, agents).source)).toEqual([
+      "package",
+      "package",
+      "package",
+      "package",
+      "package",
+    ]);
+  });
+
   test("loads trusted project agents and lets them override user agents by name", () => {
     const root = tempRoot();
     const userDir = path.join(root, "user");
@@ -84,11 +109,11 @@ describe("agent resolution", () => {
     putAgent(path.join(cwd, ".pi", "agents"), "general", "pstack-general", "tools: grep");
     putAgent(path.join(cwd, ".pi", "agents"), "local", "local-agent", "tools: read");
 
+    expect(resolveAgent("pstack-general", parseAgentFiles({ agentDir: userDir, cwd, projectTrusted: false })).source).toBe("user");
+
     const agents = parseAgentFiles({ agentDir: userDir, cwd, projectTrusted: true });
-    expect(agents.map((item) => [item.name, item.source])).toEqual([
-      ["pstack-general", "project"],
-      ["local-agent", "project"],
-    ]);
+    expect(resolveAgent("pstack-general", agents).source).toBe("project");
+    expect(resolveAgent("local-agent", agents).source).toBe("project");
     expect(resolveAgent("generalPurpose", agents).name).toBe("pstack-general");
   });
 
@@ -102,12 +127,14 @@ describe("agent resolution", () => {
     writeFileSync(filePath, "---\nname: broken\ndescription: Broken\nallowNestedSubagents: yes\n---\nPrompt.\n");
     const skipped: string[] = [];
 
-    expect(parseAgentFiles({
+    const agents = parseAgentFiles({
       agentDir,
       cwd,
       projectTrusted: false,
       onSkipped: (path, reason) => skipped.push(`${path}: ${reason}`),
-    })).toEqual([]);
+    });
+    expect(agents.some((item) => item.name === "broken")).toBe(false);
+    expect(agents.some((item) => item.source === "package")).toBe(true);
     expect(skipped).toEqual([`${filePath}: Agent frontmatter allowNestedSubagents must be a boolean`]);
   });
 
@@ -135,7 +162,9 @@ describe("agent resolution", () => {
     const userDir = path.join(root, "user");
     const cwd = path.join(root, "project");
     putAgent(path.join(cwd, ".pi", "agents"), "local", "local-agent");
-    expect(parseAgentFiles({ agentDir: userDir, cwd, projectTrusted: false })).toEqual([]);
+    const agents = parseAgentFiles({ agentDir: userDir, cwd, projectTrusted: false });
+    expect(agents.some((item) => item.name === "local-agent")).toBe(false);
+    expect(agents.every((item) => item.source === "package")).toBe(true);
   });
 
   test("parses agent flags and ignores async frontmatter", () => {
