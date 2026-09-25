@@ -6,6 +6,7 @@ import { packageResources } from "../package-resources.ts";
 import {
   createAgentParseWarningReporter,
   modelMatchesScope,
+  loadTaskContext,
   withGuardExtensions,
   parseAgentDefinition,
   parseAgentFiles,
@@ -192,14 +193,58 @@ describe("agent resolution", () => {
 
 describe("model scope", () => {
   test("checks explicit model IDs against case-insensitive glob patterns", () => {
-    const policy = parseModelScope({ subagents: { modelScope: { enforce: true, allow: ["OpenAI-Codex/gpt-6-*", "inherit"] } } });
+    const policy = parseModelScope({ modelScope: { enforce: true, allow: ["OpenAI-Codex/gpt-6-*", "inherit"] } });
     expect(modelMatchesScope("openai-codex/gpt-6-luna:low", policy, false)).toBe(true);
     expect(modelMatchesScope("anthropic/claude-sonnet-5", policy, false)).toBe(false);
     expect(modelMatchesScope("anthropic/claude-sonnet-5", policy, true)).toBe(true);
   });
 
   test("does not bypass enforced scopes with a malformed model-scope setting", () => {
-    expect(() => parseModelScope({ subagents: { modelScope: { enforce: true, allow: ["model", 4] } } })).toThrow("allow must contain only strings");
+    expect(() => parseModelScope({ modelScope: { enforce: true, allow: ["model", 4] } })).toThrow("allow must contain only strings");
+  });
+
+  test("loads model scope from pstack-agents.json and ignores settings.json", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "configured-agent");
+    const settingsOnlyDir = path.join(root, "settings-only-agent");
+    const cwd = path.join(root, "project");
+    putAgent(path.join(agentDir, "agents"), "worker", "worker", "tools: read");
+    mkdirSync(path.join(agentDir, "extensions"), { recursive: true });
+    writeFileSync(path.join(agentDir, "extensions", "pstack-agents.json"), JSON.stringify({
+      modelScope: { enforce: true, allow: ["anthropic/allowed"] },
+    }));
+    mkdirSync(settingsOnlyDir, { recursive: true });
+    writeFileSync(path.join(settingsOnlyDir, "settings.json"), JSON.stringify({
+      subagents: { modelScope: { enforce: true, allow: ["anthropic/allowed"] } },
+    }));
+
+    const context = taskContext(agentDir, cwd);
+    const loaded = loadTaskContext({
+      cwd: context.cwd,
+      projectTrusted: context.projectTrusted,
+      parentModel: context.parentModel,
+      thinkingLevel: context.thinkingLevel,
+      depth: context.depth,
+      nestingAllowed: context.nestingAllowed,
+      activeTools: context.activeTools,
+      allTools: context.allTools,
+    }, agentDir);
+
+    expect(loaded.modelScope).toEqual({ enforce: true, allow: ["anthropic/allowed"] });
+    expect(() => parseTaskInput({
+      description: "Use the scoped model",
+      prompt: "Return a result.",
+      subagent_type: "worker",
+      model: "openai-codex/gpt-6-luna",
+    }, loaded)).toThrow("Model openai-codex/gpt-6-luna is outside pstack-agents.json modelScope.allow");
+    expect(loadTaskContext({
+      cwd,
+      projectTrusted: false,
+      depth: 0,
+      nestingAllowed: false,
+      activeTools: [],
+      allTools: [],
+    }, settingsOnlyDir).modelScope).toBeUndefined();
   });
 });
 
@@ -379,7 +424,7 @@ describe("Task boundary parsing", () => {
     const base = { description: "Read", prompt: "Read only.", subagent_type: "worker" };
 
     expect(parseTaskInput({ ...base, readonly: true }, context)).toMatchObject({ action: "start", request: { tools: ["read"] } });
-    expect(() => parseTaskInput({ ...base, model: "anthropic/claude-sonnet-5" }, context)).toThrow("outside settings.json subagents.modelScope.allow");
+    expect(() => parseTaskInput({ ...base, model: "anthropic/claude-sonnet-5" }, context)).toThrow("outside pstack-agents.json modelScope.allow");
     expect(() => parseTaskInput({ ...base, machine: "remote" }, context)).toThrow("machine execution is unsupported");
     expect(() => parseTaskInput({ ...base, environment: "cloud" }, context)).toThrow("requires cloud_base_branch");
     expect(parseTaskInput({ ...base, output: "result.md" }, context)).toMatchObject({ request: { output: path.resolve(cwd, "result.md") } });

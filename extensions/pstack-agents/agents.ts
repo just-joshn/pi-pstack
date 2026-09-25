@@ -271,15 +271,15 @@ function escapeGlob(pattern: string): string {
   return pattern.replace(MODEL_GLOB_META, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
 }
 
-export function parseModelScope(settings: unknown): ModelScopePolicy | undefined {
-  if (!isRecord(settings) || !isRecord(settings.subagents) || !isRecord(settings.subagents.modelScope)) return undefined;
-  const raw = settings.subagents.modelScope;
+export function parseModelScope(config: unknown): ModelScopePolicy | undefined {
+  if (!isRecord(config) || !isRecord(config.modelScope)) return undefined;
+  const raw = config.modelScope;
   if (typeof raw.enforce !== "boolean" || !Array.isArray(raw.allow)) {
-    throw new Error("settings.json subagents.modelScope must contain boolean enforce and string[] allow");
+    throw new Error("pstack-agents.json modelScope must contain boolean enforce and string[] allow");
   }
   const allow: string[] = [];
   for (const item of raw.allow) {
-    if (typeof item !== "string") throw new Error("settings.json subagents.modelScope.allow must contain only strings");
+    if (typeof item !== "string") throw new Error("pstack-agents.json modelScope.allow must contain only strings");
     allow.push(item);
   }
   return { enforce: raw.enforce, allow };
@@ -323,20 +323,20 @@ export function withGuardExtensions(paths: readonly string[]): string[] {
 }
 
 function loadModelScope(agentDir: string): ModelScopePolicy | undefined {
-  const settingsPath = path.join(agentDir, "settings.json");
+  const configPath = path.join(agentDir, "extensions", "pstack-agents.json");
   let contents: string;
   try {
-    contents = fs.readFileSync(settingsPath, "utf8");
+    contents = fs.readFileSync(configPath, "utf8");
   } catch {
     return undefined;
   }
-  let settings: unknown;
+  let config: unknown;
   try {
-    settings = JSON.parse(contents);
+    config = JSON.parse(contents);
   } catch {
-    throw new Error(`Invalid JSON in ${settingsPath}`);
+    throw new Error(`Invalid JSON in ${configPath}`);
   }
-  return parseModelScope(settings);
+  return parseModelScope(config);
 }
 
 export function selectContextFiles(options: {
@@ -403,7 +403,7 @@ export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext)
   const model = input.model === "inherit" ? context.parentModel : input.model ?? agent.model ?? context.parentModel;
   if (!model) throw new Error("Task requires a model, but the parent session has none");
   if (!modelMatchesScope(model, context.modelScope, inheritsParentModel)) {
-    throw new Error(`Model ${model} is outside settings.json subagents.modelScope.allow`);
+    throw new Error(`Model ${model} is outside pstack-agents.json modelScope.allow`);
   }
 
   const selectedTools = selectAgentTools({
