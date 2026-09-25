@@ -313,7 +313,7 @@ function launchCompletedResult(id: RunId, status: RunStatus, receipt: RunReceipt
   const text = receipt.kind === "agent"
     ? taskCompletionResultText(id, status, receipt, store)
     : shellResultText(id, status, store);
-  const usage = receipt.kind === "agent" && isTerminal(status) ? store.usage(id, status.attempt) : undefined;
+  const usage = receipt.kind === "agent" && isTerminal(status) ? store.claimUsage(id, status.attempt) : undefined;
   return toolResult(text, { ...receipt, runId: id, status, attempt: status.attempt, completed: isTerminal(status) }, usage);
 }
 
@@ -379,7 +379,7 @@ async function executeTask(
     await store.interrupt(command.id);
     const status = await store.status(command.id);
     throwIfFailedStatus(status, "Task");
-    const usage = isTerminal(status) ? store.usage(command.id, status.attempt) : undefined;
+    const usage = isTerminal(status) ? store.claimUsage(command.id, status.attempt) : undefined;
     return toolResult(`Interrupt requested for ${command.id}. Current status: ${describeStatus(status)}.`, { runId: command.id, status, completed: isTerminal(status) }, usage);
   }
 
@@ -545,7 +545,7 @@ async function executeAwait(params: AwaitParameters | SubagentAwaitParameters, s
         transcript,
         outputLog,
       };
-  const usage = isTerminal(status) ? store.usage(id, status.attempt) : undefined;
+  const usage = isTerminal(status) ? store.claimUsage(id, status.attempt) : undefined;
   return toolResult(text, details, usage);
 }
 

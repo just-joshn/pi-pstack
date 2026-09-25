@@ -155,6 +155,7 @@ export type RunStore = {
   outputText(id: RunId): string;
   finalOutput(id: RunId): string;
   usage(id: RunId, attempt: number): Usage | undefined;
+  claimUsage(id: RunId, attempt: number): Usage | undefined;
   reconcile(branch: readonly SessionEntry[], notify: (notification: RunNotification) => void, includeRunning: boolean): Promise<void>;
   observe(options: {
     branch: () => readonly SessionEntry[];
@@ -797,6 +798,33 @@ export function createRunStore(options: StoreOptions): RunStore {
     },
     usage(id, attempt) {
       return readRecords(runDirectory(options.sessionDir, id)).usageByAttempt.get(attempt);
+    },
+    claimUsage(id, attempt) {
+      const usage = readRecords(runDirectory(options.sessionDir, id)).usageByAttempt.get(attempt);
+      if (!usage) return undefined;
+      const notificationId = `usage:${attempt}`;
+      const claimPath = acknowledgementPath(id, notificationId);
+      fs.mkdirSync(path.dirname(claimPath), { recursive: true, mode: 0o700 });
+      let descriptor: number;
+      try {
+        descriptor = fs.openSync(claimPath, "wx", 0o600);
+      } catch (error) {
+        if (isRecord(error) && error.code === "EEXIST") return undefined;
+        throw error;
+      }
+      try {
+        fs.writeFileSync(descriptor, `${JSON.stringify({ notificationId, acknowledgedAt: Date.now() })}\n`);
+        fs.fsyncSync(descriptor);
+      } finally {
+        fs.closeSync(descriptor);
+      }
+      const directoryDescriptor = fs.openSync(path.dirname(claimPath), "r");
+      try {
+        fs.fsyncSync(directoryDescriptor);
+      } finally {
+        fs.closeSync(directoryDescriptor);
+      }
+      return usage;
     },
     async reconcile(branch, notify, includeRunning) {
       await reconcile(branch, notify, includeRunning);

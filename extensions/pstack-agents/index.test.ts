@@ -221,7 +221,7 @@ describe("tool execution failures", () => {
 });
 
 describe("bounded run output", () => {
-  test("truncates Task, completed Task notices, and Shell output with full artifact paths", async () => {
+  test("truncates Task and Shell output and claims terminal usage once across results and restart", async () => {
     const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-bounded-output-test-"));
     const agentDir = path.join(scratch, "agent");
     const agentDirectory = path.join(agentDir, "agents");
@@ -301,6 +301,43 @@ describe("bounded run output", () => {
       expect(notificationText).not.toContain("TASK_LINE_2500");
       const backgroundId = /agent_id: ([^\n]+)/.exec(backgroundText)?.[1];
       if (!backgroundId) throw new Error("Background Task receipt did not include its agent id");
+      expect(backgroundResult.usage).toBeUndefined();
+      const subagentAwait = tools.get("SubagentAwait");
+      if (!subagentAwait) throw new Error("Missing SubagentAwait tool");
+      const firstAwait = await subagentAwait.execute("await-background-task-first", {
+        agent_id: backgroundId,
+        timeout_ms: 0,
+      }, undefined);
+      const repeatedAwait = await subagentAwait.execute("await-background-task-again", {
+        agent_id: backgroundId,
+        timeout_ms: 0,
+      }, undefined);
+      expect(firstAwait.usage).toEqual({
+        input: 2,
+        output: 3,
+        cacheRead: 4,
+        cacheWrite: 5,
+        totalTokens: 9,
+        cost: { input: 0.1, output: 0.2, cacheRead: 0.3, cacheWrite: 0.4, total: 1 },
+      });
+      const interruptResult = await task.execute("interrupt-finished-background-task", {
+        resume: backgroundId,
+        interrupt: true,
+      }, undefined, undefined, context);
+      expect([
+        firstAwait.usage !== undefined,
+        repeatedAwait.usage !== undefined,
+        interruptResult.usage !== undefined,
+      ]).toEqual([true, false, false]);
+
+      await hooks.get("session_shutdown")?.({}, context);
+      await sessionStart({}, context);
+      const afterRestartAwait = await subagentAwait.execute("await-background-task-after-restart", {
+        agent_id: backgroundId,
+        timeout_ms: 0,
+      }, undefined);
+      expect(afterRestartAwait.usage).toBeUndefined();
+
       const resumeResult = await task.execute("resume-background-task", {
         description: "Resume many lines in background",
         prompt: "Return the generated output again.",
@@ -316,13 +353,11 @@ describe("bounded run output", () => {
         cost: { input: 1, output: 2, cacheRead: 3, cacheWrite: 4, total: 10 },
       });
       expect(resumeResult.details).toMatchObject({ attempt: 2, status: { attempt: 2 } });
-      const subagentAwait = tools.get("SubagentAwait");
-      if (!subagentAwait) throw new Error("Missing SubagentAwait tool");
       const awaitedResult = await subagentAwait.execute("await-resumed-background-task", {
         agent_id: backgroundId,
         timeout_ms: 0,
       }, undefined);
-      expect(awaitedResult.usage).toEqual(resumeResult.usage);
+      expect(awaitedResult.usage).toBeUndefined();
       expect(awaitedResult.details).toMatchObject({ completed: true, status: { attempt: 2 } });
 
       const shellResult = await shell.execute("large-shell", {
