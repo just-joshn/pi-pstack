@@ -7,15 +7,20 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { packageResources } from "./package-resources.ts";
 
-const SKILL_PATH = "skills/poteto-mode/SKILL.md";
-const REMINDER =
-	"poteto-mode is active in this session. New task? Playbook match or rigor needed -> apply poteto-mode: " +
-	"if its SKILL.md (~/.pi/agent/skills/poteto-mode/SKILL.md) is no longer in your context, read it in full first, " +
-	"then read the matched playbook and seed the todo list before any other tool call. " +
-	"A /skill:<name> the user typed is that task's playbook: seed and follow that skill's own steps, under poteto-mode's principles and reply rules, " +
-	"and do not wrap it in another playbook. " +
-	"A single direct instruction (run this, start that, a quick question) is not a new task. Casual turn or user opts out -> don't.";
+const SKILL_PATH = packageResources.potetoModeSkillFile;
+
+export function stickyModeReminderText(): string {
+	return (
+		"poteto-mode is active in this session. New task? Playbook match or rigor needed -> apply poteto-mode: " +
+		`if its SKILL.md (${packageResources.potetoModeSkillFile}) is no longer in your context, read it in full first, ` +
+		"then read the matched playbook and seed the todo list before any other tool call. " +
+		"A /skill:<name> the user typed is that task's playbook: seed and follow that skill's own steps, under poteto-mode's principles and reply rules, " +
+		"and do not wrap it in another playbook. " +
+		"A single direct instruction (run this, start that, a quick question) is not a new task. Casual turn or user opts out -> don't."
+	);
+}
 const OPT_OUT = /\b(turn off|disable|exit|leave|stop using|opt out of|no more)\s+(the\s+)?poteto[- ]?mode\b/i;
 const NAMED_SKILL_EXCLUSIONS = new Set(["poteto-mode", "loop", "goal"]);
 const STATE_TYPE = "pstack-mode-state";
@@ -35,8 +40,8 @@ function invokedNamedSkills(prompt: string): string[] {
 	return [...names];
 }
 
-function namedSkillInstruction(name: string): string {
-	return `The user invoked /skill:${name}. ${name}'s own steps are this task's playbook: seed the todo list with them and follow them. Do not read ~/.pi/agent/skills/poteto-mode/playbooks/*.md or seed another playbook's steps for this task. The skill's own prescribed questions are part of its steps, not blocking on the human. poteto-mode's principles and reply rules still apply.`;
+export function namedSkillInstruction(name: string): string {
+	return `The user invoked /skill:${name}. ${name}'s own steps are this task's playbook: seed the todo list with them and follow them. Do not read ${packageResources.potetoPlaybooksDirectory}/*.md or seed another playbook's steps for this task. The skill's own prescribed questions are part of its steps, not blocking on the human. poteto-mode's principles and reply rules still apply.`;
 }
 
 function textOf(content: unknown): string {
@@ -112,7 +117,7 @@ export default function (pi: ExtensionAPI) {
 			};
 		}
 		if (loadsPotetoMode || optsOut || !active) return undefined;
-		return { message: { customType: "pstack-mode-reminder", content: REMINDER, display: false } };
+		return { message: { customType: "pstack-mode-reminder", content: stickyModeReminderText(), display: false } };
 	});
 
 	pi.registerCommand("poteto", {

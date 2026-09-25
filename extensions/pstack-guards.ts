@@ -8,9 +8,8 @@
 import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-
-const SKILLS_ROOT = resolve(homedir(), ".pi/agent/skills");
+import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { packageResources } from "./package-resources.ts";
 const SKILL_WRITE_BLOCK_REASON =
 	"Installed skills change only when the user asks. If a skill looks broken, check that its own text references the missing thing; if it does not, the claim is false.";
 
@@ -220,7 +219,9 @@ function isUnderDirectory(target: string, root: string): boolean {
 
 function resolvesUnderSkillsRoot(target: string, cwd: string): boolean {
 	const expanded = target === "~" ? homedir() : target.startsWith("~/") ? resolve(homedir(), target.slice(2)) : resolve(cwd, target);
-	return isUnderDirectory(resolvedFilesystemPath(expanded), resolvedFilesystemPath(SKILLS_ROOT));
+	const resolvedTarget = resolvedFilesystemPath(expanded);
+	const roots = [resolve(getAgentDir(), "skills"), packageResources.skillsDirectory];
+	return roots.some((root) => isUnderDirectory(resolvedTarget, resolvedFilesystemPath(root)));
 }
 
 function textOf(content: unknown): string {
@@ -240,7 +241,7 @@ function latestUserMessage(ctx: ExtensionContext): string {
 
 const SKILL_EDIT_ACTION = /\b(?:edit(?:ed|ing)?|chang(?:e|es|ing|ed)|fix(?:es|ed|ing)?|updat(?:e|es|ed|ing)|creat(?:e|ed|ing)|add(?:ed|ing)?)\b/gi;
 const SKILL_COMMAND = /\/skill:(?:create-skill|reflect|setup-pstack|automate-me)(?:\b|\s|$)/gi;
-const SKILL_PATH = /~\/\.pi\/agent\/skills\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*/gi;
+const SKILL_PATH_CANDIDATE = /(?:~\/|\/)[^\s"'<>]+/gi;
 const SKILL_EDIT_NEGATION = /\b(?:do\s+not|don't|dont|did\s+not|didn't|never|avoid|without|not|no)\b(?:(?:\s+|,\s*)(?:want|need|like|plan|intend|ask|asked|request|requested|wish|expect|think|should|say|said|to|you|me|run|use|invoke|call|mention|edit(?:ed|ing)?|chang(?:e|es|ing|ed)|fix(?:es|ed|ing)?|updat(?:e|es|ed|ing)|creat(?:e|ed|ing)|add(?:ed|ing)?|poteto[- ]mode|author(?:ing)?|skill|skills|any|a|an|the|my|your|this|that|existing|installed|ever|and|or))*[,\s]*$/i;
 const SKILL_INTENT_CLAUSE_BREAK = /[!?;\n]+|\.(?=\s|$)|\b(?:but|however|instead|rather)\b/gi;
 
@@ -256,7 +257,23 @@ function hasUnnegatedIntent(clause: string, pattern: RegExp): boolean {
 	return false;
 }
 
+function hasUnnegatedProtectedSkillPath(clause: string): boolean {
+	for (const match of clause.matchAll(SKILL_PATH_CANDIDATE)) {
+		if (match.index !== undefined && resolvesUnderSkillsRoot(match[0], process.cwd()) && !isNegatedSkillIntent(clause, match.index)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 const SKILL_BLOCK = /<skill name="([^"]+)"[^>]*>[\s\S]*?<\/skill>/gi;
+
+export function skillWriteBlock(target: string, cwd: string, userMessage: string): { block: true; reason: string } | undefined {
+	if (resolvesUnderSkillsRoot(target, cwd) && !mentionsSkillEditingIntent(userMessage)) {
+		return { block: true, reason: SKILL_WRITE_BLOCK_REASON };
+	}
+	return undefined;
+}
 
 export function typedWords(text: string): string {
 	return text.replace(SKILL_BLOCK, (_block, name: string) => ` /skill:${name} `);
@@ -271,7 +288,7 @@ export function mentionsSkillEditingIntent(raw: string): boolean {
 	for (const clause of text.split(SKILL_INTENT_CLAUSE_BREAK)) {
 		if (hasUnnegatedIntent(clause, SKILL_COMMAND)) return true;
 		const clauseWithoutCommands = clause.replace(SKILL_COMMAND, "");
-		if (hasUnnegatedIntent(clauseWithoutCommands, SKILL_PATH)) return true;
+		if (hasUnnegatedProtectedSkillPath(clauseWithoutCommands)) return true;
 		if (/\bskills?\b/i.test(clauseWithoutCommands) && hasUnnegatedIntent(clauseWithoutCommands, SKILL_EDIT_ACTION)) return true;
 		if (/\bpoteto[- ]mode\b/i.test(clauseWithoutCommands) && hasUnnegatedIntent(clauseWithoutCommands, /\bauthor(?:ing)?\b/gi)) return true;
 	}
@@ -309,13 +326,7 @@ export default function (pi: ExtensionAPI) {
 			const path = event.input.path;
 			if (typeof path !== "string") return undefined;
 			const target = path;
-			if (
-				target &&
-				resolvesUnderSkillsRoot(target, ctx.cwd) &&
-				!mentionsSkillEditingIntent(latestUserMessage(ctx))
-			) {
-				return { block: true, reason: SKILL_WRITE_BLOCK_REASON };
-			}
+			if (target) return skillWriteBlock(target, ctx.cwd, latestUserMessage(ctx));
 		}
 		return undefined;
 	});
