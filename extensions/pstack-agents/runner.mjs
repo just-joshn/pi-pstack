@@ -342,7 +342,8 @@ function runAgent(request, runDirectory, record, finish) {
   const workingDirectory = agent.worktree?.path ?? agent.cwd;
   const systemPromptPath = path.join(runDirectory, `system-prompt-${request.attempt}.md`);
   const context = agent.projectContext.map((file) => `Context from ${file.path}\n\n${file.content}`).join("\n\n");
-  const systemPrompt = [context, agent.agent.systemPrompt].filter(Boolean).join("\n\n");
+  const skillLocation = agent.declaredSkill ? `The \`${agent.declaredSkill.name}\` skill's \`SKILL.md\` is at \`${agent.declaredSkill.file}\`.` : "";
+  const systemPrompt = [context, agent.agent.systemPrompt, skillLocation].filter(Boolean).join("\n\n");
   const cliArgs = [
     ...request.piArgsPrefix,
     "--mode", "json",
@@ -359,8 +360,7 @@ function runAgent(request, runDirectory, record, finish) {
     fs.writeFileSync(systemPromptPath, systemPrompt, { mode: 0o600 });
     cliArgs.push(agent.agent.systemPromptMode === "replace" ? "--system-prompt" : "--append-system-prompt", systemPromptPath);
   }
-  const skillCommand = agent.agent.skill ? `/skill:${agent.agent.skill} ` : "";
-  cliArgs.push("--", ...agent.attachments.map((attachment) => `@${attachment}`), `${skillCommand}${agent.description}: ${agent.prompt}`);
+  cliArgs.push("--", ...agent.attachments.map((attachment) => `@${attachment}`), `${agent.description}: ${agent.prompt}`);
 
   const child = spawn(request.piCommand, cliArgs, {
     cwd: workingDirectory,

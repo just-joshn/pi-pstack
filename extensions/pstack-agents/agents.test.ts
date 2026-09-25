@@ -377,6 +377,8 @@ describe("Task boundary parsing", () => {
     expect(poteto.skill).toBe("poteto-mode");
     expect(regular.request.agent.skill).toBeUndefined();
     expect(potetoCommand.request.agent.skill).toBe("poteto-mode");
+    expect(potetoCommand.request.declaredSkill).toEqual({ name: "poteto-mode", file: path.join(packageResources.skillsDirectory, "poteto-mode", "SKILL.md") });
+    expect(regular.request.declaredSkill).toBeUndefined();
   });
 
   test("defaults to foreground and inherits the parent model and thinking level", () => {

@@ -316,7 +316,7 @@ describe("durable run store", () => {
     }
   });
 
-  test("declared Pi skills prefix child prompts without a CLI skill override", async () => {
+  test("a declared skill is named in the child system prompt and the prompt stays unprefixed, with or without attachments", async () => {
     const root = testRoot();
     const { sessionFile, branch, store, pi, fakePi } = testHarness(root);
     fs.writeFileSync(fakePi, [
@@ -334,6 +334,8 @@ describe("durable run store", () => {
       "---",
     ].join("\n"), path.join(root, "agent.md"), "user");
     if (!agent) throw new Error("Failed to create a skill-declaring test agent");
+    const attachment = path.join(root, "note.txt");
+    fs.writeFileSync(attachment, "attached\n");
     const launchOwner = owner(sessionFile, "poteto-skill-call");
     const entry: LaunchEntry = {
       kind: "launch",
@@ -344,6 +346,8 @@ describe("durable run store", () => {
       request: {
         ...agentRequest(root, "Report your CLI arguments.", path.join(root, "result.md")),
         agent,
+        attachments: [attachment],
+        declaredSkill: { name: "poteto-mode", file: "/pkg/skills/poteto-mode/SKILL.md" },
       },
       runInBackground: false,
       createdAt: Date.now(),
@@ -363,7 +367,11 @@ describe("durable run store", () => {
       }
       expect(args).not.toContain("--skill");
       expect(args).not.toContain("--no-skills");
-      expect(args.at(-1)).toBe("/skill:poteto-mode Run a test agent: Report your CLI arguments.");
+      expect(args.at(-1)).toBe("Run a test agent: Report your CLI arguments.");
+      expect(args.at(-2)).toBe(`@${attachment}`);
+      const promptFile = args[args.indexOf("--append-system-prompt") + 1];
+      if (!promptFile) throw new Error("Child received no appended system prompt");
+      expect(fs.readFileSync(promptFile, "utf8")).toContain("The `poteto-mode` skill's `SKILL.md` is at `/pkg/skills/poteto-mode/SKILL.md`.");
     } finally {
       store.closeWatchers();
     }

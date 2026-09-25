@@ -53,6 +53,8 @@ export type AgentLaunchRequest = {
   attachments: string[];
   tools: string[];
   extensionPaths: string[];
+  /** Hidden skills are absent from a child's skill list, so the runner names their file in the system prompt. */
+  declaredSkill?: { name: string; file: string };
   output?: string;
   depth: number;
   projectContext: Array<{ path: string; content: string }>;
@@ -331,6 +333,13 @@ export function selectAgentTools(options: {
   return { tools, extensionPaths };
 }
 
+export function resolveSkillFile(name: string, agentDir: string): string {
+  const candidates = [path.join(packageResources.skillsDirectory, name, "SKILL.md"), path.join(agentDir, "skills", name, "SKILL.md")];
+  const found = candidates.find((file) => fs.existsSync(file));
+  if (!found) throw new Error(`Agent skill ${name} is not installed (looked in ${candidates.join(", ")})`);
+  return found;
+}
+
 export function withGuardExtensions(paths: readonly string[]): string[] {
   return [...new Set([...paths, packageResources.guardExtension])];
 }
@@ -452,6 +461,7 @@ export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext)
     attachments: resolveAttachments(input.attachments, context.cwd),
     tools: selectedTools.tools,
     extensionPaths: withGuardExtensions(selectedTools.extensionPaths),
+    declaredSkill: agent.skill ? { name: agent.skill, file: resolveSkillFile(agent.skill, context.agentDir) } : undefined,
     output,
     depth: context.depth + 1,
     projectContext,
