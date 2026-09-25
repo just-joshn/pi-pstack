@@ -471,13 +471,13 @@ describe("Task boundary parsing", () => {
   });
 });
 
-test("Comment Sicko names the same how and why skills as the upstream agent", () => {
+test("Comment Sicko names the same how and why skills as the upstream agent, as Pi skill commands", () => {
   const localPath = new URL("../../agents/comment-sicko.md", import.meta.url);
   const upstreamPath = new URL("../../parity/upstream/0.15.5/pstack/agents/comment-sicko.md", import.meta.url);
   const local = readFileSync(localPath, "utf8").match(/Before judging,[\s\S]*?on the named symbol or call\./);
   const upstream = readFileSync(upstreamPath, "utf8").match(/Before judging,[\s\S]*?on the named symbol or call\./);
   if (!local || !upstream) throw new Error("Comment Sicko is missing its skill-instruction sentence");
-  expect(local[0]).toBe(upstream[0]);
+  expect(local[0]).toBe(upstream[0].replace("`/how`", "`/skill:how`").replace("`/why`", "`/skill:why`"));
 });
 
 test("agent names may contain single spaces, like Cursor's Comment Sicko", () => {

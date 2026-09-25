@@ -1,5 +1,6 @@
 import { expect, mock, test } from "bun:test";
 import pstackMode from "../../extensions/pstack-mode.ts";
+import { packageResources } from "../../extensions/package-resources.ts";
 
 mock.module("@earendil-works/pi-ai", () => ({ StringEnum: () => ({}) }));
 mock.module("@earendil-works/pi-tui", () => {
@@ -305,7 +306,7 @@ test("named skill invocation injects its own steps even when poteto-mode is inac
 
 	expect(result.message.display).toBe(false);
 	expect(result.message.content).toBe(
-		"The user invoked /skill:tdd. tdd's own steps are this task's playbook: seed the todo list with them and follow them. Do not read ~/.pi/agent/skills/poteto-mode/playbooks/*.md or seed another playbook's steps for this task. The skill's own prescribed questions are part of its steps, not blocking on the human. poteto-mode's principles and reply rules still apply.",
+		`The user invoked /skill:tdd. tdd's own steps are this task's playbook: seed the todo list with them and follow them. Do not read ${packageResources.potetoPlaybooksDirectory}/*.md or seed another playbook's steps for this task. The skill's own prescribed questions are part of its steps, not blocking on the human. poteto-mode's principles and reply rules still apply.`,
 	);
 });
 
