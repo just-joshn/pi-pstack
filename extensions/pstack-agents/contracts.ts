@@ -1,3 +1,5 @@
+import type { Usage } from "@earendil-works/pi-ai";
+
 export type Brand<Name extends string> = string & { readonly __brand: Name };
 export type RunId = Brand<"RunId">;
 export type SessionFile = Brand<"SessionFile">;
@@ -35,6 +37,7 @@ export type RunRecordSummary = {
   lastSequence: number;
   shellLines: ShellLine[];
   messages: Record<string, unknown>[];
+  usageByAttempt: Map<number, Usage>;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -43,6 +46,61 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function finiteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function nonnegativeNumber(value: unknown): value is number {
+  return finiteNumber(value) && value >= 0;
+}
+
+function parseUsage(value: unknown): Usage | undefined {
+  if (!isRecord(value) || !isRecord(value.cost)) return undefined;
+  const { input, output, cacheRead, cacheWrite, totalTokens } = value;
+  const { input: costInput, output: costOutput, cacheRead: costCacheRead, cacheWrite: costCacheWrite, total: costTotal } = value.cost;
+  const cacheWrite1h = value.cacheWrite1h;
+  const reasoning = value.reasoning;
+  if (
+    !nonnegativeNumber(input) || !nonnegativeNumber(output) || !nonnegativeNumber(cacheRead) ||
+    !nonnegativeNumber(cacheWrite) || !nonnegativeNumber(totalTokens) || !nonnegativeNumber(costInput) ||
+    !nonnegativeNumber(costOutput) || !nonnegativeNumber(costCacheRead) || !nonnegativeNumber(costCacheWrite) ||
+    !nonnegativeNumber(costTotal) ||
+    (cacheWrite1h !== undefined && !nonnegativeNumber(cacheWrite1h)) ||
+    (reasoning !== undefined && !nonnegativeNumber(reasoning))
+  ) return undefined;
+  return {
+    input,
+    output,
+    cacheRead,
+    cacheWrite,
+    totalTokens,
+    cost: { input: costInput, output: costOutput, cacheRead: costCacheRead, cacheWrite: costCacheWrite, total: costTotal },
+    ...(cacheWrite1h === undefined ? {} : { cacheWrite1h }),
+    ...(reasoning === undefined ? {} : { reasoning }),
+  };
+}
+
+function addOptionalUsage(left: number | undefined, right: number | undefined): number | undefined {
+  return left === undefined && right === undefined ? undefined : (left ?? 0) + (right ?? 0);
+}
+
+function addUsage(left: Usage, right: Usage): Usage {
+  const cacheWrite1h = addOptionalUsage(left.cacheWrite1h, right.cacheWrite1h);
+  const reasoning = addOptionalUsage(left.reasoning, right.reasoning);
+  return {
+    input: left.input + right.input,
+    output: left.output + right.output,
+    cacheRead: left.cacheRead + right.cacheRead,
+    cacheWrite: left.cacheWrite + right.cacheWrite,
+    totalTokens: left.totalTokens + right.totalTokens,
+    cost: {
+      input: left.cost.input + right.cost.input,
+      output: left.cost.output + right.cost.output,
+      cacheRead: left.cost.cacheRead + right.cost.cacheRead,
+      cacheWrite: left.cost.cacheWrite + right.cost.cacheWrite,
+      total: left.cost.total + right.cost.total,
+    },
+    ...(cacheWrite1h === undefined ? {} : { cacheWrite1h }),
+    ...(reasoning === undefined ? {} : { reasoning }),
+  };
 }
 
 export function parseRunStatus(value: unknown): RunStatus | undefined {
@@ -127,16 +185,30 @@ export function reduceRunRecords(records: readonly unknown[]): RunRecordSummary 
   let lastSequence = 0;
   const shellLines: ShellLine[] = [];
   const messages: Record<string, unknown>[] = [];
+  const usageByAttempt = new Map<number, Usage>();
+  let activeAttempt: number | undefined;
 
   for (const record of parsed) {
     if (record.sequence <= lastSequence) continue;
     lastSequence = record.sequence;
-    if (record.type === "status" || record.type === "terminal") status = record.status;
+    if (record.type === "status" || record.type === "terminal") {
+      status = record.status;
+      activeAttempt = record.status.attempt;
+    }
     if (record.type === "shell-line") shellLines.push({ sequence: record.lineSequence, stream: record.stream, line: record.line });
-    if (record.type === "message") messages.push(record.event);
+    if (record.type === "message") {
+      messages.push(record.event);
+      if (record.event.role === "assistant" && activeAttempt !== undefined) {
+        const usage = parseUsage(record.event.usage);
+        if (usage) {
+          const previous = usageByAttempt.get(activeAttempt);
+          usageByAttempt.set(activeAttempt, previous ? addUsage(previous, usage) : usage);
+        }
+      }
+    }
   }
 
-  return { status, lastSequence, shellLines, messages };
+  return { status, lastSequence, shellLines, messages, usageByAttempt };
 }
 
 export function parseRunnerJsonl(contents: string): RunRecordSummary {

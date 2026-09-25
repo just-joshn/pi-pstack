@@ -6,7 +6,7 @@ import registerPstackAgents from "./index.ts";
 import { RUN_ENTRY_TYPE } from "./runs.ts";
 
 function failureHarness(scratch: string) {
-  type ToolResult = { content: Array<{ text: string }>; details?: unknown };
+  type ToolResult = { content: Array<{ text: string }>; details?: unknown; usage?: unknown };
   type TestTool = { execute: (...args: unknown[]) => Promise<ToolResult> };
   const tools = new Map<string, TestTool>();
   const hooks = new Map<string, (...args: unknown[]) => unknown>();
@@ -228,8 +228,12 @@ describe("bounded run output", () => {
       "Print the result.",
     ].join("\n"));
     fs.writeFileSync(fakePi, [
+      'const attempt = Number(process.env.PSTACK_AGENTS_PARENT_RUN_ATTEMPT);',
       'const output = Array.from({ length: 2500 }, (_, index) => `TASK_LINE_${String(index + 1).padStart(4, "0")}`).join("\\n");',
-      'const message = { role: "assistant", content: [{ type: "text", text: output }], stopReason: "end" };',
+      'const usage = attempt === 1',
+      '  ? { input: 2, output: 3, cacheRead: 4, cacheWrite: 5, totalTokens: 9, cost: { input: 0.1, output: 0.2, cacheRead: 0.3, cacheWrite: 0.4, total: 1 } }',
+      '  : { input: 20, output: 30, cacheRead: 40, cacheWrite: 50, totalTokens: 90, cost: { input: 1, output: 2, cacheRead: 3, cacheWrite: 4, total: 10 } };',
+      'const message = { role: "assistant", content: [{ type: "text", text: output }], usage, stopReason: "end" };',
       'process.stdout.write(`${JSON.stringify({ type: "message_end", message })}\\n`);',
     ].join("\n"));
     const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -257,6 +261,14 @@ describe("bounded run output", () => {
       expect(taskText).toContain("TASK_LINE_0001");
       expect(taskText).not.toContain("TASK_LINE_2500");
       expect(taskText).toContain(`[Output truncated. Full transcript: ${transcript}]`);
+      expect(taskResult.usage).toEqual({
+        input: 2,
+        output: 3,
+        cacheRead: 4,
+        cacheWrite: 5,
+        totalTokens: 9,
+        cost: { input: 0.1, output: 0.2, cacheRead: 0.3, cacheWrite: 0.4, total: 1 },
+      });
 
       const backgroundResult = await task.execute("large-background-task", {
         description: "Print many lines in background",
@@ -265,6 +277,7 @@ describe("bounded run output", () => {
         run_in_background: true,
       }, undefined, undefined, context);
       const backgroundText = backgroundResult.content[0]?.text ?? "";
+      expect(backgroundResult.usage).toBeUndefined();
       const backgroundTranscript = /Transcript: ([^\n]+)/.exec(backgroundText)?.[1];
       if (!backgroundTranscript) throw new Error("Background Task receipt did not include a transcript path");
       let notificationText = "";
@@ -275,6 +288,31 @@ describe("bounded run output", () => {
       }
       expect(notificationText).toContain(`[Output truncated. Full transcript: ${backgroundTranscript}]`);
       expect(notificationText).not.toContain("TASK_LINE_2500");
+      const backgroundId = /agent_id: ([^\n]+)/.exec(backgroundText)?.[1];
+      if (!backgroundId) throw new Error("Background Task receipt did not include its agent id");
+      const resumeResult = await task.execute("resume-background-task", {
+        description: "Resume many lines in background",
+        prompt: "Return the generated output again.",
+        subagent_type: "output-agent",
+        resume: backgroundId,
+      }, undefined, undefined, context);
+      expect(resumeResult.usage).toEqual({
+        input: 20,
+        output: 30,
+        cacheRead: 40,
+        cacheWrite: 50,
+        totalTokens: 90,
+        cost: { input: 1, output: 2, cacheRead: 3, cacheWrite: 4, total: 10 },
+      });
+      expect(resumeResult.details).toMatchObject({ attempt: 2, status: { attempt: 2 } });
+      const subagentAwait = tools.get("SubagentAwait");
+      if (!subagentAwait) throw new Error("Missing SubagentAwait tool");
+      const awaitedResult = await subagentAwait.execute("await-resumed-background-task", {
+        agent_id: backgroundId,
+        timeout_ms: 0,
+      }, undefined);
+      expect(awaitedResult.usage).toEqual(resumeResult.usage);
+      expect(awaitedResult.details).toMatchObject({ completed: true, status: { attempt: 2 } });
 
       const shellResult = await shell.execute("large-shell", {
         command: `i=1; while [ "$i" -le 2500 ]; do printf 'SHELL_LINE_%04d\\n' "$i"; i=$((i + 1)); done`,

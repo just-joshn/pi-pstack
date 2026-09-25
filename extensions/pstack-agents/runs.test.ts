@@ -618,7 +618,21 @@ describe("durable run store", () => {
 
   test("preserves an agent transcript across resume attempts and writes file-only output", async () => {
     const root = testRoot();
-    const { sessionFile, branch, store, pi } = testHarness(root);
+    const { sessionFile, branch, store, pi, fakePi } = testHarness(root);
+    fs.writeFileSync(fakePi, [
+      'const attempt = Number(process.env.PSTACK_AGENTS_PARENT_RUN_ATTEMPT);',
+      'const usages = attempt === 1 ? [',
+      '  { input: 1, output: 2, cacheRead: 3, cacheWrite: 4, totalTokens: 6, cost: { input: 0.01, output: 0.02, cacheRead: 0.03, cacheWrite: 0.04, total: 0.1 } },',
+      '  { input: 10, output: 20, cacheRead: 30, cacheWrite: 40, totalTokens: 60, cost: { input: 1, output: 2, cacheRead: 3, cacheWrite: 4, total: 10 } },',
+      '] : [',
+      '  { input: 100, output: 200, cacheRead: 300, cacheWrite: 400, totalTokens: 600, cost: { input: 10, output: 20, cacheRead: 30, cacheWrite: 40, total: 100 } },',
+      '  { input: 1000, output: 2000, cacheRead: 3000, cacheWrite: 4000, totalTokens: 6000, cost: { input: 100, output: 200, cacheRead: 300, cacheWrite: 400, total: 1000 } },',
+      '];',
+      'for (const [index, usage] of usages.entries()) {',
+      '  const message = { role: "assistant", content: [{ type: "text", text: index === 1 ? process.argv.at(-1) : `attempt ${attempt} interim` }], usage, stopReason: "stop" };',
+      '  process.stdout.write(`${JSON.stringify({ type: "message_end", message })}\\n`);',
+      '}',
+    ].join("\n"));
     const output = path.join(root, "result.md");
     const initialOwner = owner(sessionFile, "agent-call-1");
     const first: LaunchEntry = {
@@ -637,6 +651,15 @@ describe("durable run store", () => {
     await store.start(first);
     const firstResult = await store.wait(first.id, 5000);
     expect(firstResult).toMatchObject({ state: "terminal", status: { state: "completed", attempt: 1 } });
+    expect(store.usage(first.id, 1)).toEqual({
+      input: 11,
+      output: 22,
+      cacheRead: 33,
+      cacheWrite: 44,
+      totalTokens: 66,
+      cost: { input: 1.01, output: 2.02, cacheRead: 3.03, cacheWrite: 4.04, total: 10.1 },
+    });
+    expect(store.usage(first.id, 2)).toBeUndefined();
     expect(store.finalOutput(first.id)).toBe("Run a test agent: first prompt");
     expect(fs.readFileSync(output, "utf8")).toBe("Run a test agent: first prompt");
 
@@ -655,6 +678,22 @@ describe("durable run store", () => {
     await store.resume(resumed);
     const resumedResult = await store.wait(first.id, 5000);
     expect(resumedResult).toMatchObject({ state: "terminal", status: { state: "completed", attempt: 2 } });
+    expect(store.usage(first.id, 2)).toEqual({
+      input: 1100,
+      output: 2200,
+      cacheRead: 3300,
+      cacheWrite: 4400,
+      totalTokens: 6600,
+      cost: { input: 110, output: 220, cacheRead: 330, cacheWrite: 440, total: 1100 },
+    });
+    expect(store.usage(first.id, 1)).toEqual({
+      input: 11,
+      output: 22,
+      cacheRead: 33,
+      cacheWrite: 44,
+      totalTokens: 66,
+      cost: { input: 1.01, output: 2.02, cacheRead: 3.03, cacheWrite: 4.04, total: 10.1 },
+    });
     expect(store.transcript(first.id)).toBe(path.join(path.dirname(sessionFile), "parent", first.id, "session.jsonl"));
     expect(store.finalOutput(first.id)).toBe("Run a test agent: second prompt");
     expect(fs.readFileSync(output, "utf8")).toBe("Run a test agent: second prompt");

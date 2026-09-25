@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import type { ExtensionAPI, SessionEntry } from "@earendil-works/pi-coding-agent";
+import type { Usage } from "@earendil-works/pi-ai";
 import { parseRunId, parseRunStatus, parseRunnerJsonl, type RunId, type RunStatus, type ShellLine } from "./contracts.ts";
 import type { AgentLaunchRequest } from "./agents.ts";
 import type { WorktreeResult } from "./worktrees.ts";
@@ -153,6 +154,7 @@ export type RunStore = {
   outputLog(id: RunId): string;
   outputText(id: RunId): string;
   finalOutput(id: RunId): string;
+  usage(id: RunId, attempt: number): Usage | undefined;
   reconcile(branch: readonly SessionEntry[], notify: (notification: RunNotification) => void, includeRunning: boolean): Promise<void>;
   observe(options: {
     branch: () => readonly SessionEntry[];
@@ -792,6 +794,9 @@ export function createRunStore(options: StoreOptions): RunStore {
     },
     finalOutput(id) {
       return finalAssistantOutput(runDirectory(options.sessionDir, id));
+    },
+    usage(id, attempt) {
+      return readRecords(runDirectory(options.sessionDir, id)).usageByAttempt.get(attempt);
     },
     async reconcile(branch, notify, includeRunning) {
       await reconcile(branch, notify, includeRunning);

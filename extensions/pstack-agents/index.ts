@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type, type Static } from "typebox";
+import type { Usage } from "@earendil-works/pi-ai";
 import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, truncateHead, truncateTail } from "@earendil-works/pi-coding-agent";
 import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 import { createAgentParseWarningReporter, loadTaskContext, parseTaskInput, piToolSourcePaths, resolveResumeExecution } from "./agents.ts";
@@ -159,8 +160,8 @@ function resolvePiInvocation(): { command: string; argsPrefix: string[] } {
   return { command: "pi", argsPrefix: [] };
 }
 
-function toolResult(text: string, details: unknown) {
-  return { content: [{ type: "text" as const, text }], details };
+function toolResult(text: string, details: unknown, usage?: Usage) {
+  return { content: [{ type: "text" as const, text }], details, ...(usage === undefined ? {} : { usage }) };
 }
 
 function isTerminal(status: RunStatus): boolean {
@@ -312,7 +313,8 @@ function launchCompletedResult(id: RunId, status: RunStatus, receipt: RunReceipt
   const text = receipt.kind === "agent"
     ? taskCompletionResultText(id, status, receipt, store)
     : shellResultText(id, status, store);
-  return toolResult(text, { ...receipt, runId: id, status, attempt: status.attempt, completed: isTerminal(status) });
+  const usage = receipt.kind === "agent" && isTerminal(status) ? store.usage(id, status.attempt) : undefined;
+  return toolResult(text, { ...receipt, runId: id, status, attempt: status.attempt, completed: isTerminal(status) }, usage);
 }
 
 async function waitForLaunch(
@@ -377,7 +379,8 @@ async function executeTask(
     await store.interrupt(command.id);
     const status = await store.status(command.id);
     throwIfFailedStatus(status, "Task");
-    return toolResult(`Interrupt requested for ${command.id}. Current status: ${describeStatus(status)}.`, { runId: command.id, status, completed: isTerminal(status) });
+    const usage = isTerminal(status) ? store.usage(command.id, status.attempt) : undefined;
+    return toolResult(`Interrupt requested for ${command.id}. Current status: ${describeStatus(status)}.`, { runId: command.id, status, completed: isTerminal(status) }, usage);
   }
 
   const storage = parentSessionStorage(ctx);
@@ -542,7 +545,8 @@ async function executeAwait(params: AwaitParameters | SubagentAwaitParameters, s
         transcript,
         outputLog,
       };
-  return toolResult(text, details);
+  const usage = isTerminal(status) ? store.usage(id, status.attempt) : undefined;
+  return toolResult(text, details, usage);
 }
 
 function goalDisplay(goal: GoalState): string {
