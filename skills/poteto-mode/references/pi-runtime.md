@@ -20,7 +20,7 @@ Loading `/skill:poteto-mode`, or a pstack skill whose steps launch agents, autho
 | `Task({resume: agent_id, ...})` | Continue an existing agent. Include its current task details and standing orders in the new prompt. |
 | `Task({resume: agent_id, interrupt: true})` | Stop an agent. |
 | `SubagentAwait({agent_id, timeout_ms})` | Wait for an agent. Use `timeout_ms: 0` for a status probe. A timeout does not stop the agent. |
-| `Shell({command, is_background, output_notification})` | Run a shell command. Set both background fields to receive a wake on a matching output line and another when the command exits. |
+| `Shell({command, is_background, output_notification})` | Run a shell command. `output_notification` accepts a regex string or `{pattern, reason?, debounce?, notification_limit?}` with patterns up to 500 characters; debounce is in seconds with a five-second default and minimum, and the notification limit defaults to 100. Set both background fields to receive a wake on a matching output line and another when the command exits. |
 | `Await({task_id, block_until_ms?, regex?})` | Wait for a Shell task, an agent, or a matching Shell output line. A timeout does not stop the run. |
 | `CreateGoal({objective})` | Create the current conversation branch's goal. It requires an interactive TUI or RPC session. |
 | `UpdateGoal({status})` | Set the goal to `ACTIVE`, `PAUSED`, `COMPLETE`, or `CLEARED`. `/goal` shows the current goal. |

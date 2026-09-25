@@ -26,6 +26,7 @@ import {
   launchEntriesFromBranch,
   MAX_SHELL_TIMEOUT_MS,
   parseShellInput,
+  ShellOutputNotificationInputSchema,
   recordLaunch,
   runDirectoryForSession,
   type AwaitResult,
@@ -67,7 +68,7 @@ const ShellParameters = Type.Object({
   working_directory: Type.Optional(Type.String()),
   timeout: Type.Optional(Type.Integer({ minimum: 1, maximum: MAX_SHELL_TIMEOUT_MS })),
   is_background: Type.Optional(Type.Boolean()),
-  output_notification: Type.Optional(Type.String({ maxLength: 1024 })),
+  output_notification: Type.Optional(ShellOutputNotificationInputSchema),
   hard_timeout: Type.Optional(Type.Integer({ minimum: 1, maximum: MAX_SHELL_TIMEOUT_MS })),
 }, { additionalProperties: false });
 
@@ -216,14 +217,21 @@ function notifyRun(pi: ExtensionAPI, notification: RunNotification, ctx: Extensi
   const heading = notification.event === "running"
     ? `${notification.kind === "agent" ? "Task" : "Shell"} ${notification.id} is still running.`
     : notification.event === "output"
-      ? `Shell ${notification.id} matched output line ${notification.line?.sequence ?? "?"}: ${notification.line?.line ?? ""}`
-      : `${notification.kind === "agent" ? "Task" : "Shell"} ${notification.id} ${describeStatus(notification.status)}.`;
+      ? notification.matchCount === 1
+        ? `Shell ${notification.id} matched output line ${notification.line.sequence}: ${notification.line.line}`
+        : `Shell ${notification.id} matched ${notification.matchCount} output lines (lines ${notification.firstSequence}-${notification.line.sequence}). Latest: ${notification.line.line}`
+      : notification.event === "output-limit"
+        ? `Shell ${notification.id} matched /${notification.pattern}/ ${notification.limit} times and reached the output notification limit. No further notifications will be sent for this pattern.`
+        : `${notification.kind === "agent" ? "Task" : "Shell"} ${notification.id} ${describeStatus(notification.status)}.`;
+  const transcript = "transcript" in notification ? notification.transcript : undefined;
+  const reason = notification.event === "output" || notification.event === "output-limit" ? notification.reason : undefined;
   const references = [
-    notification.transcript ? `Transcript: ${notification.transcript}` : undefined,
+    transcript ? `Transcript: ${transcript}` : undefined,
+    reason?.trim() ? `Reason: ${reason}` : undefined,
     notification.outputLog ? `Output log: ${notification.outputLog}` : undefined,
     notification.event === "completed" && notification.text
-      ? notification.kind === "agent" && notification.transcript
-        ? boundedTaskOutput(notification.text, notification.transcript)
+      ? notification.kind === "agent" && transcript
+        ? boundedTaskOutput(notification.text, transcript)
         : notification.text
       : undefined,
   ].filter((value): value is string => value !== undefined);
@@ -237,7 +245,9 @@ function notifyRun(pi: ExtensionAPI, notification: RunNotification, ctx: Extensi
       attempt: notification.attempt,
       event: notification.event,
       status: notification.status,
-      sequence: notification.line?.sequence,
+      sequence: notification.event === "output" ? notification.line.sequence : undefined,
+      firstSequence: notification.event === "output" ? notification.firstSequence : undefined,
+      matchCount: notification.event === "output" ? notification.matchCount : undefined,
     },
   }, { triggerTurn: true, ...(ctx.isIdle() ? {} : { deliverAs: "followUp" as const }) });
 }
@@ -535,6 +545,14 @@ function latestStatusText(result: AwaitResult): string {
   return describeStatus(result.status);
 }
 
+function subagentAwaitText(id: RunId, result: AwaitResult, store: RunStore): string {
+  const transcript = store.transcript(id);
+  const heading = `Task ${id}: ${latestStatusText(result)}. Transcript: ${transcript}`;
+  if (!isTerminal(result.status)) return heading;
+  const excerpt = boundedTaskOutput(store.finalOutput(id), transcript);
+  return excerpt ? `${heading}\n\n${excerpt}` : heading;
+}
+
 async function executeAwait(params: AwaitParameters | SubagentAwaitParameters, signal: AbortSignal | undefined): Promise<ReturnType<typeof toolResult>> {
   const subagentAwait = "timeout_ms" in params;
   const isAgent = "agent_id" in params;
@@ -553,7 +571,7 @@ async function executeAwait(params: AwaitParameters | SubagentAwaitParameters, s
   const transcript = isAgent ? store.transcript(id) : undefined;
   const outputLog = isAgent ? undefined : store.outputLog(id);
   const text = subagentAwait
-    ? `Task ${id}: ${latestStatusText(result)}. Transcript: ${store.transcript(id)}`
+    ? subagentAwaitText(id, result, store)
     : `${isAgent ? "Task" : "Shell"} ${id}: ${latestStatusText(result)}${transcript ? `. Transcript: ${transcript}` : `. Output log: ${outputLog}`}`;
   const details = subagentAwait
     ? { agent_id: id, runId: id, status, transcript: store.transcript(id), completed }

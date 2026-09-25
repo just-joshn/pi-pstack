@@ -203,6 +203,62 @@ describe("model scope", () => {
     expect(() => parseModelScope({ modelScope: { enforce: true, allow: ["model", 4] } })).toThrow("allow must contain only strings");
   });
 
+  test("fails closed on non-ENOENT reads and names the model-scope file", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "custom-agent-dir");
+    const cwd = path.join(root, "project");
+    const configPath = path.join(agentDir, "extensions", "pstack-agents.json");
+    mkdirSync(configPath, { recursive: true });
+    const load = () => loadTaskContext({
+      cwd,
+      projectTrusted: false,
+      depth: 0,
+      nestingAllowed: false,
+      activeTools: [],
+      allTools: [],
+    }, agentDir);
+
+    expect(load).toThrow(configPath);
+  });
+
+  test("rejects a wrongly shaped modelScope key and names the model-scope file", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "custom-agent-dir");
+    const cwd = path.join(root, "project");
+    const configPath = path.join(agentDir, "extensions", "pstack-agents.json");
+    mkdirSync(path.dirname(configPath), { recursive: true });
+    writeFileSync(configPath, JSON.stringify({ modelScope: [] }));
+    const load = () => loadTaskContext({
+      cwd,
+      projectTrusted: false,
+      depth: 0,
+      nestingAllowed: false,
+      activeTools: [],
+      allTools: [],
+    }, agentDir);
+
+    expect(load).toThrow(configPath);
+  });
+
+  test("names the file when model-scope JSON is invalid", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "custom-agent-dir");
+    const cwd = path.join(root, "project");
+    const configPath = path.join(agentDir, "extensions", "pstack-agents.json");
+    mkdirSync(path.dirname(configPath), { recursive: true });
+    writeFileSync(configPath, "{");
+    const load = () => loadTaskContext({
+      cwd,
+      projectTrusted: false,
+      depth: 0,
+      nestingAllowed: false,
+      activeTools: [],
+      allTools: [],
+    }, agentDir);
+
+    expect(load).toThrow(`Invalid JSON in ${configPath}`);
+  });
+
   test("loads model scope from pstack-agents.json and ignores settings.json", () => {
     const root = tempRoot();
     const agentDir = path.join(root, "configured-agent");

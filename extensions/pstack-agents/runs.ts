@@ -2,6 +2,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
+import { Type, type Static } from "typebox";
+import { Value } from "typebox/value";
 import type { ExtensionAPI, SessionEntry } from "@earendil-works/pi-coding-agent";
 import type { Usage } from "@earendil-works/pi-ai";
 import { parseRunId, parseRunStatus, parseRunnerJsonl, type RunId, type RunStatus, type ShellLine } from "./contracts.ts";
@@ -12,6 +14,20 @@ import { compileSafeRegex, regexMatchesLine } from "./regex-safety.js";
 export const RUN_ENTRY_TYPE = "pstack-agents/run";
 export const NOTIFICATION_TYPE = "pstack-agents/notice";
 export const MAX_SHELL_TIMEOUT_MS = 604800000;
+
+const ShellOutputNotificationConfigSchema = Type.Object({
+  pattern: Type.String({ maxLength: 500 }),
+  reason: Type.Optional(Type.String()),
+  debounce: Type.Optional(Type.Number({ minimum: 0 })),
+  notification_limit: Type.Optional(Type.Integer({ minimum: 1 })),
+}, { additionalProperties: false });
+type ShellOutputNotificationSettings = Static<typeof ShellOutputNotificationConfigSchema>;
+export const ShellOutputNotificationInputSchema = Type.Union([
+  Type.String({ maxLength: 500 }),
+  ShellOutputNotificationConfigSchema,
+]);
+export type ShellOutputNotificationInput = Static<typeof ShellOutputNotificationInputSchema>;
+export type ShellOutputNotificationConfig = Omit<ShellOutputNotificationSettings, "notification_limit"> & { notificationLimit: number };
 
 export type ParentOwner = {
   sessionId: string;
@@ -31,7 +47,7 @@ export type ShellRunRequest = {
   kind: "shell";
   command: string;
   cwd: string;
-  outputNotification?: string;
+  outputNotification?: ShellOutputNotificationConfig;
   timeout?: number;
   hardTimeout?: number;
 };
@@ -42,7 +58,7 @@ export type ShellToolInput = {
   timeout?: number;
   hard_timeout?: number;
   is_background?: boolean;
-  output_notification?: string;
+  output_notification?: ShellOutputNotificationInput;
 };
 
 export type ParsedShellInput = { request: ShellRunRequest; runInBackground: boolean };
@@ -94,11 +110,22 @@ export function parseShellInput(input: unknown, cwd: string): ParsedShellInput {
     }
     return value;
   };
-  let outputNotification: string | undefined;
+  let outputNotification: ShellOutputNotificationConfig | undefined;
   if (input.output_notification !== undefined) {
-    if (typeof input.output_notification !== "string") throw new Error("Shell output_notification must be a regular expression string");
-    compileSafeRegex(input.output_notification, "Shell output_notification");
-    outputNotification = input.output_notification;
+    let parsed: ShellOutputNotificationInput;
+    try {
+      parsed = Value.Parse(ShellOutputNotificationInputSchema, input.output_notification);
+    } catch {
+      throw new Error("Shell output_notification must be a regex string or an object with a pattern of 500 characters or fewer");
+    }
+    const config: ShellOutputNotificationSettings = typeof parsed === "string" ? { pattern: parsed } : parsed;
+    compileSafeRegex(config.pattern, "Shell output_notification");
+    outputNotification = {
+      pattern: config.pattern,
+      ...(config.reason === undefined ? {} : { reason: config.reason }),
+      ...(config.debounce === undefined ? {} : { debounce: config.debounce }),
+      notificationLimit: config.notification_limit ?? 100,
+    };
   }
   if (input.is_background !== undefined && typeof input.is_background !== "boolean") throw new Error("Shell is_background must be a boolean");
   return {
@@ -124,18 +151,33 @@ export type AwaitResult =
   | { state: "timeout"; id: RunId; status: RunStatus }
   | { state: "detached"; id: RunId; status: RunStatus };
 
-export type RunNotification = {
+type RunNotificationBase = {
   notificationId: string;
   id: RunId;
   attempt: number;
-  kind: "agent" | "shell";
-  event: "running" | "output" | "completed";
   status: RunStatus;
-  line?: ShellLine;
-  text?: string;
-  transcript?: string;
-  outputLog?: string;
 };
+
+export type RunNotification =
+  | (RunNotificationBase & { kind: "agent" | "shell"; event: "running"; transcript?: string; outputLog?: string })
+  | (RunNotificationBase & {
+      kind: "shell";
+      event: "output";
+      line: ShellLine;
+      firstSequence: number;
+      matchCount: number;
+      reason?: string;
+      outputLog: string;
+    })
+  | (RunNotificationBase & {
+      kind: "shell";
+      event: "output-limit";
+      pattern: string;
+      limit: number;
+      reason?: string;
+      outputLog: string;
+    })
+  | (RunNotificationBase & { kind: "agent" | "shell"; event: "completed"; text?: string; transcript?: string; outputLog?: string });
 
 export type RunStore = {
   idForRequestKey(requestKey: string): RunId;
@@ -336,19 +378,37 @@ export function completedRunAttempts(branch: readonly SessionEntry[]): Set<strin
   return attempts;
 }
 
-function parseRunNotificationRegex(requestPath: string): RegExp | undefined {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(fs.readFileSync(requestPath, "utf8"));
-  } catch {
-    return undefined;
+type ShellOutputNotice =
+  | { kind: "matches"; firstSequence: number; lastSequence: number; count: number; line: ShellLine; reason?: string }
+  | { kind: "limit"; pattern: string; limit: number; reason?: string };
+
+function parseShellOutputNotice(event: Record<string, unknown>): ShellOutputNotice | undefined {
+  if (event.type !== "shell-output-notification") return undefined;
+  if (event.reason !== undefined && typeof event.reason !== "string") return undefined;
+  const reason = event.reason;
+  if (event.kind === "matches") {
+    const line = event.line;
+    if (!isRecord(line) || !Number.isSafeInteger(line.sequence) || Number(line.sequence) < 1) return undefined;
+    if (line.stream !== "stdout" && line.stream !== "stderr") return undefined;
+    if (typeof line.line !== "string") return undefined;
+    if (!Number.isSafeInteger(event.firstSequence) || Number(event.firstSequence) < 1) return undefined;
+    if (!Number.isSafeInteger(event.lastSequence) || Number(event.lastSequence) !== Number(line.sequence)) return undefined;
+    if (!Number.isSafeInteger(event.count) || Number(event.count) < 1 || Number(event.firstSequence) > Number(event.lastSequence)) return undefined;
+    return {
+      kind: "matches",
+      firstSequence: Number(event.firstSequence),
+      lastSequence: Number(event.lastSequence),
+      count: Number(event.count),
+      line: { sequence: Number(line.sequence), stream: line.stream, line: line.line },
+      ...(reason === undefined ? {} : { reason }),
+    };
   }
-  if (!isRecord(raw) || !isRecord(raw.request) || raw.request.kind !== "shell" || typeof raw.request.outputNotification !== "string") return undefined;
-  try {
-    return compileSafeRegex(raw.request.outputNotification, "Shell output_notification");
-  } catch {
-    return undefined;
+  if (event.kind === "limit") {
+    if (typeof event.pattern !== "string" || event.pattern.length > 500) return undefined;
+    if (!Number.isSafeInteger(event.limit) || Number(event.limit) < 1) return undefined;
+    return { kind: "limit", pattern: event.pattern, limit: Number(event.limit), ...(reason === undefined ? {} : { reason }) };
   }
+  return undefined;
 }
 
 function parentRunFromEnvironment(): RunnerRequest["parentRun"] {
@@ -481,20 +541,36 @@ export function createRunStore(options: StoreOptions): RunStore {
       }
 
       if (launch.requestKind === "shell" && launch.runInBackground) {
-        const regex = parseRunNotificationRegex(runnerRequestPath(directory, launch.attempt));
-        if (regex) {
-          for (const line of readRecords(directory).shellLines) {
-            if (!regexMatchesLine(regex, line.line)) continue;
-            const notificationId = `${launch.id}:${launch.attempt}:line:${line.sequence}`;
+        const outputLog = output ?? path.join(directory, "output.log");
+        for (const event of readRecords(directory).messages) {
+          const notice = parseShellOutputNotice(event);
+          if (!notice) continue;
+          if (notice.kind === "matches") {
             emitNotification({
-              notificationId,
+              notificationId: `${launch.id}:${launch.attempt}:output:${notice.firstSequence}-${notice.lastSequence}`,
               id: launch.id,
               attempt: launch.attempt,
               kind: "shell",
               event: "output",
               status,
-              line,
-              outputLog: output,
+              line: notice.line,
+              firstSequence: notice.firstSequence,
+              matchCount: notice.count,
+              reason: notice.reason,
+              outputLog,
+            }, delivered, notify);
+          } else {
+            emitNotification({
+              notificationId: `${launch.id}:${launch.attempt}:output-limit`,
+              id: launch.id,
+              attempt: launch.attempt,
+              kind: "shell",
+              event: "output-limit",
+              status,
+              pattern: notice.pattern,
+              limit: notice.limit,
+              reason: notice.reason,
+              outputLog,
             }, delivered, notify);
           }
         }

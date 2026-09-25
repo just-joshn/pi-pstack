@@ -2,8 +2,8 @@
 name: make-bot-ui
 description: >-
   Use when building a custom UI (page, dashboard, buttons) that should wake a
-  local Pi bot session with a JSON event, when the bot needs a credential the
-  agent must never see, or when exposing that UI on Tailscale.
+  local Pi bot session with a JSON event, when a routine needs a server-side
+  credentialed action the bot must not access, or when exposing that UI on Tailscale.
 disable-model-invocation: true
 metadata:
   display-name: Make Bot UI
@@ -35,23 +35,31 @@ cd "$BOT" && pi --print --session-dir "$BOT/sessions" --session-id "<slug>" "$(c
 </webhook_event>"
 ```
 
-Pass the prompt as one argv element from the server's process API, never through a shell string built from the body. Run one wake at a time per routine. Take an exclusive lock on `$BOT/wake.lock` before each run, since two runs on one session file corrupt it. A wake is headless. Keep Task calls in the foreground so each call waits for its child. Do not call `CreateGoal`, which requires an interactive TUI or RPC session. Add `--tools` to restrict the bot to the tools the routine needs. Give each run a timeout of 10 minutes and one try, no retry.
+Pass the prompt as one argv element from the server's process API, never through a shell string built from the body. Run one wake at a time per routine. Take an exclusive lock on `$BOT/wake.lock` before each run, since two runs on one session file corrupt it. A wake is headless. Keep Task calls in the foreground so each call waits for its child. Do not call `CreateGoal`, which requires an interactive TUI or RPC session. Pass an explicit `--tools` allowlist for the tools the routine needs. For credentialed routines, exclude `bash` and `Shell` so the bot cannot invoke the credential store. Give each run a timeout of 10 minutes and one try, no retry.
 
 The server returns HTTP 202 as soon as the event is queued. It does not wait for the bot. Before you tell the user the UI is live, probe once with a harmless payload. Use an action that the prompt ignores. Confirm a new entry in the session file under `$BOT/sessions/`.
 
 If a wake can fail, append the same JSON to `$BOT/inbox.jsonl` and let the next wake drain it. Do not poll as the primary path. Do not send media bytes in the event. Save media to `$BOT/media/` and send the path.
 
-## Hand the bot a secret
+## Keep a credential server-side
 
-Some routines need a credential, such as an API token. Do not accept it in chat. Do not read it back once stored.
+Some routines need a credential, such as an API token. Do not accept it in chat or ask the user to reveal it.
 
-Tell the user to run this in their own terminal:
+Tell the user to store it in their OS credential store:
+
+macOS:
 
 ```bash
-agent_dir="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" && mkdir -p "$agent_dir/pstack/bots/<slug>" && read -rs -p 'secret: ' v && printf '%s' "$v" > "$agent_dir/pstack/bots/<slug>/secret" && chmod 600 "$agent_dir/pstack/bots/<slug>/secret" && unset v
+security add-generic-password -a "<slug>" -s pstack-bot -w
 ```
 
-The server reads the file and passes the value to the bot run as an environment variable, never in the prompt. Do not print the value. Do not log the value. Do not `cat` the file.
+Linux:
+
+```bash
+secret-tool store --label="pstack-bot" service pstack-bot account "<slug>"
+```
+
+Name one fixed, narrow action in `routine.md`, including its allowed inputs and API operation. The local page server validates that action, retrieves the credential with `security find-generic-password -a "<slug>" -s pstack-bot -w` on macOS or `secret-tool lookup service pstack-bot account "<slug>"` on Linux through its process API, and performs that request itself. Capture the credential in memory only; do not invoke the lookup through a shell string or log its output. Event fields must not select arbitrary URLs, methods, or headers. Return only the minimum nonsensitive action result to the bot; the credential never enters its environment, arguments, event, files, or output.
 
 ## Host the page on this computer
 
