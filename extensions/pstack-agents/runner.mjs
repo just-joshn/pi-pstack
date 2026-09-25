@@ -438,13 +438,16 @@ function runAgent(request, runDirectory, record, finish) {
 
 function runShell(request, runDirectory, record, finish, registerStop) {
   const shell = request.request;
+  const notificationSettings = shell.outputNotification;
   let notification;
   try {
-    notification = shell.outputNotification ? compileSafeRegex(shell.outputNotification, "Shell output_notification") : undefined;
+    notification = notificationSettings ? compileSafeRegex(notificationSettings.pattern, "Shell output_notification") : undefined;
   } catch (error) {
     finish(statusFailed(request, 1, "error", error instanceof Error ? error.message : String(error)), "");
     return undefined;
   }
+  const notificationLimit = notificationSettings?.notificationLimit ?? 100;
+  const debounceMs = Math.min(2_147_483_647, Math.max(5000, Math.ceil(1000 * (notificationSettings?.debounce ?? 5))));
   const child = spawn(shell.command, { cwd: shell.cwd, shell: true, detached: true, stdio: ["ignore", "pipe", "pipe"] });
   let lineSequence = 0;
   let interrupted = false;
@@ -456,13 +459,78 @@ function runShell(request, runDirectory, record, finish, registerStop) {
   const outputDescriptor = fs.openSync(outputPath, "a", 0o600);
   const timers = [];
   let killTimer;
+  let matchedOccurrences = 0;
+  let pendingBatch;
+  let notificationTimer;
+
+  const recordNotificationBatch = (batch) => {
+    const configReason = notificationSettings?.reason;
+    record({
+      type: "message",
+      event: {
+        type: "shell-output-notification",
+        kind: "matches",
+        firstSequence: batch.firstSequence,
+        lastSequence: batch.line.sequence,
+        count: batch.count,
+        line: batch.line,
+        ...(configReason === undefined ? {} : { reason: configReason }),
+      },
+    });
+  };
+
+  const flushPendingBatch = () => {
+    if (notificationTimer !== undefined) {
+      clearTimeout(notificationTimer);
+      notificationTimer = undefined;
+    }
+    const batch = pendingBatch;
+    pendingBatch = undefined;
+    if (batch) recordNotificationBatch(batch);
+  };
+
+  const recordLimitNotice = () => {
+    const configReason = notificationSettings?.reason;
+    record({
+      type: "message",
+      event: {
+        type: "shell-output-notification",
+        kind: "limit",
+        pattern: notificationSettings.pattern,
+        limit: notificationLimit,
+        ...(configReason === undefined ? {} : { reason: configReason }),
+      },
+    });
+  };
+
+  const queueMatch = (line) => {
+    if (!notification || !notificationSettings || matchedOccurrences >= notificationLimit || !regexMatchesLine(notification, line.line)) return;
+    matchedOccurrences += 1;
+    if (matchedOccurrences === 1) {
+      recordNotificationBatch({ firstSequence: line.sequence, count: 1, line });
+      if (matchedOccurrences === notificationLimit) recordLimitNotice();
+      return;
+    }
+    if (pendingBatch) {
+      pendingBatch.line = line;
+      pendingBatch.count += 1;
+    } else {
+      pendingBatch = { firstSequence: line.sequence, count: 1, line };
+    }
+    if (matchedOccurrences === notificationLimit) {
+      flushPendingBatch();
+      recordLimitNotice();
+    } else if (notificationTimer === undefined) {
+      notificationTimer = setTimeout(flushPendingBatch, debounceMs);
+    }
+  };
 
   const emitLine = (stream, line) => {
-    const matches = notification ? regexMatchesLine(notification, line) : false;
     const lineEvent = { type: "shell-line", lineSequence: ++lineSequence, stream, line };
-    record({ ...lineEvent, notificationMatch: matches });
+    record(lineEvent);
     fs.writeFileSync(outputDescriptor, `${line}\n`);
     fs.fsyncSync(outputDescriptor);
+    queueMatch({ sequence: lineEvent.lineSequence, stream, line });
   };
 
   const consume = (stream, chunk) => {
@@ -514,6 +582,7 @@ function runShell(request, runDirectory, record, finish, registerStop) {
       buffers[stream] += decoders[stream].end();
       if (buffers[stream]) emitLine(stream, buffers[stream]);
     }
+    flushPendingBatch();
     fs.fsyncSync(outputDescriptor);
     fs.closeSync(outputDescriptor);
     if (interrupted) return finish(statusStopped(request, signal ?? "SIGTERM"), fs.readFileSync(outputPath, "utf8"));

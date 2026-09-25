@@ -358,6 +358,21 @@ describe("Shell timeout schema", () => {
     expect(parameters.properties?.hard_timeout?.maximum).toBe(604800000);
   });
 
+  test("accepts Shell output-notification shorthand and config objects with a 500-character pattern cap", () => {
+    const tools = new Map<string, { parameters: TSchema }>();
+    registerPstackAgents({ registerTool: (tool: { name: string; parameters: TSchema }) => tools.set(tool.name, tool), registerCommand: () => {}, on: () => {} } as never);
+    const shell = tools.get("Shell")?.parameters;
+    if (!shell) throw new Error("Shell was not registered");
+
+    expect(Value.Check(shell, { command: "printf READY", output_notification: "R".repeat(500) })).toBe(true);
+    expect(Value.Check(shell, {
+      command: "printf READY",
+      output_notification: { pattern: "R".repeat(500), reason: "watch release", debounce: 0.25, notification_limit: 2 },
+    })).toBe(true);
+    expect(Value.Check(shell, { command: "printf READY", output_notification: "R".repeat(501) })).toBe(false);
+    expect(Value.Check(shell, { command: "printf READY", output_notification: { pattern: "R".repeat(501) } })).toBe(false);
+  });
+
   test("Task accepts exactly Cursor's TaskToolCallArgs fields, with no Pi-only output file", () => {
     const tools = new Map<string, { parameters: TSchema }>();
     registerPstackAgents({ registerTool: (tool: { name: string; parameters: TSchema }) => tools.set(tool.name, tool), registerCommand: () => {}, on: () => {} } as never);
@@ -701,6 +716,50 @@ describe("headless Shell safety", () => {
       fs.rmSync(scratch, { recursive: true, force: true });
     }
   });
+});
+
+describe("Shell output notifications", () => {
+  test("coalesces matches within the debounce window and sends one limit notice with the output log", async () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-shell-notification-test-"));
+    const { tools, hooks, context, sentMessages } = failureHarness(scratch);
+    const shell = tools.get("Shell");
+    const awaitShell = tools.get("Await");
+    const sessionStart = hooks.get("session_start");
+    if (!shell || !awaitShell || !sessionStart) throw new Error("Missing Shell notification tools or lifecycle hook");
+    const reason = "watch release output";
+
+    try {
+      await sessionStart({}, context);
+      const started = await shell.execute("shell-notification", {
+        command: "printf 'MATCH\\nMATCH\\nMATCH\\n'; sleep 5.1; printf 'MATCH\\nMATCH\\n'",
+        is_background: true,
+        output_notification: { pattern: "MATCH", reason, debounce: 5, notification_limit: 4 },
+      }, undefined, undefined, context);
+      const startedText = started.content[0]?.text ?? "";
+      const taskId = /task_id: ([0-9a-f-]+)/i.exec(startedText)?.[1];
+      const outputLog = startedText.split("\n").find((line) => line.startsWith("Output log: "))?.slice("Output log: ".length);
+      if (!taskId || !outputLog) throw new Error("Background Shell did not return its id and output log");
+      await awaitShell.execute("await-shell-notification", { task_id: taskId, block_until_ms: 10000 }, undefined);
+
+      let notices: string[] = [];
+      for (let attempt = 0; attempt < 100; attempt++) {
+        notices = sentMessages.map((message) => String(message.content));
+        if (notices.some((notice) => notice.includes("No further notifications will be sent for this pattern."))) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const outputNotices = notices.filter((notice) => notice.includes(`Reason: ${reason}`));
+      expect(outputNotices).toHaveLength(4);
+      expect(outputNotices[0]).toContain("matched output line 1: MATCH");
+      expect(outputNotices[1]).toContain("matched 2 output lines (lines 2-3). Latest: MATCH");
+      expect(outputNotices[2]).toContain("matched output line 4: MATCH");
+      expect(outputNotices[3]).toContain("/MATCH/ 4 times");
+      expect(outputNotices[3]).toContain("No further notifications will be sent for this pattern.");
+      expect(outputNotices[3]).toContain(`Output log: ${outputLog}`);
+    } finally {
+      await hooks.get("session_shutdown")?.({}, context);
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  }, 15000);
 });
 
 describe("agent parse warnings", () => {

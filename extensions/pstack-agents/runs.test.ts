@@ -17,6 +17,7 @@ import {
   shouldNotify,
   type AgentRunRequest,
   type LaunchEntry,
+  type ShellOutputNotificationConfig,
   type RunNotification,
 } from "./runs.ts";
 import { parseAgentDefinition } from "./agents.ts";
@@ -208,7 +209,7 @@ function nextTestId(store: ReturnType<typeof createRunStore>) {
 
 function shellEntry(store: ReturnType<typeof createRunStore>, sessionFile: string, command: string, options: {
   background?: boolean;
-  outputNotification?: string;
+  outputNotification?: ShellOutputNotificationConfig;
   timeout?: number;
 } = {}): LaunchEntry {
   const launchOwner = owner(sessionFile, `shell-call-${nextTestId(store)}`);
@@ -269,12 +270,35 @@ describe("Shell request parsing", () => {
         kind: "shell",
         command: "printf READY",
         cwd: root,
-        outputNotification: "READY",
+        outputNotification: { pattern: "READY", notificationLimit: 100 },
         timeout: 1500,
         hardTimeout: 3000,
       },
       runInBackground: true,
     });
+  });
+
+  test("normalizes regex shorthand and Cursor output-notification settings", () => {
+    const root = testRoot();
+    expect(parseShellInput({ command: "printf READY", output_notification: "READY" }, root).request.outputNotification).toEqual({
+      pattern: "READY",
+      notificationLimit: 100,
+    });
+    expect(parseShellInput({
+      command: "printf READY",
+      output_notification: { pattern: "READY", reason: "watch release", debounce: 0.25, notification_limit: 7 },
+    }, root).request.outputNotification).toEqual({
+      pattern: "READY",
+      reason: "watch release",
+      debounce: 0.25,
+      notificationLimit: 7,
+    });
+  });
+
+  test("rejects output-notification patterns longer than 500 characters", () => {
+    const root = testRoot();
+    expect(() => parseShellInput({ command: "true", output_notification: "R".repeat(501) }, root)).toThrow("500 characters");
+    expect(() => parseShellInput({ command: "true", output_notification: { pattern: "R".repeat(501) } }, root)).toThrow("500 characters");
   });
 
   test("rejects empty commands, invalid and unsafe regexes, and nonexistent directories", () => {
@@ -415,7 +439,10 @@ describe("durable run store", () => {
   test("runs Shell detached, waits for a matching line and exit, and deduplicates acknowledged notices", async () => {
     const root = testRoot();
     const { sessionDir, sessionFile, branch, store, pi } = testHarness(root);
-    const entry = shellEntry(store, sessionFile, "printf 'READY\\n'; sleep 1; printf 'DONE\\n'", { background: true, outputNotification: "READY" });
+    const entry = shellEntry(store, sessionFile, "printf 'READY\\n'; sleep 1; printf 'DONE\\n'", {
+      background: true,
+      outputNotification: { pattern: "READY", notificationLimit: 100 },
+    });
     store.prepare(entry);
     recordLaunch(pi, entry);
     const notifications: RunNotification[] = [];
