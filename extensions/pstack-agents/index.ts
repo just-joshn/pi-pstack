@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type, type Static } from "typebox";
+import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, truncateHead, truncateTail } from "@earendil-works/pi-coding-agent";
 import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 import { createAgentParseWarningReporter, loadTaskContext, parseTaskInput, piToolSourcePaths, resolveResumeExecution } from "./agents.ts";
 import { parseRunId, type RunId, type RunStatus } from "./contracts.ts";
@@ -180,10 +181,26 @@ function describeStatus(status: RunStatus): string {
   }
 }
 
+function boundedTaskOutput(output: string, transcript: string): string {
+  const truncated = truncateHead(output, { maxLines: DEFAULT_MAX_LINES, maxBytes: DEFAULT_MAX_BYTES });
+  return truncated.truncated
+    ? `${truncated.content}\n\n[Output truncated. Full transcript: ${transcript}]`
+    : truncated.content;
+}
+
+function boundedShellOutput(output: string, outputLog: string): string {
+  const truncated = truncateTail(output, { maxLines: DEFAULT_MAX_LINES, maxBytes: DEFAULT_MAX_BYTES });
+  return truncated.truncated
+    ? `${truncated.content}\n\n[Output truncated. Full log: ${outputLog}]`
+    : truncated.content;
+}
+
 function shellResultText(id: RunId, status: RunStatus, store: RunStore): string {
   const output = store.outputText(id);
-  const heading = `Shell ${describeStatus(status)}. Output log: ${store.outputLog(id)}`;
-  return output ? `${heading}\n\n${output}` : heading;
+  const outputLog = store.outputLog(id);
+  const heading = `Shell ${describeStatus(status)}. Output log: ${outputLog}`;
+  const excerpt = boundedShellOutput(output, outputLog);
+  return excerpt ? `${heading}\n\n${excerpt}` : heading;
 }
 
 function taskReceiptText(receipt: RunReceipt): string {
@@ -204,7 +221,11 @@ function notifyRun(pi: ExtensionAPI, notification: RunNotification, ctx: Extensi
   const references = [
     notification.transcript ? `Transcript: ${notification.transcript}` : undefined,
     notification.outputLog ? `Output log: ${notification.outputLog}` : undefined,
-    notification.event === "completed" && notification.text ? notification.text : undefined,
+    notification.event === "completed" && notification.text
+      ? notification.kind === "agent" && notification.transcript
+        ? boundedTaskOutput(notification.text, notification.transcript)
+        : notification.text
+      : undefined,
   ].filter((value): value is string => value !== undefined);
   pi.sendMessage({
     customType: NOTIFICATION_TYPE,
@@ -424,7 +445,8 @@ async function executeTask(
 function taskResultTextFromStore(id: RunId, status: RunStatus, receipt: Extract<RunReceipt, { kind: "agent" }>, store: RunStore): string {
   const output = store.finalOutput(id);
   const heading = `Task ${describeStatus(status)}. Transcript: ${receipt.transcript}`;
-  return output ? `${heading}\n\n${output}` : heading;
+  const excerpt = boundedTaskOutput(output, receipt.transcript);
+  return excerpt ? `${heading}\n\n${excerpt}` : heading;
 }
 
 async function executeShell(

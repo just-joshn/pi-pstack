@@ -11,6 +11,7 @@ function failureHarness(scratch: string) {
   const tools = new Map<string, TestTool>();
   const hooks = new Map<string, (...args: unknown[]) => unknown>();
   const branch: Array<Record<string, unknown>> = [];
+  const sentMessages: Array<{ content: unknown }> = [];
   const pi = {
     registerTool: (tool: { name: string; execute: (...args: unknown[]) => Promise<ToolResult> }) => tools.set(tool.name, tool),
     registerCommand: () => {},
@@ -29,7 +30,7 @@ function failureHarness(scratch: string) {
       { name: "bash", sourceInfo: { path: "builtin" } },
       { name: "Task", sourceInfo: { path: path.join(scratch, "pstack-agents", "index.ts") } },
     ],
-    sendMessage: () => {},
+    sendMessage: (message: { content: unknown }) => sentMessages.push(message),
   };
   registerPstackAgents(pi as never);
   const context = {
@@ -49,7 +50,7 @@ function failureHarness(scratch: string) {
     },
     ui: { setStatus: () => {}, notify: () => {} },
   };
-  return { tools, hooks, branch, context };
+  return { tools, hooks, branch, context, sentMessages };
 }
 
 function latestRunId(branch: readonly Record<string, unknown>[]): string {
@@ -203,6 +204,92 @@ describe("tool execution failures", () => {
       await hooks.get("session_shutdown")?.({}, context);
       if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
       else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("bounded run output", () => {
+  test("truncates Task, completed Task notices, and Shell output with full artifact paths", async () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-bounded-output-test-"));
+    const agentDir = path.join(scratch, "agent");
+    const agentDirectory = path.join(agentDir, "agents");
+    const fakePi = path.join(scratch, "fake-pi.mjs");
+    fs.mkdirSync(agentDirectory, { recursive: true });
+    fs.writeFileSync(path.join(agentDirectory, "output-agent.md"), [
+      "---",
+      "name: output-agent",
+      "description: Bounded output fixture",
+      "tools: read",
+      "inheritProjectContext: false",
+      "inheritGlobalContext: false",
+      "inheritSkills: false",
+      "---",
+      "Print the result.",
+    ].join("\n"));
+    fs.writeFileSync(fakePi, [
+      'const output = Array.from({ length: 2500 }, (_, index) => `TASK_LINE_${String(index + 1).padStart(4, "0")}`).join("\\n");',
+      'const message = { role: "assistant", content: [{ type: "text", text: output }], stopReason: "end" };',
+      'process.stdout.write(`${JSON.stringify({ type: "message_end", message })}\\n`);',
+    ].join("\n"));
+    const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+    const previousArgv1 = process.argv[1];
+    process.env.PI_CODING_AGENT_DIR = agentDir;
+    process.argv[1] = fakePi;
+    const { tools, hooks, context, sentMessages } = failureHarness(scratch);
+    const sessionStart = hooks.get("session_start");
+    if (!sessionStart) throw new Error("Missing session_start handler");
+
+    try {
+      await sessionStart({}, context);
+      const task = tools.get("Task");
+      const shell = tools.get("Shell");
+      if (!task || !shell) throw new Error("Missing run tool");
+
+      const taskResult = await task.execute("large-task", {
+        description: "Print many lines",
+        prompt: "Return the generated output.",
+        subagent_type: "output-agent",
+      }, undefined, undefined, context);
+      const taskText = taskResult.content[0]?.text ?? "";
+      const transcript = /Transcript: ([^\n]+)/.exec(taskText)?.[1];
+      if (!transcript) throw new Error("Task result did not include a transcript path");
+      expect(taskText).toContain("TASK_LINE_0001");
+      expect(taskText).not.toContain("TASK_LINE_2500");
+      expect(taskText).toContain(`[Output truncated. Full transcript: ${transcript}]`);
+
+      const backgroundResult = await task.execute("large-background-task", {
+        description: "Print many lines in background",
+        prompt: "Return the generated output.",
+        subagent_type: "output-agent",
+        run_in_background: true,
+      }, undefined, undefined, context);
+      const backgroundText = backgroundResult.content[0]?.text ?? "";
+      const backgroundTranscript = /Transcript: ([^\n]+)/.exec(backgroundText)?.[1];
+      if (!backgroundTranscript) throw new Error("Background Task receipt did not include a transcript path");
+      let notificationText = "";
+      for (let attempt = 0; attempt < 100; attempt++) {
+        notificationText = sentMessages.map((message) => String(message.content)).join("\n");
+        if (notificationText.includes(`[Output truncated. Full transcript: ${backgroundTranscript}]`)) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(notificationText).toContain(`[Output truncated. Full transcript: ${backgroundTranscript}]`);
+      expect(notificationText).not.toContain("TASK_LINE_2500");
+
+      const shellResult = await shell.execute("large-shell", {
+        command: `i=1; while [ "$i" -le 2500 ]; do printf 'SHELL_LINE_%04d\\n' "$i"; i=$((i + 1)); done`,
+      }, undefined, undefined, context);
+      const shellText = shellResult.content[0]?.text ?? "";
+      const outputLog = /Output log: ([^\n]+)/.exec(shellText)?.[1];
+      if (!outputLog) throw new Error("Shell result did not include an output log path");
+      expect(shellText).not.toContain("SHELL_LINE_0001");
+      expect(shellText).toContain("SHELL_LINE_2500");
+      expect(shellText).toContain(`[Output truncated. Full log: ${outputLog}]`);
+    } finally {
+      await hooks.get("session_shutdown")?.({}, context);
+      if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+      else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+      process.argv[1] = previousArgv1;
       fs.rmSync(scratch, { recursive: true, force: true });
     }
   });
@@ -448,12 +535,16 @@ describe("no-session runs", () => {
       }, undefined, undefined, context);
       expect(task?.content[0]?.text).toContain("TASK_OK");
       expect(task?.content[0]?.text).toContain(tempRunRoot);
+      expect(task?.content[0]?.text).toMatch(/Transcript: .+session\.jsonl/);
+      expect(task?.content[0]?.text).not.toContain("[Output truncated.");
 
       const shell = await tools.get("Shell")?.execute("shell-no-session", {
         command: "printf 'SHELL_OK\\n'",
       }, undefined, undefined, context);
       expect(shell?.content[0]?.text).toContain("SHELL_OK");
       expect(shell?.content[0]?.text).toContain(tempRunRoot);
+      expect(shell?.content[0]?.text).toMatch(/Output log: .+output\.log/);
+      expect(shell?.content[0]?.text).not.toContain("[Output truncated.");
     } finally {
       await hooks.get("session_shutdown")?.({}, context);
       for (const entry of branch) {
