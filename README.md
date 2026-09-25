@@ -38,7 +38,7 @@ The other skills are situational. poteto-mode loads them when a playbook calls f
 | `extensions/pstack-mode.ts` | Sticky poteto-mode (Cursor's `mode: true` and `reminder:`), the footer badge, and `/poteto`. |
 | `extensions/questionnaire.ts` | The `questionnaire` tool, Pi's form of Cursor's `AskQuestion`. |
 | `extensions/todo.ts` | The `todo` tool and `/todos`, Pi's form of Cursor's `TodoWrite`. |
-| `extensions/pstack-guards.ts` | Guards that block a background polling loop in `bash`, block edits to installed skills unless you asked for them, and keep Task children other than `poteto-agent` out of the poteto-mode playbooks. |
+| `extensions/pstack-guards.ts` | Guards that block a background polling loop in `bash`, block `write` and `edit` calls on installed skills unless you asked for the edit, and keep Task children other than `poteto-agent` out of the poteto-mode playbooks. |
 | `docs/`, `automations/`, `assets/` | Upstream files, unchanged. |
 
 ## How Pi differs from Cursor
@@ -47,9 +47,9 @@ Pi has no built-in subagent, background shell, goal, or question tools. The `pst
 
 - Skills run as `/skill:<name>`, not `/<name>`.
 - `Task` runs in the foreground unless `run_in_background` is true or the agent file sets `is_background: true`. A background run keeps going when Pi quits, and its completion notice arrives once after you resume the session. A foreground run stops when its session shuts down.
-- A Cursor cloud agent runs locally in its own git worktree (`environment: "cloud"` with `cloud_base_branch`). `Task` refuses `machine` and `cloud_requested_environment_build_id` with an error, because Pi has no remote machines.
-- Subagent token usage and cost count toward the parent session's totals, once for each run attempt.
-- `pstack-guards.ts` and the model allow list are Pi additions. Cursor has neither.
+- A Cursor cloud agent runs locally in its own git worktree, which separates files but is not a sandbox (`environment: "cloud"` with `cloud_base_branch`). `Task` refuses `machine` and `cloud_requested_environment_build_id` with an error, because Pi has no remote machines.
+- Subagent token usage and cost reach the parent session's totals once for each run attempt, on the first `Task`, `SubagentAwait`, or `Await` result that sees the run finish successfully. A failed run, or a background run that you never wait on, is not counted.
+- `pstack-guards.ts` and the model allow list are Pi additions. Cursor has neither. The guards check tool calls. They are not a sandbox: a shell command can still write a skill file.
 
 ## Check the package
 

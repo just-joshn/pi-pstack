@@ -50,7 +50,7 @@
     ]
   },
   "scripts": {
-    "test": "bun test extensions parity/probes",
+    "test": "env -u PSTACK_AGENTS_DEPTH -u PSTACK_AGENTS_AGENT -u PSTACK_AGENTS_RUN_ID -u PSTACK_AGENTS_NESTING_ALLOWED -u PSTACK_AGENTS_PARENT_RUN_DIRECTORY -u PSTACK_AGENTS_PARENT_RUN_ATTEMPT bun test extensions parity/probes",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "parity": "node parity/check-parity.mjs && node parity/full-audit.mjs",
     "lint:package": "node parity/lint-package.mjs",

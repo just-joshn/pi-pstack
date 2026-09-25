@@ -8,7 +8,7 @@ Target: this repo as one Pi package, installed with `pi install <path>`, followi
 
 1. `node parity/check-parity.mjs` reports 0 problems and `node parity/full-audit.mjs` stays at or above the 98.896% floor, both reading this repo.
 2. Unit tests and `tsc --noEmit` pass from a fresh `npm ci`.
-3. `npm pack --dry-run` lists only manifest resources plus README, LICENSE, NOTICE, CHANGELOG.
+3. `npm pack --dry-run` lists only manifest resources, the upstream `docs/`, `automations/`, and `assets/` (shipped for parity with the Cursor plugin), and README, LICENSE, and CHANGELOG. No extension tests, `parity/`, or `node_modules`.
 4. `parity/lint-package.mjs` finds no absolute home paths and no `~/.pi/agent/{skills,extensions,agents}` references in shipped files.
 5. In an empty `PI_CODING_AGENT_DIR` holding only auth plus `pi install <repo>`, the RPC `get_commands` inventory equals the baseline taken from the loose install, startup has no resource diagnostics, and the smoke suite passes: foreground and background Task, SubagentAwait, Shell and Await, `/goal`, `/loop`, questionnaire, todo, the poteto footer, guards inside children, named-skill injection, readonly reader.
 6. The live `~/.pi/agent` runs on the package (loose copies moved to a backup), and the same smoke plus one focused autopilot run pass there.

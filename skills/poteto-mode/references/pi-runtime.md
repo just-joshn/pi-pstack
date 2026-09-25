@@ -16,7 +16,7 @@ Loading `/skill:poteto-mode`, or a pstack skill whose steps launch agents, autho
 | `model` | Pass a configured provider/model id and thinking suffix, such as `openai-codex/gpt-6-luna:max`. Omit `model` to use the parent model. See [Which model a spawn uses](#which-model-a-spawn-uses). |
 | `attachments` | Attach file paths as context. Pi includes each file in the child's first prompt. |
 | `environment: "local"` | Run in the current checkout. The agent can see its uncommitted state. |
-| `environment: "cloud"` | Run locally in an isolated managed worktree. Set `cloud_base_branch` to a named branch after fetching it, for example `origin/main`. Do not pass a raw SHA. |
+| `environment: "cloud"` | Run locally in a separate managed git worktree. The worktree separates files, not processes: it is not a sandbox, and the run keeps your shell, network, and credential access. Set `cloud_base_branch` to a named branch after fetching it, for example `origin/main`. Do not pass a raw SHA. |
 | `Task({resume: agent_id, ...})` | Continue an existing agent. Include its current task details and standing orders in the new prompt. |
 | `Task({resume: agent_id, interrupt: true})` | Stop an agent. |
 | `SubagentAwait({agent_id, timeout_ms})` | Wait for an agent. Use `timeout_ms: 0` for a status probe. A timeout does not stop the agent. |
