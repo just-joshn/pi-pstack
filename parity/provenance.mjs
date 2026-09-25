@@ -1,28 +1,23 @@
 #!/usr/bin/env node
-// Every file in the package must trace to this port (created in this repo, or the live port it was built from)
-// or to vendored upstream pstack 0.15.5. Prints files that trace only to the pre-0.15.5 pi-pstack tree.
+// Nothing may be carried over from the pre-package pi-pstack tree (335177c). A file fails when its bytes equal a blob
+// in that tree and no vendored upstream 0.15.5 file has the same bytes. Prints each failing path.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { lstatSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const REPO = new URL("..", import.meta.url).pathname;
-const LIVE = join(homedir(), ".pi/agent");
-const UP = join(REPO, "parity/upstream/0.15.5/pstack");
-const sources = (rel) => [
-  join(UP, rel),
-  join(LIVE, rel),
-  join(LIVE, "pstack", rel),
-  join(LIVE, "pstack/parity", rel.replace(/^parity\//, "").replace(/^probes\//, "round3-probes/")),
-  join(LIVE, "pstack/pstack-agents", rel),
-];
-const OURS = /^(package\.json|package-lock\.json|tsconfig\.json|\.gitignore|parity\/(PACKAGE-PLAN\.md|build-from-live\.mjs|provenance\.mjs|decisions-package\.tsv|harness\/|baseline\/|upstream\/))/;
-const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { cwd: REPO, encoding: "utf8" })
-  .split("\n").filter((f) => f && existsSync(join(REPO, f)));
-const oldOnly = files.filter((rel) => {
-  if (OURS.test(rel)) return false;
-  const body = readFileSync(join(REPO, rel));
-  return !sources(rel).some((src) => existsSync(src) && (rel.startsWith("skills/") || rel.startsWith("agents/") || rel.startsWith("extensions/") || rel.startsWith("parity/") || readFileSync(src).equals(body)));
-});
-for (const rel of oldOnly) console.log(rel);
-process.exitCode = oldOnly.length ? 1 : 0;
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+const OLD_TREE = "335177c";
+const git = (...args) => execFileSync("git", args, { cwd: REPO, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+const blobs = (treeish, prefix = "") => new Set(git("ls-tree", "-r", treeish, ...(prefix ? ["--", prefix] : [])).split("\n").filter(Boolean).map((line) => line.split(/\s+/)[2]));
+
+const isRegularFile = (path) => { try { return lstatSync(path).isFile(); } catch { return false; } };
+const oldBlobs = blobs(OLD_TREE);
+const files = git("ls-files", "--cached", "--others", "--exclude-standard").split("\n").filter((file) => file && isRegularFile(join(REPO, file)));
+const upstreamFiles = files.filter((file) => file.startsWith("parity/upstream/"));
+const upstreamBlobs = new Set(upstreamFiles.length ? git("hash-object", "--", ...upstreamFiles).split("\n").filter(Boolean) : []);
+const shipped = files.filter((file) => !file.startsWith("parity/upstream/"));
+const hashes = git("hash-object", "--", ...shipped).split("\n");
+const carried = shipped.filter((file, index) => oldBlobs.has(hashes[index]) && !upstreamBlobs.has(hashes[index]));
+for (const file of carried) console.log(file);
+process.exitCode = carried.length ? 1 : 0;

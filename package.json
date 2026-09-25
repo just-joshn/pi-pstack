@@ -34,6 +34,7 @@
     "automations",
     "assets",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "pi": {
@@ -53,7 +54,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "parity": "node parity/check-parity.mjs && node parity/full-audit.mjs",
     "lint:package": "node parity/lint-package.mjs",
-    "check": "npm run typecheck && npm test && npm run parity && npm run lint:package"
+    "check": "npm run typecheck && npm test && npm run parity && npm run lint:package && node parity/provenance.mjs"
   },
   "dependencies": {
     "commander": "14.0.0"
