@@ -72,6 +72,7 @@ export type TaskToolInput =
       environment?: "local" | "cloud";
       cloud_base_branch?: string;
       machine?: unknown;
+      cloud_requested_environment_build_id?: unknown;
       interrupt?: false;
       output?: string;
     };
@@ -390,6 +391,9 @@ function resolveOutput(output: string | undefined, cwd: string): string | undefi
 
 export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext): TaskCommand {
   if ("machine" in input && input.machine !== undefined) throw new Error("Task.machine is not supported on Pi.");
+  if ("cloud_requested_environment_build_id" in input && input.cloud_requested_environment_build_id !== undefined) {
+    throw new Error("Task.cloud_requested_environment_build_id is not supported on Pi.");
+  }
   if ("interrupt" in input && input.interrupt === true) {
     const id = parseRunId(input.resume);
     if (!id) throw new Error("Task interrupt requires a valid agent_id in resume");

@@ -427,6 +427,7 @@ describe("Task boundary parsing", () => {
     expect(parseTaskInput({ ...base, readonly: true }, context)).toMatchObject({ action: "start", request: { tools: ["read"] } });
     expect(() => parseTaskInput({ ...base, model: "anthropic/claude-sonnet-5" }, context)).toThrow("outside pstack-agents.json modelScope.allow");
     expect(() => parseTaskInput({ ...base, machine: { same_machine: {} } }, context)).toThrow("Task.machine is not supported on Pi.");
+    expect(() => parseTaskInput({ ...base, cloud_requested_environment_build_id: "build-123" }, context)).toThrow("Task.cloud_requested_environment_build_id is not supported on Pi.");
     expect(() => parseTaskInput({ ...base, environment: "cloud" }, context)).toThrow("requires cloud_base_branch");
     expect(parseTaskInput({ ...base, output: "result.md" }, context)).toMatchObject({ request: { output: path.resolve(cwd, "result.md") } });
     expect(() => parseTaskInput({ ...base, resume: "bad-id" }, context)).toThrow("valid agent_id");

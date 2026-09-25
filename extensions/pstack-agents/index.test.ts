@@ -174,6 +174,17 @@ describe("tool execution failures", () => {
       };
       expect(Value.Check(task.parameters, machineInput)).toBe(true);
       await expect(task.execute("unsupported-machine", machineInput, undefined, undefined, context)).rejects.toThrow("Task.machine is not supported on Pi.");
+      const cloudBuildInput = {
+        description: "Use a remote build",
+        prompt: "Return a result.",
+        subagent_type: "generalPurpose",
+        cloud_requested_environment_build_id: "build-123",
+      };
+      const acceptsCloudBuildInput = Value.Check(task.parameters, cloudBuildInput);
+      expect(acceptsCloudBuildInput).toBe(true);
+      if (acceptsCloudBuildInput) {
+        await expect(task.execute("unsupported-cloud-build", cloudBuildInput, undefined, undefined, context)).rejects.toThrow("Task.cloud_requested_environment_build_id is not supported on Pi.");
+      }
       expect(branch).toEqual([]);
       await expect(shell.execute("bad-shell", { command: " " }, undefined, undefined, context)).rejects.toThrow("non-empty command");
       await expect(awaitTask.execute("bad-await", { task_id: "not-a-run-id" }, undefined)).rejects.toThrow("Await requires a valid task_id");

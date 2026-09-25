@@ -54,6 +54,7 @@ const TaskParameters = Type.Union([
     environment: Type.Optional(Type.Union([Type.Literal("local"), Type.Literal("cloud")])),
     cloud_base_branch: Type.Optional(Type.String()),
     machine: Type.Optional(Type.Unknown()),
+    cloud_requested_environment_build_id: Type.Optional(Type.Unknown()),
     interrupt: Type.Optional(Type.Literal(false)),
     output: Type.Optional(Type.String()),
   }, { additionalProperties: false }),
