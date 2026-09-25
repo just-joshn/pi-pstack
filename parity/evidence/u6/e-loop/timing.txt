@@ -1,0 +1,8 @@
+loop_request_started_at=2026-09-25T04:39:40Z
+now=2026-09-25T04:42:45Z
+loop_output_mtime=/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.K7ZZEQ0ONo/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T-tmp.pmPmmVsDQH--/pstack-agents/2a95c23d-a767-5f31-86bc-8d4adb95d9f5/output.log 100000e0000001a 1024 1a 1048576 4096 242837545 197710593 197710593 7910617610 7908423720
+tick_observed_at=2026-09-25T04:44:41Z
+loop_log_mtime_epoch=1790311543
+loop_log_mtime=2026-09-24 21:45:43.109586121 -0700
+direct_ps_at=2026-09-25T04:47:15Z
+first_tick_delay_ms=60024 (startedAt 1790311242989, first line at 1790311303013)

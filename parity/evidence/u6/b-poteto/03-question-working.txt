@@ -1,0 +1,24 @@
+swarm, tdd, teach, technical-writing, typescript-best-practices, unslop, why
+
+[Extensions]
+  pstack-agents, pstack-guards.ts, pstack-mode.ts, questionnaire.ts, todo.ts
+
+
+ [skill] poteto-mode (ctrl+o to expand)
+
+
+ Thinking...
+
+ Poteto mode is on.
+
+
+ In one sentence, how does src/score.js calculate the score for 2 of 3 correct
+ answers?
+
+
+── ⠹ Working ───────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.pmPmmVsDQH (main)
+↑8.3k ↓527 $0.001 (sub) 3.3%/272k (auto)         (openai-codex) gpt-6-luna • max
+👑 poteto

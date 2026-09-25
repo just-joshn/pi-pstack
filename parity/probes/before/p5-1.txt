@@ -1,0 +1,2 @@
+PLAYBOOK:bug-fix
+Poteto-mode requires seeding the matched playbook’s steps first; TDD adds its workflow but doesn’t replace them.

@@ -1,0 +1,1 @@
+{"description":"Probe modelScope refusal","prompt":"Return exactly SCOPE_REFUSED","subagent_type":"generalPurpose","model":"openai-codex/gpt-6-sol:low","run_in_background":false}

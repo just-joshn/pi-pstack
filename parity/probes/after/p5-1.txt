@@ -1,0 +1,2 @@
+TDD
+The explicit `/skill:tdd` supplies the steps; poteto-mode says not to wrap it in the bug-fix playbook.

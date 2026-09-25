@@ -1,0 +1,474 @@
+ 599fb956-a5d8-546f-acc9-7a51409f6e70   clear-done original   15m+; no local
+ historical baseline   stopped by SIGTERM after stall   No commit, push, or PR
+ after about 17m
+ 7f70f3ab-073d-5690-b9ed-4d084852124f   rename original   15m+; no local
+ historical baseline   stopped by SIGTERM after stall   PR #74 at
+ 7184c67882b945162110654a34f3b6bf44cdebd2; local-ci/test still failing after
+ about 22m
+ b097ff69-77b5-5b3e-8206-d30906f97b33   clear-done replacement 1   15m+; no
+ local historical baseline   stopped by SIGTERM after stall   Test worker 0b0
+ ran over 15m with no source diff/commit/push/check/PR delta; owner branch had
+ no code diff
+ 8357b0aa-a939-5da5-9dc3-2873c5e1e0dc   clear-done replacement 2   15m+; no
+ local historical baseline   running   Local test/cli.test.ts diff (+20 lines);
+ no commit/push yet, PR #75 unchanged
+ 509ec780-a814-5dbb-ba69-1176d15fd72f   rename replacement 1   15m+; no local
+ historical baseline   stopped by SIGTERM after stall   No source edit, commit,
+ push, check delta, or PR delta in 18m
+ 2613ff13-3ba4-5584-9ac0-bf1e57c6bd98   rename replacement 2   15m+; no local
+ historical baseline   stopped by SIGTERM after stall   No source diff, commit,
+ push, check, or PR delta in 17m; stopped 09:15Z
+ 1c56719f-d46f-52a6-ba6b-2dba4c4477c3   rename replacement 3   15m+; no local
+ historical baseline   running; reports STACK-READY   Pushed 626594b8; owner
+ local gates pass; gh local-ci/test success; root review in progress
+ 6c178c55-077b-579f-a8cb-7350b40ed1cf   rename review lane 1: CLI contract   5m
+ starting   Read-only review of exact head
+ 626594b8a1a06aeefef7d68fee4f1e3315b5551d
+ 324efc0a-d3ad-5ad8-9905-523dc487e7b5   rename review lane 2: store mutation
+ 5m   starting   Read-only review of exact head
+ 626594b8a1a06aeefef7d68fee4f1e3315b5551d
+ ... (8 more lines, 18 total, ctrl+o to expand)
+
+
+
+ todo set #14 completed
+ ✓ Todo #14 completed
+
+
+
+ todo set #15 in_progress
+ ✓ Todo #15 in_progress
+
+
+
+ $
+ /Users/josh-desktop/.pi/agent/pstack/pi-pstack/skills/show-me-your-work/script
+ s/log.sh
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/.audit/autopilot-stack-ux5.tsv
+ review-start 'started root swarm verification for rename PR #74 at code-ready
+ SHA 626594b8' 'The owner pushed a minimal src/store.ts + src/cli.ts
+ implementation and targeted CLI tests; GitHub local-ci/test is green. Main is
+ fa50322. Root still owes gates, live proof, and independent review; no stack
+ change.' 'gh pr view 74; git fetch origin main ux5-stack-rename; diff
+ origin/main...origin/ux5-stack-rename; three read-only review Tasks
+ 6c178,324ef,67edba' 'no verdict yet; keep #74 based on main and open while
+ root verification runs' (timeout 10000s)
+
+ (no output)
+
+ Took 0.1s
+
+
+ Thinking...
+
+
+ $ find
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/1c56
+ 719f-d46f-52a6-ba6b-2dba4c4477c3/worktree -name AGENTS.md -print; test -d
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/1c56
+ 719f-d46f-52a6-ba6b-2dba4c4477c3/worktree/node_modules && echo
+ owner-node_modules=yes || echo owner-node_modules=no; git -C
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/1c56
+ 719f-d46f-52a6-ba6b-2dba4c4477c3/worktree rev-parse HEAD (timeout 10000s)
+
+ owner-node_modules=yes
+ 626594b8a1a06aeefef7d68fee4f1e3315b5551d
+
+ Took 0.1s
+
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/1c56719f-d46f-52a6-ba6
+ b-2dba4c4477c3/worktree/package.json:1-200
+
+
+
+ $ find
+ /private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-autopil
+ ot-stack-20260925 -name AGENTS.md -print (timeout 10000s)
+
+ (no output)
+
+ Took 0.1s
+
+
+ Thinking...
+
+
+ $ set -euo pipefail
+ WT=/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr9763
+ 2l_cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/1
+ c56719f-d46f-52a6-ba6b-2dba4c4477c3/worktree
+ LOG=/tmp/ux5-review-rename-626594b-pr.log
+ cd "$WT"
+ { printf 'HEAD=%s\n' "$(git rev-parse HEAD)"; test "$(git rev-parse HEAD)" =
+ 626594b8a1a06aeefef7d68fee4f1e3315b5551d; bun test; bunx tsc --noEmit -p .;
+ bun -e 'import { add, list } from "./src/store.ts"; add("old title");
+ process.argv = ["bun", "src/cli.ts", "rename", "1", "new", "title"]; await
+ import("./src/cli.ts"); console.log(JSON.stringify(list()));'; } 2>&1 | tee
+ "$LOG"
+ printf 'RECEIPT=%s\n' "$LOG" (timeout 240s)
+
+ ... (54 earlier lines, ctrl+o to expand)
+  65 expect() calls
+ Ran 43 tests across 3 files. [126.00ms]
+ true
+ [{"id":1,"title":"new title","done":false,"priority":"normal"}]
+ RECEIPT=/tmp/ux5-review-rename-626594b-pr.log
+
+ Took 0.5s
+
+
+
+ $ set -euo pipefail
+ WT=/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-auto
+ pilot-stack-20260925
+ LOG=/tmp/ux5-review-rename-626594b-trunk.log
+ cd "$WT"
+ { printf 'HEAD=%s\n' "$(git rev-parse HEAD)"; test "$(git rev-parse HEAD)" =
+ fa50322ec63e863cf9af7b2bda769bff405a6aa9; bun test; bunx tsc --noEmit -p .; if
+ git show HEAD:src/cli.ts | rg -q 'cmd === "rename"'; then echo 'trunk contains
+ rename'; exit 1; else echo 'TRUNK_LACKS_RENAME'; fi; set +e; out=$(bun -e
+ 'import { add } from "./src/store.ts"; add("old title"); process.argv =
+ ["bun", "src/cli.ts", "rename", "1", "new", "title"]; await
+ import("./src/cli.ts");' 2>&1); rc=$?; set -e; printf 'trunk_live_rc=%s\n%s\n'
+ "$rc" "$out"; test "$rc" -eq 1; printf '%s\n' "$out" | rg -q 'unknown
+ command'; } 2>&1 | tee "$LOG"
+ printf 'RECEIPT=%s\n' "$LOG" (timeout 240s)
+
+ ... (52 earlier lines, ctrl+o to expand)
+ Ran 40 tests across 3 files. [104.00ms]
+ TRUNK_LACKS_RENAME
+ trunk_live_rc=1
+ error: unknown command "rename"
+ RECEIPT=/tmp/ux5-review-rename-626594b-trunk.log
+
+ Took 0.9s
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task 6c178c55-077b-579f-a8cb-7350b40ed1cf: Wait timed out. Current status:
+ running (pid 49319).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/6c178c55-077b-579f-a8cb-7350b40ed1
+ cf/session.jsonl
+
+
+
+ SubagentAwait
+ Task 324efc0a-d3ad-5ad8-9905-523dc487e7b5: completed (exit 0). Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/324efc0a-d3ad-5ad8-9905-523dc487e7
+ b5/session.jsonl
+
+ **PASS** — checkout HEAD is exactly `626594b8a1a06aeefef7d68fee4f1e3315b5551d`
+ (`.git/worktrees/worktree9/logs/HEAD:1–2`); trunk is
+ `fa50322ec63e863cf9af7b2bda769bff405a6aa9` (`.git/packed-refs:2`).
+
+ - `src/store.ts:20–25` uses strict ID equality, returns `false` for a missing
+ todo, and trims and assigns only its title. It does not replace the todo or
+ array, or change its ID, `done`, or `priority`.
+ - `src/model.ts:3` defines those todo fields; `src/store.ts:7–9` shows IDs are
+ generated on add and todos appended. Rename preserves these invariants.
+ - The CLI converts its string ID to a number and passes the joined title to
+ the store (`src/cli.ts:39–43`). Existing CLI tests cover rename success,
+ not-found, and missing title (`test/cli.test.ts:81–99`).
+
+ No proved defect; no red-test request.
+
+
+
+ SubagentAwait
+ Task 67edba7e-cbe2-5d17-be1e-5d3d3fe45b90: Wait timed out. Current status:
+ running (pid 49467).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/67edba7e-cbe2-5d17-be1e-5d3d3fe45b
+ 90/session.jsonl
+
+
+
+ $ date -u '+%Y-%m-%d %H:%M:%S UTC'; gh pr view 74 --json
+ url,state,isDraft,headRefName,headRefOid,baseRefName,mergeStateStatus,statusCh
+ eckRollup; git show --pretty=format: --binary
+ 626594b8a1a06aeefef7d68fee4f1e3315b5551d | git patch-id --stable (timeout 60s)
+
+ ... (3 earlier lines, ctrl+o to expand)
+ tate":"OPEN","statusCheckRollup":[{"__typename":"StatusContext","context":"loc
+ al-ci/test","startedAt":"2026-09-25T09:28:43Z","state":"SUCCESS","targetUrl":"
+ "}],"url":"https://github.com/just-joshn/pstack-pi-e2e/pull/74"}
+ 119e00761f614fa82d14572610ed334a0fb8f46e
+ 0000000000000000000000000000000000000000
+
+ Took 0.7s
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task 6c178c55-077b-579f-a8cb-7350b40ed1cf: Wait timed out. Current status:
+ running (pid 49319).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/6c178c55-077b-579f-a8cb-7350b40ed1
+ cf/session.jsonl
+
+
+
+ SubagentAwait
+ Task 67edba7e-cbe2-5d17-be1e-5d3d3fe45b90: Wait timed out. Current status:
+ running (pid 49467).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/67edba7e-cbe2-5d17-be1e-5d3d3fe45b
+ 90/session.jsonl
+
+
+
+ SubagentAwait
+ Task 8357b0aa-a939-5da5-9dc3-2873c5e1e0dc: Wait timed out. Current status:
+ running (pid 44756).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/8357b0aa-a939-5da5-9dc3-2873c5e1e0
+ dc/session.jsonl
+
+
+
+ $ date -u '+%Y-%m-%d %H:%M:%S UTC';
+ WT=/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr9763
+ 2l_cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/8
+ 357b0aa-a939-5da5-9dc3-2873c5e1e0dc/worktree; git -C "$WT" status --short
+ --branch; git -C "$WT" diff --stat; git -C "$WT" rev-parse HEAD; gh pr view 75
+ --json headRefOid,statusCheckRollup (timeout 60s)
+
+ ... (3 earlier lines, ctrl+o to expand)
+ ?? decisions.tsv
+ c84ebfd8325ff14d61063ebde47b3cdf37301893
+ {"headRefOid":"c84ebfd8325ff14d61063ebde47b3cdf37301893","statusCheckRollup":[
+ {"__typename":"StatusContext","context":"local-ci/test","startedAt":"2026-09-2
+ 5T09:32:21Z","state":"SUCCESS","targetUrl":""}]}
+
+ Took 0.6s
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/8357b0aa-a939-5da5-9dc
+ 3-2873c5e1e0dc/worktree/decisions.tsv:1-100
+
+
+
+ SubagentAwait
+ Task 8357b0aa-a939-5da5-9dc3-2873c5e1e0dc: Wait timed out. Current status:
+ running (pid 44756).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/8357b0aa-a939-5da5-9dc3-2873c5e1e0
+ dc/session.jsonl
+
+
+
+ $ date -u '+%Y-%m-%d %H:%M:%S UTC'; gh pr view 75 --json
+ url,state,isDraft,headRefName,headRefOid,baseRefName,mergeStateStatus,statusCh
+ eckRollup; git show --stat --oneline c84ebfd8325ff14d61063ebde47b3cdf37301893
+ (timeout 60s)
+
+ ... (4 earlier lines, ctrl+o to expand)
+ t":"local-ci/test","startedAt":"2026-09-25T09:32:21Z","state":"SUCCESS","targe
+ tUrl":""}],"url":"https://github.com/just-joshn/pstack-pi-e2e/pull/75"}
+ c84ebfd test(cli): cover clear-done dispatch
+  test/cli.test.ts | 20 ++++++++++++++++++++
+  1 file changed, 20 insertions(+)
+
+ Took 0.7s
+
+
+ Thinking...
+
+
+ edit
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-02-866Z_01a0d78d-b2
+ 91-75e3-b127-aca994518d6b/.audit/children.tsv
+
+   1 agent_id   description   expected_runtime   state   last_side_effect
+   2 599fb956-a5d8-546f-acc9-7a51409f6e70   clear-done original   15m+; no
+ local historical baseline   stopped by SIGTERM after stall   No commit, push,
+ or PR after about 17m
+   3 7f70f3ab-073d-5690-b9ed-4d084852124f   rename original   15m+; no local
+ historical baseline   stopped by SIGTERM after stall   PR #74 at
+ 7184c67882b945162110654a34f3b6bf44cdebd2; local-ci/test still failing after
+ about 22m
+   4 b097ff69-77b5-5b3e-8206-d30906f97b33   clear-done replacement 1   15m+; no
+ local historical baseline   stopped by SIGTERM after stall   Test worker 0b0
+ ran over 15m with no source diff/commit/push/check/PR delta; owner branch had
+ no code diff
+ - 5 8357b0aa-a939-5da5-9dc3-2873c5e1e0dc   clear-done replacement 2   15m+; no
+ local historical baseline   running   Local test/cli.test.ts diff (+20 lines);
+ no commit/push yet, PR #75 unchanged
+ + 5 8357b0aa-a939-5da5-9dc3-2873c5e1e0dc   clear-done replacement 2   15m+; no
+ local historical baseline   running; reports STACK-READY   Pushed
+ c84ebfd8325ff14d61063ebde47b3cdf37301893; local-ci/test succeeded; live seeded
+ CLI proof recorded
+   6 509ec780-a814-5dbb-ba69-1176d15fd72f   rename replacement 1   15m+; no
+ local historical baseline   stopped by SIGTERM after stall   No source edit,
+ commit, push, check delta, or PR delta in 18m
+   7 2613ff13-3ba4-5584-9ac0-bf1e57c6bd98   rename replacement 2   15m+; no
+ local historical baseline   stopped by SIGTERM after stall   No source diff,
+ commit, push, check, or PR delta in 17m; stopped 09:15Z
+   8 1c56719f-d46f-52a6-ba6b-2dba4c4477c3   rename replacement 3   15m+; no
+ local historical baseline   running; reports STACK-READY   Pushed 626594b8;
+ owner local gates pass; gh local-ci/test success; root review in progress
+ - 9 6c178c55-077b-579f-a8cb-7350b40ed1cf   rename review lane 1: CLI contract
+ 5m   starting   Read-only review of exact head
+ 626594b8a1a06aeefef7d68fee4f1e3315b5551d
+ -10 324efc0a-d3ad-5ad8-9905-523dc487e7b5   rename review lane 2: store
+ mutation   5m   starting   Read-only review of exact head
+ 626594b8a1a06aeefef7d68fee4f1e3315b5551d
+ -11 67edba7e-cbe2-5d17-be1e-5d3d3fe45b90   rename review lane 3: tests and
+ trunk regression   5m   starting   Read-only review of exact head
+ 626594b8a1a06aeefef7d68fee4f1e3315b5551d
+ + 9 6c178c55-077b-579f-a8cb-7350b40ed1cf   rename review lane 1: CLI contract
+ 10m; first completed review took ~7.5m    running   Read-only review of exact
+ head 626594b8a1a06aeefef7d68fee4f1e3315b5551d; no report as of 09:40Z
+ +10 324efc0a-d3ad-5ad8-9905-523dc487e7b5   rename review lane 2: store
+ mutation   10m; first completed review took ~7.5m   completed PASS
+ Exact-head state-mutation review; no findings
+ +11 67edba7e-cbe2-5d17-be1e-5d3d3fe45b90   rename review lane 3: tests and
+ trunk regression   10m; first completed review took ~7.5m    running
+ Read-only review of exact head 626594b8a1a06aeefef7d68fee4f1e3315b5551d; no
+ report as of 09:40Z
+  12 64966ea2-d193-5b0a-95b1-2c6bf4fac0c8   30-minute audit wake chain   30m
+ per wake   running   Sentinel PSTACK_AUDIT_TICK_UX5_STACK_20260925 observed
+  13 f755cc90-183b-58b8-9d2f-fabcbefb8987   clear-done CLI how reader   5m
+ completed   Owner b097 reported result at 08:28:44Z
+  14 aa054468-725b-5bfd-8eab-d1bc2f683371   clear-done architect candidate 1
+ 10m   completed   Candidate artifact
+ /tmp/arena-clear-done-01a0d7a5/candidate-1/design.md
+  15 36d116f8-cd42-5dca-8be6-62c74c4257e3   clear-done architect candidate 2
+ 10m   completed   Candidate artifact
+ /tmp/arena-clear-done-01a0d7a5/candidate-2/design.md
+     ...
+
+
+
+ todo add
+ ✓ Added todo #17: Swarm verification for PR #75 head c84ebfd: frame two
+ independent review lanes plus exact-SHA gates and live clear-done proof ·
+ Added todo #18: Fan out read-only review lanes for PR #75 at c84ebfd · Added
+ todo #19: Aggregate PR #75 results and fix-forward any proven issue · Added
+ todo #20: Report PR #75 root verdict, then stack PR #75 first and PR #74
+ second only if both verdicts are clean
+
+
+
+ $
+ /Users/josh-desktop/.pi/agent/pstack/pi-pstack/skills/show-me-your-work/script
+ s/log.sh
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/.audit/autopilot-stack-ux5.tsv
+ progress 'both PRs have code-ready pushes and green GitHub checks; rename root
+ gates and live proof pass' 'PR #75 reached c84ebfd with its command-level
+ test; PR #74 is at 626594b. Root independently ran both test/typecheck suites
+ for #74, live-seeded `rename` and confirmed trunk lacks it (40 baseline tests
+ pass; trunk dispatch reports unknown command). Store-mutation review lane
+ passed.' 'gh pr view 74/75; /tmp/ux5-review-rename-626594b-pr.log;
+ /tmp/ux5-review-rename-626594b-trunk.log; reviewer 324efc0a report' 'wait for
+ remaining review lanes and independently verify #75 before any root verdict or
+ topology edit' (timeout 10000s)
+
+ (no output)
+
+ Took 0.1s
+
+
+ Thinking...
+
+
+ edit
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-02-866Z_01a0d78d-b2
+ 91-75e3-b127-aca994518d6b/.audit/children.tsv
+
+ Found 2 occurrences of edits[0] in
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/.audit/children.tsv. Each oldText
+ must be unique. Please provide more context to make it unique.
+
+
+
+ todo set #17 in_progress
+ ✓ Todo #17 in_progress
+
+
+
+ $ git fetch origin main ux5-stack-clear-done-r1 && printf '\nmain=' && git
+ rev-parse origin/main && printf 'clear-done=' && git rev-parse
+ origin/ux5-stack-clear-done-r1 && printf '\nstat:\n' && git diff --stat
+ origin/main...origin/ux5-stack-clear-done-r1 && printf '\ndiff:\n' && git diff
+ origin/main...origin/ux5-stack-clear-done-r1 -- src/cli.ts src/store.ts
+ test/cli.test.ts (timeout 60s)
+
+ ... (57 earlier lines, ctrl+o to expand)
+ +  expect(r.exitCode).toBe(0);
+ +  expect(r.stdout.toString()).toBe('1\n[{"id":2,"title":"keep
+ me","done":false,"priority":"normal"}]\n');
+ +  expect(r.stderr.toString()).toBe("");
+ +});
+
+ Took 0.8s
+
+
+ Thinking...
+
+
+ todo set #18 in_progress
+ ✓ Todo #18 in_progress
+
+
+Todos 7/20
+◐ #1 Run the owner loop unchanged. Resolve the forge once for the program. Gi...
+○ #2 Audit on the wake chain. The root runs an audit tick roughly every 30 mi...
+✓ #3 Hold the operator gates. State-then-wait, so a request to state the plan...
+○ #4 Verify each round. The owner reports its code-ready head SHA once the sh...
+○ #5 Append on a clean verdict, never ship. No owner merges, arms auto-merge,...
+○ #6 Single writer on topology, parallel writers on builds. Owners push only ...
+○ #7 Absorb drift at the root, then re-verify what moved. The root fetches cu...
+○ #8 Deliver the chain. The deliverable is one linear chain of verified PRs, ...
+✓ #9 Blocking first steps. Resolved the forge and confirmed a clean `origin/m...
+✓ #10 Independent workstreams. Two isolated owners build the two requested PR...
+✓ #11 Shared mutable state. The CLI entrypoint may be touched by both changes...
+✓ #12 Smallest safe decomposition. The user specified two queue items and aut...
+✓ #13 Swarm verification for PR #74 head 626594b: Frame lanes, gates, and pas...
+✓ #14 Fan out independent read-only review lanes on exact SHA 626594b
+◐ #15 Aggregate reports, findings, and gaps; fix-forward if needed
+○ #16 Report root verdict and hold stack until PR #75 is independently verified
+◐ #17 Swarm verification for PR #75 head c84ebfd: frame two independent revie...
+◐ #18 Fan out read-only review lanes for PR #75 at c84ebfd
+○ #19 Aggregate PR #75 results and fix-forward any proven issue
+○ #20 Report PR #75 root verdict, then stack PR #75 first and PR #74 second o...
+── ⠴ Working ───────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-autopi...
+↑1.3M ↓341k R29M CH96.3% $0.584 (sub) 31.6%/272k (auto)         gpt-6-luna • max
+Agents 2 running · Shells 2 running · Goal active Goal active: Build and veri...

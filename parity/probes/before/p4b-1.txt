@@ -1,0 +1,2 @@
+FILE: `github.com/someone/pi-pstack` — file one issue for each Backlog item.
+“Backlog items file to whatever devex / backlog tracker your team uses automatically. Only the Accepted list waits for approval.”

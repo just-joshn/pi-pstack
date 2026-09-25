@@ -1,0 +1,1 @@
+{"questions":[{"id":"u6-priority","prompt":"What should I prioritize for the U6 smoke run?","options":[{"value":"fast","label":"Fast","recommended":true},{"value":"safe","label":"Safe"},{"value":"thorough","label":"Thorough"}],"allowOther":false,"allowMultiple":false}]}

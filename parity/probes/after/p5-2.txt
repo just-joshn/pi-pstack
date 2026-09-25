@@ -1,0 +1,2 @@
+TDD
+`/skill:tdd` is the explicitly invoked playbook, so seed its own steps.

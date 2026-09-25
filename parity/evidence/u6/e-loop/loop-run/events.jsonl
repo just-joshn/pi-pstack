@@ -1,0 +1,8 @@
+{"sequence":1,"at":1790311242998,"type":"status","status":{"state":"starting","id":"2a95c23d-a767-5f31-86bc-8d4adb95d9f5","attempt":1,"updatedAt":1790311242989}}
+{"sequence":2,"at":1790311243013,"type":"status","status":{"state":"running","id":"2a95c23d-a767-5f31-86bc-8d4adb95d9f5","attempt":1,"pid":86828,"startedAt":1790311242989,"updatedAt":1790311242989}}
+{"sequence":3,"at":1790311303013,"type":"shell-line","lineSequence":1,"stream":"stdout","line":"AGENT_LOOP_TICK_echo_tick {\"prompt\":\"echo tick\"}","notificationMatch":true}
+{"sequence":4,"at":1790311363035,"type":"shell-line","lineSequence":2,"stream":"stdout","line":"AGENT_LOOP_TICK_echo_tick {\"prompt\":\"echo tick\"}","notificationMatch":true}
+{"sequence":5,"at":1790311423054,"type":"shell-line","lineSequence":3,"stream":"stdout","line":"AGENT_LOOP_TICK_echo_tick {\"prompt\":\"echo tick\"}","notificationMatch":true}
+{"sequence":6,"at":1790311483072,"type":"shell-line","lineSequence":4,"stream":"stdout","line":"AGENT_LOOP_TICK_echo_tick {\"prompt\":\"echo tick\"}","notificationMatch":true}
+{"sequence":7,"at":1790311543103,"type":"shell-line","lineSequence":5,"stream":"stdout","line":"AGENT_LOOP_TICK_echo_tick {\"prompt\":\"echo tick\"}","notificationMatch":true}
+{"sequence":8,"at":1790311568984,"type":"terminal","status":{"state":"stopped","id":"2a95c23d-a767-5f31-86bc-8d4adb95d9f5","attempt":1,"endedAt":1790311568963,"signal":"SIGTERM"}}

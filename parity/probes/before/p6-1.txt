@@ -1,0 +1,2 @@
+CMD: `test -f ~/.pi/agent/skills/arena/references/design-red-flags.md`
+FIX: In the arena skill’s source repo, as its own PR, not in `/tmp/work/todo`.

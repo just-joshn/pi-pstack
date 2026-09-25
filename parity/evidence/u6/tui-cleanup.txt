@@ -1,0 +1,3 @@
+pi_quit_sent=yes
+tmux_session_ended=1
+pane_pid=7499

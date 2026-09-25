@@ -1,0 +1,22 @@
+ · Added todo #26: Run **Opening a PR**. · Added todo #27: Append the exact
+ requested line to the specified `how/SKILL.md` while preserving existing
+ content.
+
+
+ Thinking...
+
+
+ [skill] create-skill:1 (ctrl+o to expand)
+
+
+ Thinking...
+
+
+ read docs docs/skills.md:1 (ctrl+o to expand)
+
+
+
+ [skill] skill-design-principles:1 (ctrl+o to expand)
+
+
+ Thinking...

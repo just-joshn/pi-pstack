@@ -1,0 +1,6 @@
+{"action":"set","id":18,"status":"completed"}
+{"action":"set","id":19,"status":"completed"}
+{"action":"add","items":["U6 inspect src/score.js","U6 run scoreFor(2, 3)","U6 record the 67 result"]}
+{"action":"set","id":20,"status":"in_progress"}
+{"action":"set","id":20,"status":"completed"}
+{"action":"set","id":21,"status":"in_progress"}

@@ -22,24 +22,10 @@ prs=$(mktemp)
 gh pr list --author "@me" --state all --limit 1000 \
 	--json number,state,headRefName 2>/dev/null > "$prs" || echo "[]" > "$prs"
 
-# Session transcripts. pi scopes them per working directory under
-# ~/.pi/agent/sessions/<--slugified-path-->; PI_TRANSCRIPTS overrides the root.
-transcripts_root="${PI_TRANSCRIPTS:-$HOME/.pi/agent/sessions}"
+# Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`) stores sessions unless PI_CODING_AGENT_SESSION_DIR overrides it.
 slug=$(printf '%s' "$main_wt" | sed 's#^/##; s#/#-#g')
-main_transcripts="$transcripts_root/--$slug--"
+transcripts="${PI_CODING_AGENT_SESSION_DIR:-${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions}/--$slug--"
 now=$(date +%s)
-
-# BSD and GNU stat/date disagree on mtime flags; pick per invocation.
-if stat -f '%m' . >/dev/null 2>&1; then
-	stat_mtime() { stat -f '%m' "$1"; }
-else
-	stat_mtime() { stat -c '%Y' "$1"; }
-fi
-if date -r 0 '+%Y' >/dev/null 2>&1; then
-	date_from_epoch() { date -r "$1" "$2"; }
-else
-	date_from_epoch() { date -d "@$1" "$2"; }
-fi
 
 printf "SIZE\tAGE\tMERGED\tDIRTY\tREMOTE\tPR\tLAST_CHAT\tBUCKET\tWORKTREE\n"
 
@@ -76,20 +62,13 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 
 	# Most recent chat whose transcript operated in this worktree. Match path
 	# followed by "/" or a quote so glint-482 does not match glint-482-r37.
-	# Search the main workspace's sessions (chats that name the worktree path)
-	# and the worktree's own sessions (chats run from inside it). Never glob
-	# beyond those two scopes.
 	last="-"; last_ts=0
-	wt_slug=$(printf '%s' "$wt" | sed 's#^/##; s#/#-#g')
-	for dir in "$main_transcripts" "$transcripts_root/--$wt_slug--"; do
-		[ -d "$dir" ] || continue
-		while IFS= read -r f; do
-			[ -n "$f" ] || continue
-			ts=$(stat_mtime "$f" 2>/dev/null) || continue
-			[ -n "$ts" ] && [ "$ts" -gt "$last_ts" ] && last_ts=$ts
-			done < <(rg -l -e "${wt}/" -e "${wt}\"" "$dir" 2>/dev/null)
-	done
-	if [ "$last_ts" -gt 0 ]; then last=$(date_from_epoch "$last_ts" '+%Y-%m-%d' 2>/dev/null); fi
+	if [ -d "$transcripts" ]; then
+		f=$(rg -l -e "${wt}/" -e "${wt}\"" "$transcripts" 2>/dev/null \
+			| xargs stat -f '%m %N' 2>/dev/null | sort -rn | head -1)
+		if [ -n "$f" ]; then last_ts=$(echo "$f" | awk '{print $1}')
+			last=$(date -r "$last_ts" '+%Y-%m-%d' 2>/dev/null); fi
+	fi
 	recent=$([ "$last_ts" -gt 0 ] 2>/dev/null && [ $(( (now - last_ts) / 86400 )) -le 4 ] && echo yes || echo no)
 
 	case "$dirty" in wip:*) bucket=hold-wip ;; *)

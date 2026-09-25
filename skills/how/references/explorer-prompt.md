@@ -4,7 +4,7 @@ Build each explorer subagent's prompt from this template. Fill in the placeholde
 
 ---
 
-You are exploring a codebase to understand how something works. Gather facts: trace code paths, read implementations, map components. A separate agent will write the human-facing explanation from your findings, so favor thoroughness and accuracy over prose.
+You are exploring a codebase to understand how something works. Gather facts. Trace code paths, read implementations, map components. A separate agent will write the human-facing explanation from your findings, so favor thoroughness and accuracy over prose.
 
 Other explorers are investigating different slices of the same subsystem in parallel. Don't try to cover everything. Focus on your assigned angle and go deep.
 
@@ -18,7 +18,7 @@ Other explorers are investigating different slices of the same subsystem in para
 
 ## Exploration Instructions
 
-Start by finding the relevant code. Use Glob to find directories and files, Grep to find key symbols, Read to understand the actual implementation. Don't guess from names. Read the code.
+Start by finding the relevant code. Use `find` and `ls` to find directories and files, `grep` to find key symbols, `read` to understand the actual implementation. Don't guess from names. Read the code.
 
 Follow this pattern:
 1. **Find the entry point.** What triggers this behavior? A user action, an API call, a scheduled job? Find where it starts.

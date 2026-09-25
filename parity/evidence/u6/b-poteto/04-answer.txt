@@ -1,0 +1,24 @@
+ todo set #3 completed
+ ✓ Todo #3 completed
+
+
+
+ todo set #4 completed
+ ✓ Todo #4 completed
+
+
+
+ todo set #5 completed
+ ✓ Todo #5 completed
+
+
+ In src/score.js, 2 of 3 correct answers score 67% because scoreFor rounds (2 /
+ 3) * 100 to the nearest whole number (throughput checkpoint: n/a, read-only
+ investigation).
+
+────────────────────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.pmPmmVsDQH (main)
+↑32k ↓4.4k R223k CH99.1% $0.008 (sub) 7.2%/272k (auto)          gpt-6-luna • max
+👑 poteto

@@ -1,0 +1,12 @@
+
+throughput checkpoint: n/a, read-only investigation
+`UpdateGoal` confirmed goal `d478b3f0-c5f2-4abb-8441-40b5d33fb846` is `COMPLETE`.
+Selected value: `safe`.
+- Todo #20, `U6 inspect src/score.js`, is in progress.
+- Todo #21, `U6 run scoreFor(2, 3)`, is pending.
+- Todo #22, `U6 record the 67 result`, is pending.
+- Todo #20 is completed.
+- Todo #21 is in progress.
+- Todo #22 remains pending.
+The child returned no heading because its read was blocked. Guard message: “You are a Task child, not a poteto-agent. Follow your brief and the skill it names; do not load a poteto-mode playbook or seed its steps.” The file’s first heading, from my earlier read, is `### Investigation`.
+Appended `<!-- U6_GUARD_PROBE -->` to the end of `/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.b08aVoImvG/skills/how/SKILL.md` and confirmed the existing content is intact. The frontmatter and referenced `references/explainer-prompt.md` are valid. I skipped behavior tests for this comment-only edit and a PR because the target directory is not a Git repository.

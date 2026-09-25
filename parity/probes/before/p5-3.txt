@@ -1,0 +1,2 @@
+PLAYBOOK:bug-fix
+Poteto-mode requires the matched playbook’s steps to seed the todo list; TDD guides the test sequence afterward.

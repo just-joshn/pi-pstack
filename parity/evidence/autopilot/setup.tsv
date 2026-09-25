@@ -1,0 +1,9 @@
+observed_at_utc	2026-09-25T09:17:42Z
+pi_version	0.87.1
+brief_expected_pstack_commit	dea1f43
+installed_pstack_at_session_start	b18be84 (full 7:53:32Z; stack 7:53:32Z; first prompts 7:55:31Z)
+installed_pstack_at_final_setup_probe	f5963013420ee78651c6440b27f821f9ced995cc
+installed_branch_status	pi-package-0.15.5 ahead 4 of origin/pi-package-0.15.5; evidence directory untracked
+observed_installed_commit_sequence	dea1f43 07:45:22Z; b18be84 07:48:57Z (Autopilot test brief); fc8f1c4 08:06:22Z (Log the 08:03 restart and the notice ack-on-enqueue gap); 34716db 08:16:15Z (Log F-M); f596301 08:26:23Z (audit tick: flag stalls on agent runs only)
+full_clone_head	fa50322ec63e863cf9af7b2bda769bff405a6aa9
+stack_clone_head	fa50322ec63e863cf9af7b2bda769bff405a6aa9

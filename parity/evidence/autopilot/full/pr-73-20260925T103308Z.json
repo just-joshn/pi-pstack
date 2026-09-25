@@ -1,0 +1,1 @@
+{"baseRefName":"main","headRefName":"ux5-full-remove-todo","headRefOid":"40d2b8146fa2e0b401cebc239dc02a19cc714b9c","mergedAt":"2026-09-25T10:32:46Z","number":73,"state":"MERGED","statusCheckRollup":[{"__typename":"StatusContext","context":"local-ci/test","startedAt":"2026-09-25T10:07:44Z","state":"SUCCESS","targetUrl":""}]}

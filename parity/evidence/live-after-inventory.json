@@ -1,0 +1,447 @@
+{
+  "commands": [
+    {
+      "name": "anthropic-auth:status",
+      "source": "extension",
+      "origin": "package",
+      "file": "<pkg>/src/index.ts"
+    },
+    {
+      "name": "goal",
+      "source": "extension",
+      "origin": "package",
+      "file": "<pkg>/extensions/pstack-agents/index.ts"
+    },
+    {
+      "name": "llama",
+      "source": "extension",
+      "origin": "top-level",
+      "file": "<inline:llama.cpp>"
+    },
+    {
+      "name": "poteto",
+      "source": "extension",
+      "origin": "package",
+      "file": "<pkg>/extensions/pstack-mode.ts"
+    },
+    {
+      "name": "skill:architect",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/architect/SKILL.md"
+    },
+    {
+      "name": "skill:arena",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/arena/SKILL.md"
+    },
+    {
+      "name": "skill:automate-me",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/automate-me/SKILL.md"
+    },
+    {
+      "name": "skill:blast-radius",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/blast-radius/SKILL.md"
+    },
+    {
+      "name": "skill:bro",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/bro/SKILL.md"
+    },
+    {
+      "name": "skill:control-cli",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/control-cli/SKILL.md"
+    },
+    {
+      "name": "skill:control-ui",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/control-ui/SKILL.md"
+    },
+    {
+      "name": "skill:create-skill",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/create-skill/SKILL.md"
+    },
+    {
+      "name": "skill:create-verification-skill",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/create-verification-skill/SKILL.md"
+    },
+    {
+      "name": "skill:deslop",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/deslop/SKILL.md"
+    },
+    {
+      "name": "skill:figure-it-out",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/figure-it-out/SKILL.md"
+    },
+    {
+      "name": "skill:goal",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/goal/SKILL.md"
+    },
+    {
+      "name": "skill:how",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/how/SKILL.md"
+    },
+    {
+      "name": "skill:interrogate",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/interrogate/SKILL.md"
+    },
+    {
+      "name": "skill:loop",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/loop/SKILL.md"
+    },
+    {
+      "name": "skill:maintain-verification-skill",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/maintain-verification-skill/SKILL.md"
+    },
+    {
+      "name": "skill:make-bot-ui",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/make-bot-ui/SKILL.md"
+    },
+    {
+      "name": "skill:no-comments",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/no-comments/SKILL.md"
+    },
+    {
+      "name": "skill:poteto-mode",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/poteto-mode/SKILL.md"
+    },
+    {
+      "name": "skill:principle-attack-the-premise",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-attack-the-premise/SKILL.md"
+    },
+    {
+      "name": "skill:principle-boundary-discipline",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-boundary-discipline/SKILL.md"
+    },
+    {
+      "name": "skill:principle-build-the-lever",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-build-the-lever/SKILL.md"
+    },
+    {
+      "name": "skill:principle-encode-lessons-in-structure",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-encode-lessons-in-structure/SKILL.md"
+    },
+    {
+      "name": "skill:principle-exhaust-the-design-space",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-exhaust-the-design-space/SKILL.md"
+    },
+    {
+      "name": "skill:principle-experience-first",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-experience-first/SKILL.md"
+    },
+    {
+      "name": "skill:principle-fix-root-causes",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-fix-root-causes/SKILL.md"
+    },
+    {
+      "name": "skill:principle-foundational-thinking",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-foundational-thinking/SKILL.md"
+    },
+    {
+      "name": "skill:principle-guard-the-context-window",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-guard-the-context-window/SKILL.md"
+    },
+    {
+      "name": "skill:principle-laziness-protocol",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-laziness-protocol/SKILL.md"
+    },
+    {
+      "name": "skill:principle-make-operations-idempotent",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-make-operations-idempotent/SKILL.md"
+    },
+    {
+      "name": "skill:principle-migrate-callers-then-delete-legacy-apis",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md"
+    },
+    {
+      "name": "skill:principle-minimize-reader-load",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-minimize-reader-load/SKILL.md"
+    },
+    {
+      "name": "skill:principle-model-the-domain",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-model-the-domain/SKILL.md"
+    },
+    {
+      "name": "skill:principle-never-block-on-the-human",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-never-block-on-the-human/SKILL.md"
+    },
+    {
+      "name": "skill:principle-outcome-oriented-execution",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-outcome-oriented-execution/SKILL.md"
+    },
+    {
+      "name": "skill:principle-prove-it-works",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-prove-it-works/SKILL.md"
+    },
+    {
+      "name": "skill:principle-redesign-from-first-principles",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-redesign-from-first-principles/SKILL.md"
+    },
+    {
+      "name": "skill:principle-separate-before-serializing-shared-state",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-separate-before-serializing-shared-state/SKILL.md"
+    },
+    {
+      "name": "skill:principle-sequence-verifiable-units",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-sequence-verifiable-units/SKILL.md"
+    },
+    {
+      "name": "skill:principle-subtract-before-you-add",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-subtract-before-you-add/SKILL.md"
+    },
+    {
+      "name": "skill:principle-test-behavior-not-implementation",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-test-behavior-not-implementation/SKILL.md"
+    },
+    {
+      "name": "skill:principle-type-system-discipline",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/principle-type-system-discipline/SKILL.md"
+    },
+    {
+      "name": "skill:recall",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/recall/SKILL.md"
+    },
+    {
+      "name": "skill:reflect",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/reflect/SKILL.md"
+    },
+    {
+      "name": "skill:setup-pstack",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/setup-pstack/SKILL.md"
+    },
+    {
+      "name": "skill:show-me-your-work",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/show-me-your-work/SKILL.md"
+    },
+    {
+      "name": "skill:skill-design-principles",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/skill-design-principles/SKILL.md"
+    },
+    {
+      "name": "skill:swarm",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/swarm/SKILL.md"
+    },
+    {
+      "name": "skill:tdd",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/tdd/SKILL.md"
+    },
+    {
+      "name": "skill:teach",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/teach/SKILL.md"
+    },
+    {
+      "name": "skill:technical-writing",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/technical-writing/SKILL.md"
+    },
+    {
+      "name": "skill:typescript-best-practices",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/typescript-best-practices/SKILL.md"
+    },
+    {
+      "name": "skill:unslop",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/unslop/SKILL.md"
+    },
+    {
+      "name": "skill:vitest-testing",
+      "source": "skill",
+      "origin": "top-level",
+      "file": "<pkg>/skills/vitest-testing/SKILL.md"
+    },
+    {
+      "name": "skill:why",
+      "source": "skill",
+      "origin": "package",
+      "file": "<pkg>/skills/why/SKILL.md"
+    },
+    {
+      "name": "todos",
+      "source": "extension",
+      "origin": "package",
+      "file": "<pkg>/extensions/todo.ts"
+    }
+  ],
+  "tools": {
+    "tools": [
+      {
+        "name": "read",
+        "source": "<builtin:read>"
+      },
+      {
+        "name": "bash",
+        "source": "<builtin:bash>"
+      },
+      {
+        "name": "powershell",
+        "source": "<builtin:powershell>"
+      },
+      {
+        "name": "edit",
+        "source": "<builtin:edit>"
+      },
+      {
+        "name": "write",
+        "source": "<builtin:write>"
+      },
+      {
+        "name": "grep",
+        "source": "<builtin:grep>"
+      },
+      {
+        "name": "find",
+        "source": "<builtin:find>"
+      },
+      {
+        "name": "ls",
+        "source": "<builtin:ls>"
+      },
+      {
+        "name": "Task",
+        "source": "/Users/josh-desktop/.pi/agent/pstack/pi-pstack/extensions/pstack-agents/index.ts"
+      },
+      {
+        "name": "SubagentAwait",
+        "source": "/Users/josh-desktop/.pi/agent/pstack/pi-pstack/extensions/pstack-agents/index.ts"
+      },
+      {
+        "name": "Shell",
+        "source": "/Users/josh-desktop/.pi/agent/pstack/pi-pstack/extensions/pstack-agents/index.ts"
+      },
+      {
+        "name": "Await",
+        "source": "/Users/josh-desktop/.pi/agent/pstack/pi-pstack/extensions/pstack-agents/index.ts"
+      },
+      {
+        "name": "CreateGoal",
+        "source": "/Users/josh-desktop/.pi/agent/pstack/pi-pstack/extensions/pstack-agents/index.ts"
+      },
+      {
+        "name": "UpdateGoal",
+        "source": "/Users/josh-desktop/.pi/agent/pstack/pi-pstack/extensions/pstack-agents/index.ts"
+      },
+      {
+        "name": "questionnaire",
+        "source": "/Users/josh-desktop/.pi/agent/pstack/pi-pstack/extensions/questionnaire.ts"
+      },
+      {
+        "name": "todo",
+        "source": "/Users/josh-desktop/.pi/agent/pstack/pi-pstack/extensions/todo.ts"
+      }
+    ],
+    "active": [
+      "read",
+      "bash",
+      "edit",
+      "write",
+      "Task",
+      "SubagentAwait",
+      "Shell",
+      "Await",
+      "CreateGoal",
+      "UpdateGoal",
+      "questionnaire",
+      "todo"
+    ]
+  },
+  "stderr": ""
+}

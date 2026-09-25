@@ -1,0 +1,4 @@
+SubagentAwait	{"agent_id":"c50d325f-edbb-53bf-8fef-3073e1f12259","timeout_ms":30000}
+SubagentAwait	{"agent_id":"a2a00d61-7956-51d0-979b-6aef128d94e3","timeout_ms":30000}
+Shell	{"command":"sleep 20; printf 'READY_X\\\\n'","is_background":true,"output_notification":"^READY_X"}
+Await	{"task_id":"7e6adbf4-13dc-522d-8378-d41f62cc501e","block_until_ms":30000,"regex":"^READY_X"}

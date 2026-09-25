@@ -1,0 +1,5 @@
+LIST
+- Backlog item 1 (details not provided).
+- Backlog item 2 (details not provided).
+
+“Backlog items file to whatever devex / backlog tracker your team uses automatically. Only the Accepted list waits for approval.”

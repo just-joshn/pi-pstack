@@ -15,7 +15,7 @@ Notion is where "why" often lives in long-form before it becomes code. A signifi
 
 ## How to search it
 
-Use the Notion MCP.
+Use the Notion MCP. Pi has no built-in MCP. When no MCP tool is available, use the local equivalent, the Notion API via `curl` with an existing `NOTION_TOKEN`, or local Notion exports on disk, with the same queries. Never print or log credentials. With none of these, return a gap.
 
 1. **Keyword searches with `notion-search`.** Try:
    - The feature name

@@ -1,0 +1,2 @@
+Attachment must be workspace-relative: /var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.b08aVoImvG/skills/poteto-mode/SKILL.md
+Attachment escapes the workspace: ../tmp.b08aVoImvG/skills/poteto-mode/SKILL.md

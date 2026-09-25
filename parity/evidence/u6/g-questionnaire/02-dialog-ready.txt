@@ -1,0 +1,24 @@
+ Use questionnaire to ask me "What should I prioritize for the U6 smoke run?"
+ as a single-choice question. Options in order: Fast (value fast, recommended),
+ Safe (value safe), Thorough (value thorough). Mark Fast with recommended true,
+ set allowOther false and allowMultiple false. Wait for my selection and then
+ state the selected value.
+
+
+ Thinking...
+
+
+ questionnaire 1 question (u6-priority)
+
+
+────────────────────────────────────────────────────────────────────────────────
+ What should I prioritize for the U6 smoke run?
+
+> 1. Fast (Recommended)
+  2. Safe
+  3. Thorough
+
+ ↑↓ navigate • Enter select • Esc cancel
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.pmPmmVsDQH (main)
+↑141k ↓24k R3.0M CH99.0% $0.056 (sub) 26.1%/272k (auto)         gpt-6-luna • max
