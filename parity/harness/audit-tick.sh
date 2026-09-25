@@ -17,7 +17,8 @@ find "$TREE" -path '*/pstack-agents/*' -name status.json -newer "$STATE/epoch" 2
   what=$(jq -r '.request.agent.name // .request.kind // "?"' "$dir/request.json" 2>/dev/null)
   seen=$(/usr/bin/stat -f %m "$dir/events.jsonl" 2>/dev/null || /usr/bin/stat -f %m "$file")
   idle=$((now - seen))
-  echo "run ${id:0:8} $what $state idle=${idle}s$([ "$idle" -gt 900 ] && echo ' STALL?')"
+  # A shell is quiet between outputs by design; only an agent run that stops writing events is a stall.
+  echo "run ${id:0:8} $what $state idle=${idle}s$([ "$what" != shell ] && [ "$idle" -gt 900 ] && echo ' STALL?')"
 done
 
 git -C "$REPO" worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r tree; do
