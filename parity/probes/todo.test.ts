@@ -1,25 +1,4 @@
-import { expect, mock, test } from "bun:test";
-
-mock.module("@earendil-works/pi-ai", () => ({ StringEnum: () => ({}) }));
-mock.module("@earendil-works/pi-tui", () => ({
-	Editor: class {},
-	Key: {},
-	matchesKey: () => false,
-	Text: class {},
-	truncateToWidth: (value: string) => value,
-	visibleWidth: () => 0,
-	wrapTextWithAnsi: () => [],
-}));
-mock.module("typebox", () => ({
-	Type: {
-		Array: () => ({}),
-		Boolean: () => ({}),
-		Number: () => ({}),
-		Object: () => ({}),
-		Optional: (value: unknown) => value,
-		String: () => ({}),
-	},
-}));
+import { expect, test } from "bun:test";
 
 const { default: todoExtension } = await import("../../extensions/todo.ts");
 
