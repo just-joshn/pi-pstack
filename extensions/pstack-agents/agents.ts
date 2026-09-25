@@ -55,7 +55,6 @@ export type AgentLaunchRequest = {
   extensionPaths: string[];
   /** Hidden skills are absent from a child's skill list, so the runner names their file in the system prompt. */
   declaredSkill?: { name: string; file: string };
-  output?: string;
   depth: number;
   projectContext: Array<{ path: string; content: string }>;
 };
@@ -76,7 +75,6 @@ export type TaskToolInput =
       machine?: unknown;
       cloud_requested_environment_build_id?: unknown;
       interrupt?: false;
-      output?: string;
     };
 
 export type TaskCommand =
@@ -394,10 +392,6 @@ function resolveAttachments(attachments: readonly string[] | undefined, cwd: str
   });
 }
 
-function resolveOutput(output: string | undefined, cwd: string): string | undefined {
-  return output ? path.resolve(cwd, output) : undefined;
-}
-
 export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext): TaskCommand {
   if ("machine" in input && input.machine !== undefined) throw new Error("Task.machine is not supported on Pi.");
   if ("cloud_requested_environment_build_id" in input && input.cloud_requested_environment_build_id !== undefined) {
@@ -437,7 +431,6 @@ export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext)
     allTools: context.allTools,
     readonly: input.readonly === true,
   });
-  const output = resolveOutput(input.output, context.cwd);
   const projectContext = agent.inheritProjectContext || agent.inheritGlobalContext
     ? selectContextFiles({
         files: loadProjectContextFiles({ cwd: context.cwd, agentDir: context.agentDir }),
@@ -462,7 +455,6 @@ export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext)
     tools: selectedTools.tools,
     extensionPaths: withGuardExtensions(selectedTools.extensionPaths),
     declaredSkill: agent.skill ? { name: agent.skill, file: resolveSkillFile(agent.skill, context.agentDir) } : undefined,
-    output,
     depth: context.depth + 1,
     projectContext,
   };

@@ -230,7 +230,7 @@ function shellEntry(store: ReturnType<typeof createRunStore>, sessionFile: strin
   };
 }
 
-function agentRequest(cwd: string, prompt: string, output: string): AgentRunRequest {
+function agentRequest(cwd: string, prompt: string): AgentRunRequest {
   const agent = parseAgentDefinition(
     "---\nname: test-agent\ndescription: Test-only agent\ninheritProjectContext: false\ninheritGlobalContext: false\ninheritSkills: false\n---\n",
     path.join(cwd, "agent.md"),
@@ -248,7 +248,6 @@ function agentRequest(cwd: string, prompt: string, output: string): AgentRunRequ
     attachments: [],
     tools: ["read"],
     extensionPaths: [],
-    output,
     depth: 1,
     projectContext: [],
     environment: "local",
@@ -344,7 +343,7 @@ describe("durable run store", () => {
       requestKey: store.requestKey(launchOwner),
       owner: launchOwner,
       request: {
-        ...agentRequest(root, "Report your CLI arguments.", path.join(root, "result.md")),
+        ...agentRequest(root, "Report your CLI arguments."),
         agent,
         attachments: [attachment],
         declaredSkill: { name: "poteto-mode", file: "/pkg/skills/poteto-mode/SKILL.md" },
@@ -391,7 +390,7 @@ describe("durable run store", () => {
       attempt: 1,
       requestKey: store.requestKey(launchOwner),
       owner: launchOwner,
-      request: agentRequest(root, "Report your agent environment.", path.join(root, "result.md")),
+      request: agentRequest(root, "Report your agent environment."),
       runInBackground: false,
       createdAt: Date.now(),
     };
@@ -600,7 +599,7 @@ describe("durable run store", () => {
       attempt: 1,
       requestKey,
       owner: launchOwner,
-      request: agentRequest(root, "Start a nested Shell and return while it is running", path.join(root, "result.md")),
+      request: agentRequest(root, "Start a nested Shell and return while it is running"),
       runInBackground: true,
       createdAt: Date.now(),
     };
@@ -644,7 +643,6 @@ describe("durable run store", () => {
       '  process.stdout.write(`${JSON.stringify({ type: "message_end", message })}\\n`);',
       '}',
     ].join("\n"));
-    const output = path.join(root, "result.md");
     const initialOwner = owner(sessionFile, "agent-call-1");
     const first: LaunchEntry = {
       kind: "launch",
@@ -652,7 +650,7 @@ describe("durable run store", () => {
       attempt: 1,
       requestKey: store.requestKey(initialOwner),
       owner: initialOwner,
-      request: agentRequest(root, "first prompt", output),
+      request: agentRequest(root, "first prompt"),
       runInBackground: false,
       createdAt: Date.now(),
     };
@@ -672,7 +670,6 @@ describe("durable run store", () => {
     });
     expect(store.usage(first.id, 2)).toBeUndefined();
     expect(store.finalOutput(first.id)).toBe("Run a test agent: first prompt");
-    expect(fs.readFileSync(output, "utf8")).toBe("Run a test agent: first prompt");
 
     const resumedOwner = owner(sessionFile, "agent-call-2");
     const resumed: LaunchEntry = {
@@ -680,7 +677,7 @@ describe("durable run store", () => {
       attempt: 2,
       requestKey: store.requestKey(resumedOwner),
       owner: resumedOwner,
-      request: agentRequest(root, "second prompt", output),
+      request: agentRequest(root, "second prompt"),
       createdAt: Date.now(),
     };
     store.prepare(resumed);
@@ -707,7 +704,6 @@ describe("durable run store", () => {
     });
     expect(store.transcript(first.id)).toBe(path.join(path.dirname(sessionFile), "parent", first.id, "session.jsonl"));
     expect(store.finalOutput(first.id)).toBe("Run a test agent: second prompt");
-    expect(fs.readFileSync(output, "utf8")).toBe("Run a test agent: second prompt");
     store.closeWatchers();
   });
 });
@@ -862,7 +858,7 @@ describe("attempt-aware completion dedupe", () => {
       attempt: 2,
       requestKey: store.requestKey(launchOwner),
       owner: launchOwner,
-      request: agentRequest(root, "second prompt", path.join(root, "result.md")),
+      request: agentRequest(root, "second prompt"),
       runInBackground: true,
       createdAt: 200,
     };

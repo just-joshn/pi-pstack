@@ -56,7 +56,6 @@ const TaskParameters = Type.Union([
     machine: Type.Optional(Type.Unknown()),
     cloud_requested_environment_build_id: Type.Optional(Type.Unknown()),
     interrupt: Type.Optional(Type.Literal(false)),
-    output: Type.Optional(Type.String()),
   }, { additionalProperties: false }),
   Type.Object({ resume: Type.String({ minLength: 1 }), interrupt: Type.Literal(true) }, { additionalProperties: false }),
 ]);
@@ -208,8 +207,7 @@ function shellResultText(id: RunId, status: RunStatus, store: RunStore): string 
 function taskReceiptText(receipt: RunReceipt): string {
   if (receipt.kind === "agent") {
     const worktree = receipt.worktree ? `\nWorktree: ${receipt.worktree.path} (branch ${receipt.worktree.branch})` : "";
-    const output = receipt.outputReference ? `\nOutput reference: ${receipt.outputReference}` : "";
-    return `Task started. agent_id: ${receipt.agent_id}\nStatus: ${receipt.status}\nTranscript: ${receipt.transcript}${output}${worktree}`;
+    return `Task started. agent_id: ${receipt.agent_id}\nStatus: ${receipt.status}\nTranscript: ${receipt.transcript}${worktree}`;
   }
   return `Shell started. task_id: ${receipt.task_id}\nStatus: ${receipt.status}\nOutput log: ${receipt.outputLog}`;
 }
@@ -527,7 +525,6 @@ function taskCompletionResultText(
   store: RunStore,
 ): string {
   const worktree = receipt.worktree ? `\nWorktree: ${receipt.worktree.path} (branch ${receipt.worktree.branch})` : "";
-  if (receipt.outputReference) return `Task ${describeStatus(status)}. Output reference: ${receipt.outputReference}\nTranscript: ${receipt.transcript}${worktree}`;
   return `${taskResultTextFromStore(id, status, receipt, store)}${worktree}`;
 }
 

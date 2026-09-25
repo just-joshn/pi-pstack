@@ -321,22 +321,6 @@ function finalAssistantText(messages) {
   return "";
 }
 
-function writeOutput(outputPath, text) {
-  if (!outputPath) return;
-  const directory = path.dirname(outputPath);
-  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const temporary = `${outputPath}.tmp-${process.pid}`;
-  const descriptor = fs.openSync(temporary, "w", 0o600);
-  try {
-    fs.writeFileSync(descriptor, text);
-    fs.fsyncSync(descriptor);
-  } finally {
-    fs.closeSync(descriptor);
-  }
-  fs.renameSync(temporary, outputPath);
-  fsyncDirectory(directory);
-}
-
 function runAgent(request, runDirectory, record, finish) {
   const agent = request.request;
   const workingDirectory = agent.worktree?.path ?? agent.cwd;
@@ -583,8 +567,6 @@ async function main() {
     stopChildRuns(runDirectory, request.attempt);
     writeStatus(runDirectory, status, record);
     if (parentRegistrationPath) fs.rmSync(parentRegistrationPath, { force: true });
-    // Task.output is an explicit writer-scope exception for caller-selected output files.
-    if (request.request.kind === "agent" && request.request.output) writeOutput(request.request.output, output);
   };
   process.on("SIGTERM", () => {
     if (stopChild && !finished) stopChild("SIGTERM");

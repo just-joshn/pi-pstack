@@ -115,7 +115,7 @@ export function parseShellInput(input: unknown, cwd: string): ParsedShellInput {
 }
 
 export type RunReceipt =
-  | { kind: "agent"; agent_id: RunId; status: RunStatus["state"]; transcript: string; outputReference?: string; worktree?: { path: string; branch: string } }
+  | { kind: "agent"; agent_id: RunId; status: RunStatus["state"]; transcript: string; worktree?: { path: string; branch: string } }
   | { kind: "shell"; task_id: RunId; status: RunStatus["state"]; outputLog: string };
 
 export type AwaitResult =
@@ -600,7 +600,6 @@ export function createRunStore(options: StoreOptions): RunStore {
       agent_id: launch.id,
       status: status.state,
       transcript: transcriptPath(launch.id, launch.owner.sessionFile),
-      outputReference: request && typeof request.output === "string" ? request.output : undefined,
       worktree,
     };
   };

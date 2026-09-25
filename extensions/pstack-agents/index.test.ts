@@ -357,6 +357,16 @@ describe("Shell timeout schema", () => {
     expect(parameters.properties?.timeout?.maximum).toBe(604800000);
     expect(parameters.properties?.hard_timeout?.maximum).toBe(604800000);
   });
+
+  test("Task accepts exactly Cursor's TaskToolCallArgs fields, with no Pi-only output file", () => {
+    const tools = new Map<string, { parameters: TSchema }>();
+    registerPstackAgents({ registerTool: (tool: { name: string; parameters: TSchema }) => tools.set(tool.name, tool), registerCommand: () => {}, on: () => {} } as never);
+    const task = tools.get("Task")?.parameters;
+    if (!task) throw new Error("Task was not registered");
+    const start = { description: "d", prompt: "p", subagent_type: "generalPurpose" };
+    expect(Value.Check(task, start)).toBe(true);
+    expect(Value.Check(task, { ...start, output: "result.md" })).toBe(false);
+  });
 });
 
 describe("tool execution failures", () => {
