@@ -19,6 +19,7 @@ import {
   type RunNotification,
 } from "./runs.ts";
 import type { AgentName } from "./agents.ts";
+import { packageResources } from "../package-resources.ts";
 import { parseRunId } from "./contracts.ts";
 
 const runnerPath = fileURLToPath(new URL("./runner.mjs", import.meta.url));
@@ -315,6 +316,51 @@ describe("durable run store", () => {
 
       expect(result).toMatchObject({ state: "terminal", status: { state: "completed", attempt: 1 } });
       expect(notifications.filter((notification) => notification.event === "completed")).toEqual([]);
+    } finally {
+      store.closeWatchers();
+    }
+  });
+
+  test("loads poteto-mode with --skill after --no-skills", async () => {
+    const root = testRoot();
+    const { sessionFile, branch, store, pi, fakePi } = testHarness(root);
+    fs.writeFileSync(fakePi, [
+      'const message = { role: "assistant", content: [{ type: "text", text: JSON.stringify(process.argv.slice(2)) }], stopReason: "end" };',
+      'process.stdout.write(`${JSON.stringify({ type: "message_end", message })}\\n`);',
+    ].join("\n"));
+    const launchOwner = owner(sessionFile, "poteto-skill-call");
+    const entry: LaunchEntry = {
+      kind: "launch",
+      id: nextTestId(store),
+      attempt: 1,
+      requestKey: store.requestKey(launchOwner),
+      owner: launchOwner,
+      request: {
+        ...agentRequest(root, "Report your CLI arguments.", path.join(root, "result.md")),
+        potetoModeSkill: packageResources.potetoModeSkillDirectory,
+      },
+      runInBackground: false,
+      createdAt: Date.now(),
+    };
+    store.prepare(entry);
+    recordLaunch(pi, entry);
+    store.observe({ branch: () => branch, notify: () => {}, onChange: () => {}, onError: (error) => { throw error; } });
+
+    try {
+      await store.start(entry);
+      await store.wait(entry.id, 5000);
+      const rawArgs = store.finalOutput(entry.id);
+      if (!rawArgs) throw new Error("Fake Pi returned no command arguments");
+      const args: unknown = JSON.parse(rawArgs);
+      if (!Array.isArray(args) || !args.every((arg): arg is string => typeof arg === "string")) {
+        throw new Error("Fake Pi returned invalid command arguments");
+      }
+      const skillIndex = args.indexOf("--skill");
+      expect(args.slice(skillIndex - 1, skillIndex + 2)).toEqual([
+        "--no-skills",
+        "--skill",
+        packageResources.potetoModeSkillDirectory,
+      ]);
     } finally {
       store.closeWatchers();
     }

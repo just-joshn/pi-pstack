@@ -51,6 +51,7 @@ export type AgentLaunchRequest = {
   attachments: string[];
   tools: string[];
   extensionPaths: string[];
+  potetoModeSkill?: string;
   output?: string;
   depth: number;
   projectContext: Array<{ path: string; content: string }>;
@@ -440,6 +441,7 @@ export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext)
     attachments: resolveAttachments(input.attachments, context.cwd),
     tools: selectedTools.tools,
     extensionPaths: withGuardExtensions(selectedTools.extensionPaths, context.agentDir),
+    potetoModeSkill: agent.name === "poteto-agent" ? packageResources.potetoModeSkillDirectory : undefined,
     output,
     depth: context.depth + 1,
     projectContext,

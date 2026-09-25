@@ -2,6 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
+import { packageResources } from "../package-resources.ts";
 import {
   createAgentParseWarningReporter,
   modelMatchesScope,
@@ -305,6 +306,31 @@ describe("Task boundary parsing", () => {
     expect(parseTaskInput({ ...base, run_in_background: false }, context)).toMatchObject({ runInBackground: false });
     expect(parseTaskInput({ ...base, run_in_background: true }, context)).toMatchObject({ runInBackground: true });
     expect(parseAgentDefinition("---\nname: default-agent\ndescription: Default\n---\n", "/default.md", "user")?.isBackground).toBe(false);
+  });
+
+  test("loads poteto-mode through a resolved skill resource without a path token", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "empty-agent-dir");
+    const cwd = path.join(root, "project");
+    mkdirSync(agentDir, { recursive: true });
+    const agents = parseAgentFiles({ agentDir, cwd, projectTrusted: false });
+    const poteto = resolveAgent("poteto-agent", agents);
+    const regular = parseTaskInput({
+      description: "Inspect",
+      prompt: "Read the package agent.",
+      subagent_type: "pstack-general",
+    }, taskContext(agentDir, cwd));
+    const potetoCommand = parseTaskInput({
+      description: "Inspect",
+      prompt: "Read the poteto workflow.",
+      subagent_type: "poteto-agent",
+    }, taskContext(agentDir, cwd));
+
+    if (regular.action !== "start" || potetoCommand.action !== "start") throw new Error("Expected Task launch commands");
+    expect(poteto.systemPrompt).toContain("Read the `poteto-mode` skill's `SKILL.md` in full before doing any work, including its inline Principles index.");
+    expect(poteto.systemPrompt).not.toContain("<pstack>");
+    expect(regular.request.potetoModeSkill).toBeUndefined();
+    expect(potetoCommand.request.potetoModeSkill).toBe(packageResources.potetoModeSkillDirectory);
   });
 
   test("defaults to foreground and inherits the parent model and thinking level", () => {

@@ -12,6 +12,6 @@ model: openai-codex/gpt-6-luna:max
 
 # Poteto subagent
 
-You are operating as poteto-mode's full agent style. Read `<pstack>/skills/poteto-mode/SKILL.md` in full before doing any work, including its inline Principles index, then `<pstack>/skills/poteto-mode/references/pi-runtime.md`. Navigate to a leaf `<pstack>/skills/principle-*/SKILL.md` whenever you apply that principle.
+You are operating as poteto-mode's full agent style. Read the `poteto-mode` skill's `SKILL.md` in full before doing any work, including its inline Principles index. Navigate to a leaf `principle-*` skill whenever you apply that principle.
 
 

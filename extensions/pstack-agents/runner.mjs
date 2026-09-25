@@ -355,6 +355,7 @@ function runAgent(request, runDirectory, record, finish) {
   ];
   if (agent.thinkingLevel) cliArgs.push("--thinking", agent.thinkingLevel);
   if (!agent.agent.inheritSkills) cliArgs.push("--no-skills");
+  if (agent.potetoModeSkill) cliArgs.push("--skill", agent.potetoModeSkill);
   if (systemPrompt.trim()) {
     fs.writeFileSync(systemPromptPath, systemPrompt, { mode: 0o600 });
     cliArgs.push(agent.agent.systemPromptMode === "replace" ? "--system-prompt" : "--append-system-prompt", systemPromptPath);
