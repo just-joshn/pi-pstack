@@ -2,9 +2,10 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { join, relative } from "node:path";
 import { agentMentions, COVERAGE_FLOOR } from "./sync-check.mjs";
 import { packagePaths } from "./package-paths.mjs";
+import { resolveSkillReference } from "./skill-references.mjs";
 
 const PI = packagePaths.packageRoot;
 const PI_SKILLS = packagePaths.skillsRoot;
@@ -174,6 +175,25 @@ function checkPair(upstream, port) {
 	compareAgentSets(a, b, rel);
 }
 
+function checkSkillReferences(file, text) {
+	if (relative(PI_SKILLS, file).startsWith("..")) return;
+	const references = new Set();
+	for (const match of text.matchAll(/`((?:\.\.\/|(?:playbooks|references|scripts)\/)[^`]+)`/g)) {
+		references.add(match[1].split(/\s+/)[0].replace(/[),.;]+$/, ""));
+	}
+	for (const match of text.matchAll(/\]\(([^)]+)\)/g)) {
+		const target = match[1].trim().split(/\s+/)[0].split(/[?#]/)[0];
+		if (target && (/\.(?:md|mjs|sh|ts)$/.test(target) || target.endsWith("/"))) references.add(target);
+	}
+	for (const reference of references) {
+		if (!reference || reference.includes("<") || reference.includes("${") || /^(?:[a-z]+:|\/|#)/i.test(reference)) continue;
+		const wildcardAt = reference.search(/[?*]/);
+		const concretePath = (wildcardAt < 0 ? reference : reference.slice(0, wildcardAt)).replace(/\/$/, "");
+		const target = resolveSkillReference(PI_SKILLS, file, concretePath.split(/[?#]/)[0]);
+		if (!existsSync(target)) problem(file, `broken skill-relative path ${reference}`);
+	}
+}
+
 const upstreamSkillFiles = requireMarkdownFiles(join(CURSOR, "skills"), "upstream pstack skills");
 const upstreamAgentFiles = requireMarkdownFiles(join(CURSOR, "agents"), "upstream pstack agents");
 const teamKitSkillFiles = requireMarkdownFiles(TEAM_KIT, "upstream cursor-team-kit skills");
@@ -297,9 +317,8 @@ for (const file of portFiles) {
 		for (const m of line.matchAll(/`((?:anthropic|openai-codex|deepseek)\/[a-z0-9.-]+)(?::[a-z]+)?`/g)) {
 			if (models.size && !models.has(m[1])) problems.push(`${where}: model ${m[1]} not in pi --list-models`);
 		}
-		for (const m of line.matchAll(/`(\.\.\/[^`\s]+?\.(?:md|mjs|sh|ts))`/g)) {
-			if (!m[1].includes("<") && !existsSync(resolve(dirname(file), m[1]))) problems.push(`${where}: broken path ${m[1]}`);
-		}
+		checkSkillReferences(file, line);
+
 	});
 }
 

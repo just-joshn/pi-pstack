@@ -22,9 +22,9 @@ prs=$(mktemp)
 gh pr list --author "@me" --state all --limit 1000 \
 	--json number,state,headRefName 2>/dev/null > "$prs" || echo "[]" > "$prs"
 
-# Transcripts dir: Pi sessions for this repo, ~/.pi/agent/sessions/--<path with / as ->--.
+# Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`) stores sessions unless PI_CODING_AGENT_SESSION_DIR overrides it.
 slug=$(printf '%s' "$main_wt" | sed 's#^/##; s#/#-#g')
-transcripts="${PI_CODING_AGENT_SESSION_DIR:-$HOME/.pi/agent/sessions}/--$slug--"
+transcripts="${PI_CODING_AGENT_SESSION_DIR:-${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions}/--$slug--"
 now=$(date +%s)
 
 printf "SIZE\tAGE\tMERGED\tDIRTY\tREMOTE\tPR\tLAST_CHAT\tBUCKET\tWORKTREE\n"

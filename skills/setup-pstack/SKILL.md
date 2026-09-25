@@ -1,11 +1,11 @@
 ---
 name: setup-pstack
-description: Configure which models pstack uses per role and at what reasoning budget. Detects your available Pi models and writes an always-loaded pstack block into ~/.pi/agent/AGENTS.md that overrides the skill defaults. Use for /skill:setup-pstack, "configure pstack models", "pstack budget", or changing pstack's model choices.
+description: Configure which models pstack uses per role and at what reasoning budget. Detects your available Pi models and writes an always-loaded pstack block into AGENTS.md in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`) that overrides the skill defaults. Use for /skill:setup-pstack, "configure pstack models", "pstack budget", or changing pstack's model choices.
 ---
 
 # Setup pstack
 
-Write the pstack block in `~/.pi/agent/AGENTS.md`. Pi loads that file into every session, which makes it the always-applied rule that sets pstack's model per role. The block also carries the poteto-mode reminder, since Pi has no sticky modes.
+Write the pstack block in `$PI_CODING_AGENT_DIR/AGENTS.md`. Pi loads that file into every session, which makes it the always-applied rule that sets pstack's model per role. The block also carries the poteto-mode reminder, since Pi has no sticky modes.
 
 ## Steps
 
@@ -15,7 +15,7 @@ Run `pi --list-models` to enumerate model ids available to Task. Every id is `<p
 
 ### 2. Load current state
 
-The default role-to-model mapping is the block shape shown in step 5 below. If `~/.pi/agent/AGENTS.md` already has a block between `<!-- pstack-models:begin -->` and `<!-- pstack-models:end -->`, read it and treat its `# budget` line and role values as the current choices. Also read an existing `~/.cursor/rules/pstack-models.mdc` once, if present, as a migration source for the user's role choices. Otherwise start from the defaults. A line whose role is not in step 5, such as the retired `how critics` role, is obsolete and should be dropped.
+The default role-to-model mapping is the block shape shown in step 5 below. If `$PI_CODING_AGENT_DIR/AGENTS.md` already has a block between `<!-- pstack-models:begin -->` and `<!-- pstack-models:end -->`, read it and treat its `# budget` line and role values as the current choices. Also read an existing `~/.cursor/rules/pstack-models.mdc` once, if present, as a migration source for the user's role choices. Otherwise start from the defaults. A line whose role is not in step 5, such as the retired `how critics` role, is obsolete and should be dropped.
 
 ### 3. Budget, map, and confirm
 
@@ -36,13 +36,13 @@ Every real value written must be a detected id plus an optional valid suffix. `i
 
 ### 5. Write the block
 
-Create `~/.pi/agent/AGENTS.md` if it is missing. Replace everything between the two markers with the new block, or append the block at the end when the markers are absent. Leave the rest of the file untouched, so re-runs stay idempotent. Replace `<pstack>` with the absolute pi-pstack package root, two directories above this skill's `SKILL.md`. Write it with a small script rather than by hand (principle-build-the-lever), then print the block back to confirm. Shape:
+Create `$PI_CODING_AGENT_DIR/AGENTS.md` if it is missing. Replace everything between the two markers with the new block, or append the block at the end when the markers are absent. Leave the rest of the file untouched, so re-runs stay idempotent. Resolve `../poteto-mode/SKILL.md` relative to this skill's directory, then replace `ABSOLUTE_PATH_TO_POTETO_MODE_SKILL` in the template with that absolute path before writing the block. Write it with a small script rather than by hand (principle-build-the-lever), then print the block back to confirm. Shape:
 
 ````markdown
 <!-- pstack-models:begin -->
 ## pstack
 
-poteto-mode reminder. New task? Playbook match or rigor needed -> read `<pstack>/skills/poteto-mode/SKILL.md` in full and follow it, exactly as if the user had typed /skill:poteto-mode, before any other tool call. Plain-language requests count: a PR or stack to check on, get green, babysit, ship, or land; autopilot, orchestrate, or "run until" work; a plan, bug, feature, refactor, perf problem, or eval. A single direct instruction (run this command, start this job, answer this quick question) is not a new task. A `/skill:<name>` the user typed is that task's playbook: seed and follow that skill's own steps, under poteto-mode's principles and reply rules, and do not wrap it in another playbook. Inside a Task child, follow your brief and load poteto-mode only if you are a poteto-agent or the brief says so. Casual turn or user opts out -> don't.
+poteto-mode reminder. New task? Playbook match or rigor needed -> read `ABSOLUTE_PATH_TO_POTETO_MODE_SKILL` in full and follow it, exactly as if the user had typed /skill:poteto-mode, before any other tool call. Plain-language requests count: a PR or stack to check on, get green, babysit, ship, or land; autopilot, orchestrate, or "run until" work; a plan, bug, feature, refactor, perf problem, or eval. A single direct instruction (run this command, start this job, answer this quick question) is not a new task. A `/skill:<name>` the user typed is that task's playbook: seed and follow that skill's own steps, under poteto-mode's principles and reply rules, and do not wrap it in another playbook. Inside a Task child, follow your brief and load poteto-mode only if you are a poteto-agent or the brief says so. Casual turn or user opts out -> don't.
 
 Standing delegation authorization. The operator authorizes Task delegation whenever a loaded pstack skill, playbook, or agent file prescribes it, with the fan-out it names. Launch the Task fan-out the skill prescribes instead of doing that work in the parent.
 
@@ -72,7 +72,7 @@ interrogate reviewers: anthropic/claude-opus-5-5:max, openai-codex/gpt-5.6-sol:m
 <!-- pstack-models:end -->
 ````
 
-Then enforce it. In `~/.pi/agent/extensions/pstack-agents.json`, set `modelScope` to `{ "enforce": true, "allow": [...] }`, where the list is `"inherit"` plus every real id the block names, each written as `provider/id` without its `:<thinking>` suffix. Keep every other setting in the file. With that policy, a Task call that passes a model outside the configured set fails with a modelScope error instead of running on a model the user did not choose.
+Then enforce it. In `$PI_CODING_AGENT_DIR/extensions/pstack-agents.json`, set `modelScope` to `{ "enforce": true, "allow": [...] }` so the file contains `{ "modelScope": { "enforce": true, "allow": [...] } }`, where the list is `"inherit"` plus every real id the block names, each written as `provider/id` without its `:<thinking>` suffix. Keep every other setting in the file. With that policy, a Task call that passes a model outside the configured set fails with a modelScope error instead of running on a model the user did not choose.
 
 ### 6. Confirm
 
@@ -80,4 +80,4 @@ Tell the user the block was written and that it applies to new sessions, or to t
 
 ### 7. Offer a verification skill (optional)
 
-Check whether the project has a way to drive the real app for proof (a `verify-*` skill under `.pi/skills/` or `.agents/skills/`, or an existing harness). If not, offer once: "want a project-local verification skill, so agents can drive the app the way a user does and prove changes work? I can generate one with `/skill:create-verification-skill`." On yes, read and follow `../create-verification-skill/SKILL.md`. On no, move on without pushing.
+Check whether the project has a way to drive the real app for proof (a `verify-*` skill under `.pi/skills/` or `.agents/skills/`, or an existing harness). If not, offer once: "want a project-local verification skill, so agents can drive the app the way a user does and prove changes work? I can generate one with `/skill:create-verification-skill`." On yes, follow that skill. On no, move on without pushing.

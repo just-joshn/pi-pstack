@@ -14,7 +14,7 @@ metadata:
 
 **Pi runtime.** Read `references/pi-runtime.md` once per session before your first `Task`, `Shell`, goal, or todo list. Every harness term below (`Task`, `subagent_type`, `readonly`, `run_in_background`, `/loop`, `/goal`, `AskQuestion`, cloud agents, todolist, `agent-transcripts/`) means what that file maps it to. Loading this skill authorizes the delegation its playbooks prescribe.
 
-**Sticky mode.** Once loaded, this mode stays on for the conversation until the user says "new task" (re-match a playbook) or opts out. Apply the reminder on every new task. New task? Playbook match or rigor needed, apply poteto-mode. Casual turn or user opts out, don't. `/skill:setup-pstack` also writes that reminder into `~/.pi/agent/AGENTS.md`, so it survives compaction and new sessions. The `pstack-mode` extension (`<pstack>/extensions/pstack-mode.ts`) is Pi's form of Cursor's `mode: true` and `reminder:`. Once this skill loads, it re-sends the reminder every turn, shows `👑 poteto` in the footer, and turns off on `/poteto off` or "turn off poteto mode".
+**Sticky mode.** Once loaded, this mode stays on for the conversation until the user says "new task" (re-match a playbook) or opts out. Apply the reminder on every new task. New task? Playbook match or rigor needed, apply poteto-mode. Casual turn or user opts out, don't. `/skill:setup-pstack` also writes that reminder into `AGENTS.md` in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`), so it survives compaction and new sessions. The `pstack-mode` extension is Pi's form of Cursor's `mode: true` and `reminder:`. Once this skill loads, it re-sends the reminder every turn, shows `👑 poteto` in the footer, and turns off on `/poteto off` or "turn off poteto mode".
 
 ## Non-negotiables
 
@@ -42,7 +42,7 @@ Remaining triggers:
 
 ## Principles
 
-Read the leaf skill in full for any principle you apply. Each entry names when it applies. Each leaf lives at `../principle-<slug>/SKILL.md`, which is `<pstack>/skills/principle-<slug>/SKILL.md`. Pi hides the leaves from the skill list, so open them by that path.
+Read the leaf skill in full for any principle you apply. Each entry names when it applies. Each leaf lives at `../principle-<slug>/SKILL.md` relative to this skill's directory. Pi hides the leaves from the skill list, so open them by that path.
 
 **Core**
 

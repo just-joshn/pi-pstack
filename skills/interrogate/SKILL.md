@@ -35,7 +35,7 @@ Write one clear paragraph. If you're unsure about the intent, ask the user befor
 
 ## Step 3, Spawn Reviewers
 
-Launch all reviewers in a single message using the Task tool. Use the `interrogate reviewers` line in the pstack models block in `~/.pi/agent/AGENTS.md`, one reviewer per entry, extending or shrinking the Reviewer A/B/C labels below to match the configured entry count. If the block or that line is missing, use the table defaults.
+Launch all reviewers in a single message using the Task tool. Use the `interrogate reviewers` line in the pstack models block in AGENTS.md in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`), one reviewer per entry, extending or shrinking the Reviewer A/B/C labels below to match the configured entry count. If the block or that line is missing, use the table defaults.
 
 | Subagent | Default model |
 |----------|---------------|

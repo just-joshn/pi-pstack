@@ -7,6 +7,7 @@ import { packagePaths } from "./package-paths.mjs";
 const PI = packagePaths.packageRoot;
 const UP = packagePaths.upstreamCurrentRoot;
 const INVENTORY_PATH = packagePaths.additionsFile;
+const DECISIONS_PATH = join(packagePaths.parityRoot, "decisions-package.tsv");
 const MATCH_MIN = 0.5;
 const DEFAULT_FLOOR = COVERAGE_FLOOR;
 const showFiles = process.argv.includes("--files");
@@ -21,6 +22,7 @@ function parseInventory() {
 	if (lines[0]?.split("\t").join("|") !== expected.join("|")) return { rows: [], issues: ["pi-additions.tsv header must be: file<TAB>sentence-prefix<TAB>reason<TAB>decision-ref"] };
 	const rows = [];
 	const issues = [];
+	const decisions = existsSync(DECISIONS_PATH) ? readFileSync(DECISIONS_PATH, "utf8").replace(/\r/g, "").split("\n") : [];
 	for (const [index, line] of lines.slice(1).entries()) {
 		const columns = line.split("\t");
 		if (columns.length !== 4 || columns.some((column) => !column.trim())) {
@@ -33,6 +35,13 @@ function parseInventory() {
 		else if (reason === "UNJUSTIFIED") issues.push(`UNJUSTIFIED ${file}: ${prefix}`);
 		else if (!/^(?:pi-runtime\.md:\d+(?:-\d+)?|decisions-package\.tsv:\d+|(?:decisions|fixes-round2|round3-decisions)\.tsv#[A-Za-z0-9_-]+)(?:;\s*(?:pi-runtime\.md:\d+(?:-\d+)?|decisions-package\.tsv:\d+|(?:decisions|fixes-round2|round3-decisions)\.tsv#[A-Za-z0-9_-]+))*$/.test(decisionRef)) {
 			issues.push(`invalid decision-ref at row ${index + 2}: ${decisionRef}`);
+		}
+		for (const match of decisionRef.matchAll(/decisions-package\.tsv:(\d+)/g)) {
+			const decisionLine = Number(match[1]);
+			const fields = decisions[decisionLine - 1]?.split("\t");
+			if (decisionLine < 2 || fields?.length !== 6 || !/^\d{4}-\d\d-\d\dT/.test(fields[0] ?? "")) {
+				issues.push(`decision-ref at row ${index + 2} points to no decision row: decisions-package.tsv:${decisionLine}`);
+			}
 		}
 		rows.push({ file, prefix, reason, decisionRef, line: index + 2 });
 	}

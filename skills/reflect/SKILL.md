@@ -18,7 +18,7 @@ Invoke when the user says "reflect" or "/skill:reflect". Skip when the conversat
 
 ### 1. Locate the active transcript
 
-The parent finds its own transcript file before fanning out. Pi names it in `$PI_SESSION_FILE`. Use that path. Do not glob across `~/.pi/agent/sessions/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.
+The parent finds its own transcript file before fanning out. Pi names it in `$PI_SESSION_FILE`. Use that path. Do not glob across Cursor projects. On Pi, keep the active workspace boundary at `$PI_CODING_AGENT_DIR/sessions/*/` in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`). That crosses workspace boundaries and reads private chats from unrelated projects.
 
 ```bash
 echo "$PI_SESSION_FILE"
@@ -34,7 +34,7 @@ When `$PI_SESSION_FILE` is unset, check each candidate. Its first line is `{"typ
 
 In one message, launch the three reviewer Tasks with `subagent_type: "generalPurpose"`, `readonly: false`, and each `model` set as below. Reviewers need MCP or local CLI access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Read-only Task calls strip MCP access. Reviewers return findings in the Task response body.
 
-Each reviewer and the synthesizer name a role line in the pstack models block in `~/.pi/agent/AGENTS.md` and a default. Set `model` to that line's value, or to the default if the block or line is missing. Omit `model` when the value is `auto` or `inherit-parent`. If Task rejects a configured model, use the default and say so. If Task rejects the default, use the closest valid model of the same provider family from its error message.
+Each reviewer and the synthesizer name a role line in the pstack models block in `$PI_CODING_AGENT_DIR/AGENTS.md` and a default. Set `model` to that line's value, or to the default if the block or line is missing. Omit `model` when the value is `auto` or `inherit-parent`. If Task rejects a configured model, use the default and say so. If Task rejects the default, use the closest valid model of the same provider family from its error message.
 
 | Lens | Role line | Default `model` | Prompt template |
 |---|---|---|---|
@@ -56,7 +56,7 @@ Sanity-check the synthesizer's Accepted list. For any item that would be enforce
 
 Before applying any Accepted edit, present the synthesizer's full Accepted/Rejected/Backlog output to the user and wait for explicit approval. The user picks which subset to apply and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
 
-Backlog items file to whatever devex / backlog tracker your team uses automatically. Only the Accepted list waits for approval. On Pi, your team's tracker is the one the operator named, in this conversation or as a `backlog tracker:` line in `~/.pi/agent/AGENTS.md` or the project's `AGENTS.md`, outside the pstack models block so `/skill:setup-pstack` keeps it (for example `backlog tracker: gh issue create -R acme/devex` or `backlog tracker: linear, team DEVX`). File there without asking. With none named, file nowhere. Never infer a tracker from git remotes, skill paths, or the repo that publishes this Pi port. List each Backlog item in the summary under **Backlog, not filed**, followed by the one `backlog tracker:` line that would enable filing.
+Backlog items file to whatever devex / backlog tracker your team uses automatically. Only the Accepted list waits for approval. On Pi, your team's tracker is the one the operator named, in this conversation or as a `backlog tracker:` line in `$PI_CODING_AGENT_DIR/AGENTS.md` or the project's `AGENTS.md`, outside the pstack models block so `/skill:setup-pstack` keeps it (for example `backlog tracker: gh issue create -R acme/devex` or `backlog tracker: linear, team DEVX`). File there without asking. With none named, file nowhere. Never infer a tracker from git remotes, skill paths, or the repo that publishes this Pi port. List each Backlog item in the summary under **Backlog, not filed**, followed by the one `backlog tracker:` line that would enable filing.
 
 For each approved Accepted item, follow the Routing field exactly:
 
