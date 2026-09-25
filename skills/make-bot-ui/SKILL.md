@@ -35,7 +35,7 @@ cd "$BOT" && pi --print --session-dir "$BOT/sessions" --session-id "<slug>" "$(c
 </webhook_event>"
 ```
 
-Pass the prompt as one argv element from the server's process API, never through a shell string built from the body. Run one wake at a time per routine. Take an exclusive lock on `$BOT/wake.lock` before each run, since two runs on one session file corrupt it. A wake is headless. Keep Task calls in the foreground so each call waits for its child. Do not call `CreateGoal`, which requires an interactive TUI or RPC session. Pass an explicit `--tools` allowlist for the tools the routine needs. For credentialed routines, exclude `bash` and `Shell` so the bot cannot invoke the credential store. Give each run a timeout of 10 minutes and one try, no retry.
+Pass the prompt as one argv element from the server's process API, never through a shell string built from the body. Run one wake at a time per routine. Take an exclusive lock on `$BOT/wake.lock` before each run, since two runs on one session file corrupt it. A wake is headless. Keep Task calls in the foreground so each call waits for its child. Do not call `CreateGoal`, which requires an interactive TUI or RPC session. Pass an explicit `--tools` allowlist for the tools the routine needs. For credentialed routines, exclude `bash`, `Shell`, and `Task` so neither the bot nor a child it starts can invoke the credential store. Give each run a timeout of 10 minutes and one try, no retry.
 
 The server returns HTTP 202 as soon as the event is queued. It does not wait for the bot. Before you tell the user the UI is live, probe once with a harmless payload. Use an action that the prompt ignores. Confirm a new entry in the session file under `$BOT/sessions/`.
 
