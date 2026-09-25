@@ -1,5 +1,5 @@
 import { expect, mock, test } from "bun:test";
-import pstackMode from "/Users/josh-desktop/.pi/agent/extensions/pstack-mode.ts";
+import pstackMode from "../../extensions/pstack-mode.ts";
 
 mock.module("@earendil-works/pi-ai", () => ({ StringEnum: () => ({}) }));
 mock.module("@earendil-works/pi-tui", () => {
@@ -45,7 +45,7 @@ mock.module("typebox", () => ({
 	},
 }));
 
-const questionnaireModule = await import("/Users/josh-desktop/.pi/agent/extensions/questionnaire.ts");
+const questionnaireModule = await import("../../extensions/questionnaire.ts");
 const {
 	default: questionnaire,
 	appendMissingQuestionBlocks,
