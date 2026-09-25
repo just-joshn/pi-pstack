@@ -12,7 +12,7 @@ Investigate the motivation and intent behind code.
 
 Companion to the `how` skill. `how` answers what the code does and how it works. `why` answers what forces led to its shape.
 
-Each spawn below names a role line in the pstack models block in `~/.pi/agent/AGENTS.md` and a default. Set `model` to that line's value, or to the default if the block or line is missing. Omit `model` when the value is `auto` or `inherit-parent`. If Task rejects a configured model, use the default and say so. If Task rejects the default, use the closest valid model of the same provider family from its error message.
+Cursor rule wording: Each spawn below names a role line in the `pstack-models.mdc` rule and a default. On Pi, each spawn below names a role line in the pstack models block in AGENTS.md in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`) and a default. Set `model` to that line's value, or to the default if the block or line is missing. Omit `model` when the value is `auto` or `inherit-parent`. If Task rejects a configured model, use the default and say so. If Task rejects the default, use the closest valid model of the same provider family from its error message.
 
 ## Operating Posture
 

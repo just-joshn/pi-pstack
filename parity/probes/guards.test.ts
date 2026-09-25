@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import {
 	default as pstackGuards,
 	isBackgroundPoll,
-} from "/Users/josh-desktop/.pi/agent/extensions/pstack-guards.ts";
+} from "../../extensions/pstack-guards.ts";
 
 function captureHandlers() {
 	const handlers: Record<string, (event: any, ctx: any) => any> = {};

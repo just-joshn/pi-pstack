@@ -21,7 +21,7 @@ mock.module("typebox", () => ({
 	},
 }));
 
-const { default: todoExtension } = await import("/Users/josh-desktop/.pi/agent/extensions/todo.ts");
+const { default: todoExtension } = await import("../../extensions/todo.ts");
 
 function loadTodo(branch: any[] = []) {
 	let tool: any;

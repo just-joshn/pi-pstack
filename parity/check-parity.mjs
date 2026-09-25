@@ -1,17 +1,16 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative } from "node:path";
 import { agentMentions, COVERAGE_FLOOR } from "./sync-check.mjs";
+import { packagePaths } from "./package-paths.mjs";
+import { resolveSkillReference } from "./skill-references.mjs";
 
-const HOME = homedir();
-const PI = join(HOME, ".pi/agent");
-const PI_SKILLS = join(PI, "skills");
-const PI_AGENTS = join(PI, "agents");
-// Upstream is the vendored snapshot of the current official plugin (cursor/plugins), not the local Cursor cache,
-// which can lag. Refresh it with a new upstream/<version>/ dir, then point upstream/current at it and run sync-check.mjs.
-const UPSTREAM = join(PI, "pstack/parity/upstream/current");
+const PI = packagePaths.packageRoot;
+const PI_SKILLS = packagePaths.skillsRoot;
+const PI_AGENTS = packagePaths.agentsRoot;
+const UPSTREAM = packagePaths.upstreamCurrentRoot;
 const CURSOR = join(UPSTREAM, "pstack");
 const TEAM_KIT = join(UPSTREAM, "cursor-team-kit/skills");
 
@@ -45,16 +44,29 @@ const AGENT_ROLE_ADDITIONS = new Map([
 const problem = (file, msg) => {
 	const key = relative(PI, file);
 	if (ACCEPTED.has(key) && /^(headings|numbered steps)/.test(msg)) return accepted.push(`${key}: ${msg} [accepted: ${ACCEPTED.get(key)}]`);
-	problems.push(`${relative(HOME, file)}: ${msg}`);
+	problems.push(`${key}: ${msg}`);
 };
 const accepted = [];
 
 function walk(dir) {
+	if (!existsSync(dir)) throw new Error(`missing required input: ${relative(PI, dir) || "."}`);
 	return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
 		const p = join(dir, e.name);
 		if (e.name === ".DS_Store" || e.name === "node_modules" || e.name === ".omc") return [];
 		return e.isDirectory() ? walk(p) : [p];
 	});
+}
+
+function requireMarkdownFiles(root, label) {
+	const files = walk(root);
+	if (!files.some((file) => file.endsWith(".md"))) throw new Error(`empty required input: ${label} (no Markdown files)`);
+	return files;
+}
+
+function requireSourceFiles(root, label) {
+	const files = walk(root);
+	if (!files.length) throw new Error(`empty required input: ${label}`);
+	return files;
 }
 
 function frontmatter(text) {
@@ -139,7 +151,7 @@ function compareAgentSets(upstream, port, rel) {
 }
 
 function checkPair(upstream, port) {
-	if (!existsSync(port)) return problem(port, `missing port of ${relative(HOME, upstream)}`);
+	if (!existsSync(port)) return problem(port, `missing port of ${relative(PI, upstream)}`);
 	if (!upstream.endsWith(".md")) return;
 	const a = readFileSync(upstream, "utf8");
 	const b = readFileSync(port, "utf8");
@@ -163,9 +175,38 @@ function checkPair(upstream, port) {
 	compareAgentSets(a, b, rel);
 }
 
-for (const f of walk(join(CURSOR, "skills"))) checkPair(f, join(PI_SKILLS, relative(join(CURSOR, "skills"), f)));
-for (const f of walk(join(CURSOR, "agents"))) checkPair(f, join(PI_AGENTS, relative(join(CURSOR, "agents"), f)));
-for (const s of ["deslop", "control-cli", "control-ui"]) checkPair(join(TEAM_KIT, s, "SKILL.md"), join(PI_SKILLS, s, "SKILL.md"));
+function checkSkillReferences(file, text) {
+	if (relative(PI_SKILLS, file).startsWith("..")) return;
+	const references = new Set();
+	for (const match of text.matchAll(/`((?:\.\.\/|(?:playbooks|references|scripts)\/)[^`]+)`/g)) {
+		references.add(match[1].split(/\s+/)[0].replace(/[),.;]+$/, ""));
+	}
+	for (const match of text.matchAll(/\]\(([^)]+)\)/g)) {
+		const target = match[1].trim().split(/\s+/)[0].split(/[?#]/)[0];
+		if (target && (/\.(?:md|mjs|sh|ts)$/.test(target) || target.endsWith("/"))) references.add(target);
+	}
+	for (const reference of references) {
+		if (!reference || reference.includes("<") || reference.includes("${") || /^(?:[a-z]+:|\/|#)/i.test(reference)) continue;
+		const wildcardAt = reference.search(/[?*]/);
+		const concretePath = (wildcardAt < 0 ? reference : reference.slice(0, wildcardAt)).replace(/\/$/, "");
+		const target = resolveSkillReference(PI_SKILLS, file, concretePath.split(/[?#]/)[0]);
+		if (!existsSync(target)) problem(file, `broken skill-relative path ${reference}`);
+	}
+}
+
+const upstreamSkillFiles = requireMarkdownFiles(join(CURSOR, "skills"), "upstream pstack skills");
+const upstreamAgentFiles = requireMarkdownFiles(join(CURSOR, "agents"), "upstream pstack agents");
+const teamKitSkillFiles = requireMarkdownFiles(TEAM_KIT, "upstream cursor-team-kit skills");
+const packageSkillFiles = requireMarkdownFiles(PI_SKILLS, "package skills");
+const packageAgentFiles = requireMarkdownFiles(PI_AGENTS, "package agents");
+requireSourceFiles(packagePaths.extensionsRoot, "package extensions");
+for (const f of upstreamSkillFiles) checkPair(f, join(PI_SKILLS, relative(join(CURSOR, "skills"), f)));
+for (const f of upstreamAgentFiles) checkPair(f, join(PI_AGENTS, relative(join(CURSOR, "agents"), f)));
+for (const skill of ["deslop", "control-cli", "control-ui"]) {
+	const upstream = teamKitSkillFiles.find((file) => file.endsWith(`/skills/${skill}/SKILL.md`));
+	if (!upstream) throw new Error(`missing required input: upstream cursor-team-kit skills/${skill}/SKILL.md`);
+	checkPair(upstream, join(PI_SKILLS, skill, "SKILL.md"));
+}
 for (const s of ["loop", "goal"]) {
 	if (!existsSync(join(PI_SKILLS, s, "SKILL.md"))) problem(join(PI_SKILLS, s), "missing port of Cursor built-in");
 }
@@ -193,11 +234,25 @@ const agentNames = new Set(
 for (const builtin of ["scout", "researcher", "evidence-auditor", "worker", "reviewer", "oracle", "advisor", "delegate"]) agentNames.add(builtin);
 
 let models = new Set();
+const isolatedAgentDir = mkdtempSync(join(tmpdir(), "pstack-check-parity-"));
 try {
-	const out = execFileSync("pi", ["--list-models"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+	const out = execFileSync("pi", ["--list-models"], {
+		cwd: PI,
+		encoding: "utf8",
+		stdio: ["ignore", "pipe", "ignore"],
+		env: {
+			...process.env,
+			HOME: isolatedAgentDir,
+			PI_CODING_AGENT_DIR: isolatedAgentDir,
+			PI_CODING_AGENT_SESSION_DIR: join(isolatedAgentDir, "sessions"),
+			PI_OFFLINE: "1",
+		},
+	});
 	models = new Set(out.split("\n").slice(1).map((l) => l.trim().split(/\s+/)).filter((c) => c.length > 1).map((c) => `${c[0]}/${c[1]}`));
 } catch {
 	problem(PI, "pi --list-models failed; model ids unchecked");
+} finally {
+	rmSync(isolatedAgentDir, { recursive: true, force: true });
 }
 
 const REMOVED_RUNTIME = [
@@ -210,7 +265,7 @@ const REMOVED_RUNTIME = [
 	[/\bpstack-shell\b/i, "removed pstack-shell runtime"],
 	[/\bsubagents_enable\b/i, "removed subagents_enable runtime"],
 ];
-const TASK_SCHEMA_FILE = join(PI, "extensions/pstack-agents/index.ts");
+const TASK_SCHEMA_FILE = join(packagePaths.extensionsRoot, "pstack-agents/index.ts");
 const TASK_SCHEMA = existsSync(TASK_SCHEMA_FILE)
 	? readFileSync(TASK_SCHEMA_FILE, "utf8").match(/const TaskParameters = Type\.Union\(\[([\s\S]*?)^\]\);/m)?.[1]
 	: undefined;
@@ -219,15 +274,15 @@ const TASK_ARGUMENTS = new Set(
 );
 if (!TASK_ARGUMENTS.size) problem(TASK_SCHEMA_FILE, "could not read Task arguments from TypeBox TaskParameters schema");
 
-const portFiles = [...walk(PI_SKILLS).filter((f) => f.endsWith(".md")), ...walk(PI_AGENTS)];
+const portFiles = [...packageSkillFiles.filter((f) => f.endsWith(".md")), ...packageAgentFiles];
 for (const file of portFiles) {
 	const text = readFileSync(file, "utf8");
 	for (const [pattern, label] of REMOVED_RUNTIME) {
-		if (pattern.test(text)) problems.push(`${relative(HOME, file)}: ${label} remains`);
+		if (pattern.test(text)) problems.push(`${relative(PI, file)}: ${label} remains`);
 	}
 	for (const match of text.matchAll(/\bTask\s*\(\s*\{([^{}]*)\}\s*\)/g)) {
 		const line = text.slice(0, match.index).split("\n").length;
-		const where = `${relative(HOME, file)}:${line}`;
+		const where = `${relative(PI, file)}:${line}`;
 		for (const part of match[1].split(",")) {
 			const argument = part.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)\s*(?::|$)/)?.[1];
 			if (argument && !TASK_ARGUMENTS.has(argument)) {
@@ -237,7 +292,7 @@ for (const file of portFiles) {
 	}
 	const lines = text.split("\n");
 	lines.forEach((line, i) => {
-		const where = `${relative(HOME, file)}:${i + 1}`;
+		const where = `${relative(PI, file)}:${i + 1}`;
 		if (file !== MAPPING_FILE) {
 			for (const [re, label] of CURSOR_ONLY) {
 				if (!re.test(line)) continue;
@@ -262,9 +317,8 @@ for (const file of portFiles) {
 		for (const m of line.matchAll(/`((?:anthropic|openai-codex|deepseek)\/[a-z0-9.-]+)(?::[a-z]+)?`/g)) {
 			if (models.size && !models.has(m[1])) problems.push(`${where}: model ${m[1]} not in pi --list-models`);
 		}
-		for (const m of line.matchAll(/`(\.\.\/[^`\s]+?\.(?:md|mjs|sh|ts))`/g)) {
-			if (!m[1].includes("<") && !existsSync(resolve(dirname(file), m[1]))) problems.push(`${where}: broken path ${m[1]}`);
-		}
+		checkSkillReferences(file, line);
+
 	});
 }
 
@@ -272,15 +326,11 @@ for (const script of ["scripts/check-plan.mjs", "scripts/worktree-audit.sh", "sc
 	if (!existsSync(join(PI_SKILLS, "poteto-mode", script))) problem(join(PI_SKILLS, "poteto-mode", script), "missing script");
 }
 for (const ext of ["todo.ts", "questionnaire.ts", "pstack-mode.ts", "pstack-guards.ts"]) {
-	if (!existsSync(join(PI, "extensions", ext))) problem(join(PI, "extensions", ext), "missing pstack extension");
+	if (!existsSync(join(packagePaths.extensionsRoot, ext))) problem(join(packagePaths.extensionsRoot, ext), "missing pstack extension");
 }
-for (const ext of ["extensions/pstack-agents/index.ts", "extensions/pstack-agents/runner.mjs"]) {
-	if (!existsSync(join(PI, ext))) problem(join(PI, ext), "missing pstack-agents runtime file");
+for (const ext of ["pstack-agents/index.ts", "pstack-agents/runner.mjs"]) {
+	if (!existsSync(join(packagePaths.extensionsRoot, ext))) problem(join(packagePaths.extensionsRoot, ext), "missing pstack-agents runtime file");
 }
-const agentsMd = readFileSync(join(PI, "AGENTS.md"), "utf8");
-if (!agentsMd.includes("<!-- pstack-models:begin -->")) problem(join(PI, "AGENTS.md"), "pstack models block missing");
-if (!agentsMd.includes("Standing delegation authorization.")) problem(join(PI, "AGENTS.md"), "standing delegation authorization missing for playbooks that prescribe delegation");
-if (!agentsMd.includes("skills/poteto-mode/SKILL.md")) problem(join(PI, "AGENTS.md"), "poteto-mode reminder must name the SKILL.md path; the model cannot run a slash command");
 
 // Default models: every Cursor default slug in an upstream file must appear in the port as its Pi id.
 const MODEL_MAP = new Map([
@@ -291,7 +341,7 @@ const MODEL_MAP = new Map([
 	["grok-4.7-medium-fast", "anthropic/claude-sonnet-5:medium"],
 ]);
 const count = (text, needle) => text.split(needle).length - 1;
-for (const f of walk(join(CURSOR, "skills")).filter((f) => /\.(md|mjs)$/.test(f))) {
+for (const f of upstreamSkillFiles.filter((f) => /\.(md|mjs)$/.test(f))) {
 	const up = readFileSync(f, "utf8");
 	const portFile = join(PI_SKILLS, relative(join(CURSOR, "skills"), f));
 	if (!existsSync(portFile)) continue;
@@ -299,13 +349,13 @@ for (const f of walk(join(CURSOR, "skills")).filter((f) => /\.(md|mjs)$/.test(f)
 	for (const m of new Set(up.match(/\b(?:claude|gpt|grok)-[a-z0-9.-]+-(?:max|xhigh|high|medium|fast)\b/g) ?? [])) {
 		const pi = MODEL_MAP.get(m);
 		if (!pi) {
-			problems.push(`${relative(HOME, f)}: upstream model ${m} has no Pi mapping in check-parity MODEL_MAP`);
+			problems.push(`${relative(PI, f)}: upstream model ${m} has no Pi mapping in check-parity MODEL_MAP`);
 			continue;
 		}
-		if (count(port, pi) < count(up, m)) problems.push(`${relative(HOME, portFile)}: ${pi} appears ${count(port, pi)}x, upstream ${m} ${count(up, m)}x`);
+		if (count(port, pi) < count(up, m)) problems.push(`${relative(PI, portFile)}: ${pi} appears ${count(port, pi)}x, upstream ${m} ${count(up, m)}x`);
 	}
 	for (const stale of ["claude-fable-5-1:", "deepseek-v4-pro", "claude-opus-5-5:xhigh"]) {
-		if (port.includes(stale)) problems.push(`${relative(HOME, portFile)}: stale pre-0.15.3 default ${stale}`);
+		if (port.includes(stale)) problems.push(`${relative(PI, portFile)}: stale pre-0.15.3 default ${stale}`);
 	}
 }
 const usedAgentRoles = new Set(portFiles.flatMap((file) => agentMentions(readFileSync(file, "utf8")).map((entry) => entry.normalized)));
@@ -313,26 +363,26 @@ for (const role of ["pstack-general", "pstack-reader"]) {
 	if (!usedAgentRoles.has(role)) continue;
 	const definition = join(PI_AGENTS, `${role}.md`);
 	if (!existsSync(definition)) {
-		problems.push(`${relative(HOME, definition)}: missing mapped ${role} agent`);
+		problems.push(`${relative(PI, definition)}: missing mapped ${role} agent`);
 		continue;
 	}
 	const fields = frontmatterFields(readFileSync(definition, "utf8"));
 	const tools = canonicalField("tools", fields.get("tools")) ?? "";
 	const expectedTools = role === "pstack-reader" ? "bash,find,grep,ls,read" : "";
-	if (tools !== expectedTools) problems.push(`${relative(HOME, definition)}: tools ${JSON.stringify(tools)}, expected ${JSON.stringify(expectedTools)} for ${role}`);
+	if (tools !== expectedTools) problems.push(`${relative(PI, definition)}: tools ${JSON.stringify(tools)}, expected ${JSON.stringify(expectedTools)} for ${role}`);
 }
 
 const sync = (() => {
 	try {
-		execFileSync("node", [join(PI, "pstack/parity/sync-check.mjs")], { encoding: "utf8" });
+		execFileSync(process.execPath, [join(packagePaths.parityRoot, "sync-check.mjs")], { cwd: PI, encoding: "utf8" });
 		return "";
 	} catch (e) {
-		return String(e.stdout).trim().split("\n").pop();
+		return String(e.stdout || e.stderr || e.message).trim().split("\n").pop();
 	}
 })();
 if (sync) problems.push(`sync-check: ${sync}`);
 
-const audit = spawnSync(process.execPath, [join(PI, "pstack/parity/full-audit.mjs"), "--check", `--floor=${COVERAGE_FLOOR}`], { encoding: "utf8" });
+const audit = spawnSync(process.execPath, [join(packagePaths.parityRoot, "full-audit.mjs"), "--check", `--floor=${COVERAGE_FLOOR}`], { cwd: PI, encoding: "utf8" });
 if (audit.status !== 0) {
 	const output = String(audit.stdout ?? "").trim().split("\n").filter(Boolean);
 	for (const line of output) problems.push(line.startsWith("full-audit:") ? line : `full-audit: ${line}`);

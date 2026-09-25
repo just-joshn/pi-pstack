@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { packagePaths } from "./package-paths.mjs";
 
-const HOME = homedir();
-const PI = join(HOME, ".pi/agent");
-const UP = join(PI, "pstack/parity/upstream");
+const PI = packagePaths.packageRoot;
+const UP = packagePaths.upstreamRoot;
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const verbose = process.argv.includes("--verbose");
-const OLD = args[0] ?? join(UP, "0.15.3");
-const NEW = args[1] ?? join(UP, "current");
+const OLD = args[0] ? resolve(args[0]) : packagePaths.upstreamPreviousRoot;
+const NEW = args[1] ? resolve(args[1]) : packagePaths.upstreamCurrentRoot;
 const ADD_MIN = 0.6;
 const STALE_MIN = 0.8;
 export const COVERAGE_FLOOR = 98.896; // Current 0.15.5 baseline: 4879/4933; one dropped sentence must fail.
@@ -46,7 +45,7 @@ export const ACCEPTED_REWRITES = new Map([
 ]);
 
 export function walk(dir) {
-	if (!existsSync(dir)) return [];
+	if (!existsSync(dir)) throw new Error(`missing required input: ${relative(PI, dir) || "."}`);
 	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 		const path = join(dir, entry.name);
 		if ([".DS_Store", "node_modules"].includes(entry.name)) return [];
@@ -174,8 +173,19 @@ function acceptedDelta(rel, sentence) {
 	return MAPPED.find(([file, prefix]) => rel.endsWith(file) && sentence.startsWith(prefix))?.[2];
 }
 
+function requireMarkdownFiles(root, label) {
+	const files = walk(root);
+	if (!files.some((file) => file.endsWith(".md"))) throw new Error(`empty required input: ${label} (no Markdown files)`);
+	return files;
+}
+
 function run() {
-	const files = new Set([...walk(OLD), ...walk(NEW)].map((file) => relative(file.startsWith(OLD) ? OLD : NEW, file)));
+	const oldFiles = requireMarkdownFiles(OLD, relative(PI, OLD) || OLD);
+	const newFiles = requireMarkdownFiles(NEW, relative(PI, NEW) || NEW);
+	for (const [root, label] of [[packagePaths.skillsRoot, "skills"], [packagePaths.agentsRoot, "agents"]]) {
+		requireMarkdownFiles(root, label);
+	}
+	const files = new Set([...oldFiles, ...newFiles].map((file) => relative(file.startsWith(OLD) ? OLD : NEW, file)));
 	const report = [];
 	let missing = 0;
 	let stale = 0;
@@ -193,7 +203,7 @@ function run() {
 		const added = newSentences.filter((sentence) => !oldKeys.has(key(sentence)) && tokens(sentence).size >= 3);
 		const removed = oldSentences.filter((sentence) => !newKeys.has(key(sentence)) && tokens(sentence).size >= 3);
 		if (!existsSync(port)) {
-			if (added.length) report.push(`${rel}: port file missing (${relative(HOME, port)})`), (missing += added.length);
+			if (added.length) report.push(`${rel}: port file missing (${relative(PI, port)})`), (missing += added.length);
 			continue;
 		}
 		const portTokens = sentences(readFileSync(port, "utf8")).map(tokens);
@@ -201,11 +211,11 @@ function run() {
 			const score = portTokens.reduce((best, candidate) => Math.max(best, similarity(tokens(sentence), candidate)), 0);
 			const mapped = acceptedDelta(rel, sentence);
 			if (score < ADD_MIN && mapped) {
-				if (verbose) report.push(`mapped  ${relative(HOME, port)}: ${mapped}`);
+				if (verbose) report.push(`mapped  ${relative(PI, port)}: ${mapped}`);
 			} else if (score < ADD_MIN) {
 				missing++;
-				report.push(`MISSING ${relative(HOME, port)} (${score.toFixed(2)}): ${sentence}`);
-			} else if (verbose) report.push(`ok      ${relative(HOME, port)} (${score.toFixed(2)}): ${sentence.slice(0, 90)}`);
+				report.push(`MISSING ${relative(PI, port)} (${score.toFixed(2)}): ${sentence}`);
+			} else if (verbose) report.push(`ok      ${relative(PI, port)} (${score.toFixed(2)}): ${sentence.slice(0, 90)}`);
 		}
 		for (const sentence of removed) {
 			const rewrite = acceptedRewrite(rel, sentence);
@@ -217,14 +227,14 @@ function run() {
 				const toNew = added.reduce((best, addedSentence) => Math.max(best, similarity(tokens(addedSentence), candidate)), 0);
 				if (toOld > toNew + 0.05) {
 					stale++;
-					report.push(`STALE   ${relative(HOME, port)} (${toOld.toFixed(2)}): ${sentence}`);
+					report.push(`STALE   ${relative(PI, port)} (${toOld.toFixed(2)}): ${sentence}`);
 					break;
 				}
 			}
 		}
 	}
 	console.log(report.join("\n"));
-	console.log(`\nsync-check ${relative(UP, OLD)} -> ${relative(UP, NEW)}: ${missing} missing, ${stale} stale`);
+	console.log(`\nsync-check ${relative(UP, OLD) || relative(PI, OLD)} -> ${relative(UP, NEW) || relative(PI, NEW)}: ${missing} missing, ${stale} stale`);
 	process.exitCode = missing || stale ? 1 : 0;
 }
 

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { homedir } from "node:os";
-import { acceptedRewrite, COVERAGE_FLOOR, jaccard, mappedPairs, sentences, similarity, tokens } from "./sync-check.mjs";
+import { acceptedRewrite, COVERAGE_FLOOR, jaccard, mappedPairs, sentences, similarity, tokens, walk } from "./sync-check.mjs";
+import { packagePaths } from "./package-paths.mjs";
 
-const PI = join(homedir(), ".pi/agent");
-const UP = join(PI, "pstack/parity/upstream/current");
-const INVENTORY_PATH = join(PI, "pstack/parity/pi-additions.tsv");
+const PI = packagePaths.packageRoot;
+const UP = packagePaths.upstreamCurrentRoot;
+const INVENTORY_PATH = packagePaths.additionsFile;
+const DECISIONS_PATH = join(packagePaths.parityRoot, "decisions-package.tsv");
 const MATCH_MIN = 0.5;
 const DEFAULT_FLOOR = COVERAGE_FLOOR;
 const showFiles = process.argv.includes("--files");
@@ -21,6 +22,7 @@ function parseInventory() {
 	if (lines[0]?.split("\t").join("|") !== expected.join("|")) return { rows: [], issues: ["pi-additions.tsv header must be: file<TAB>sentence-prefix<TAB>reason<TAB>decision-ref"] };
 	const rows = [];
 	const issues = [];
+	const decisions = existsSync(DECISIONS_PATH) ? readFileSync(DECISIONS_PATH, "utf8").replace(/\r/g, "").split("\n") : [];
 	for (const [index, line] of lines.slice(1).entries()) {
 		const columns = line.split("\t");
 		if (columns.length !== 4 || columns.some((column) => !column.trim())) {
@@ -31,11 +33,19 @@ function parseInventory() {
 		if (file.startsWith("/") || file.split("/").includes("..")) issues.push(`invalid inventory path at row ${index + 2}: ${file}`);
 		if (reason === "UNJUSTIFIED" && decisionRef !== "UNJUSTIFIED") issues.push(`UNJUSTIFIED ${file}: ${prefix}`);
 		else if (reason === "UNJUSTIFIED") issues.push(`UNJUSTIFIED ${file}: ${prefix}`);
-		else if (!/^(?:pi-runtime\.md:\d+(?:-\d+)?|(?:decisions|fixes-round2|round3-decisions)\.tsv#[A-Za-z0-9_-]+)(?:;\s*(?:pi-runtime\.md:\d+(?:-\d+)?|(?:decisions|fixes-round2|round3-decisions)\.tsv#[A-Za-z0-9_-]+))*$/.test(decisionRef)) {
+		else if (!/^(?:pi-runtime\.md:\d+(?:-\d+)?|decisions-package\.tsv:\d+|(?:decisions|fixes-round2|round3-decisions)\.tsv#[A-Za-z0-9_-]+)(?:;\s*(?:pi-runtime\.md:\d+(?:-\d+)?|decisions-package\.tsv:\d+|(?:decisions|fixes-round2|round3-decisions)\.tsv#[A-Za-z0-9_-]+))*$/.test(decisionRef)) {
 			issues.push(`invalid decision-ref at row ${index + 2}: ${decisionRef}`);
+		}
+		for (const match of decisionRef.matchAll(/decisions-package\.tsv:(\d+)/g)) {
+			const decisionLine = Number(match[1]);
+			const fields = decisions[decisionLine - 1]?.split("\t");
+			if (decisionLine < 2 || fields?.length !== 6 || !/^\d{4}-\d\d-\d\dT/.test(fields[0] ?? "")) {
+				issues.push(`decision-ref at row ${index + 2} points to no decision row: decisions-package.tsv:${decisionLine}`);
+			}
 		}
 		rows.push({ file, prefix, reason, decisionRef, line: index + 2 });
 	}
+	if (!rows.length) issues.push("inventory is empty: pi-additions.tsv has no data rows");
 	return { rows, issues };
 }
 
@@ -57,16 +67,25 @@ function bestScore(source, targets, score = similarity) {
 }
 
 function main() {
-	if (!Number.isFinite(floor) || floor < 0 || floor > 100) {
-		console.error(`invalid coverage floor: ${floorArg}`);
+	if (!Number.isFinite(floor) || floor < COVERAGE_FLOOR || floor > 100) {
+		console.error(`invalid coverage floor ${floorArg?.split("=")[1] ?? floor}: minimum is ${COVERAGE_FLOOR}% and maximum is 100%`);
 		process.exitCode = 2;
 		return;
+	}
+	for (const [root, label] of [
+		[packagePaths.skillsRoot, "skills"],
+		[packagePaths.agentsRoot, "agents"],
+		[join(UP, "pstack/skills"), "upstream pstack skills"],
+		[join(UP, "pstack/agents"), "upstream pstack agents"],
+		[join(UP, "cursor-team-kit/skills"), "upstream cursor-team-kit skills"],
+	]) {
+		if (!walk(root).some((file) => file.endsWith(".md"))) throw new Error(`empty required input: ${label}`);
 	}
 	const inventory = parseInventory();
 	const inventoryUse = new Set();
 	const issues = [...inventory.issues];
 	const rows = [];
-	const pairData = mappedPairs(PI, UP).filter((pair) => pair.port.endsWith(".md") && existsSync(pair.port));
+	const pairData = mappedPairs(PI, UP).filter((pair) => pair.port.endsWith(".md"));
 	let total = 0;
 	let covered = 0;
 	let additions = 0;
@@ -74,6 +93,7 @@ function main() {
 	let unmatched = 0;
 
 	for (const pair of pairData) {
+		if (!existsSync(pair.port)) issues.push(`missing port file: ${pair.rel}`);
 		const { upstream, port } = pairSentences(pair);
 		let fileCovered = 0;
 		let fileMapped = 0;

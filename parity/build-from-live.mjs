@@ -6,6 +6,11 @@ import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+if (process.env.PSTACK_REBUILD_FROM_LIVE !== "1") {
+  console.error("Refusing live rebuild: this package is the source of truth. Set PSTACK_REBUILD_FROM_LIVE=1 to override.");
+  process.exit(1);
+}
+
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 const LIVE = join(homedir(), ".pi/agent");
 const RUNTIME_SRC = join(LIVE, "pstack/pstack-agents/extensions/pstack-agents");
