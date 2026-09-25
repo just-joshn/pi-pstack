@@ -120,7 +120,8 @@ export type RunReceipt =
 export type AwaitResult =
   | { state: "matched"; id: RunId; status: RunStatus; sequence: number; line: string }
   | { state: "terminal"; id: RunId; status: RunStatus }
-  | { state: "timeout"; id: RunId; status: RunStatus };
+  | { state: "timeout"; id: RunId; status: RunStatus }
+  | { state: "detached"; id: RunId; status: RunStatus };
 
 export type RunNotification = {
   notificationId: string;
@@ -722,7 +723,12 @@ export function createRunStore(options: StoreOptions): RunStore {
           reject(error);
         };
         const abort = (): void => {
-          if (detachOnAbort) return fail(new Error(`Wait aborted; ${id} keeps running and its completion notice still arrives`));
+          if (detachOnAbort) {
+            const status = runStatus(findLaunch(observers?.branch() ?? [], id));
+            return terminal(status)
+              ? finish({ state: "terminal", id, status }, true)
+              : finish({ state: "detached", id, status });
+          }
           void store.interrupt(id).then(
             () => fail(new Error("Run wait was aborted")),
             (error: unknown) => fail(error instanceof Error ? error : new Error(String(error))),

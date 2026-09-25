@@ -452,8 +452,14 @@ describe("durable run store", () => {
     const awaitAbort = new AbortController();
     const awaiting = store.wait(detached.id, 5000, undefined, awaitAbort.signal, true);
     awaitAbort.abort();
-    await expect(awaiting).rejects.toThrow("keeps running");
+    const detachedResult = await awaiting;
+    expect(detachedResult).toMatchObject({ state: "detached", id: detached.id });
+    expect(["starting", "running"]).toContain(detachedResult.status.state);
     expect(await waitForShellTerminal(store, detached.id)).toMatchObject({ state: "completed", exitCode: 0 });
+    await expect(store.wait(detached.id, 5000, undefined, awaitAbort.signal, true)).resolves.toMatchObject({
+      state: "terminal",
+      status: { state: "completed" },
+    });
 
     const foreground = shellEntry(store, sessionFile, "sleep 30", { background: true });
     store.prepare(foreground);

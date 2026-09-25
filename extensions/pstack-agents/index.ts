@@ -158,12 +158,16 @@ function resolvePiInvocation(): { command: string; argsPrefix: string[] } {
   return { command: "pi", argsPrefix: [] };
 }
 
-function toolResult(text: string, details: unknown, isError = false) {
-  return { content: [{ type: "text" as const, text }], details, isError };
+function toolResult(text: string, details: unknown) {
+  return { content: [{ type: "text" as const, text }], details };
 }
 
 function isTerminal(status: RunStatus): boolean {
   return status.state === "completed" || status.state === "failed" || status.state === "stopped";
+}
+
+function throwIfFailedStatus(status: RunStatus, label: "Task" | "Shell" | "Run"): void {
+  if (status.state === "failed") throw new Error(status.error ?? `${label} ${status.id} failed (${status.stopReason})`);
 }
 
 function describeStatus(status: RunStatus): string {
@@ -283,10 +287,11 @@ function launchReceiptResult(entry: LaunchResultInput, receipt: RunReceipt) {
 }
 
 function launchCompletedResult(id: RunId, status: RunStatus, receipt: RunReceipt, store: RunStore) {
+  throwIfFailedStatus(status, receipt.kind === "agent" ? "Task" : "Shell");
   const text = receipt.kind === "agent"
     ? taskCompletionResultText(id, status, receipt, store)
     : shellResultText(id, status, store);
-  return toolResult(text, { ...receipt, runId: id, status, attempt: status.attempt, completed: isTerminal(status) }, status.state === "failed");
+  return toolResult(text, { ...receipt, runId: id, status, attempt: status.attempt, completed: isTerminal(status) });
 }
 
 async function waitForLaunch(
@@ -296,7 +301,10 @@ async function waitForLaunch(
   ctx: ExtensionContext,
   signal: AbortSignal | undefined,
 ) {
-  if (entry.runInBackground && ctx.hasUI) return launchReceiptResult(entry, receipt);
+  if (entry.runInBackground && ctx.hasUI) {
+    throwIfFailedStatus(await store.status(entry.id), receipt.kind === "agent" ? "Task" : "Shell");
+    return launchReceiptResult(entry, receipt);
+  }
   const result = await store.wait(entry.id, undefined, undefined, signal);
   return result.state === "terminal"
     ? launchCompletedResult(entry.id, result.status, receipt, store)
@@ -347,6 +355,7 @@ async function executeTask(
   if (command.action === "interrupt") {
     await store.interrupt(command.id);
     const status = await store.status(command.id);
+    throwIfFailedStatus(status, "Task");
     return toolResult(`Interrupt requested for ${command.id}. Current status: ${describeStatus(status)}.`, { runId: command.id, status, completed: isTerminal(status) });
   }
 
@@ -475,6 +484,7 @@ function taskCompletionResultText(
 function latestStatusText(result: AwaitResult): string {
   if (result.state === "matched") return `Matched output line ${result.sequence}: ${result.line}`;
   if (result.state === "timeout") return `Wait timed out. Current status: ${describeStatus(result.status)}.`;
+  if (result.state === "detached") return `Wait detached. Run remains ${describeStatus(result.status)}.`;
   return describeStatus(result.status);
 }
 
@@ -491,6 +501,7 @@ async function executeAwait(params: AwaitParameters | SubagentAwaitParameters, s
   const store = getRunStore();
   const result = await store.wait(id, timeout, regex, signal, true);
   const status = result.status;
+  throwIfFailedStatus(status, isAgent ? "Task" : "Shell");
   const completed = isTerminal(status);
   const transcript = isAgent ? store.transcript(id) : undefined;
   const outputLog = isAgent ? undefined : store.outputLog(id);
@@ -509,7 +520,7 @@ async function executeAwait(params: AwaitParameters | SubagentAwaitParameters, s
         transcript,
         outputLog,
       };
-  return toolResult(text, details, status.state === "failed");
+  return toolResult(text, details);
 }
 
 function goalDisplay(goal: GoalState): string {
@@ -526,11 +537,7 @@ export default function registerPstackAgents(pi: ExtensionAPI): void {
     parameters: TaskParameters,
     executionMode: "parallel",
     async execute(toolCallId, params, signal, _onUpdate, ctx) {
-      try {
-        return await executeTask(pi, params, toolCallId, signal, ctx);
-      } catch (error) {
-        return toolResult(error instanceof Error ? error.message : String(error), {}, true);
-      }
+      return executeTask(pi, params, toolCallId, signal, ctx);
     },
   });
 
@@ -540,11 +547,7 @@ export default function registerPstackAgents(pi: ExtensionAPI): void {
     description: "Wait for an agent task to finish or for timeout_ms to expire. A wait timeout does not stop the task.",
     parameters: SubagentAwaitParameters,
     async execute(_toolCallId, params, signal) {
-      try {
-        return await executeAwait(params, signal);
-      } catch (error) {
-        return toolResult(error instanceof Error ? error.message : String(error), {}, true);
-      }
+      return executeAwait(params, signal);
     },
   });
 
@@ -554,11 +557,7 @@ export default function registerPstackAgents(pi: ExtensionAPI): void {
     description: "Run a shell command. Set is_background and output_notification to receive a notice on matching output and another on exit.",
     parameters: ShellParameters,
     async execute(toolCallId, params, signal, _onUpdate, ctx) {
-      try {
-        return await executeShell(pi, params, toolCallId, signal, ctx);
-      } catch (error) {
-        return toolResult(error instanceof Error ? error.message : String(error), {}, true);
-      }
+      return executeShell(pi, params, toolCallId, signal, ctx);
     },
   });
 
@@ -568,11 +567,7 @@ export default function registerPstackAgents(pi: ExtensionAPI): void {
     description: "Wait for a task, an agent, or a matching Shell output line. A wait timeout does not stop the run.",
     parameters: AwaitParameters,
     async execute(_toolCallId, params, signal) {
-      try {
-        return await executeAwait(params, signal);
-      } catch (error) {
-        return toolResult(error instanceof Error ? error.message : String(error), {}, true);
-      }
+      return executeAwait(params, signal);
     },
   });
 
@@ -582,15 +577,11 @@ export default function registerPstackAgents(pi: ExtensionAPI): void {
     description: "Create the current branch goal from an objective.",
     parameters: CreateGoalParameters,
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      if (isHeadless(ctx)) return toolResult("CreateGoal requires an interactive TUI or RPC session.", {}, true);
-      try {
-        const state = createGoal(pi, ctx.sessionManager.getBranch(), params.objective);
-        updateGoalStatusLine(ctx.sessionManager.getBranch(), ctx);
-        void refreshStatus(ctx, getRunStore());
-        return toolResult(`Created ${goalDisplay(state)}`, state);
-      } catch (error) {
-        return toolResult(error instanceof Error ? error.message : String(error), {}, true);
-      }
+      if (isHeadless(ctx)) throw new Error("CreateGoal requires an interactive TUI or RPC session.");
+      const state = createGoal(pi, ctx.sessionManager.getBranch(), params.objective);
+      updateGoalStatusLine(ctx.sessionManager.getBranch(), ctx);
+      void refreshStatus(ctx, getRunStore());
+      return toolResult(`Created ${goalDisplay(state)}`, state);
     },
   });
 
@@ -600,14 +591,10 @@ export default function registerPstackAgents(pi: ExtensionAPI): void {
     description: "Change the current branch goal status to ACTIVE, PAUSED, COMPLETE, or CLEARED.",
     parameters: UpdateGoalParameters,
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      try {
-        const state = updateGoal(pi, ctx.sessionManager.getBranch(), params.status);
-        updateGoalStatusLine(ctx.sessionManager.getBranch(), ctx);
-        void refreshStatus(ctx, getRunStore());
-        return toolResult(`Updated ${goalDisplay(state)}`, state);
-      } catch (error) {
-        return toolResult(error instanceof Error ? error.message : String(error), {}, true);
-      }
+      const state = updateGoal(pi, ctx.sessionManager.getBranch(), params.status);
+      updateGoalStatusLine(ctx.sessionManager.getBranch(), ctx);
+      void refreshStatus(ctx, getRunStore());
+      return toolResult(`Updated ${goalDisplay(state)}`, state);
     },
   });
 
