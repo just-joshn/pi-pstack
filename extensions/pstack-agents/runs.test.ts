@@ -470,11 +470,11 @@ describe("durable run store", () => {
     expect(notifications.map((notification) => notification.event)).toContain("completed");
     expect(deliveredNotificationIds(branch)).toEqual(new Set(notifications.map((notification) => notification.notificationId)));
 
-    const ackDirectory = path.join(sessionDir, "pstack-agents", entry.id, "acks");
-    expect(fs.readdirSync(ackDirectory).length).toBe(notifications.length);
     const countBeforeRetry = notifications.length;
     await store.reconcile(branch, (notification) => notifications.push(notification), true);
     expect(notifications).toHaveLength(countBeforeRetry);
+    const ackDirectory = path.join(sessionDir, "pstack-agents", entry.id, "acks");
+    expect(fs.readdirSync(ackDirectory).length).toBe(countBeforeRetry);
     store.closeWatchers();
   });
 
@@ -508,6 +508,35 @@ describe("durable run store", () => {
     await expect(waiting).rejects.toThrow("Run wait was aborted");
     expect(await waitForShellTerminal(store, foreground.id)).toMatchObject({ state: "stopped" });
     store.closeWatchers();
+  });
+
+  test("a notice Pi queued but never saved is sent again after a restart, and a saved notice is not", async () => {
+    const root = testRoot();
+    const { sessionFile, branch, store, storeOptions, pi } = testHarness(root);
+    const queuedOnly: RunNotification[] = [];
+    store.observe({ branch: () => branch, notify: (notification) => { queuedOnly.push(notification); }, onChange: () => {}, onError: (error) => { throw error; } });
+    const entry = shellEntry(store, sessionFile, "printf 'DONE\\n'", { background: true });
+    store.prepare(entry);
+    recordLaunch(pi, entry);
+    await store.start(entry);
+    expect(await waitForShellTerminal(store, entry.id)).toMatchObject({ state: "completed" });
+    await store.reconcile(branch, (notification) => { queuedOnly.push(notification); }, false);
+    expect(queuedOnly.map((notification) => notification.event)).toContain("completed");
+    store.closeWatchers();
+
+    const afterRestart: RunNotification[] = [];
+    const restarted = createRunStore(storeOptions);
+    await restarted.reconcile(branch, (notification) => {
+      afterRestart.push(notification);
+      appendNotice(branch, notification);
+    }, false);
+    expect(afterRestart.map((notification) => notification.event)).toEqual(["completed"]);
+
+    const afterSecondRestart: RunNotification[] = [];
+    const again = createRunStore(storeOptions);
+    await again.reconcile(branch, (notification) => { afterSecondRestart.push(notification); }, false);
+    await again.reconcile(branch, (notification) => { afterSecondRestart.push(notification); }, false);
+    expect(afterSecondRestart).toEqual([]);
   });
 
   test("does not execute one stable launch twice when start is retried concurrently", async () => {

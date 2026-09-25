@@ -564,7 +564,16 @@ async function executeAwait(params: AwaitParameters | SubagentAwaitParameters, s
   const regex = pattern === undefined ? undefined : compileSafeRegex(pattern, "Await regex");
   const timeout = subagentAwait ? params.timeout_ms : params.block_until_ms;
   const store = getRunStore();
-  const result = await store.wait(id, timeout, regex, signal, true);
+  let result: Awaited<ReturnType<typeof store.wait>>;
+  try {
+    result = await store.wait(id, timeout, regex, signal, true);
+  } catch (error) {
+    const descendant = error instanceof Error && error.message.startsWith("Unknown Task or Shell id") ? store.descendantRun(id) : undefined;
+    if (!descendant) throw error;
+    const heading = `${isAgent ? "Task" : "Shell"} ${id} was launched by a child agent, so this session can read its status but cannot wait on or stop it. Status: ${describeStatus(descendant.status)}. Transcript: ${descendant.transcript}`;
+    const excerpt = descendant.output ? boundedTaskOutput(descendant.output, descendant.transcript) : "";
+    return toolResult(excerpt ? `${heading}\n\n${excerpt}` : heading, { runId: id, status: descendant.status, transcript: descendant.transcript, descendant: true, completed: isTerminal(descendant.status) });
+  }
   const status = result.status;
   throwIfFailedStatus(status, isAgent ? "Task" : "Shell");
   const completed = isTerminal(status);

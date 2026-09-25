@@ -196,6 +196,8 @@ export type RunStore = {
   outputLog(id: RunId): string;
   outputText(id: RunId): string;
   finalOutput(id: RunId): string;
+  /** A run launched by a child agent lives in that child's session; this reads its status without owning it. */
+  descendantRun(id: RunId): DescendantRun | undefined;
   usage(id: RunId, attempt: number): Usage | undefined;
   claimUsage(id: RunId, attempt: number): Usage | undefined;
   reconcile(branch: readonly SessionEntry[], notify: (notification: RunNotification) => void, includeRunning: boolean): Promise<void>;
@@ -343,6 +345,30 @@ function getText(message: unknown): string {
     .filter((part): part is Record<string, unknown> => isRecord(part) && part.type === "text" && typeof part.text === "string")
     .map((part) => String(part.text))
     .join("");
+}
+
+export type DescendantRun = { status: RunStatus; transcript: string; output: string };
+
+const DESCENDANT_SEARCH_DEPTH = 8;
+const DESCENDANT_SKIP = new Set(["worktree", "node_modules", ".git", "attempts", "acks", "requests", "control", "children"]);
+
+// Child sessions nest as <session base>/<run id>/..., each with its own pstack-agents/ run store.
+export function findDescendantRunDirectory(root: string, id: RunId, depth = DESCENDANT_SEARCH_DEPTH): string | undefined {
+  if (depth < 0) return undefined;
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(root, { withFileTypes: true });
+  } catch {
+    return undefined;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory() || DESCENDANT_SKIP.has(entry.name)) continue;
+    const child = path.join(root, entry.name);
+    if (entry.name === id && path.basename(root) === "pstack-agents" && fs.existsSync(path.join(child, "status.json"))) return child;
+    const found = findDescendantRunDirectory(child, id, depth - 1);
+    if (found) return found;
+  }
+  return undefined;
 }
 
 function finalAssistantOutput(directory: string): string {
@@ -504,12 +530,14 @@ export function createRunStore(options: StoreOptions): RunStore {
 
   const emitNotification = (notification: RunNotification, delivered: ReadonlySet<string>, notify: (notification: RunNotification) => void): void => {
     if (observers && !observers.notificationsEnabled) return;
+    // Pi holds a queued notice in memory until the current turn ends. Acknowledge only once the session has saved it,
+    // so a restart before then sends it again instead of dropping it.
+    if (delivered.has(notification.notificationId)) return;
     if (isAcknowledged(notification.id, notification.notificationId)) return;
     if (!shouldNotify({ notificationId: notification.notificationId, delivered, inFlight: notificationInFlight })) return;
     notificationInFlight.add(notification.notificationId);
     try {
       notify(notification);
-      acknowledge(notification.id, notification.notificationId);
     } catch (error) {
       notificationInFlight.delete(notification.notificationId);
       throw error;
@@ -518,6 +546,12 @@ export function createRunStore(options: StoreOptions): RunStore {
 
   const reconcile = async (branch: readonly SessionEntry[], notify: (notification: RunNotification) => void, includeRunning: boolean): Promise<void> => {
     const delivered = deliveredNotificationIds(branch);
+    for (const notificationId of delivered) {
+      const id = parseRunId(notificationId.split(":", 1)[0] ?? "");
+      if (!id || !fs.existsSync(runDirectory(options.sessionDir, id))) continue;
+      if (!isAcknowledged(id, notificationId)) acknowledge(id, notificationId);
+      notificationInFlight.delete(notificationId);
+    }
     const completedToolCalls = toolResultsByCallId(branch);
     const completedAttempts = completedRunAttempts(branch);
     const latestEntries = indexEntries(branch);
@@ -870,6 +904,20 @@ export function createRunStore(options: StoreOptions): RunStore {
     },
     finalOutput(id) {
       return finalAssistantOutput(runDirectory(options.sessionDir, id));
+    },
+    descendantRun(id) {
+      const sessionBase = options.sessionFile.endsWith(".jsonl") ? options.sessionFile.slice(0, -6) : options.sessionFile;
+      const directory = findDescendantRunDirectory(sessionBase, id);
+      if (!directory) return undefined;
+      let status: RunStatus | undefined;
+      try {
+        status = parseRunStatus(JSON.parse(fs.readFileSync(path.join(directory, "status.json"), "utf8")));
+      } catch {
+        return undefined;
+      }
+      if (!status) return undefined;
+      const ownerSessionDir = path.dirname(path.dirname(directory));
+      return { status, transcript: path.join(ownerSessionDir, "session", id, "session.jsonl"), output: terminal(status) ? finalAssistantOutput(directory) : "" };
     },
     usage(id, attempt) {
       return readRecords(runDirectory(options.sessionDir, id)).usageByAttempt.get(attempt);
