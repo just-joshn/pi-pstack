@@ -72,7 +72,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 ### Boot recipe, for every live lane
 
-Each live lane runs at the PR head in its own managed local worktree, the Pi equivalent of a cloud VM. Launch a background `Task` with `environment: "cloud"` and `cloud_base_branch: "origin/<pr-branch>"` after `git fetch origin <pr-branch>`. Use `cloud_base_branch: "origin/main"` for the trunk lane. Give each lane its own dev-server port and temp profile directory. Drive through `control-ui` or `control-cli`.
+Each live lane runs at the PR head in its own managed local worktree, the Pi equivalent of a cloud VM for file separation only. It runs with your host permissions and is not a sandbox. Launch a background `Task` with `environment: "cloud"` and `cloud_base_branch: "origin/<pr-branch>"` after `git fetch origin <pr-branch>`. Use `cloud_base_branch: "origin/main"` for the trunk lane. Give each lane its own dev-server port and temp profile directory. Drive through `control-ui` or `control-cli`.
 
 - [ ] `git fetch origin <head-branch> && git checkout <head SHA>`.
 - [ ] <Start the backend and the surface. Wait for ready.>

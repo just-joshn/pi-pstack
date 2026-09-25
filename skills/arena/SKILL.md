@@ -32,7 +32,7 @@ The N candidates will receive the same prompt, so the prompt is the contract.
 
 ## Phase B: Fan out
 
-Spawn all N subagents in one message with `run_in_background: true`. Give each Task the task, shared-grounding path, output path, and instructions to produce the artifact and a short rationale. Set `subagent_type: "poteto-agent"` when poteto-mode is active, and `subagent_type: "generalPurpose"` otherwise. Give each Task a distinct description and `output` path under `/tmp/arena-<slug>/candidate-<n>/`. For code candidates, set `environment: "cloud"` and a named `cloud_base_branch`. Fetch the branch first. Commit or stash changes in the source checkout before launching cloud tasks.
+Spawn all N subagents in one message with `run_in_background: true`. Give each Task the task, shared-grounding path, output path, and instructions to produce the artifact and a short rationale. Set `subagent_type: "poteto-agent"` when poteto-mode is active, and `subagent_type: "generalPurpose"` otherwise. Give each Task a distinct description, and name its output path under `/tmp/arena-<slug>/candidate-<n>/` in its prompt. For code candidates, set `environment: "cloud"` and a named `cloud_base_branch`. Fetch the branch first. Commit or stash changes in the source checkout before launching cloud tasks.
 
 Each rationale names the alternatives the candidate considered and what it rejected.
 

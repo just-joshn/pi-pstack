@@ -2,7 +2,7 @@
 
 This package ports [pstack](https://github.com/cursor/plugins/tree/main/pstack) 0.15.5, Lauren Tan's Cursor plugin, to the [Pi coding agent](https://pi.dev). It installs as one Pi package with the pstack skills, the two pstack agents, and the Pi extensions that stand in for Cursor's built-in tools.
 
-The skill text is the upstream text wherever Pi can run it unchanged. The parity tooling in `parity/` measures that: 4,879 of 4,933 upstream sentences are carried (98.91%), and each of the 362 Pi-only sentences has a recorded reason.
+The skill text is the upstream text wherever Pi can run it unchanged. The parity tooling in `parity/` measures that lexically: 4,879 of 4,933 upstream sentences are carried (98.91%), and each of the 362 Pi-only sentences has a recorded reason. The score counts matching wording, not matching behavior. The tests, the runtime probes, and the audit reports in `parity/evidence/` cover behavior.
 
 ## Install
 
