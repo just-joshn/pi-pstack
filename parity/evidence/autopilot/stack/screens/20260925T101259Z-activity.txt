@@ -1,0 +1,474 @@
+
+ todo set #5 completed
+ ✓ Todo #5 completed
+
+
+
+ todo set #6 completed
+ ✓ Todo #6 completed
+
+
+
+ todo set #7 completed
+ ✓ Todo #7 completed
+
+
+
+ todo set #20 completed
+ ✓ Todo #20 completed
+
+
+
+ todo set #24 completed
+ ✓ Todo #24 completed
+
+
+
+ $
+ /Users/josh-desktop/.pi/agent/pstack/pi-pstack/skills/show-me-your-work/script
+ s/log.sh
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/.audit/autopilot-stack-ux5.tsv
+ final-delivery 'delivered the root-verified two-PR linear stack for operator
+ review; no merge occurred' 'PR #75 open/non-draft on main at c84ebfd,
+ local-ci/test success, root verdict comment present. PR #74 open/non-draft on
+ ux5-stack-clear-done-r1 at 2c8c579, base OID exactly c84ebfd, local-ci/test
+ success, mergeState CLEAN, root verdict comment present. Root final gates: 44
+ tests, typecheck, both seeded CLI scenarios. Three fresh stacked-head review
+ lanes PASS. Both autoMergeRequest=null and mergedAt=null.' 'gh pr view/checks
+ 74/75; verdict comments 5830409810 and 5830607907; local receipt
+ /tmp/ux5-stacked-rename-2c8c579-local.log; owner trails in 8357b0aa and
+ 1c56719f worktrees' 'operator owns review and landing; stop audit wake Shell
+ after updating goal COMPLETE' (timeout 10000s)
+
+ (no output)
+
+ Took 0.1s
+
+
+ Thinking...
+
+
+ UpdateGoal
+ Updated COMPLETE goal 62f7be09-8c07-459c-8e62-b37d8a11c867: Build and verify a
+ two-PR linear stack for the CLI: (1) add `clear-done` to remove completed
+ todos, and (2) add `rename <id> <title>` to rename a todo. Use branch names
+ prefixed `ux5-stack-`, keep each queue item in its own PR, verify both PRs and
+ stack them in queue order, and do not merge; deliver the verified stack for
+ operator review.
+ Consecutive continuations without tool progress: 0/3.
+
+
+ Thinking...
+
+
+ Task
+ Interrupt requested for 64966ea2-d193-5b0a-95b1-2c6bf4fac0c8. Current status:
+ running (pid 31055).
+
+
+
+ SubagentAwait
+ Task 64966ea2-d193-5b0a-95b1-2c6bf4fac0c8: stopped (SIGTERM). Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/64966ea2-d193-5b0a-95b1-2c6bf4fac0
+ c8/session.jsonl
+
+
+ Thinking...
+
+
+ edit
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-02-866Z_01a0d78d-b2
+ 91-75e3-b127-aca994518d6b/.audit/children.tsv
+
+     ...
+  14 5d442d60-9b10-5fd6-90c5-099e0708e807   clear-done review lane 3: CLI
+ contract replacement   10m; first completed review took ~7.5m   completed
+ PASS at exact c84ebfd; targeted CLI tests and zero/mixed/all-done/live checks;
+ no findings
+  15 ddb2bdd0-46b6-51a5-a552-06058f395b9e   stacked rename review lane 1:
+ CLI/store semantics   10m   completed PASS   Exact stacked head/base verified;
+ title parsing, missing/non-numeric IDs, state-preserving mutation; no findings
+  16 46e74986-3720-5e9c-8f82-0be3ca73e9df   stacked review lane 2:
+ cross-feature/regression   10m   completed PASS   Exact parent/base verified;
+ clear-done preserved; 16 CLI tests passed; trunk comparison; no findings
+  17 87d94df9-b2d8-568d-ad11-9bb53e595fd0   stacked review lane 3: diff and
+ tests   10m   completed PASS   Exact head/base diff, trunk 40 tests, final
+ head 44 tests and no conflict markers; no proved defect
+ -18 64966ea2-d193-5b0a-95b1-2c6bf4fac0c8   30-minute audit wake chain   30m
+ per wake   running   Sentinel PSTACK_AUDIT_TICK_UX5_STACK_20260925 observed
+ +18 64966ea2-d193-5b0a-95b1-2c6bf4fac0c8   30-minute audit wake chain   30m
+ per wake   stopped after goal completion   Final chain verified; Shell loop
+ interrupted and SubagentAwait reports SIGTERM
+  19 f755cc90-183b-58b8-9d2f-fabcbefb8987   clear-done CLI how reader   5m
+ completed   Owner b097 reported result at 08:28:44Z
+  20 aa054468-725b-5bfd-8eab-d1bc2f683371   clear-done architect candidate 1
+ 10m   completed   Candidate artifact
+ /tmp/arena-clear-done-01a0d7a5/candidate-1/design.md
+  21 36d116f8-cd42-5dca-8be6-62c74c4257e3   clear-done architect candidate 2
+ 10m   completed   Candidate artifact
+ /tmp/arena-clear-done-01a0d7a5/candidate-2/design.md
+  22 9aea8400-8d6a-573c-bb72-7eb10752e948   clear-done architect candidate 3
+ 15m   failed   Anthropic usage error; no candidate-3 artifact
+     ...
+
+
+
+ todo set #8 completed
+ ✓ Todo #8 completed
+
+
+
+ $
+ /Users/josh-desktop/.pi/agent/pstack/pi-pstack/skills/show-me-your-work/script
+ s/log.sh
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/.audit/autopilot-stack-ux5.tsv
+ shutdown 'completed the goal and stopped the audit wake Shell' 'Both PRs are
+ root-verified and form the requested open linear stack; operator retains
+ landing authority.' 'UpdateGoal COMPLETE; Task interrupted 64966ea2;
+ SubagentAwait stopped SIGTERM' 'no automated merge, no auto-merge, no PR
+ close' (timeout 10000s)
+
+ (no output)
+
+ Took 0.1s
+
+
+
+ todo list
+ 24 todo(s):
+ ✓ #1 Run the owner loop unchanged. Resolve the forge once for the program.
+ GitHub CLI (`gh`) is the default. If `command -v origin` succeeds and Origin
+ can resolve the repository, use `origin pr ...` for PR create, edit, view,
+ watch, and merge operations. Otherwise stay on `gh` and record the fallback.
+ Never require Graphite (`gt`). Each queue item is its own PR with its own
+ owner. The root chains the PRs in step 6. One Cursor cloud agent per PR maps
+ to one background `Task` with `description`, `prompt`, `subagent_type:
+ "poteto-agent"`, `run_in_background: true`, `environment: "cloud"`, and
+ `cloud_base_branch: "origin/main"`; each owns its change end to end in a
+ managed local worktree after `git fetch origin main`. Cloud Tasks need a clean
+ source checkout. Launch independent owners with parallel Task calls in one
+ message. Each owns build, first push, a ready PR opened before self-proof,
+ self-proof (gates, CI, receipts), skeptical Bugbot triage per
+ `references/bugbot-triage.md`, a slop-strip (the **deslop** skill
+ (`/skill:deslop`)), `/skill:no-comments` (the **no-comments** skill), and
+ babysit to green per `playbooks/babysit.md`. Owners parallelize when the work
+ is self-contained. Within about 15 minutes, every owner starts a
+ `decisions.tsv` trail per the **show-me-your-work** skill, pushes its first
+ branch snapshot, and opens the PR ready, never draft. Keep the trail
+ uncommitted and return it in the report. Owners also keep the `children.tsv`
+ of Autopilot-full step 2. The root spawns the owners right after the go.
+ Design work (the **how** and **architect** skills) happens inside each owner's
+ build, never in the root before spawning, and comes after the owner's first
+ push and ready PR, so the 15-minute trail exists before any design fan-out.
+ ✓ #2 Audit on the wake chain. The root runs an audit tick roughly every 30
+ minutes. A local root arms each tick as a real terminal `/loop`, implemented
+ in Pi as a monitored background `Shell` loop that sleeps 1800 seconds (30
+ minutes) and emits a unique output-notification sentinel. Set
+ `output_notification` to match it, per `references/pi-runtime.md`. Never leave
+ the cadence to memory or lossy completion notifications. At each tick, re-read
+ this playbook from trunk with `git show
+ origin/main:pstack/skills/poteto-mode/playbooks/autopilot-stack.md`, or from
+ its installed path (`playbooks/autopilot-stack.md`), then re-read the armed
+ `/goal`. Audit the operation against both. Fix drift during that tick. Probe
+ each owner with a generic liveness or status check. In Pi, use
+ `SubagentAwait({agent_id, timeout_ms: 0})`. Count only side effects as
+ progress: commits, pushes, PR or check deltas, and store reports. Treat a lane
+ that passes its expected runtime without a side effect as stuck. Stand it down
+ with `Task({resume: <agent_id>, interrupt: true})` and dispatch a replacement
+ at once. Do not wait for a polite return. Probe all subagents by their agent
+ ids in the owners' `children.tsv` with `SubagentAwait`, then end the tick per
+ Autopilot-full step 6.
+ ✓ #3 Hold the operator gates. State-then-wait, so a request to state the plan
+ is not a go. On the operator's explicit go, arm a `/goal` with the full
+ program objective using `CreateGoal({objective: "<full program objective>"})`.
+ The goal continues across turns until the chain is done. On the operator's
+ stop, every owner takes an immediate zero-writes hold. Interrupt every owner
+ Task at once with `Task({resume: <agent_id>, interrupt: true})`. Owners hold
+ their briefs until the operator releases them.
+ ✓ #4 Verify each round. The owner reports its code-ready head SHA once the
+ shipped code is final, and STACK-READY with the exact head SHA when its loop
+ is green. The root verifies each round per Autopilot-full step 4, with
+ STACK-READY in place of merge-ready. Nothing enters the stack unverified.
+ ✓ #5 Append on a clean verdict, never ship. No owner merges, arms auto-merge,
+ or closes. A clean verdict appends the PR to the one linear base-branch stack,
+ in verified order or an order the operator specified.
+ ... 19 more
+
+
+ Thinking...
+
+ Verified stack ready for operator review. Both PRs are open, non-draft, and
+ green. Neither was merged or queued for auto-merge.
+
+ 1. PR #75 — clear-done (https://github.com/just-joshn/pstack-pi-e2e/pull/75)
+    Head c84ebfd, based on main. Root verdict: PASS
+    (https://github.com/just-joshn/pstack-pi-e2e/pull/75#issuecomment-583040981
+    0).
+
+ 2. PR #74 — rename (https://github.com/just-joshn/pstack-pi-e2e/pull/74)
+    Head 2c8c579, based on #75 at c84ebfd. Root verdict: PASS
+    (https://github.com/just-joshn/pstack-pi-e2e/pull/74#issuecomment-583060790
+    7).
+
+ Verification passed: 44 tests and typecheck on the stacked head, live CLI
+ checks for both commands, and three fresh review lanes on #74. The
+ src/model.ts, filter, and related tests surfaced by Fovea were reviewed and
+ needed no changes.
+
+ Trails are in the session .audit/ directory; owner decision logs are under
+ pstack-agents/8357b0aa-…/worktree/ (#75) and
+ pstack-agents/1c56719f-…/worktree/ (#74). Goal completed; audit loop stopped.
+
+
+ [pstack-agents/notice]
+
+ Task 599fb956-a5d8-546f-acc9-7a51409f6e70 stopped (SIGTERM).
+
+ Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/599fb956-a5d8-546f-acc9-7a51409f6e
+ 70/session.jsonl
+
+
+ Thinking...
+
+ Noted. That was the stalled original clear-done owner; its stop is already
+ recorded. The verified stack remains unchanged and open for your review.
+
+
+ [pstack-agents/notice]
+
+ Shell 06679db7-0d73-59cd-b956-4d7bbb083e0e matched output line 1:
+ AGENT_LOOP_TICK_UX5_STACK_20260925
+
+ Reason: Autopilot-stack audit tick for the two CLI PR owners
+
+ Output log:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/0667
+ 9db7-0d73-59cd-b956-4d7bbb083e0e/output.log
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task 06679db7-0d73-59cd-b956-4d7bbb083e0e: Wait timed out. Current status:
+ running (pid 10132).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/06679db7-0d73-59cd-b956-4d7bbb083e
+ 0e/session.jsonl
+
+
+ Thinking...
+
+
+ Task
+ Interrupt requested for 06679db7-0d73-59cd-b956-4d7bbb083e0e. Current status:
+ running (pid 10132).
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task 06679db7-0d73-59cd-b956-4d7bbb083e0e: stopped (SIGTERM). Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/06679db7-0d73-59cd-b956-4d7bbb083e
+ 0e/session.jsonl
+
+
+ Thinking...
+
+
+ edit
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-02-866Z_01a0d78d-b2
+ 91-75e3-b127-aca994518d6b/.audit/children.tsv
+
+     ...
+  15 ddb2bdd0-46b6-51a5-a552-06058f395b9e   stacked rename review lane 1:
+ CLI/store semantics   10m   completed PASS   Exact stacked head/base verified;
+ title parsing, missing/non-numeric IDs, state-preserving mutation; no findings
+  16 46e74986-3720-5e9c-8f82-0be3ca73e9df   stacked review lane 2:
+ cross-feature/regression   10m   completed PASS   Exact parent/base verified;
+ clear-done preserved; 16 CLI tests passed; trunk comparison; no findings
+  17 87d94df9-b2d8-568d-ad11-9bb53e595fd0   stacked review lane 3: diff and
+ tests   10m   completed PASS   Exact head/base diff, trunk 40 tests, final
+ head 44 tests and no conflict markers; no proved defect
+  18 64966ea2-d193-5b0a-95b1-2c6bf4fac0c8   30-minute audit wake chain   30m
+ per wake   stopped after goal completion   Final chain verified; Shell loop
+ interrupted and SubagentAwait reports SIGTERM
+ +19 06679db7-0d73-59cd-b956-4d7bbb083e0e   stray audit wake chain   30m per
+ wake   stopped after goal completion   Emitted AGENT_LOOP_TICK after goal
+ complete; interrupted and SubagentAwait reports SIGTERM
+  19 f755cc90-183b-58b8-9d2f-fabcbefb8987   clear-done CLI how reader   5m
+ completed   Owner b097 reported result at 08:28:44Z
+  20 aa054468-725b-5bfd-8eab-d1bc2f683371   clear-done architect candidate 1
+ 10m   completed   Candidate artifact
+ /tmp/arena-clear-done-01a0d7a5/candidate-1/design.md
+  21 36d116f8-cd42-5dca-8be6-62c74c4257e3   clear-done architect candidate 2
+ 10m   completed   Candidate artifact
+ /tmp/arena-clear-done-01a0d7a5/candidate-2/design.md
+  22 9aea8400-8d6a-573c-bb72-7eb10752e948   clear-done architect candidate 3
+ 15m   failed   Anthropic usage error; no candidate-3 artifact
+     ...
+
+
+
+ $
+ /Users/josh-desktop/.pi/agent/pstack/pi-pstack/skills/show-me-your-work/script
+ s/log.sh
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/.audit/autopilot-stack-ux5.tsv
+ shutdown 'stopped a second audit wake Shell that fired after the completed
+ goal' 'The queue was already delivered; Shell 06679db7 emitted its audit
+ sentinel after completion and was promptly terminated. No PR or branch
+ mutation occurred.' 'User-provided Shell notification; SubagentAwait PID
+ 10132; Task interrupt; SubagentAwait stopped SIGTERM' 'both PRs remain the
+ previously verified open stack; no merge or auto-merge' (timeout 10000s)
+
+ (no output)
+
+ Took 0.1s
+
+
+ Thinking...
+
+ Stopped the lingering audit Shell with SIGTERM. It made no PR or branch
+ changes; the verified stack remains unchanged.
+
+
+ [pstack-agents/notice]
+
+ Task 7f70f3ab-073d-5690-b9ed-4d084852124f stopped (SIGTERM).
+
+ Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/7f70f3ab-073d-5690-b9ed-4d08485212
+ 4f/session.jsonl
+
+
+ Noted. That original rename owner’s stop is already recorded; its replacement
+ completed PR #74. The verified stack remains unchanged.
+
+
+ [pstack-agents/notice]
+
+ Task 509ec780-a814-5dbb-ba69-1176d15fd72f stopped (SIGTERM).
+
+ Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/509ec780-a814-5dbb-ba69-1176d15fd7
+ 2f/session.jsonl
+
+
+ Thinking...
+
+ Noted. That stalled rename replacement is already recorded as stopped; the
+ later replacement completed #74, and the stack is unchanged.
+
+
+ [pstack-agents/notice]
+
+ Shell 06679db7-0d73-59cd-b956-4d7bbb083e0e matched output line 2:
+ AGENT_LOOP_TICK_UX5_STACK_20260925
+
+ Reason: Autopilot-stack audit tick for the two CLI PR owners
+
+ Output log:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/0667
+ 9db7-0d73-59cd-b956-4d7bbb083e0e/output.log
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task 06679db7-0d73-59cd-b956-4d7bbb083e0e: stopped (SIGTERM). Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/06679db7-0d73-59cd-b956-4d7bbb083e
+ 0e/session.jsonl
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/06679db7-0d73-59cd-b95
+ 6-4d7bbb083e0e/output.log:1-100
+
+
+
+ $ printf 'known pid:\n'; ps -o pid,ppid,stat,etime,command -p 10132; printf
+ '\nprocesses containing sentinel:\n'; ps axo pid,ppid,stat,etime,command |
+ grep -F '[A]GENT_LOOP_TICK_UX5_STACK_20260925' || true; printf '\nprocesses
+ for loop worktree:\n'; ps axo pid,ppid,stat,etime,command | grep -F
+ '[0]6679db7' || true; printf '\nrecent transcript matches:\n'; rg -n
+ 'sleep|Shell|AGENT_LOOP_TICK_UX5_STACK_20260925'
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/2026-09-25T07-53-0
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/06679db7-0d73-59cd-b956-4d7bbb083e
+ 0e/session.jsonl (timeout 10000s)
+
+ ... (39 earlier lines, ctrl+o to expand)
+ 2-866Z_01a0d78d-b291-75e3-b127-aca994518d6b/06679db7-0d73-59cd-b956-4d7bbb083e
+ 0e/session.jsonl: No such file or directory (os error 2)
+
+
+ Command exited with code 2
+
+ Took 0.1s
+
+
+ Thinking...
+
+
+ $ printf 'output log metadata:\n'; stat -f 'mtime=%Sm size=%z'
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/0667
+ 9db7-0d73-59cd-b956-4d7bbb083e0e/output.log; printf '\nall sleepers and
+ matching processes:\n'; ps axo pid,ppid,stat,etime,command | rg '(^| )sleep(
+ |$)|AGENT_LOOP_TICK|pstack-pi-e2e-autopilot-stack|06679db7' (timeout 10000s)
+
+ ... (49 earlier lines, ctrl+o to expand)
+ 9db7-0d73-59cd-b956-4d7bbb083e0e/output.log; printf '\nall sleepers and
+ matching processes:\n'; ps axo pid,ppid,stat,etime,command | rg '(^| )sleep(
+ |$)|AGENT_LOOP_TICK|pstack-pi-e2e-autopilot-stack|06679db7'
+ 63631 63628 R       00:00 rg (^| )sleep(
+ |$)|AGENT_LOOP_TICK|pstack-pi-e2e-autopilot-stack|06679db7
+
+ Took 0.1s
+
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-stack-20260925--/pstack-agents/06679db7-0d73-59cd-b95
+ 6-4d7bbb083e0e/output.log:1-100
+
+
+ Thinking...
+
+── ⠹ Working ───────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-autopi...
+↑2.1M ↓618k R51M CH98.8% $1.026 (sub) 81.8%/272k (auto)         gpt-6-luna • max
+👑 poteto

@@ -1,0 +1,5 @@
+
+
+full-audit: 4879/4933 upstream sentences carried (98.91%; floor 98.90%)
+reverse audit: 349 Pi-only sentences, 349 inventoried, 0 unjustified, 54 upstream gaps
+exit=0

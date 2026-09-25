@@ -1,0 +1,3 @@
+LIST — Backlog, not filed: “arena should dedupe candidate dirs”; “show-me-your-work log.sh should validate column count”.
+“With none named, file nowhere.”
+backlog tracker: <team-named tracker or command>

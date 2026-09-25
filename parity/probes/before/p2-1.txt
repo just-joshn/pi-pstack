@@ -1,0 +1,2 @@
+check
+“Small or docs-only PRs get `check`, not `drive`.”

@@ -1,0 +1,7 @@
+--- /Users/josh-desktop/.pi/agent/pstack/pi-pstack/parity/evidence/u6/i-guards/how-SKILL.original.md	2026-09-24 21:13:35.000000000 -0700
++++ /Users/josh-desktop/.pi/agent/pstack/pi-pstack/parity/evidence/u6/i-guards/how-SKILL.authorized-after.md	2026-09-24 22:10:33.488760222 -0700
+@@ -58,3 +58,4 @@
+ ## Output Format
+ 
+ The explanation uses the sections defined in `references/explainer-prompt.md`, dropping any that do not apply: Overview, Key Concepts, How It Works, Where Things Live, Gotchas.
++<!-- U6_AUTHORIZED_EDIT -->

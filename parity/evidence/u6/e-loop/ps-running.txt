@@ -1,0 +1,3 @@
+38360 38343 02:57:23 /bin/sh -c while true; do sleep 300; echo 'AGENT_LOOP_TICK_pkgaudit {"prompt":"Run /tmp/pkg-audit/tick.sh; comprehensively verify, confirm, and fact-check every new subagent commit, dirty change, and claim; act on any flag"}'; done
+86828 86810    02:03 /bin/sh -c while true; do sleep 60; echo 'AGENT_LOOP_TICK_echo_tick {"prompt":"echo tick"}'; done
+88350 86828    00:02 sleep 60

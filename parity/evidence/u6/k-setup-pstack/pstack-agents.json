@@ -1,0 +1,10 @@
+{
+  "modelScope": {
+    "enforce": true,
+    "allow": [
+      "inherit",
+      "openai-codex/gpt-6-luna",
+      "anthropic/claude-opus-5-5"
+    ]
+  }
+}

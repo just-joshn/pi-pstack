@@ -1,11 +1,4 @@
 node_modules/
 .DS_Store
 *.log
-.pi/*
-!.pi/decisions.tsv
-.port-upstream/
-.pstack-worktrees/
-coverage/
-coverage-*/
-cov-*/
-.env.staging
+*.tgz

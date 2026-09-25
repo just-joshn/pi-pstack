@@ -1,0 +1,1 @@
+Agent 'pstack-shell' uses runner.type='external-cli', which currently supports async/background execution only. Omit async or pass async:true; clarify and foregroundOnly are unsupported.

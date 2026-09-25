@@ -1,0 +1,2 @@
+CMD: `test -f ~/.pi/agent/skills/arena/references/design-red-flags.md`
+FIX: The arena skill’s source repository, in its own PR.

@@ -1,0 +1,74 @@
+agent dir: /Users/josh-desktop/.pi/agent
+package:   /Users/josh-desktop/.pi/agent/pstack/pi-pstack
+backup:    /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z
++ mkdir -p /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/extensions /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/agents
++ cp -p /Users/josh-desktop/.pi/agent/AGENTS.md /Users/josh-desktop/.pi/agent/settings.json /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/
++ mv /Users/josh-desktop/.pi/agent/skills/architect /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/architect
++ mv /Users/josh-desktop/.pi/agent/skills/arena /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/arena
++ mv /Users/josh-desktop/.pi/agent/skills/automate-me /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/automate-me
++ mv /Users/josh-desktop/.pi/agent/skills/blast-radius /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/blast-radius
++ mv /Users/josh-desktop/.pi/agent/skills/bro /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/bro
++ mv /Users/josh-desktop/.pi/agent/skills/control-cli /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/control-cli
++ mv /Users/josh-desktop/.pi/agent/skills/control-ui /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/control-ui
++ mv /Users/josh-desktop/.pi/agent/skills/create-skill /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/create-skill
++ mv /Users/josh-desktop/.pi/agent/skills/create-verification-skill /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/create-verification-skill
++ mv /Users/josh-desktop/.pi/agent/skills/deslop /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/deslop
++ mv /Users/josh-desktop/.pi/agent/skills/figure-it-out /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/figure-it-out
++ mv /Users/josh-desktop/.pi/agent/skills/goal /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/goal
++ mv /Users/josh-desktop/.pi/agent/skills/how /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/how
++ mv /Users/josh-desktop/.pi/agent/skills/interrogate /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/interrogate
++ mv /Users/josh-desktop/.pi/agent/skills/loop /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/loop
++ mv /Users/josh-desktop/.pi/agent/skills/maintain-verification-skill /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/maintain-verification-skill
++ mv /Users/josh-desktop/.pi/agent/skills/make-bot-ui /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/make-bot-ui
++ mv /Users/josh-desktop/.pi/agent/skills/no-comments /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/no-comments
++ mv /Users/josh-desktop/.pi/agent/skills/poteto-mode /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/poteto-mode
++ mv /Users/josh-desktop/.pi/agent/skills/principle-attack-the-premise /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-attack-the-premise
++ mv /Users/josh-desktop/.pi/agent/skills/principle-boundary-discipline /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-boundary-discipline
++ mv /Users/josh-desktop/.pi/agent/skills/principle-build-the-lever /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-build-the-lever
++ mv /Users/josh-desktop/.pi/agent/skills/principle-encode-lessons-in-structure /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-encode-lessons-in-structure
++ mv /Users/josh-desktop/.pi/agent/skills/principle-exhaust-the-design-space /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-exhaust-the-design-space
++ mv /Users/josh-desktop/.pi/agent/skills/principle-experience-first /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-experience-first
++ mv /Users/josh-desktop/.pi/agent/skills/principle-fix-root-causes /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-fix-root-causes
++ mv /Users/josh-desktop/.pi/agent/skills/principle-foundational-thinking /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-foundational-thinking
++ mv /Users/josh-desktop/.pi/agent/skills/principle-guard-the-context-window /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-guard-the-context-window
++ mv /Users/josh-desktop/.pi/agent/skills/principle-laziness-protocol /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-laziness-protocol
++ mv /Users/josh-desktop/.pi/agent/skills/principle-make-operations-idempotent /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-make-operations-idempotent
++ mv /Users/josh-desktop/.pi/agent/skills/principle-migrate-callers-then-delete-legacy-apis /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-migrate-callers-then-delete-legacy-apis
++ mv /Users/josh-desktop/.pi/agent/skills/principle-minimize-reader-load /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-minimize-reader-load
++ mv /Users/josh-desktop/.pi/agent/skills/principle-model-the-domain /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-model-the-domain
++ mv /Users/josh-desktop/.pi/agent/skills/principle-never-block-on-the-human /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-never-block-on-the-human
++ mv /Users/josh-desktop/.pi/agent/skills/principle-outcome-oriented-execution /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-outcome-oriented-execution
++ mv /Users/josh-desktop/.pi/agent/skills/principle-prove-it-works /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-prove-it-works
++ mv /Users/josh-desktop/.pi/agent/skills/principle-redesign-from-first-principles /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-redesign-from-first-principles
++ mv /Users/josh-desktop/.pi/agent/skills/principle-separate-before-serializing-shared-state /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-separate-before-serializing-shared-state
++ mv /Users/josh-desktop/.pi/agent/skills/principle-sequence-verifiable-units /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-sequence-verifiable-units
++ mv /Users/josh-desktop/.pi/agent/skills/principle-subtract-before-you-add /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-subtract-before-you-add
++ mv /Users/josh-desktop/.pi/agent/skills/principle-test-behavior-not-implementation /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-test-behavior-not-implementation
++ mv /Users/josh-desktop/.pi/agent/skills/principle-type-system-discipline /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/principle-type-system-discipline
++ mv /Users/josh-desktop/.pi/agent/skills/recall /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/recall
++ mv /Users/josh-desktop/.pi/agent/skills/reflect /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/reflect
++ mv /Users/josh-desktop/.pi/agent/skills/setup-pstack /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/setup-pstack
++ mv /Users/josh-desktop/.pi/agent/skills/show-me-your-work /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/show-me-your-work
++ mv /Users/josh-desktop/.pi/agent/skills/skill-design-principles /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/skill-design-principles
++ mv /Users/josh-desktop/.pi/agent/skills/swarm /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/swarm
++ mv /Users/josh-desktop/.pi/agent/skills/tdd /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/tdd
++ mv /Users/josh-desktop/.pi/agent/skills/teach /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/teach
++ mv /Users/josh-desktop/.pi/agent/skills/technical-writing /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/technical-writing
++ mv /Users/josh-desktop/.pi/agent/skills/typescript-best-practices /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/typescript-best-practices
++ mv /Users/josh-desktop/.pi/agent/skills/unslop /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/unslop
++ mv /Users/josh-desktop/.pi/agent/skills/why /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/skills/why
++ mv /Users/josh-desktop/.pi/agent/extensions/pstack-agents /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/extensions/pstack-agents
++ mv /Users/josh-desktop/.pi/agent/extensions/pstack-guards.ts /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/extensions/pstack-guards.ts
++ mv /Users/josh-desktop/.pi/agent/extensions/pstack-mode.ts /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/extensions/pstack-mode.ts
++ mv /Users/josh-desktop/.pi/agent/extensions/questionnaire.ts /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/extensions/questionnaire.ts
++ mv /Users/josh-desktop/.pi/agent/extensions/todo.ts /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/extensions/todo.ts
++ mv /Users/josh-desktop/.pi/agent/agents/comment-sicko.md /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/agents/comment-sicko.md
++ mv /Users/josh-desktop/.pi/agent/agents/poteto-agent.md /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/agents/poteto-agent.md
++ mv /Users/josh-desktop/.pi/agent/agents/pstack-general.md /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/agents/pstack-general.md
++ mv /Users/josh-desktop/.pi/agent/agents/pstack-reader.md /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/agents/pstack-reader.md
++ write /Users/josh-desktop/.pi/agent/extensions/pstack-agents.json with modelScope {"enforce":true,"allow":["openai-codex/gpt-6-luna","anthropic/claude-opus-5-5:low","inherit"]}; drop settings.json .subagents
++ AGENTS.md: ~/.pi/agent/skills/poteto-mode/SKILL.md -> /Users/josh-desktop/.pi/agent/pstack/pi-pstack/skills/poteto-mode/SKILL.md
++ pi install /Users/josh-desktop/.pi/agent/pstack/pi-pstack
+Installing /Users/josh-desktop/.pi/agent/pstack/pi-pstack...
+Installed /Users/josh-desktop/.pi/agent/pstack/pi-pstack
+rollback: /Users/josh-desktop/.pi/agent/pstack/backups/pre-package-20260925T064117Z/rollback.sh

@@ -1,0 +1,19 @@
+Task	{"description":"Explain the score calculation","prompt":"You are the how explainer for a simple single-module question. The user asks, \\"In one sentence, how does src/score.js calculate the score for 2 of 3 correct answers?\\" Read `src/score.js` and verify the exact score calculation from the code. Return one concise sentence only, naming the resulting score and how it is calculated. Follow the how skill's simple-question output style, but honor the user's one-sentence limit.","subagent_type":"generalPurpose","readonly":true,"model":"openai-codex/gpt-6-luna:max","run_in_background":true}
+SubagentAwait	{"agent_id":"c50d325f-edbb-53bf-8fef-3073e1f12259","timeout_ms":30000}
+Task	{"description":"Return foreground verification token","prompt":"Return exactly FOREGROUND_U6_OK","subagent_type":"generalPurpose","model":"openai-codex/gpt-6-luna:low","run_in_background":false}
+Task	{"description":"Return background verification token","prompt":"Return exactly BACKGROUND_U6_OK","subagent_type":"generalPurpose","model":"openai-codex/gpt-6-luna:low","run_in_background":true}
+SubagentAwait	{"agent_id":"a2a00d61-7956-51d0-979b-6aef128d94e3","timeout_ms":30000}
+Shell	{"command":"sleep 20; printf 'READY_X\\\\n'","is_background":true,"output_notification":"^READY_X"}
+Await	{"task_id":"7e6adbf4-13dc-522d-8378-d41f62cc501e","block_until_ms":30000,"regex":"^READY_X"}
+todo	{"action":"add","items":["Check the conversation for an already-running matching Shell task.","Start one background Shell loop with `is_background: true` and `output_notification` set to `^AGENT_LOOP_TICK_<purpose>`.","Use a unique sentinel and a regex such as `^AGENT_LOOP_TICK_<purpose>`.","Check that Shell returns a `task_id` and reports the task as running.","Run the prompt once immediately after arming the loop.","The first sentinel should arrive only after the initial sleep, so startup does not double-run the prompt.","Track the `task_id` so the agent can stop the loop if asked, using `Task({ resume: task_id, interrupt: true })`.","Briefly confirm the interval, that the prompt already ran once, when the first tick will arrive, and that the loop will fire on each tick until stopped.","Parse `1m echo tick` as a fixed 60-second schedule with the prompt `echo tick`."]}
+Shell	{"command":"while true; do sleep 60; echo 'AGENT_LOOP_TICK_echo_tick {\\"prompt\\":\\"echo tick\\"}'; done","is_background":true,"output_notification":"^AGENT_LOOP_TICK_echo_tick"}
+Shell	{"command":"echo tick","is_background":false}
+Await	{"task_id":"2a95c23d-a767-5f31-86bc-8d4adb95d9f5","block_until_ms":30000,"regex":"^AGENT_LOOP_TICK_echo_tick"}
+Shell	{"command":"echo tick","is_background":false}
+Shell	{"command":"echo tick","is_background":false}
+Shell	{"command":"echo tick","is_background":false}
+Shell	{"command":"echo tick","is_background":false}
+Shell	{"command":"echo tick","is_background":false}
+Shell	{"command":"echo tick","is_background":false}
+Task	{"resume":"2a95c23d-a767-5f31-86bc-8d4adb95d9f5","interrupt":true}
+Await	{"task_id":"2a95c23d-a767-5f31-86bc-8d4adb95d9f5","block_until_ms":30000}

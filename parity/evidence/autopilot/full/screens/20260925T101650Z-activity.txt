@@ -1,0 +1,474 @@
+ current owner is making the requested snapshot-only test change' 'Owner 90d
+ copied prior trails, pinned d50/base, added a pre-removal snapshot assertion
+ to test/todo.test.ts, verified old snapshot IDs and object references remain,
+ and ran the focused test (28 pass). No source edit, commit, push, or remote
+ movement yet; a no-comments review passed. No current child entry is reported
+ active' 'goal e70a5189-654d-45b3-b77a-e754076bc27f ACTIVE; owner
+ 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29 running; prior owner b9 complete; root
+ Shell 6234a6d6 tick matched; PR/remote still
+ d50e5a1abe48bd091189af62b3b10f3e88721bf4' 'within expected runtime and making
+ progress; wait for full checks, commit/push, then fresh round-3 swarm; no root
+ verdict or merge' >> decisions.tsv (timeout 30s)
+
+ (no output)
+
+ Took 0.0s
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4ac0d-bc68-50b1-b8b8
+ -8ff8c31d9e29/worktree/children.tsv:18-27
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29: Wait timed out. Current status:
+ running (pid 58068).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e2
+ 9/session.jsonl
+
+
+
+ $
+ worktree='/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kw
+ nqr97632l_cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-ag
+ ents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree'; git -C "$worktree" status
+ --short --branch; git -C "$worktree" diff --stat; date -u
+ '+%Y-%m-%dT%H:%M:%SZ'; git ls-remote --heads origin ux5-full-remove-todo
+ (timeout 30s)
+
+ ## pstack-agents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29
+ ?? children.tsv
+ ?? decisions.tsv
+ 2026-09-25T10:06:47Z
+ d50e5a1abe48bd091189af62b3b10f3e88721bf4   refs/heads/ux5-full-remove-todo
+
+ Took 0.7s
+
+
+ Thinking...
+
+
+ $
+ worktree='/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kw
+ nqr97632l_cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-ag
+ ents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree'; printf 'HEAD='; git -C
+ "$worktree" rev-parse HEAD; git -C "$worktree" log -1
+ --format='PARENTS=%P%nSUBJECT=%s'; printf 'PATCH_ID='; git -C "$worktree" diff
+ fa50322ec63e863cf9af7b2bda769bff405a6aa9...HEAD | git patch-id --stable;
+ printf '\nREMOTE='; git ls-remote --heads origin ux5-full-remove-todo; printf
+ '\nPR='; gh pr view 73 --repo just-joshn/pstack-pi-e2e --json
+ headRefOid,state,mergeStateStatus,statusCheckRollup; printf '\nSTATUS='; git
+ -C "$worktree" status --short --branch (timeout 60s)
+
+ ... (12 earlier lines, ctrl+o to expand)
+ argetUrl":""}]}
+
+ STATUS=## pstack-agents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29
+ ?? children.tsv
+ ?? decisions.tsv
+
+ Took 1.4s
+
+
+ Thinking...
+
+
+ $ wc -l
+ '/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l
+ _cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4
+ ac0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree/decisions.tsv' (timeout 30s)
+
+ 62
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4a
+ c0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree/decisions.tsv
+
+ Took 0.1s
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4ac0d-bc68-50b1-b8b8
+ -8ff8c31d9e29/worktree/decisions.tsv:51-62
+
+
+ Thinking...
+
+
+ $ printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+ 'fix-round-code-ready-3' 'Owner pushed the snapshot-preservation regression as
+ test-only commit 40d2b8146fa2e0b401cebc239dc02a19cc714b9c' 'The pre-removal
+ list is now checked for original membership/order and object identities after
+ removeTodo. Owner ran focused/full tests, typecheck and diff-check on the
+ committed head; slop/no-comments passed; GitHub local-ci/test is successful.
+ Root will run a fresh five-lane swarm because this patch-id changed' 'PR #73 /
+ remote ux5-full-remove-todo both at 40d2b8146fa2e0b401cebc239dc02a19cc714b9c;
+ base fa50322ec63e863cf9af7b2bda769bff405a6aa9; full patch-id
+ 4da68a5fe4ed4f585a5ae00eba01d0c1dbec3d42; owner trail 2026-09-25T10:08:29Z and
+ 10:09:57Z' 'PR open, ready, CLEAN, CI SUCCESS; owner held without merge; fresh
+ exact-head root swarm required' >> decisions.tsv && git fetch origin main
+ '+refs/heads/ux5-full-remove-todo:refs/remotes/origin/ux5-full-remove-todo' &&
+ printf 'TRUNK=' && git rev-parse origin/main && printf 'HEAD=' && git
+ rev-parse origin/ux5-full-remove-todo && gh pr view 73 --repo
+ just-joshn/pstack-pi-e2e --json
+ baseRefOid,headRefOid,headRefName,baseRefName,mergeStateStatus,statusCheckRoll
+ up,state,isDraft (timeout 120s)
+
+ ... (4 earlier lines, ctrl+o to expand)
+ {"baseRefName":"main","baseRefOid":"fa50322ec63e863cf9af7b2bda769bff405a6aa9",
+ "headRefName":"ux5-full-remove-todo","headRefOid":"40d2b8146fa2e0b401cebc239dc
+ 02a19cc714b9c","isDraft":false,"mergeStateStatus":"CLEAN","state":"OPEN","stat
+ usCheckRollup":[{"__typename":"StatusContext","context":"local-ci/test","start
+ edAt":"2026-09-25T10:07:44Z","state":"SUCCESS","targetUrl":""}]}
+
+ Took 1.4s
+
+
+ Thinking...
+
+
+ edit
+ /private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-autopil
+ ot-full-20260925/children.tsv
+
+   1 child_id   kind   expected_runtime   state
+   2 68d05463-4b37-594e-b13e-78b917052a72   original PR lifecycle owner,
+ poteto-agent   90m   complete; held at merge-ready d887, no merge
+   3 b9fc79f0-1a28-5f74-80b0-63424e39bd96   replacement PR lifecycle owner,
+ poteto-agent   90m   complete; pushed d50 and held for root verdict, no merge
+ - 4 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29   replacement PR lifecycle owner,
+ poteto-agent   90m   running; snapshot-test fix-forward from d50
+ + 4 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29   replacement PR lifecycle owner,
+ poteto-agent   90m   complete; pushed d40, CI green, held for root verdict
+   5 7ae14357-7aae-5dfa-b559-19ca8b378028   root swarm round 1 gates   30m
+ complete PASS at d887 after frozen install
+   6 c05fff34-952f-58bb-8c29-8ae468d3b65f   root swarm round 1 live behavior
+ 30m   complete PASS at d887
+   7 1c6ffec5-f390-543c-9efc-496886e711cd   root swarm round 1 API/diff review
+ 30m   complete PASS at d887
+   8 5b00ab88-f273-5ec9-a15e-3108ccc088b7   root swarm round 1
+ invariants/coverage review   30m   complete ISSUES; test coverage gap resolved
+ by d50
+     ...
+
+
+ Thinking...
+
+
+ $ test ! -e /tmp/ux5-autopilot-root-decisions.tsv && test ! -e
+ /tmp/ux5-autopilot-root-children.tsv && mv decisions.tsv
+ /tmp/ux5-autopilot-root-decisions.tsv && mv children.tsv
+ /tmp/ux5-autopilot-root-children.tsv && git status --short --branch (timeout
+ 30s)
+
+ ## main...origin/main
+
+ Took 0.1s
+
+
+ Thinking...
+
+
+ Task
+ Task started. agent_id: c5d221d6-f72d-5e32-972c-7582541b7275
+ Status: starting
+ Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/c5d221d6-f72d-5e32-972c-7582541b727
+ 5/session.jsonl
+ Worktree:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/c5d22
+ 1d6-f72d-5e32-972c-7582541b7275/worktree (branch
+ pstack-agents/c5d221d6-f72d-5e32-972c-7582541b7275)
+
+
+
+ Task
+ Task started. agent_id: bfa4a064-ec92-5cf1-bc13-54cd9962df08
+ Status: starting
+ Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/bfa4a064-ec92-5cf1-bc13-54cd9962df0
+ 8/session.jsonl
+ Worktree:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/bfa4a
+ 064-ec92-5cf1-bc13-54cd9962df08/worktree (branch
+ pstack-agents/bfa4a064-ec92-5cf1-bc13-54cd9962df08)
+
+
+
+ Task
+ Task started. agent_id: 89550044-528b-58eb-bedf-f0fa4f637cba
+ Status: starting
+ Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/89550044-528b-58eb-bedf-f0fa4f637cb
+ a/session.jsonl
+ Worktree:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/89550
+ 044-528b-58eb-bedf-f0fa4f637cba/worktree (branch
+ pstack-agents/89550044-528b-58eb-bedf-f0fa4f637cba)
+
+
+
+ Task
+ Task started. agent_id: 0cd1a327-99bf-5445-98b4-628798492a4f
+ Status: starting
+ Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/0cd1a327-99bf-5445-98b4-628798492a4
+ f/session.jsonl
+ Worktree:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/0cd1a
+ 327-99bf-5445-98b4-628798492a4f/worktree (branch
+ pstack-agents/0cd1a327-99bf-5445-98b4-628798492a4f)
+
+
+
+ Task
+ Task started. agent_id: 4cfddbe5-7008-5e03-a8f8-3b036cef3614
+ Status: starting
+ Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/4cfddbe5-7008-5e03-a8f8-3b036cef361
+ 4/session.jsonl
+ Worktree:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/4cfdd
+ be5-7008-5e03-a8f8-3b036cef3614/worktree (branch
+ pstack-agents/4cfddbe5-7008-5e03-a8f8-3b036cef3614)
+
+
+ Thinking...
+
+
+ $ test -e /tmp/ux5-autopilot-root-decisions.tsv && test -e
+ /tmp/ux5-autopilot-root-children.tsv && mv
+ /tmp/ux5-autopilot-root-decisions.tsv decisions.tsv && mv
+ /tmp/ux5-autopilot-root-children.tsv children.tsv && git status --short
+ --branch (timeout 30s)
+
+ ## main...origin/main
+ ?? children.tsv
+ ?? decisions.tsv
+
+ Took 0.1s
+
+
+ Thinking...
+
+
+ $ printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+ 'swarm-round-3-dispatch' 'Spawned five parallel root verifiers against exact
+ PR head 40d2b8146fa2e0b401cebc239dc02a19cc714b9c and exact current trunk
+ fa50322ec63e863cf9af7b2bda769bff405a6aa9' 'The second accepted test-coverage
+ finding is fixed at this test-only head; all new lanes re-run gates,
+ real-store behavior including the pre-removal snapshot, two independent diff
+ reviews, and trunk baseline' 'c5d221d6-f72d-5e32-972c-7582541b7275 gates;
+ bfa4a064-ec92-5cf1-bc13-54cd9962df08 live;
+ 89550044-528b-58eb-bedf-f0fa4f637cba review-A;
+ 0cd1a327-99bf-5445-98b4-628798492a4f review-B;
+ 4cfddbe5-7008-5e03-a8f8-3b036cef3614 trunk; all swarm-workers
+ openai-codex/gpt-6-luna:max; full patch-id
+ 4da68a5fe4ed4f585a5ae00eba01d0c1dbec3d42' 'all five Tasks started in parallel;
+ root verdict and merge pending exact-SHA aggregation and owner state' >>
+ decisions.tsv (timeout 30s)
+
+ (no output)
+
+ Took 0.0s
+
+
+ Thinking...
+
+
+ read
+ /private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-autopil
+ ot-full-20260925/children.tsv:1-40
+
+
+ Thinking...
+
+
+ edit
+ /private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-autopil
+ ot-full-20260925/children.tsv
+
+     ...
+  12 aaa52d01-eebe-5d00-97f4-3e91d6e6f6e8   root swarm round 2 API/diff review
+ 30m   complete PASS at d50
+  13 fd58dd84-3fe2-5df0-81c3-feabf634438e   root swarm round 2
+ invariants/coverage review   30m   complete ISSUES; live snapshot behavior
+ passes but no committed removeTodo snapshot test
+  14 0e9df283-b7cc-5be2-b985-0129f3df6fd2   root swarm round 2 trunk regression
+ 30m   complete PASS at fa503
+  15 6234a6d6-0f40-5059-aa2f-f47e09235218   root audit Shell loop   30m
+ interval   running; unique sentinel
+ PSTACK_AUTOPILOT_AUDIT_TICK_UX5_FULL_20260925
+ +16 c5d221d6-f72d-5e32-972c-7582541b7275   root swarm round 3 gates   30m
+ running
+ +17 bfa4a064-ec92-5cf1-bc13-54cd9962df08   root swarm round 3 live behavior
+ 30m   running
+ +18 89550044-528b-58eb-bedf-f0fa4f637cba   root swarm round 3 API/diff review
+ 30m   running
+ +19 0cd1a327-99bf-5445-98b4-628798492a4f   root swarm round 3
+ invariants/coverage review   30m   running
+ +20 4cfddbe5-7008-5e03-a8f8-3b036cef3614   root swarm round 3 trunk regression
+ 30m   running
+
+
+ Thinking...
+
+
+ todo set "d50 round aggregate complete; accepted snapshot-coverage finding was
+ fixed in test-only commit 40d2b81 with clean CI; a fresh round at d40 is now
+ running." #16 completed
+ ✓ Todo #16 completed
+
+
+
+ todo add
+ ✓ Added todo #18: Frame and launch the fresh five-lane root swarm for exact PR
+ head 40d2b8146fa2e0b401cebc239dc02a19cc714b9c against trunk
+ fa50322ec63e863cf9af7b2bda769bff405a6aa9. · Added todo #19: Aggregate
+ exact-40d evidence, resolve any proven findings, and keep merge held until the
+ owner and clean root verdict match.
+
+
+ Thinking...
+
+
+ todo set #18 completed
+ ✓ Todo #18 completed
+
+
+
+ todo set #19 in_progress
+ ✓ Todo #19 in_progress
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task c5d221d6-f72d-5e32-972c-7582541b7275: completed (exit 0). Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/c5d221d6-f72d-5e32-972c-7582541b727
+ 5/session.jsonl
+
+ **PASS.** Verified exact PR head `40d2b8146fa2e0b401cebc239dc02a19cc714b9c`.
+ `git rev-parse HEAD` matched before and after the gates, both with exit code
+ 0. The requested base `fa50322ec63e863cf9af7b2bda769bff405a6aa9` also resolved
+ successfully.
+
+ | Gate | Exit code | Output |
+ |---|---:|---|
+ | `bun install --frozen-lockfile` | 0 | Bun 1.4.2; 5 packages installed. |
+ | `bun test` | 0 | 45 pass, 0 fail, 89 expect calls across 3 files. |
+ | `bun run typecheck` | 0 | `$ bunx tsc --noEmit -p .` |
+ | `git diff --check
+ fa50322ec63e863cf9af7b2bda769bff405a6aa9...40d2b8146fa2e0b401cebc239dc02a19cc7
+ 14b9c` | 0 | No output. |
+ ... (2 more lines, ctrl+o to expand)
+
+
+
+ SubagentAwait
+
+
+
+ SubagentAwait
+
+
+
+ SubagentAwait
+
+
+
+ SubagentAwait
+ Task 4cfddbe5-7008-5e03-a8f8-3b036cef3614: completed (exit 0). Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/4cfddbe5-7008-5e03-a8f8-3b036cef361
+ 4/session.jsonl
+
+ **PASS**. Detached `HEAD` is exactly
+ `fa50322ec63e863cf9af7b2bda769bff405a6aa9`. The worktree is clean.
+
+ - `bun install --frozen-lockfile`: PASS.
+ - `bun test`: PASS, 40 passed and 0 failed.
+ - `bun run typecheck`: PASS.
+ - `removeTodo`: absent from trunk’s `src` and `test` source, and absent from
+ the runtime exports.
+ - I read the diff from trunk to PR head
+ `40d2b8146fa2e0b401cebc239dc02a19cc714b9c`. It adds `removeTodo` in
+ `src/store.ts` and its tests, so that feature must be gated on the PR head. I
+ did not simulate its behavior on trunk.
+ - Baseline add/list/get/identity scenario: PASS. `add` returned the expected
+ todo, `get` and `list` preserved its object identity, and `list` returned a
+ fresh array.
+ ... (1 more lines, ctrl+o to expand)
+
+
+
+ $ git ls-remote --heads origin ux5-full-remove-todo; gh pr view 73 --repo
+ just-joshn/pstack-pi-e2e --json
+ headRefOid,mergeStateStatus,statusCheckRollup,state,isDraft (timeout 60s)
+
+ 40d2b8146fa2e0b401cebc239dc02a19cc714b9c   refs/heads/ux5-full-remove-todo
+ {"headRefOid":"40d2b8146fa2e0b401cebc239dc02a19cc714b9c","isDraft":false,"merg
+ eStateStatus":"CLEAN","state":"OPEN","statusCheckRollup":[{"__typename":"Statu
+ sContext","context":"local-ci/test","startedAt":"2026-09-25T10:07:44Z","state"
+ :"SUCCESS","targetUrl":""}]}
+
+ Took 1.2s
+
+
+Todos 10/19
+✓ #1 Mark the operator's items and honor state-then-wait. Items the operator ...
+◐ #2 Spawn one owner per PR with the full lifecycle and an early trail. Resol...
+✓ #3 Run owners in true parallel and never stack. Many owners at once when PR...
+✓ #4 Swarm-verify every round before its merge. A round starts at the owner's...
+○ #5 On a clean verdict the owner merges and takes the next item. The owner m...
+○ #6 Run the root layer. A genuinely new raise of a pinned gate or budget val...
+○ #7 Stand down instantly on the operator's stop. The operator's hold or stan...
+✓ #8 Read repository guidance and discover the todo-store behavior; then dele...
+◐ #9 Swarm-verify the owner's ready commit and cleanly merge only after an in...
+○ #10 Stop audit monitoring when the queue is merged, complete the goal, and ...
+✓ #11 Frame the swarm around exact code-ready SHA d887b0ba7989303adda04703658...
+✓ #12 Fan out independent gate, live behavior, two diff-review, and trunk-reg...
+✓ #13 Round d887 aggregation complete; addressed the accepted count/isEmpty/n...
+○ #14 Report the pinned-SHA verdict, lanes, gaps, and cleanup
+✓ #15 Frame and launch fresh five-lane verification at PR head d50e5a1abe48bd...
+✓ #16 d50 round aggregate complete; accepted snapshot-coverage finding was fi...
+○ #17 Clean up fresh swarm worktrees and verify the final owner SHA/checks/me...
+✓ #18 Frame and launch the fresh five-lane root swarm for exact PR head 40d2b...
+◐ #19 Aggregate exact-40d evidence, resolve any proven findings, and keep mer...
+── ⠦ Working ───────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-autopi...
+↑2.0M ↓408k R47M CH99.8% $0.867 (sub) 78.1%/272k (auto)         gpt-6-luna • max
+Agents 4 running · Shells 1 running · Goal active Goal active: Full autopilot...

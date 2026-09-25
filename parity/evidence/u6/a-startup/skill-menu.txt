@@ -1,0 +1,24 @@
+principle-minimize-reader-load, principle-model-the-domain,
+principle-never-block-on-the-human, principle-outcome-oriented-execution,
+principle-prove-it-works, principle-redesign-from-first-principles,
+principle-separate-before-serializing-shared-state,
+principle-sequence-verifiable-units, principle-subtract-before-you-add,
+principle-test-behavior-not-implementation, principle-type-system-discipline,
+recall, reflect, setup-pstack, show-me-your-work, skill-design-principles,
+swarm, tdd, teach, technical-writing, typescript-best-practices, unslop, why
+
+[Extensions]
+  pstack-agents, pstack-guards.ts, pstack-mode.ts, questionnaire.ts, todo.ts
+
+
+────────────────────────────────────────────────────────────────────────────────
+/skill:
+────────────────────────────────────────────────────────────────────────────────
+→ skill:architect                 [u] Sketch types, signatures, and module str
+  skill:arena                     [u] Spawn N parallel candidates at the same
+  skill:automate-me               [u] Use for "automate me", "create/update/re
+  skill:blast-radius              [u] Find what a change could break somewhere
+  skill:bro                       [u] Restate the last message in plain human
+  (1/54)
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.pmPmmVsDQH (main)
+$0.000 (sub) 0.0%/272k (auto)                    (openai-codex) gpt-6-luna • max

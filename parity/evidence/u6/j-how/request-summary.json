@@ -1,0 +1,18 @@
+{
+  "agent": "pstack-reader",
+  "taskTools": [
+    "read",
+    "grep",
+    "find",
+    "ls"
+  ],
+  "declaredTools": [
+    "read",
+    "grep",
+    "find",
+    "ls",
+    "bash"
+  ],
+  "model": "openai-codex/gpt-6-luna:max",
+  "prompt": "You are the how explainer for a simple single-module question. Original question: \"How does src/labels.js work?\" Read `src/labels.js` and explain its behavior for a senior engineer. Use the how skill's applicable output sections (Overview, Key Concepts, How It Works, Where Things Live, Gotchas), dropping sections that do not apply. Reference concrete functions and thresholds. Keep it concise. This is a direct explain, so do not include an explorer-findings section."
+}

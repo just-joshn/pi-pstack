@@ -1,0 +1,7 @@
+total 40
+drwx------   6 josh-desktop staff   192 Sep 24 22:13 .
+drwx------ 252 josh-desktop staff  8064 Sep 24 22:17 ..
+-rw-------   1 josh-desktop staff  2573 Sep 24 20:53 auth.json
+-rw-------   1 josh-desktop staff 30235 Sep 24 21:23 models-store.json
+drwxr-xr-x   3 josh-desktop staff    96 Sep 24 21:23 sessions
+-rw-r--r--   1 josh-desktop staff   641 Sep 24 21:20 settings.json

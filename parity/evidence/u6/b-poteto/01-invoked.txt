@@ -1,0 +1,24 @@
+principle-make-operations-idempotent,
+principle-migrate-callers-then-delete-legacy-apis,
+principle-minimize-reader-load, principle-model-the-domain,
+principle-never-block-on-the-human, principle-outcome-oriented-execution,
+principle-prove-it-works, principle-redesign-from-first-principles,
+principle-separate-before-serializing-shared-state,
+principle-sequence-verifiable-units, principle-subtract-before-you-add,
+principle-test-behavior-not-implementation, principle-type-system-discipline,
+recall, reflect, setup-pstack, show-me-your-work, skill-design-principles,
+swarm, tdd, teach, technical-writing, typescript-best-practices, unslop, why
+
+[Extensions]
+  pstack-agents, pstack-guards.ts, pstack-mode.ts, questionnaire.ts, todo.ts
+
+
+ [skill] poteto-mode (ctrl+o to expand)
+
+
+── ⠹ Working ───────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.pmPmmVsDQH (main)
+$0.000 (sub) 3.4%/272k (auto)                    (openai-codex) gpt-6-luna • max
+👑 poteto

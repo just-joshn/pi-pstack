@@ -1,0 +1,15 @@
+UTC: 2026-09-25T10:58:29Z
+
+Isolated tmux socket pstack-autopilot-evidence-20260925: no server running; both Pi sessions exited.
+Session-scoped runner.mjs processes under autopilot-full-20260925 / autopilot-stack-20260925: none.
+Remote ux5-* branches: none.
+
+GitHub PR state (read-only final check):
+#73 MERGED, head 40d2b8146fa2e0b401cebc239dc02a19cc714b9c, local-ci/test SUCCESS, merged 2026-09-25T10:32:46Z.
+#74 CLOSED unmerged, head 2c8c579860f978698fce57183e56f2bf3ea6277e, base ux5-stack-clear-done-r1, local-ci/test SUCCESS.
+#75 CLOSED unmerged, head c84ebfd8325ff14d61063ebde47b3cdf37301893, base main, local-ci/test SUCCESS.
+
+Run-store evidence copied under full/runs and stack/runs; every source request.json/status.json has a matching copy; no worktrees copied.
+full: 21 run directories, 42 copied JSON files; 19 completed, 2 failed (one timed-out Shell, one Shell terminated at requested cleanup).
+stack: 18 run directories, 36 copied JSON files; 10 completed, 8 explicitly stopped.
+Root Pi session JSONL copies: full/session.jsonl and stack/session.jsonl, refreshed after session exit.

@@ -1,0 +1,1 @@
+Model openai-codex/gpt-6-sol:low is outside pstack-agents.json modelScope.allow

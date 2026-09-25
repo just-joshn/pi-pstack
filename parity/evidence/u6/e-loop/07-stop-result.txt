@@ -1,0 +1,24 @@
+ Took 0.1s
+
+
+ The requested loop stopped with SIGTERM. The ps check found no matching
+ runner.
+
+
+ [pstack-agents/notice]
+
+ Shell 2a95c23d-a767-5f31-86bc-8d4adb95d9f5 stopped (SIGTERM).
+
+ Output log:
+ /var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.K7ZZEQ0ONo/sessions/--pri
+ vate-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T-tmp.pmPmmVsDQH--/pstack-a
+ gents/2a95c23d-a767-5f31-86bc-8d4adb95d9f5/output.log
+
+
+ Confirmed. The loop stopped with SIGTERM.
+
+────────────────────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.pmPmmVsDQH (main)
+↑88k ↓16k R1.8M CH99.0% $0.035 (sub) 15.4%/272k (auto)          gpt-6-luna • max

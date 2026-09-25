@@ -1,0 +1,16 @@
+# B1: background Tasks die when the parent Pi quits
+
+Repo: `/Users/josh-desktop/.pi/agent/pstack/pi-pstack` (branch `pi-package-0.15.5`). Edit only `extensions/pstack-agents/`. Another agent is auditing the repo read-only in parallel. Do not commit, push, or open a PR. Do not touch anything under `~/.pi/agent` outside this repo, and never kill processes you did not start (the operator's own Pi sessions are running; identify your processes by PID).
+
+## Symptom (measured)
+
+The operator quit Pi at 2026-09-24 20:13:14 UTC. Two background Tasks from that session (`41a93205-08c7-5d0a-a2e3-8b7f40d98629`, `8c9e8b58-f69d-5057-bb38-3c1f1110993f`) ended at that exact instant with `exitCode 143`, `stopReason: "signal"`, `error: "Child Pi exited while a tool call was pending"`. Run dirs: `/Users/josh-desktop/.pi/agent/sessions/--Users-josh-desktop-.pi-agent--/pstack-agents/<id>/`. The runtime's design (see `extensions/pstack-agents/runs.ts`, `runner.mjs`, and the round-4 evidence in `~/.pi/agent/pstack/pstack-agents/test-evidence/integration-3*`) is that a background run survives a parent restart and its completion notice is delivered once after restart.
+
+## Do
+
+1. Reproduce on a real Pi with the package. Build an isolated agent dir: `S=$(mktemp -d)`, `mkdir -p $S/agent $S/cwd`, copy `~/.pi/agent/auth.json`, write `settings.json` from `jq 'del(.subagents,.packages)' ~/.pi/agent/settings.json`, copy the repo's `agents/*.md` into `$S/agent/agents/` (bundled-agent discovery is not built yet), `PI_CODING_AGENT_DIR=$S/agent pi install <repo>`, `git init` in `$S/cwd`. Start interactive Pi in tmux with every `PI_*` variable unset except `PI_CODING_AGENT_DIR`, ask it to start a background Task (`pstack-general`, model `openai-codex/gpt-6-luna:low`, prompt: run `sleep 240` then reply DONE). Once the runner and child are alive (record PIDs, PGIDs, SIDs with `ps -o pid,ppid,pgid,sess,stat,command`), quit Pi the way a user does: `/quit`, and separately Ctrl+C twice, and separately closing the tmux window. Record which quit paths kill the run and which signal reaches which process. Try `pi --mode rpc` plus SIGTERM to the parent as a fourth path.
+2. Find the root cause: who sends SIGTERM (Pi's own shutdown code under `/Users/josh-desktop/.pi/agent/install/releases/0.87.1/node_modules/@earendil-works/pi-coding-agent/dist/`, our `session_shutdown` handler, process-group or session membership, the TTY hangup, or something else). Cite the code lines.
+3. Fix it in `extensions/pstack-agents/` so a background run survives every user quit path you reproduced, while a foreground Task and an explicit interrupt still stop their run. Follow the Pi extension lifecycle rules in `docs/extensions.md` (resources start in `session_start` or the tool, cleanup in an idempotent `session_shutdown`). Add a test that fails before and passes after, and re-run the real repro to show the run finishes and its notice is delivered once when Pi is started again in the same session (`pi -c` or `--session`).
+4. `bun test extensions` and `npm run typecheck` from the repo root. Report counts; typecheck baseline is 7 errors that another worker will fix, so report only new ones.
+
+Reply with: repro table (quit path, run survived yes/no, signal chain), root cause with code citations, the diff summary, test names, check outputs.

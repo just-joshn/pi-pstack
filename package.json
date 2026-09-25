@@ -1,14 +1,15 @@
 {
   "name": "pi-pstack",
-  "version": "0.15.2-pi.1",
+  "version": "0.15.5-pi.1",
   "description": "if you want to go fast, go deep first. pstack helps you write less, but higher quality code. rigorous agent workflows you can parallelize with confidence.",
   "type": "module",
-  "engines": {
-    "bun": ">=1.0.0"
-  },
   "license": "MIT",
-  "author": "Lauren Tan (original pstack); Pi port contributors (@just-joshn)",
-  "homepage": "https://github.com/cursor/plugins/tree/main/pstack",
+  "author": "Lauren Tan (pstack for Cursor); Pi port by just-joshn",
+  "homepage": "https://github.com/just-joshn/pi-pstack",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/just-joshn/pi-pstack.git"
+  },
   "keywords": [
     "pi-package",
     "pstack",
@@ -19,23 +20,30 @@
     "subagents",
     "unslop"
   ],
-  "category": "developer-tools",
+  "engines": {
+    "node": ">=22"
+  },
   "files": [
-    "extensions",
+    "extensions/**/*.ts",
+    "extensions/**/*.mjs",
+    "extensions/**/*.js",
+    "!extensions/**/*.test.ts",
     "skills",
     "agents",
     "docs",
     "automations",
-    "README.md",
-    "LICENSE",
-    "NOTICE",
     "assets",
-    ".gitignore"
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "!**/node_modules/**"
   ],
   "pi": {
     "extensions": [
-      "./extensions/subagent/index.ts",
-      "./extensions/pstack-slash.ts",
+      "./extensions/pstack-agents/index.ts",
+      "./extensions/pstack-guards.ts",
+      "./extensions/pstack-mode.ts",
+      "./extensions/questionnaire.ts",
       "./extensions/todo.ts"
     ],
     "skills": [
@@ -43,28 +51,28 @@
     ]
   },
   "scripts": {
-    "test": "node tests/run-check-port.mjs && node tests/conformance.mjs && vitest run",
-    "typecheck": "tsc -p tsconfig.json",
-    "check-port": "node tests/run-check-port.mjs",
-    "native-parity": "node tests/native-parity.mjs",
-    "conformance": "node tests/conformance.mjs",
-    "test:unit": "vitest run --project unit",
-    "test:scripts": "bun test skills/poteto-mode/scripts",
-    "test:list": "vitest list"
+    "test": "env -u PSTACK_AGENTS_DEPTH -u PSTACK_AGENTS_AGENT -u PSTACK_AGENTS_RUN_ID -u PSTACK_AGENTS_NESTING_ALLOWED -u PSTACK_AGENTS_PARENT_RUN_DIRECTORY -u PSTACK_AGENTS_PARENT_RUN_ATTEMPT bun test extensions parity/probes",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "parity": "node parity/check-parity.mjs && node parity/full-audit.mjs",
+    "lint:package": "node parity/lint-package.mjs",
+    "check": "npm run typecheck && npm test && npm run parity && npm run lint:package && node parity/provenance.mjs"
+  },
+  "dependencies": {
+    "commander": "14.0.0"
   },
   "peerDependencies": {
-    "@earendil-works/pi-agent-core": "*",
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
     "typebox": "*"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "devDependencies": {
+    "@earendil-works/pi-ai": "0.87.1",
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@earendil-works/pi-tui": "0.87.1",
+    "typebox": "1.3.27",
     "@types/node": "^24.13.5",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.1"
+    "bun-types": "^1.4.2",
+    "typescript": "^7.0.2"
   }
 }

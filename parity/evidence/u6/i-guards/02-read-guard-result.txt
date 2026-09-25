@@ -1,0 +1,23 @@
+ /var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.b08aVoImvG/skills/poteto-
+ mode/playbooks/investigation.md:1
+
+
+ Thinking...
+
+
+ read
+ /var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.b08aVoImvG/skills/poteto-
+ mode/references/pi-runtime.md:1
+
+
+ Thinking...
+
+
+ todo add
+ ✓ Added todo #1: Route through the **how** skill. For motivation questions,
+ also route through the **why** skill. · Added todo #2: Throughput checkpoint
+ stays one line: `throughput checkpoint: n/a, read-only investigation`. · Added
+ todo #3: Produce the `how`-shaped output (Overview / Key Concepts / How It
+ Works / Where Things Live / Gotchas), or a recommendation with a tradeoffs
+ table if the request is a decision between alternatives. · Added todo #4:
+ Apply the **unslop** skill to the reply. · Added todo #5: Inspect

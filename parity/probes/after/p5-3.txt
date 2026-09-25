@@ -1,0 +1,2 @@
+TDD
+Because `/skill:tdd` is the task’s playbook, so seed its own steps.

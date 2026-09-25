@@ -13,26 +13,192 @@
 import { StringEnum } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, Text, truncateToWidth } from "@earendil-works/pi-tui";
-import { Type } from "typebox";
+import { Type, type Static } from "typebox";
+import { Value } from "typebox/value";
 
-interface Todo {
-	id: number;
-	text: string;
-	done: boolean;
-}
+type TodoExtensionAPI = Pick<ExtensionAPI, "registerTool" | "registerCommand" | "on">;
 
-interface TodoDetails {
-	action: "list" | "add" | "toggle" | "clear";
-	todos: Todo[];
-	nextId: number;
-	error?: string;
-}
-
-const TodoParams = Type.Object({
-	action: StringEnum(["list", "add", "toggle", "clear"] as const),
-	text: Type.Optional(Type.String({ description: "Todo text (for add)" })),
-	id: Type.Optional(Type.Number({ description: "Todo ID (for toggle)" })),
+const TodoStatusSchema = StringEnum(["pending", "in_progress", "completed", "cancelled"] as const, {
+	description: "New status (for set). Mark the step you start as in_progress, as TodoWrite does.",
 });
+const TodoActionSchema = StringEnum(["list", "add", "toggle", "set", "clear"] as const);
+const TodoSchema = Type.Object({
+	id: Type.Integer({ minimum: 1 }),
+	text: Type.String({ minLength: 1 }),
+	done: Type.Boolean(),
+	status: Type.Optional(TodoStatusSchema),
+}, { additionalProperties: false });
+const TodoDetailsSchema = Type.Object({
+	action: TodoActionSchema,
+	todos: Type.Array(TodoSchema),
+	nextId: Type.Integer({ minimum: 1 }),
+	error: Type.Optional(Type.String()),
+}, { additionalProperties: false });
+
+type TodoStatus = Static<typeof TodoStatusSchema>;
+type Todo = Static<typeof TodoSchema>;
+export type TodoDetails = Static<typeof TodoDetailsSchema>;
+const TodoParams = Type.Object({
+	action: TodoActionSchema,
+	text: Type.Optional(Type.String({ description: "Todo text (for add), or replacement text (for set, e.g. '<step> skip: <reason>')" })),
+	items: Type.Optional(Type.Array(Type.String(), { description: "Several todo texts added in order (for add). Use to copy a playbook's steps verbatim in one call." })),
+	id: Type.Optional(Type.Number({ description: "Todo ID (for toggle or set)" })),
+	status: Type.Optional(TodoStatusSchema),
+});
+
+export type TodoParameters = Static<typeof TodoParams>;
+type TodoState = { todos: Todo[]; nextId: number };
+type TodoResult = { content: Array<{ type: "text"; text: string }>; details: TodoDetails };
+
+export function parseTodoDetails(value: unknown): TodoDetails | undefined {
+	return Value.Check(TodoDetailsSchema, value) ? value : undefined;
+}
+
+export function createTodoState(): TodoState {
+	return { todos: [], nextId: 1 };
+}
+
+function statusOf(todo: Todo): TodoStatus {
+	return todo.status ?? (todo.done ? "completed" : "pending");
+}
+
+const MARK: Record<TodoStatus, string> = { pending: "[ ]", in_progress: "[~]", completed: "[x]", cancelled: "[-]" };
+
+function glyph(todo: Todo, theme: Theme): string {
+	switch (statusOf(todo)) {
+		case "completed":
+			return theme.fg("success", "✓");
+		case "in_progress":
+			return theme.fg("accent", "◐");
+		case "cancelled":
+			return theme.fg("dim", "✗");
+		default:
+			return theme.fg("dim", "○");
+	}
+}
+
+function tally(todos: Todo[]): string {
+	const cancelled = todos.filter((t) => statusOf(t) === "cancelled").length;
+	const done = todos.filter((t) => statusOf(t) === "completed").length;
+	return `${done}/${todos.length - cancelled}${cancelled ? ` · ${cancelled} cancelled` : ""}`;
+}
+
+function panelTally(todos: Todo[]): string {
+	const cancelled = todos.filter((t) => statusOf(t) === "cancelled").length;
+	const done = todos.filter((t) => statusOf(t) === "completed").length;
+	return `${done}/${todos.length - cancelled} completed${cancelled ? ` · ${cancelled} cancelled` : ""}`;
+}
+
+const LIST_MARKER = /^\s*(?:\d+[.)]|[-*]|\[[ xX~-]\])\s+/;
+
+function isClosed(todo: Todo): boolean {
+	const status = statusOf(todo);
+	return status === "completed" || status === "cancelled";
+}
+
+function snapshotTodos(todos: Todo[]): Todo[] {
+	return structuredClone(todos);
+}
+
+export function runTodo(state: TodoState, params: TodoParameters): TodoResult {
+	switch (params.action) {
+		case "list":
+			return {
+				content: [{ type: "text", text: state.todos.length
+					? state.todos.map((todo) => `${MARK[statusOf(todo)]} #${todo.id}: ${todo.text}`).join("\n")
+					: "No todos" }],
+			details: { action: "list", todos: snapshotTodos(state.todos), nextId: state.nextId },
+			};
+
+		case "add": {
+			const texts = params.items?.length ? params.items : params.text ? [params.text] : [];
+			if (!texts.length) {
+				return {
+					content: [{ type: "text", text: "Error: text required for add" }],
+					details: { action: "add", todos: snapshotTodos(state.todos), nextId: state.nextId, error: "text required" },
+				};
+			}
+			const open = new Set(state.todos.filter((todo) => !isClosed(todo)).map((todo) => todo.text));
+			const skipped: string[] = [];
+			const added: Todo[] = [];
+			for (const raw of texts) {
+				const text = raw.replace(LIST_MARKER, "").trim();
+				if (!text) continue;
+				if (open.has(text)) {
+					skipped.push(text);
+					continue;
+				}
+				open.add(text);
+				added.push({ id: state.nextId++, text, done: false });
+			}
+			state.todos.push(...added);
+			const lines = added.map((todo) => `Added todo #${todo.id}: ${todo.text}`);
+			if (skipped.length) lines.push(`Already open, not added again: ${skipped.join(" | ")}`);
+			return {
+				content: [{ type: "text", text: lines.join("\n") }],
+				details: { action: "add", todos: snapshotTodos(state.todos), nextId: state.nextId },
+			};
+		}
+
+		case "toggle": {
+			if (params.id === undefined) {
+				return {
+					content: [{ type: "text", text: "Error: id required for toggle" }],
+					details: { action: "toggle", todos: snapshotTodos(state.todos), nextId: state.nextId, error: "id required" },
+				};
+			}
+			const todo = state.todos.find((item) => item.id === params.id);
+			if (!todo) {
+				return {
+					content: [{ type: "text", text: `Todo #${params.id} not found` }],
+					details: { action: "toggle", todos: snapshotTodos(state.todos), nextId: state.nextId, error: `#${params.id} not found` },
+				};
+			}
+			todo.done = statusOf(todo) !== "completed";
+			todo.status = todo.done ? "completed" : "pending";
+			return {
+				content: [{ type: "text", text: `Todo #${todo.id} ${todo.done ? "completed" : "uncompleted"}` }],
+				details: { action: "toggle", todos: snapshotTodos(state.todos), nextId: state.nextId },
+			};
+		}
+
+		case "set": {
+			const todo = params.id === undefined ? undefined : state.todos.find((item) => item.id === params.id);
+			if (!todo || !params.status) {
+				const error = !params.status ? "status required for set" : `#${params.id} not found`;
+				return {
+					content: [{ type: "text", text: `Error: ${error}` }],
+					details: { action: "set", todos: snapshotTodos(state.todos), nextId: state.nextId, error },
+				};
+			}
+			todo.status = params.status;
+			todo.done = params.status === "completed";
+			if (params.text?.trim()) todo.text = params.text.trim();
+			return {
+				content: [{ type: "text", text: `Todo #${todo.id} ${params.status}` }],
+				details: { action: "set", todos: snapshotTodos(state.todos), nextId: state.nextId },
+			};
+		}
+
+		case "clear": {
+			const open = state.todos.filter((todo) => !isClosed(todo));
+			if (open.length) {
+				const error = `${open.length} open todo(s): ${open.map((todo) => `#${todo.id}`).join(", ")}. Close each first with set (completed, or cancelled), using text "<step> skip: <reason>" for a step you chose not to do, then clear.`;
+				return {
+					content: [{ type: "text", text: `Error: ${error}` }],
+					details: { action: "clear", todos: snapshotTodos(state.todos), nextId: state.nextId, error },
+				};
+			}
+			const count = state.todos.length;
+			state.todos = [];
+			state.nextId = 1;
+			return {
+				content: [{ type: "text", text: `Cleared ${count} todos` }],
+				details: { action: "clear", todos: [], nextId: 1 },
+			};
+		}
+	}
+}
 
 /**
  * UI component for the /todos command
@@ -74,15 +240,13 @@ class TodoListComponent {
 		if (this.todos.length === 0) {
 			lines.push(truncateToWidth(`  ${th.fg("dim", "No todos yet. Ask the agent to add some!")}`, width));
 		} else {
-			const done = this.todos.filter((t) => t.done).length;
-			const total = this.todos.length;
-			lines.push(truncateToWidth(`  ${th.fg("muted", `${done}/${total} completed`)}`, width));
+			lines.push(truncateToWidth(`  ${th.fg("muted", panelTally(this.todos))}`, width));
 			lines.push("");
 
 			for (const todo of this.todos) {
-				const check = todo.done ? th.fg("success", "✓") : th.fg("dim", "○");
+				const check = glyph(todo, th);
 				const id = th.fg("accent", `#${todo.id}`);
-				const text = todo.done ? th.fg("dim", todo.text) : th.fg("text", todo.text);
+				const text = isClosed(todo) ? th.fg("dim", todo.text) : th.fg("text", todo.text);
 				lines.push(truncateToWidth(`  ${check} ${id} ${text}`, width));
 			}
 		}
@@ -102,131 +266,82 @@ class TodoListComponent {
 	}
 }
 
-export default function (pi: ExtensionAPI) {
-	// In-memory state (reconstructed from session on load)
-	let todos: Todo[] = [];
-	let nextId = 1;
+export default function (pi: TodoExtensionAPI) {
+	const state = createTodoState();
 
 	/**
 	 * Reconstruct state from session entries.
 	 * Scans tool results for this tool and applies them in order.
 	 */
 	const reconstructState = (ctx: ExtensionContext) => {
-		todos = [];
-		nextId = 1;
+		state.todos = [];
+		state.nextId = 1;
 
 		for (const entry of ctx.sessionManager.getBranch()) {
 			if (entry.type !== "message") continue;
 			const msg = entry.message;
 			if (msg.role !== "toolResult" || msg.toolName !== "todo") continue;
 
-			const details = msg.details as TodoDetails | undefined;
+			const details = parseTodoDetails(msg.details);
 			if (details) {
-				todos = details.todos;
-				nextId = details.nextId;
+				state.todos = structuredClone(details.todos);
+				state.nextId = details.nextId;
 			}
 		}
 	};
 
+	const renderWidget = (ctx: ExtensionContext) => {
+		if (state.todos.length === 0 || state.todos.every(isClosed)) {
+			ctx.ui.setWidget("todo", undefined);
+			return;
+		}
+		ctx.ui.setWidget("todo", (_tui, theme) => {
+			const lines = [theme.fg("muted", `Todos ${tally(state.todos)}`)];
+			for (const t of state.todos) {
+				const text = isClosed(t) ? theme.fg("dim", t.text) : statusOf(t) === "in_progress" ? theme.fg("accent", t.text) : t.text;
+				lines.push(`${glyph(t, theme)} ${theme.fg("accent", `#${t.id}`)} ${text}`);
+			}
+			return {
+				render: (width: number) => lines.map((line) => truncateToWidth(line, width)),
+				invalidate: () => {},
+			};
+		});
+	};
+
 	// Reconstruct state on session events
-	pi.on("session_start", async (_event, ctx) => reconstructState(ctx));
-	pi.on("session_tree", async (_event, ctx) => reconstructState(ctx));
+	pi.on("session_start", async (_event, ctx) => {
+		reconstructState(ctx);
+		renderWidget(ctx);
+	});
+	pi.on("session_tree", async (_event, ctx) => {
+		reconstructState(ctx);
+		renderWidget(ctx);
+	});
 
 	// Register the todo tool for the LLM
 	pi.registerTool({
 		name: "todo",
 		label: "Todo",
-		description: "Manage a todo list. Actions: list, add (text), toggle (id), clear",
+		description: "Manage the session todo list (Pi's TodoWrite). Actions: list, add (text, or items for several at once; list numbers are stripped and already-open duplicates skipped), set (id + status: pending, in_progress, completed, cancelled; optional text replaces the item text), toggle (id, flips completed), clear (only when every item is closed). Mark a skipped step with set {id, status: 'completed', text: '<step> skip: <reason>'}.",
 		parameters: TodoParams,
+		executionMode: "sequential",
 
-		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
-			switch (params.action) {
-				case "list":
-					return {
-						content: [
-							{
-								type: "text",
-								text: todos.length
-									? todos.map((t) => `[${t.done ? "x" : " "}] #${t.id}: ${t.text}`).join("\n")
-									: "No todos",
-							},
-						],
-						details: { action: "list", todos: [...todos], nextId } as TodoDetails,
-					};
-
-				case "add": {
-					if (!params.text) {
-						return {
-							content: [{ type: "text", text: "Error: text required for add" }],
-							details: { action: "add", todos: [...todos], nextId, error: "text required" } as TodoDetails,
-						};
-					}
-					const newTodo: Todo = { id: nextId++, text: params.text, done: false };
-					todos.push(newTodo);
-					return {
-						content: [{ type: "text", text: `Added todo #${newTodo.id}: ${newTodo.text}` }],
-						details: { action: "add", todos: [...todos], nextId } as TodoDetails,
-					};
-				}
-
-				case "toggle": {
-					if (params.id === undefined) {
-						return {
-							content: [{ type: "text", text: "Error: id required for toggle" }],
-							details: { action: "toggle", todos: [...todos], nextId, error: "id required" } as TodoDetails,
-						};
-					}
-					const todo = todos.find((t) => t.id === params.id);
-					if (!todo) {
-						return {
-							content: [{ type: "text", text: `Todo #${params.id} not found` }],
-							details: {
-								action: "toggle",
-								todos: [...todos],
-								nextId,
-								error: `#${params.id} not found`,
-							} as TodoDetails,
-						};
-					}
-					todo.done = !todo.done;
-					return {
-						content: [{ type: "text", text: `Todo #${todo.id} ${todo.done ? "completed" : "uncompleted"}` }],
-						details: { action: "toggle", todos: [...todos], nextId } as TodoDetails,
-					};
-				}
-
-				case "clear": {
-					const count = todos.length;
-					todos = [];
-					nextId = 1;
-					return {
-						content: [{ type: "text", text: `Cleared ${count} todos` }],
-						details: { action: "clear", todos: [], nextId: 1 } as TodoDetails,
-					};
-				}
-
-				default:
-					return {
-						content: [{ type: "text", text: `Unknown action: ${params.action}` }],
-						details: {
-							action: "list",
-							todos: [...todos],
-							nextId,
-							error: `unknown action: ${params.action}`,
-						} as TodoDetails,
-					};
-			}
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+			const result = runTodo(state, params);
+			renderWidget(ctx);
+			return result;
 		},
 
 		renderCall(args, theme, _context) {
 			let text = theme.fg("toolTitle", theme.bold("todo ")) + theme.fg("muted", args.action);
 			if (args.text) text += ` ${theme.fg("dim", `"${args.text}"`)}`;
 			if (args.id !== undefined) text += ` ${theme.fg("accent", `#${args.id}`)}`;
+			if (args.status) text += ` ${theme.fg("muted", args.status)}`;
 			return new Text(text, 0, 0);
 		},
 
 		renderResult(result, { expanded }, theme, _context) {
-			const details = result.details as TodoDetails | undefined;
+			const details = parseTodoDetails(result.details);
 			if (!details) {
 				const text = result.content[0];
 				return new Text(text?.type === "text" ? text.text : "", 0, 0);
@@ -246,8 +361,8 @@ export default function (pi: ExtensionAPI) {
 					let listText = theme.fg("muted", `${todoList.length} todo(s):`);
 					const display = expanded ? todoList : todoList.slice(0, 5);
 					for (const t of display) {
-						const check = t.done ? theme.fg("success", "✓") : theme.fg("dim", "○");
-						const itemText = t.done ? theme.fg("dim", t.text) : theme.fg("muted", t.text);
+						const check = glyph(t, theme);
+						const itemText = isClosed(t) ? theme.fg("dim", t.text) : theme.fg("muted", t.text);
 						listText += `\n${check} ${theme.fg("accent", `#${t.id}`)} ${itemText}`;
 					}
 					if (!expanded && todoList.length > 5) {
@@ -257,18 +372,13 @@ export default function (pi: ExtensionAPI) {
 				}
 
 				case "add": {
-					const added = todoList[todoList.length - 1];
-					return new Text(
-						theme.fg("success", "✓ Added ") +
-							theme.fg("accent", `#${added.id}`) +
-							" " +
-							theme.fg("muted", added.text),
-						0,
-						0,
-					);
+					const text = result.content[0];
+					const msg = text?.type === "text" ? text.text : "";
+					return new Text(theme.fg("success", "✓ ") + theme.fg("muted", msg.split("\n").join(" · ")), 0, 0);
 				}
 
-				case "toggle": {
+				case "toggle":
+				case "set": {
 					const text = result.content[0];
 					const msg = text?.type === "text" ? text.text : "";
 					return new Text(theme.fg("success", "✓ ") + theme.fg("muted", msg), 0, 0);
@@ -290,7 +400,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			await ctx.ui.custom<void>((_tui, theme, _kb, done) => {
-				return new TodoListComponent(todos, theme, () => done());
+				return new TodoListComponent(state.todos, theme, () => done());
 			});
 		},
 	});
