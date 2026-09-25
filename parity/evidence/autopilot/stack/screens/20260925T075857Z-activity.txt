@@ -1,0 +1,224 @@
+
+[Extensions]
+  @gotgenes/pi-anthropic-auth:src, pi-fovea:src, pstack-agents,
+pstack-guards.ts, pstack-mode.ts, questionnaire.ts, todo.ts
+
+
+ Warning: tmux extended-keys is off. Modified Enter keys may not work. Add `set
+ -g extended-keys on` to ~/.tmux.conf and restart tmux.
+
+
+ Before anything else, run exactly this shell command and show me the result:
+ echo "D=[$PSTACK_AGENTS_DEPTH]"
+
+
+ Thinking...
+
+
+ $ echo "D=[$PSTACK_AGENTS_DEPTH]"
+
+ D=[]
+
+ Took 0.0s
+
+
+ ```text
+   D=[]
+ ```
+
+
+ autopilot-stack: queue: (1) add a 'clear-done' CLI command that removes
+ completed todos; (2) add a 'rename <id> <title>' CLI command. State the plan
+ first. Use branch prefix ux5-stack-.
+
+
+ Thinking...
+
+
+ [skill] poteto-mode:1 (ctrl+o to expand)
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/pstack/pi-pstack/skills/poteto-mode/playbooks/autopilot-stack.md:1
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/pstack/pi-pstack/skills/poteto-mode/references/pi-runtime.md:1
+
+
+ Thinking...
+
+ Plan. I’ll build each queued change as its own PR, using ux5-stack- branch
+ names. I’ll resolve the forge once, verify each PR independently, then chain
+ them into one linear stack in dependency order. I won’t merge; I’ll hand you
+ the verified stack root and tip for review.
+
+ Autopilot-stack treats a plan request as a hold, not a go. I’ll wait for your
+ explicit go before creating the goal or starting work.
+ Thinking...
+
+
+ todo add
+ ✓ Added todo #1: Run the owner loop unchanged. Resolve the forge once for the
+ program. GitHub CLI (`gh`) is the default. If `command -v origin` succeeds and
+ Origin can resolve the repository, use `origin pr ...` for PR create, edit,
+ view, watch, and merge operations. Otherwise stay on `gh` and record the
+ fallback. Never require Graphite (`gt`). Each queue item is its own PR with
+ its own owner. The root chains the PRs in step 6. One Cursor cloud agent per
+ PR maps to one background `Task` with `description`, `prompt`, `subagent_type:
+ "poteto-agent"`, `run_in_background: true`, `environment: "cloud"`, and
+ `cloud_base_branch: "origin/main"`; each owns its change end to end in a
+ managed local worktree after `git fetch origin main`. Cloud Tasks need a clean
+ source checkout. Launch independent owners with parallel Task calls in one
+ message. Each owns build, first push, a ready PR opened before self-proof,
+ self-proof (gates, CI, receipts), skeptical Bugbot triage per
+ `references/bugbot-triage.md`, a slop-strip (the **deslop** skill
+ (`/skill:deslop`)), `/skill:no-comments` (the **no-comments** skill), and
+ babysit to green per `playbooks/babysit.md`. Owners parallelize when the work
+ is self-contained. Within about 15 minutes, every owner starts a
+ `decisions.tsv` trail per the **show-me-your-work** skill, pushes its first
+ branch snapshot, and opens the PR ready, never draft. Keep the trail
+ uncommitted and return it in the report. Owners also keep the `children.tsv`
+ of Autopilot-full step 2. The root spawns the owners right after the go.
+ Design work (the **how** and **architect** skills) happens inside each owner's
+ build, never in the root before spawning, and comes after the owner's first
+ push and ready PR, so the 15-minute trail exists before any design fan-out. ·
+ Added todo #2: Audit on the wake chain. The root runs an audit tick roughly
+ every 30 minutes. A local root arms each tick as a real terminal `/loop`,
+ implemented in Pi as a monitored background `Shell` loop that sleeps 1800
+ seconds (30 minutes) and emits a unique output-notification sentinel. Set
+ `output_notification` to match it, per `references/pi-runtime.md`. Never leave
+ the cadence to memory or lossy completion notifications. At each tick, re-read
+ this playbook from trunk with `git show
+ origin/main:pstack/skills/poteto-mode/playbooks/autopilot-stack.md`, or from
+ its installed path (`playbooks/autopilot-stack.md`), then re-read the armed
+ `/goal`. Audit the operation against both. Fix drift during that tick. Probe
+ each owner with a generic liveness or status check. In Pi, use
+ `SubagentAwait({agent_id, timeout_ms: 0})`. Count only side effects as
+ progress: commits, pushes, PR or check deltas, and store reports. Treat a lane
+ that passes its expected runtime without a side effect as stuck. Stand it down
+ with `Task({resume: <agent_id>, interrupt: true})` and dispatch a replacement
+ at once. Do not wait for a polite return. Probe all subagents by their agent
+ ids in the owners' `children.tsv` with `SubagentAwait`, then end the tick per
+ Autopilot-full step 6. · Added todo #3: Hold the operator gates.
+ State-then-wait, so a request to state the plan is not a go. On the operator's
+ explicit go, arm a `/goal` with the full program objective using
+ `CreateGoal({objective: "<full program objective>"})`. The goal continues
+ across turns until the chain is done. On the operator's stop, every owner
+ takes an immediate zero-writes hold. Interrupt every owner Task at once with
+ `Task({resume: <agent_id>, interrupt: true})`. Owners hold their briefs until
+ the operator releases them. · Added todo #4: Verify each round. The owner
+ reports its code-ready head SHA once the shipped code is final, and
+ STACK-READY with the exact head SHA when its loop is green. The root verifies
+ each round per Autopilot-full step 4, with STACK-READY in place of
+ merge-ready. Nothing enters the stack unverified. · Added todo #5: Append on a
+ clean verdict, never ship. No owner merges, arms auto-merge, or closes. A
+ clean verdict appends the PR to the one linear base-branch stack, in verified
+ order or an order the operator specified. · Added todo #6: Single writer on
+ topology, parallel writers on builds. Owners push only their own branches and
+ report the tip, current base, and intended parent. The root is the only
+ topology writer. To append a PR, fetch the intended parent, rebase the child
+ branch onto that exact parent tip, push with `--force-with-lease` only after
+ an `ls-remote` check, and set the PR base to the parent branch. Create it with
+ `origin pr create --status open --base <parent-branch>` or `gh pr create
+ --base <parent-branch>` according to the resolved forge. Retarget an existing
+ PR with `origin pr edit <pr> --base <parent-branch>` or `gh pr edit <pr>
+ --base <parent-branch>`. Only the root PR targets trunk. Never submit or
+ register the chain through `gt`. · Added todo #7: Absorb drift at the root,
+ then re-verify what moved. The root fetches current trunk and rebases the
+ chain from bottom to top. When a rebase surfaces conflicts in an owner's
+ files, that owner fixes its own slice and the root pushes the result. A rebase
+ rewrites every SHA above it and voids verdicts at the old SHAs. Apply the
+ patch-id rule in `playbooks/shipping.md` at each verdict SHA. Anything that is
+ no longer valid goes back through this playbook's step 4 before delivery.
+ Re-run mergeability and CI after every rewritten push even when the patch-id
+ is unchanged. The countersign rule is unchanged from Autopilot-full. A
+ genuinely new pin raises a stop for the root's fresh countersign. Absorbing
+ drift of landed values is not a raise. · Added todo #8: Deliver the chain. The
+ deliverable is one linear chain of verified PRs, reviewable bottom-up in the
+ resolved forge, every link carrying its verifier verdict in the PR body or a
+ comment. When the chain is complete and ready for operator review, call
+ `UpdateGoal({status: "COMPLETE"})`. The operator reviews and lands it, with
+ their own clicks or by arming merge-when-ready.
+
+
+ Thinking...
+
+
+ [skill] unslop:1 (ctrl+o to expand)
+
+
+ Thinking...
+
+ clear-done will remove completed todos. rename <id> <title> will rename the
+ selected todo. I’ll test each CLI command, put each change in its own
+ ux5-stack- branch and PR, then chain the verified PRs for your review. I won’t
+ merge.
+
+ I haven’t started work. Autopilot-stack requires your explicit go before I
+ proceed.
+
+
+ go
+
+
+ Thinking...
+
+
+ CreateGoal
+ Created ACTIVE goal 62f7be09-8c07-459c-8e62-b37d8a11c867: Build and verify a
+ two-PR linear stack for the CLI: (1) add `clear-done` to remove completed
+ todos, and (2) add `rename <id> <title>` to rename a todo. Use branch names
+ prefixed `ux5-stack-`, keep each queue item in its own PR, verify both PRs and
+ stack them in queue order, and do not merge; deliver the verified stack for
+ operator review.
+ Consecutive continuations without tool progress: 0/3.
+
+
+ Thinking...
+
+
+ $ git status --short --branch && git remote -v && printf '\norigin CLI: ' &&
+ (command -v origin || true) && printf 'gh CLI: ' && (command -v gh || true)
+
+ ## main...origin/main
+ origin   https://github.com/just-joshn/pstack-pi-e2e.git (fetch)
+ origin   https://github.com/just-joshn/pstack-pi-e2e.git (push)
+
+ origin CLI: gh CLI: /opt/homebrew/bin/gh
+
+ Took 0.0s
+
+
+ Thinking...
+
+
+ $ gh repo view --json nameWithOwner,url (timeout 60s)
+
+ {"nameWithOwner":"just-joshn/pstack-pi-e2e","url":"https://github.com/just-jos
+ hn/pstack-pi-e2e"}
+
+ Took 0.4s
+
+
+Todos 0/8
+○ #1 Run the owner loop unchanged. Resolve the forge once for the program. Gi...
+○ #2 Audit on the wake chain. The root runs an audit tick roughly every 30 mi...
+○ #3 Hold the operator gates. State-then-wait, so a request to state the plan...
+○ #4 Verify each round. The owner reports its code-ready head SHA once the sh...
+○ #5 Append on a clean verdict, never ship. No owner merges, arms auto-merge,...
+○ #6 Single writer on topology, parallel writers on builds. Owners push only ...
+○ #7 Absorb drift at the root, then re-verify what moved. The root fetches cu...
+○ #8 Deliver the chain. The deliverable is one linear chain of verified PRs, ...
+── ⠴ Working ───────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-autopi...
+↑32k ↓7.4k R137k CH97.5% $0.008 (sub) 9.3%/272k (auto)          gpt-6-luna • max
+Goal active Goal active: Build and verify a two-PR linear stack for the CLI: ...

@@ -35,7 +35,8 @@
     "assets",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "!**/node_modules/**"
   ],
   "pi": {
     "extensions": [

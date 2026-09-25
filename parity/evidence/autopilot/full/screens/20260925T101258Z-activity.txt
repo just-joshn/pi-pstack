@@ -1,0 +1,474 @@
+ branch refs/heads/pstack-agents/b9fc79f0-1a28-5f74-80b0-63424e39bd96
+
+ Took 0.2s
+
+
+ Thinking...
+
+
+ $ printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+ 'swarm-round-2-cleanup' 'Removed and pruned all five completed exact-d50 swarm
+ worktrees; transcripts and root receipts preserved' 'Gate, live, API review,
+ trunk regression, and snapshot-coverage review all have terminal reports. The
+ test-coverage finding has been sent to replacement owner 90d4; round 3 will
+ start only after a changed code-ready head is pushed' 'git worktree
+ remove/prune; transcripts b827c899, dcbdfabe, aaa52d01, fd58dd84, 0e9df283
+ under root session directory; root children.tsv updated' 'no root verdict on
+ d50; PR remains open/unmerged; do not merge until fresh swarm at matching
+ head' >> decisions.tsv (timeout 30s)
+
+ (no output)
+
+ Took 0.0s
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29: Wait timed out. Current status:
+ running (pid 58068).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e2
+ 9/session.jsonl
+
+
+
+ $
+ worktree='/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kw
+ nqr97632l_cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-ag
+ ents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree'; git -C "$worktree" status
+ --short --branch; ls -la "$worktree" | head -25; test -f
+ "$worktree/decisions.tsv" && wc -l "$worktree/decisions.tsv" || true; test -f
+ "$worktree/children.tsv" && wc -l "$worktree/children.tsv" || true (timeout
+ 30s)
+
+ ... (7 earlier lines, ctrl+o to expand)
+ -rw-r--r--  1 josh-desktop staff  237 Sep 25 02:56 package.json
+ -rw-r--r--  1 josh-desktop staff  171 Sep 25 02:56 README.md
+ drwxr-xr-x  6 josh-desktop staff  192 Sep 25 02:56 src
+ drwxr-xr-x  6 josh-desktop staff  192 Sep 25 02:56 test
+ -rw-r--r--  1 josh-desktop staff  181 Sep 25 02:56 tsconfig.json
+
+ Took 0.1s
+
+
+
+ $ git ls-remote --heads origin ux5-full-remove-todo; gh pr view 73 --repo
+ just-joshn/pstack-pi-e2e --json
+ headRefOid,state,isDraft,mergeStateStatus,statusCheckRollup (timeout 60s)
+
+ d50e5a1abe48bd091189af62b3b10f3e88721bf4   refs/heads/ux5-full-remove-todo
+ {"headRefOid":"d50e5a1abe48bd091189af62b3b10f3e88721bf4","isDraft":false,"merg
+ eStateStatus":"CLEAN","state":"OPEN","statusCheckRollup":[{"__typename":"Statu
+ sContext","context":"local-ci/test","startedAt":"2026-09-25T09:39:34Z","state"
+ :"SUCCESS","targetUrl":""}]}
+
+ Took 1.2s
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29: Wait timed out. Current status:
+ running (pid 58068).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e2
+ 9/session.jsonl
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/pstack/pi-pstack/skills/poteto-mode/playbooks/shipping.md:1-3000
+
+
+ Thinking...
+
+
+ $ date -u '+%Y-%m-%dT%H:%M:%SZ';
+ worktree='/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kw
+ nqr97632l_cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-ag
+ ents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree'; git -C "$worktree" status
+ --short --branch; test -f "$worktree/decisions.tsv" && wc -l
+ "$worktree/decisions.tsv" || true; test -f "$worktree/children.tsv" && wc -l
+ "$worktree/children.tsv" || true (timeout 30s)
+
+ ... (7 earlier lines, ctrl+o to expand)
+ c0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree/decisions.tsv
+ 20
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4a
+ c0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree/children.tsv
+
+ Took 0.0s
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4ac0d-bc68-50b1-b8b8
+ -8ff8c31d9e29/worktree/decisions.tsv:42-51
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4ac0d-bc68-50b1-b8b8
+ -8ff8c31d9e29/worktree/children.tsv:12-31
+
+
+ Thinking...
+
+
+ $ wc -l
+ '/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l
+ _cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-0
+ 2-816Z_01a0d78d-b260-72f2-808f-8b37c9951345/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e
+ 29/session.jsonl' (timeout 30s)
+
+ 65
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e2
+ 9/session.jsonl
+
+ Took 0.0s
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02-816Z_01a0d78d-b26
+ 0-72f2-808f-8b37c9951345/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29/session.jsonl:52
+ -65
+
+
+ Thinking...
+
+
+ Await
+ Shell 6234a6d6-0f40-5059-aa2f-f47e09235218: Matched output line 1:
+ PSTACK_AUTOPILOT_AUDIT_TICK_UX5_FULL_20260925. Output log:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/6234a
+ 6d6-0f40-5059-aa2f-f47e09235218/output.log
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/pstack/pi-pstack/skills/poteto-mode/playbooks/autopilot-full.md:1-
+ 3000
+
+
+
+ UpdateGoal
+ Updated ACTIVE goal e70a5189-654d-45b3-b77a-e754076bc27f: Full autopilot
+ one-item queue: add a removeTodo(id) function to the todo store that removes
+ one todo by id and returns true iff it existed. Use branch prefix ux5-full-.
+ Delegate one owner to build, validate, open a ready PR, and merge only after
+ my clean independent swarm verdict. Finish with the merge proven and the
+ decision trail preserved.
+ Consecutive continuations without tool progress: 0/3.
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29: Wait timed out. Current status:
+ running (pid 58068).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e2
+ 9/session.jsonl
+
+
+
+ $ date -u '+%Y-%m-%dT%H:%M:%SZ';
+ worktree='/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kw
+ nqr97632l_cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-ag
+ ents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree'; git -C "$worktree" status
+ --short --branch; wc -l "$worktree/decisions.tsv" "$worktree/children.tsv";
+ git ls-remote --heads origin ux5-full-remove-todo; gh pr view 73 --repo
+ just-joshn/pstack-pi-e2e --json
+ headRefOid,state,isDraft,mergeStateStatus,statusCheckRollup (timeout 60s)
+
+ ... (14 earlier lines, ctrl+o to expand)
+ d50e5a1abe48bd091189af62b3b10f3e88721bf4   refs/heads/ux5-full-remove-todo
+ {"headRefOid":"d50e5a1abe48bd091189af62b3b10f3e88721bf4","isDraft":false,"merg
+ eStateStatus":"CLEAN","state":"OPEN","statusCheckRollup":[{"__typename":"Statu
+ sContext","context":"local-ci/test","startedAt":"2026-09-25T09:39:34Z","state"
+ :"SUCCESS","targetUrl":""}]}
+
+ Took 1.3s
+
+
+
+ Await
+ Shell 6234a6d6-0f40-5059-aa2f-f47e09235218: Matched output line 1:
+ PSTACK_AUTOPILOT_AUDIT_TICK_UX5_FULL_20260925. Output log:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/6234a
+ 6d6-0f40-5059-aa2f-f47e09235218/output.log
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4ac0d-bc68-50b1-b8b8
+ -8ff8c31d9e29/worktree/decisions.tsv:43-52
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4ac0d-bc68-50b1-b8b8
+ -8ff8c31d9e29/worktree/decisions.tsv:53-57
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4ac0d-bc68-50b1-b8b8
+ -8ff8c31d9e29/worktree/test/todo.test.ts:183-222
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4ac0d-bc68-50b1-b8b8
+ -8ff8c31d9e29/worktree/test/todo.test.ts:137-191
+
+
+ Thinking...
+
+
+ $ printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+ 'audit-tick' 'At the Shell tick, re-read autopilot-full and re-armed goal; the
+ current owner is making the requested snapshot-only test change' 'Owner 90d
+ copied prior trails, pinned d50/base, added a pre-removal snapshot assertion
+ to test/todo.test.ts, verified old snapshot IDs and object references remain,
+ and ran the focused test (28 pass). No source edit, commit, push, or remote
+ movement yet; a no-comments review passed. No current child entry is reported
+ active' 'goal e70a5189-654d-45b3-b77a-e754076bc27f ACTIVE; owner
+ 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29 running; prior owner b9 complete; root
+ Shell 6234a6d6 tick matched; PR/remote still
+ d50e5a1abe48bd091189af62b3b10f3e88721bf4' 'within expected runtime and making
+ progress; wait for full checks, commit/push, then fresh round-3 swarm; no root
+ verdict or merge' >> decisions.tsv (timeout 30s)
+
+ (no output)
+
+ Took 0.0s
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4ac0d-bc68-50b1-b8b8
+ -8ff8c31d9e29/worktree/children.tsv:18-27
+
+
+ Thinking...
+
+
+ SubagentAwait
+ Task 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29: Wait timed out. Current status:
+ running (pid 58068).. Transcript:
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/2026-09-25T07-53-02
+ -816Z_01a0d78d-b260-72f2-808f-8b37c9951345/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e2
+ 9/session.jsonl
+
+
+
+ $
+ worktree='/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kw
+ nqr97632l_cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-ag
+ ents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree'; git -C "$worktree" status
+ --short --branch; git -C "$worktree" diff --stat; date -u
+ '+%Y-%m-%dT%H:%M:%SZ'; git ls-remote --heads origin ux5-full-remove-todo
+ (timeout 30s)
+
+ ## pstack-agents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29
+ ?? children.tsv
+ ?? decisions.tsv
+ 2026-09-25T10:06:47Z
+ d50e5a1abe48bd091189af62b3b10f3e88721bf4   refs/heads/ux5-full-remove-todo
+
+ Took 0.7s
+
+
+ Thinking...
+
+
+ $
+ worktree='/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kw
+ nqr97632l_cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-ag
+ ents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree'; printf 'HEAD='; git -C
+ "$worktree" rev-parse HEAD; git -C "$worktree" log -1
+ --format='PARENTS=%P%nSUBJECT=%s'; printf 'PATCH_ID='; git -C "$worktree" diff
+ fa50322ec63e863cf9af7b2bda769bff405a6aa9...HEAD | git patch-id --stable;
+ printf '\nREMOTE='; git ls-remote --heads origin ux5-full-remove-todo; printf
+ '\nPR='; gh pr view 73 --repo just-joshn/pstack-pi-e2e --json
+ headRefOid,state,mergeStateStatus,statusCheckRollup; printf '\nSTATUS='; git
+ -C "$worktree" status --short --branch (timeout 60s)
+
+ ... (12 earlier lines, ctrl+o to expand)
+ argetUrl":""}]}
+
+ STATUS=## pstack-agents/90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29
+ ?? children.tsv
+ ?? decisions.tsv
+
+ Took 1.4s
+
+
+ Thinking...
+
+
+ $ wc -l
+ '/Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l
+ _cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4
+ ac0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree/decisions.tsv' (timeout 30s)
+
+ 62
+ /Users/josh-desktop/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_
+ cjt0mhytvh0000gn-T-pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4a
+ c0d-bc68-50b1-b8b8-8ff8c31d9e29/worktree/decisions.tsv
+
+ Took 0.1s
+
+
+ Thinking...
+
+
+ read
+ ~/.pi/agent/sessions/--private-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T
+ -pstack-pi-e2e-autopilot-full-20260925--/pstack-agents/90d4ac0d-bc68-50b1-b8b8
+ -8ff8c31d9e29/worktree/decisions.tsv:51-62
+
+
+ Thinking...
+
+
+ $ printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+ 'fix-round-code-ready-3' 'Owner pushed the snapshot-preservation regression as
+ test-only commit 40d2b8146fa2e0b401cebc239dc02a19cc714b9c' 'The pre-removal
+ list is now checked for original membership/order and object identities after
+ removeTodo. Owner ran focused/full tests, typecheck and diff-check on the
+ committed head; slop/no-comments passed; GitHub local-ci/test is successful.
+ Root will run a fresh five-lane swarm because this patch-id changed' 'PR #73 /
+ remote ux5-full-remove-todo both at 40d2b8146fa2e0b401cebc239dc02a19cc714b9c;
+ base fa50322ec63e863cf9af7b2bda769bff405a6aa9; full patch-id
+ 4da68a5fe4ed4f585a5ae00eba01d0c1dbec3d42; owner trail 2026-09-25T10:08:29Z and
+ 10:09:57Z' 'PR open, ready, CLEAN, CI SUCCESS; owner held without merge; fresh
+ exact-head root swarm required' >> decisions.tsv && git fetch origin main
+ '+refs/heads/ux5-full-remove-todo:refs/remotes/origin/ux5-full-remove-todo' &&
+ printf 'TRUNK=' && git rev-parse origin/main && printf 'HEAD=' && git
+ rev-parse origin/ux5-full-remove-todo && gh pr view 73 --repo
+ just-joshn/pstack-pi-e2e --json
+ baseRefOid,headRefOid,headRefName,baseRefName,mergeStateStatus,statusCheckRoll
+ up,state,isDraft (timeout 120s)
+
+ ... (4 earlier lines, ctrl+o to expand)
+ {"baseRefName":"main","baseRefOid":"fa50322ec63e863cf9af7b2bda769bff405a6aa9",
+ "headRefName":"ux5-full-remove-todo","headRefOid":"40d2b8146fa2e0b401cebc239dc
+ 02a19cc714b9c","isDraft":false,"mergeStateStatus":"CLEAN","state":"OPEN","stat
+ usCheckRollup":[{"__typename":"StatusContext","context":"local-ci/test","start
+ edAt":"2026-09-25T10:07:44Z","state":"SUCCESS","targetUrl":""}]}
+
+ Took 1.4s
+
+
+ Thinking...
+
+
+ edit
+ /private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-autopil
+ ot-full-20260925/children.tsv
+
+   1 child_id   kind   expected_runtime   state
+   2 68d05463-4b37-594e-b13e-78b917052a72   original PR lifecycle owner,
+ poteto-agent   90m   complete; held at merge-ready d887, no merge
+   3 b9fc79f0-1a28-5f74-80b0-63424e39bd96   replacement PR lifecycle owner,
+ poteto-agent   90m   complete; pushed d50 and held for root verdict, no merge
+ - 4 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29   replacement PR lifecycle owner,
+ poteto-agent   90m   running; snapshot-test fix-forward from d50
+ + 4 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29   replacement PR lifecycle owner,
+ poteto-agent   90m   complete; pushed d40, CI green, held for root verdict
+   5 7ae14357-7aae-5dfa-b559-19ca8b378028   root swarm round 1 gates   30m
+ complete PASS at d887 after frozen install
+   6 c05fff34-952f-58bb-8c29-8ae468d3b65f   root swarm round 1 live behavior
+ 30m   complete PASS at d887
+   7 1c6ffec5-f390-543c-9efc-496886e711cd   root swarm round 1 API/diff review
+ 30m   complete PASS at d887
+   8 5b00ab88-f273-5ec9-a15e-3108ccc088b7   root swarm round 1
+ invariants/coverage review   30m   complete ISSUES; test coverage gap resolved
+ by d50
+     ...
+
+
+ Thinking...
+
+
+ $ test ! -e /tmp/ux5-autopilot-root-decisions.tsv && test ! -e
+ /tmp/ux5-autopilot-root-children.tsv && mv decisions.tsv
+ /tmp/ux5-autopilot-root-decisions.tsv && mv children.tsv
+ /tmp/ux5-autopilot-root-children.tsv && git status --short --branch (timeout
+ 30s)
+
+ ## main...origin/main
+
+ Took 0.1s
+
+
+ Thinking...
+
+Todos 8/17
+✓ #1 Mark the operator's items and honor state-then-wait. Items the operator ...
+◐ #2 Spawn one owner per PR with the full lifecycle and an early trail. Resol...
+✓ #3 Run owners in true parallel and never stack. Many owners at once when PR...
+✓ #4 Swarm-verify every round before its merge. A round starts at the owner's...
+○ #5 On a clean verdict the owner merges and takes the next item. The owner m...
+○ #6 Run the root layer. A genuinely new raise of a pinned gate or budget val...
+○ #7 Stand down instantly on the operator's stop. The operator's hold or stan...
+✓ #8 Read repository guidance and discover the todo-store behavior; then dele...
+◐ #9 Swarm-verify the owner's ready commit and cleanly merge only after an in...
+○ #10 Stop audit monitoring when the queue is merged, complete the goal, and ...
+✓ #11 Frame the swarm around exact code-ready SHA d887b0ba7989303adda04703658...
+✓ #12 Fan out independent gate, live behavior, two diff-review, and trunk-reg...
+✓ #13 Round d887 aggregation complete; addressed the accepted count/isEmpty/n...
+○ #14 Report the pinned-SHA verdict, lanes, gaps, and cleanup
+✓ #15 Frame and launch fresh five-lane verification at PR head d50e5a1abe48bd...
+◐ #16 Aggregate exact-d50 gates/live/two-review/trunk evidence; fix-forward a...
+○ #17 Clean up fresh swarm worktrees and verify the final owner SHA/checks/me...
+── ⠼ Working ───────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/pstack-pi-e2e-autopi...
+↑2.0M ↓404k R45M CH99.6% $0.843 (sub) 75.8%/272k (auto)         gpt-6-luna • max
+Agents 1 running · Shells 1 running · Goal active Goal active: Full autopilot...

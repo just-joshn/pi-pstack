@@ -1,0 +1,102 @@
+UTC	EVENT	DETAIL
+2026-09-25T07:53:32Z	startup_screen	full/screens/20260925T075332Z-startup.txt
+2026-09-25T07:54:36Z	depth_env_check	D_empty=0; screen=full/screens/20260925T075436Z-env-check.txt
+2026-09-25T07:54:56Z	depth_env_check	D_empty=1; screen=full/screens/20260925T075456Z-env-check.txt
+2026-09-25T07:55:31Z	case_prompt	full autopilot: add a removeTodo(id) function to the store that removes one todo by id and returns true if it existed. Use branch prefix ux5-full-.
+2026-09-25T07:55:31Z	case_prompt_screen	full/screens/20260925T075531Z-case-prompt.txt
+2026-09-25T07:56:55Z	thinking_checkpoint	full/screens/20260925T075655Z-thinking.txt
+2026-09-25T07:58:03Z	plan_or_progress_checkpoint	full/screens/20260925T075803Z-plan-or-progress.txt
+2026-09-25T07:58:57Z	activity_checkpoint	full/screens/20260925T075857Z-activity.txt
+2026-09-25T08:00:31Z	owner_task_started	agent_id=68d05463-4b37-594e-b13e-78b917052a72; request.json confirms poteto-agent/cloud; screen=full/screens/20260925T080031Z-owner-task-started.txt
+2026-09-25T08:01:45Z	activity_checkpoint	full/screens/20260925T080145Z-activity.txt
+2026-09-25T08:03:30Z	activity_checkpoint	full/screens/20260925T080330Z-activity.txt
+2026-09-25T08:05:12Z	activity_checkpoint	full/screens/20260925T080512Z-activity.txt
+2026-09-25T08:06:32Z	activity_checkpoint	full/screens/20260925T080632Z-activity.txt
+2026-09-25T08:07:57Z	activity_checkpoint	full/screens/20260925T080757Z-activity.txt
+2026-09-25T08:08:15Z	pr_open	PR #73 https://github.com/just-joshn/pstack-pi-e2e/pull/73; head=04020cbea0e3dbb9a7981a7ba8131bcfd7aea274; base=main; not-draft; screenshot=full/screens/20260925T080814Z-pr-73-open.txt; snapshot=full/pr-73-20260925T080814Z.json
+2026-09-25T08:09:51Z	activity_checkpoint	full/screens/20260925T080951Z-activity.txt
+2026-09-25T08:10:35Z	audit_shell_failure_observed	status.json state=failed, error=Shell command timed out at 10m; screen=full/screens/20260925T081035Z-audit-shell-failed.txt
+2026-09-25T08:12:02Z	activity_checkpoint	full/screens/20260925T081202Z-activity.txt
+2026-09-25T08:13:25Z	activity_checkpoint	full/screens/20260925T081325Z-activity.txt
+2026-09-25T08:14:55Z	activity_checkpoint	full/screens/20260925T081455Z-activity.txt
+2026-09-25T08:16:01Z	checkpoint	full/screens/20260925T081601Z-checkpoint.txt
+2026-09-25T08:16:02Z	pr_snapshot	full/pr-73-20260925T081601Z.json
+2026-09-25T08:17:18Z	activity_checkpoint	full/screens/20260925T081717Z-activity.txt
+2026-09-25T08:18:54Z	activity_checkpoint	full/screens/20260925T081854Z-activity.txt
+2026-09-25T08:19:45Z	activity_checkpoint	full/screens/20260925T081945Z-activity.txt
+2026-09-25T08:21:02Z	activity_checkpoint	full/screens/20260925T082102Z-activity.txt
+2026-09-25T08:22:20Z	activity_checkpoint	full/screens/20260925T082220Z-activity.txt
+2026-09-25T08:23:45Z	activity_checkpoint	full/screens/20260925T082345Z-activity.txt
+2026-09-25T08:25:38Z	activity_checkpoint	full/screens/20260925T082537Z-activity.txt
+2026-09-25T08:27:51Z	activity_checkpoint	full/screens/20260925T082751Z-activity.txt
+2026-09-25T08:28:44Z	unknown_nested_agent_ids	Four SubagentAwait calls returned “Unknown Task or Shell id” for nested candidate/review agent IDs; operators saw the error; root session transcript copied to full/session.jsonl
+2026-09-25T08:29:46Z	activity_checkpoint	full/screens/20260925T082946Z-activity.txt
+2026-09-25T08:32:10Z	activity_checkpoint	full/screens/20260925T083210Z-activity.txt
+2026-09-25T08:34:02Z	activity_checkpoint	full/screens/20260925T083402Z-activity.txt
+2026-09-25T08:36:24Z	activity_checkpoint	full/screens/20260925T083624Z-activity.txt
+2026-09-25T08:39:04Z	activity_checkpoint	full/screens/20260925T083904Z-activity.txt
+2026-09-25T08:41:28Z	activity_checkpoint	full/screens/20260925T084128Z-activity.txt
+2026-09-25T08:43:53Z	activity_checkpoint	full/screens/20260925T084353Z-activity.txt
+2026-09-25T08:46:27Z	activity_checkpoint	full/screens/20260925T084627Z-activity.txt
+2026-09-25T08:49:00Z	activity_checkpoint	full/screens/20260925T084900Z-activity.txt
+2026-09-25T08:51:18Z	activity_checkpoint	full/screens/20260925T085118Z-activity.txt
+2026-09-25T08:53:41Z	activity_checkpoint	full/screens/20260925T085341Z-activity.txt
+2026-09-25T08:53:54Z	pr_head_update	PR #73 moved to d887b0ba7989303adda04703658f4d1090e1a82d at 08:52:10Z; statusCheckRollup empty when captured; snapshot=full/pr-73-20260925T085353Z.json; screen=full/screens/20260925T085353Z-head-update.txt
+2026-09-25T08:56:13Z	activity_checkpoint	full/screens/20260925T085613Z-activity.txt
+2026-09-25T08:58:35Z	activity_checkpoint	full/screens/20260925T085835Z-activity.txt
+2026-09-25T08:59:40Z	verification_checkpoint	PR #73 pinned SHA d887b0ba7989303adda04703658f4d1090e1a82d; local-ci/test SUCCESS; swarm steps 11-14 started; snapshot=full/pr-73-20260925T085939Z.json; screen=full/screens/20260925T085939Z-swarm-start.txt
+2026-09-25T09:00:58Z	activity_checkpoint	full/screens/20260925T090058Z-activity.txt
+2026-09-25T09:01:28Z	swarm_fanout_blocked	Five environment=cloud Task launches failed with “environment cloud requires a clean source worktree”; a read-only git status on the case checkout was clean afterward, so the cause is unproven; no verifier run requests observed; screen=screens/20260925T090058Z-activity.txt
+2026-09-25T09:04:28Z	activity_checkpoint	full/screens/20260925T090428Z-activity.txt
+2026-09-25T09:06:57Z	activity_checkpoint	full/screens/20260925T090657Z-activity.txt
+2026-09-25T09:07:14Z	verifier_progress	Gate lane PASS, live real-store behavior lane PASS, review-A PASS at pinned SHA d887b0ba7989303adda04703658f4d1090e1a82d; review-B and trunk regression still running; PR #73 local-ci/test SUCCESS; screen=screens/20260925T090657Z-activity.txt; snapshot=full/pr-73-20260925T090714Z.json
+2026-09-25T09:09:26Z	activity_checkpoint	full/screens/20260925T090926Z-activity.txt
+2026-09-25T09:09:43Z	verification_progress	At pinned SHA d887b0ba7989303adda04703658f4d1090e1a82d, live behavior PASS, gate rerun PASS, review-A PASS, trunk regression PASS; review-B remains running; screen=screens/20260925T090926Z-activity.txt
+2026-09-25T09:12:02Z	activity_checkpoint	full/screens/20260925T091202Z-activity.txt
+2026-09-25T09:15:52Z	resume_worktree_conflict	Task resume failed because the completed owner’s worktree already existed; root started replacement owner b9fc79f0 instead; no merge attempted
+2026-09-25T09:21:07Z	activity_checkpoint	full/screens/20260925T092107Z-activity.txt
+2026-09-25T09:21:45Z	fix_forward_started	Swarm found one actionable test-coverage gap at d887b0ba7989303adda04703658f4d1090e1a82d; original merge-ready owner is complete; resume failed because worktree already exists; replacement owner b9fc79f0-1a28-5f74-80b0-63424e39bd96 started; no clean verdict or merge yet; screen=screens/20260925T092107Z-activity.txt; PR snapshot=full/pr-73-20260925T092144Z.json
+2026-09-25T09:25:19Z	activity_checkpoint	full/screens/20260925T092519Z-activity.txt
+2026-09-25T09:25:56Z	fix_forward_owner_running	Replacement owner b9fc79f0-1a28-5f74-80b0-63424e39bd96 was started in cloud at origin/ux5-full-remove-todo to add tests for count/isEmpty and nextId; PR #73 remains at d887 with green local-ci/test while fix-forward proceeds; screen=full/screens/20260925T092519Z-activity.txt
+2026-09-25T09:30:43Z	activity_checkpoint	full/screens/20260925T093043Z-activity.txt
+2026-09-25T09:31:04Z	fix_forward_progress	Replacement owner b9fc79f0 has a public-API test-only fix for count/isEmpty and nextId; focused bun test reports 28 passing, but no commit/push or PR head change; PR #73 still d887, CI SUCCESS; root audit Shell 6234a6d6 active; screen=screens/20260925T093043Z-activity.txt; snapshot=full/pr-73-20260925T093104Z.json
+2026-09-25T09:34:31Z	activity_checkpoint	full/screens/20260925T093431Z-activity.txt
+2026-09-25T09:38:24Z	activity_checkpoint	full/screens/20260925T093824Z-activity.txt
+2026-09-25T09:38:56Z	unknown_nested_agent_ids_repeated	Full TUI printed 13 “Unknown Task or Shell id” SubagentAwait errors for nested IDs in one audit pass; see screen=full/screens/20260925T093824Z-activity.txt and full/session.jsonl
+2026-09-25T09:41:48Z	activity_checkpoint	full/screens/20260925T094148Z-activity.txt
+2026-09-25T09:42:09Z	fix_forward_pushed	PR #73 moved from d887b0ba7989303adda04703658f4d1090e1a82d to d50e5a1abe48bd091189af62b3b10f3e88721bf4; local-ci/test SUCCESS at 09:39:34Z. New test-only fix was pushed; fresh root swarm round still required; screen=full/screens/20260925T094148Z-activity.txt; snapshot=full/pr-73-20260925T094207Z.json
+2026-09-25T09:44:55Z	activity_checkpoint	full/screens/20260925T094455Z-activity.txt
+2026-09-25T09:45:29Z	fix_forward_ci_ready	PR #73 d50e5a1abe48bd091189af62b3b10f3e88721bf4 has local-ci/test SUCCESS; root audit logged 45 tests and typecheck exit 0; owner remains active and a fresh five-lane root round is still required at the changed patch-id; screen=full/screens/20260925T094455Z-activity.txt
+2026-09-25T09:48:41Z	activity_checkpoint	full/screens/20260925T094841Z-activity.txt
+2026-09-25T09:49:07Z	fresh_swarm_progress	At d50e5a1abe48bd091189af62b3b10f3e88721bf4, trunk regression PASS and three lanes complete; two review lanes still running; local-ci/test SUCCESS; no clean verdict or merge yet; screen=full/screens/20260925T094841Z-activity.txt; snapshot=full/pr-73-20260925T094906Z.json
+2026-09-25T09:52:33Z	activity_checkpoint	full/screens/20260925T095233Z-activity.txt
+2026-09-25T09:53:07Z	second_round_verification_complete	At exact d50e5a1abe48bd091189af62b3b10f3e88721bf4, root lists all five fresh verification lanes complete: gates, live behavior, review A/B, and trunk regression PASS; local-ci/test SUCCESS; root final verdict/merge/goal completion still pending; screen=full/screens/20260925T095233Z-activity.txt; snapshot=full/pr-73-20260925T095305Z.json
+2026-09-25T09:56:22Z	activity_checkpoint	full/screens/20260925T095622Z-activity.txt
+2026-09-25T09:56:55Z	second_round_finding	At d50e5a1abe48bd091189af62b3b10f3e88721bf4, round-2 gates/live/review-A/trunk PASS, but review-B found no removeTodo snapshot-preservation assertions in test/todo.test.ts; root requires another test-only fix-forward and a fresh root verdict; screen=full/screens/20260925T095622Z-activity.txt; snapshot=full/pr-73-20260925T095653Z.json
+2026-09-25T10:00:10Z	activity_checkpoint	full/screens/20260925T100010Z-activity.txt
+2026-09-25T10:00:37Z	second_fix_forward_required	Fresh d50 round-2 review-B found missing snapshot-preservation assertions around removeTodo, so root withheld clean verdict and launched another test-only owner 90d4ac0d-bc68-50b1-b8b8-8ff8c31d9e29; PR #73 remains d50 with green CI; screen=full/screens/20260925T100010Z-activity.txt; snapshot=full/pr-73-20260925T100035Z.json
+2026-09-25T10:04:16Z	activity_checkpoint	full/screens/20260925T100416Z-activity.txt
+2026-09-25T10:09:19Z	activity_checkpoint	full/screens/20260925T100919Z-activity.txt
+2026-09-25T10:09:47Z	third_fix_forward_pushed	PR #73 advanced from d50 to 40d2b8146fa2e0b401cebc239dc02a19cc714b9c; local-ci/test SUCCESS at 10:07:44Z. Owner 90d4 remains running; fresh root verification at exact 40d2 not yet started; screen=full/screens/20260925T100919Z-activity.txt; snapshot=full/pr-73-20260925T100946Z.json
+2026-09-25T10:12:59Z	activity_checkpoint	full/screens/20260925T101258Z-activity.txt
+2026-09-25T10:13:34Z	third_fix_forward_ready	PR #73 head 40d2b8146fa2e0b401cebc239dc02a19cc714b9c with local-ci/test SUCCESS; replacement owner marked complete in inherited children.tsv but run status still running; root has not yet launched fresh d40 verification; screen=full/screens/20260925T101258Z-activity.txt; snapshot=full/pr-73-20260925T101332Z.json
+2026-09-25T10:16:50Z	activity_checkpoint	full/screens/20260925T101650Z-activity.txt
+2026-09-25T10:17:30Z	third_round_progress	Fresh exact-40d root swarm active; trunk regression PASS at fa503, gates/live/reviews still running; PR #73 remains open at 40d2 with local-ci/test SUCCESS; no verdict or merge yet; screen=full/screens/20260925T101650Z-activity.txt
+2026-09-25T10:20:46Z	activity_checkpoint	full/screens/20260925T102046Z-activity.txt
+2026-09-25T10:24:26Z	activity_checkpoint	full/screens/20260925T102426Z-activity.txt
+2026-09-25T10:24:44Z	third_round_clean_verdict	Root completed exact-40d round with all five lanes PASS and local-ci/test SUCCESS, set owner merge in progress; prior owner tasks are complete, so root is launching a fresh merge owner because existing managed worktree is occupied; no merge yet; screen=screens/20260925T102426Z-activity.txt; snapshot=full/pr-73-20260925T102443Z.json
+2026-09-25T10:26:56Z	activity_checkpoint	full/screens/20260925T102656Z-activity.txt
+2026-09-25T10:27:30Z	merge_owner_active	Fresh merge owner ed1d8cdf-6979-5e96-83f1-1766b3a00f54 received the exact d40/fa503/patch-id root verdict; PR #73 remains open at d40 with green CI and CLEAN merge state; merge pending its guard checks; screen=screens/20260925T102656Z-activity.txt; snapshot=full/pr-73-20260925T102730Z.json
+2026-09-25T10:29:46Z	activity_checkpoint	full/screens/20260925T102946Z-activity.txt
+2026-09-25T10:32:51Z	activity_checkpoint	full/screens/20260925T103251Z-activity.txt
+2026-09-25T10:33:10Z	pr_merged	PR #73 merged at 2026-09-25T10:32:46Z from verified head 40d2b8146fa2e0b401cebc239dc02a19cc714b9c; local-ci/test SUCCESS; root still must prove main ancestry, run post-merge steps, complete goal and stop audit loop; screen=full/screens/20260925T103251Z-activity.txt; snapshot=full/pr-73-20260925T103308Z.json
+2026-09-25T10:35:23Z	activity_checkpoint	full/screens/20260925T103523Z-activity.txt
+2026-09-25T10:35:40Z	merge_proof	PR #73 reports MERGED at 10:32:46Z; branch head 40d2b8146fa2e0b401cebc239dc02a19cc714b9c is main HEAD 23252dccb7607dfd592324d1aab58a6c99351828; local-ci/test SUCCESS. Root goal completion and audit Shell stop are still pending; screen=screens/20260925T103523Z-activity.txt; snapshot=full/pr-73-20260925T103539Z.json
+2026-09-25T10:38:06Z	activity_checkpoint	full/screens/20260925T103806Z-activity.txt
+2026-09-25T10:40:29Z	activity_checkpoint	full/screens/20260925T104029Z-activity.txt
+2026-09-25T10:47:07Z	activity_checkpoint	full/screens/20260925T104707Z-activity.txt
+2026-09-25T10:48:19Z	cleanup_prompt	Sent exact operator cleanup prompt; screen=full/screens/20260925T104819Z-cleanup.txt
+2026-09-25T10:52:05Z	cleanup_snapshot	Saved required GitHub snapshots for #73/#74/#75 before cleanup writes; files full/pr-73-20260925T105203Z.json and stack/pr-74-20260925T105203Z.json, stack/pr-75-20260925T105203Z.json
+2026-09-25T10:53:05Z	activity_checkpoint	full/screens/20260925T105305Z-final.txt
+2026-09-25T10:55:03Z	activity_checkpoint	full/screens/20260925T105503Z-final.txt
+2026-09-25T10:57:42Z	cleanup_complete	Exact cleanup prompt honored; full goal COMPLETE by 10:55:03Z; no run-specific runner process, tmux server exited, all run statuses terminal; final post-cleanup PR state snapshots at 20260925T105738Z

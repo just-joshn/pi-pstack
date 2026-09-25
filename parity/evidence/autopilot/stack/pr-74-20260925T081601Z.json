@@ -1,0 +1,1 @@
+{"baseRefName":"main","headRefName":"ux5-stack-rename","headRefOid":"7184c67882b945162110654a34f3b6bf44cdebd2","mergedAt":null,"number":74,"state":"OPEN","statusCheckRollup":[{"__typename":"StatusContext","context":"local-ci/test","startedAt":"2026-09-25T08:10:05Z","state":"FAILURE","targetUrl":""}]}

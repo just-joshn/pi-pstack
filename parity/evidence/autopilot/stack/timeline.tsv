@@ -1,0 +1,98 @@
+UTC	EVENT	DETAIL
+2026-09-25T07:53:32Z	startup_screen	stack/screens/20260925T075332Z-startup.txt
+2026-09-25T07:55:02Z	depth_env_check	D_empty=1; screen=stack/screens/20260925T075502Z-env-check.txt
+2026-09-25T07:55:31Z	case_prompt	autopilot-stack: queue: (1) add a 'clear-done' CLI command that removes completed todos; (2) add a 'rename <id> <title>' CLI command. State the plan first. Use branch prefix ux5-stack-.
+2026-09-25T07:55:31Z	case_prompt_screen	stack/screens/20260925T075531Z-case-prompt.txt
+2026-09-25T07:56:55Z	thinking_checkpoint	stack/screens/20260925T075655Z-thinking.txt
+2026-09-25T07:58:03Z	plan_or_progress_checkpoint	stack/screens/20260925T075803Z-plan-or-progress.txt
+2026-09-25T07:58:03Z	operator_go	go sent after stated plan; no other instructions
+2026-09-25T07:58:03Z	go_screen	stack/screens/20260925T075803Z-go.txt
+2026-09-25T07:58:57Z	activity_checkpoint	stack/screens/20260925T075857Z-activity.txt
+2026-09-25T08:00:31Z	goal_armed	goal_id=62f7be09-8c07-459c-8e62-b37d8a11c867; screen=stack/screens/20260925T080031Z-goal-armed.txt
+2026-09-25T08:01:45Z	activity_checkpoint	stack/screens/20260925T080145Z-activity.txt
+2026-09-25T08:03:30Z	activity_checkpoint	stack/screens/20260925T080330Z-activity.txt
+2026-09-25T08:05:12Z	activity_checkpoint	stack/screens/20260925T080512Z-activity.txt
+2026-09-25T08:06:32Z	activity_checkpoint	stack/screens/20260925T080632Z-activity.txt
+2026-09-25T08:07:57Z	activity_checkpoint	stack/screens/20260925T080757Z-activity.txt
+2026-09-25T08:08:33Z	activity_checkpoint	stack/screens/20260925T080833Z-activity.txt
+2026-09-25T08:09:51Z	activity_checkpoint	stack/screens/20260925T080951Z-activity.txt
+2026-09-25T08:10:35Z	activity_checkpoint	stack/screens/20260925T081035Z-activity.txt
+2026-09-25T08:10:36Z	pr_open	PR #74 https://github.com/just-joshn/pstack-pi-e2e/pull/74; head=7184c67882b945162110654a34f3b6bf44cdebd2; base=main; not-draft; snapshot=stack/pr-74-20260925T081035Z.json
+2026-09-25T08:12:02Z	activity_checkpoint	stack/screens/20260925T081202Z-activity.txt
+2026-09-25T08:13:25Z	activity_checkpoint	stack/screens/20260925T081325Z-activity.txt
+2026-09-25T08:14:55Z	activity_checkpoint	stack/screens/20260925T081455Z-activity.txt
+2026-09-25T08:16:01Z	checkpoint	stack/screens/20260925T081601Z-checkpoint.txt
+2026-09-25T08:16:02Z	pr_snapshot	stack/pr-74-20260925T081601Z.json
+2026-09-25T08:17:18Z	activity_checkpoint	stack/screens/20260925T081718Z-activity.txt
+2026-09-25T08:18:54Z	activity_checkpoint	stack/screens/20260925T081854Z-activity.txt
+2026-09-25T08:19:45Z	activity_checkpoint	stack/screens/20260925T081945Z-activity.txt
+2026-09-25T08:21:02Z	activity_checkpoint	stack/screens/20260925T082102Z-activity.txt
+2026-09-25T08:22:20Z	activity_checkpoint	stack/screens/20260925T082220Z-activity.txt
+2026-09-25T08:23:45Z	activity_checkpoint	stack/screens/20260925T082345Z-activity.txt
+2026-09-25T08:25:38Z	activity_checkpoint	stack/screens/20260925T082538Z-activity.txt
+2026-09-25T08:25:55Z	pr_open	PR #75 https://github.com/just-joshn/pstack-pi-e2e/pull/75; head=3418cc6d36aac96ce63a114627c0651065391c4a; branch=ux5-stack-clear-done-r1; base=main; not-draft; snapshot=stack/pr-75-20260925T082554Z.json
+2026-09-25T08:26:37Z	ci_status	PR #75 local-ci/test SUCCESS at 3418cc6d36aac96ce63a114627c0651065391c4a; snapshot=stack/pr-75-20260925T082636Z.json
+2026-09-25T08:27:51Z	activity_checkpoint	stack/screens/20260925T082751Z-activity.txt
+2026-09-25T08:29:46Z	activity_checkpoint	stack/screens/20260925T082946Z-activity.txt
+2026-09-25T08:32:10Z	activity_checkpoint	stack/screens/20260925T083210Z-activity.txt
+2026-09-25T08:33:40Z	unknown_nested_agent_ids	SubagentAwait returned “Unknown Task or Shell id” for owner-child and design-candidate IDs; repeated at 08:33:58Z and 08:44:33Z; root session transcript copied to stack/session.jsonl
+2026-09-25T08:34:02Z	activity_checkpoint	stack/screens/20260925T083402Z-activity.txt
+2026-09-25T08:36:24Z	activity_checkpoint	stack/screens/20260925T083624Z-activity.txt
+2026-09-25T08:39:04Z	activity_checkpoint	stack/screens/20260925T083904Z-activity.txt
+2026-09-25T08:41:28Z	activity_checkpoint	stack/screens/20260925T084128Z-activity.txt
+2026-09-25T08:43:53Z	activity_checkpoint	stack/screens/20260925T084353Z-activity.txt
+2026-09-25T08:46:27Z	activity_checkpoint	stack/screens/20260925T084627Z-activity.txt
+2026-09-25T08:49:00Z	activity_checkpoint	stack/screens/20260925T084900Z-activity.txt
+2026-09-25T08:51:18Z	activity_checkpoint	stack/screens/20260925T085118Z-activity.txt
+2026-09-25T08:53:41Z	activity_checkpoint	stack/screens/20260925T085341Z-activity.txt
+2026-09-25T08:54:18Z	task_api_usage_error	Architect candidate-3 Task returned 400 invalid_request_error “out of extra usage”; candidate-1/2 outputs remained; a fallback cross-judge completed at 08:57:35Z; screen=stack/screens/20260925T085613Z-activity.txt; session=stack/session.jsonl
+2026-09-25T08:56:13Z	activity_checkpoint	stack/screens/20260925T085613Z-activity.txt
+2026-09-25T08:58:35Z	activity_checkpoint	stack/screens/20260925T085835Z-activity.txt
+2026-09-25T09:00:58Z	activity_checkpoint	stack/screens/20260925T090058Z-activity.txt
+2026-09-25T09:04:28Z	activity_checkpoint	stack/screens/20260925T090428Z-activity.txt
+2026-09-25T09:06:57Z	activity_checkpoint	stack/screens/20260925T090657Z-activity.txt
+2026-09-25T09:09:27Z	activity_checkpoint	stack/screens/20260925T090927Z-activity.txt
+2026-09-25T09:12:02Z	activity_checkpoint	stack/screens/20260925T091202Z-activity.txt
+2026-09-25T09:18:00Z	unknown_nested_agent_id	Task and SubagentAwait returned “Unknown Task or Shell id” for child 0b0ea97e-fe5d-514c-ae98-a44053caa492
+2026-09-25T09:21:07Z	activity_checkpoint	stack/screens/20260925T092107Z-activity.txt
+2026-09-25T09:21:45Z	owner_replacements	PR #75 clear-done owner b097ff69 was explicitly stopped after no code diff/commit/PR delta; replacement 8357b0aa started on the same branch. PR #74 rename replacement 2613ff13 was explicitly stopped after 17m without side effects; replacement 1c56719f started on the same branch. Both PRs remain open/unmerged and unstacked; #74 local-ci/test FAILURE and #75 SUCCESS; screen=screens/20260925T092107Z-activity.txt; snapshots=stack/pr-74-20260925T092144Z.json,stack/pr-75-20260925T092144Z.json
+2026-09-25T09:25:19Z	activity_checkpoint	stack/screens/20260925T092519Z-activity.txt
+2026-09-25T09:25:56Z	latest_recovery_state	Third replacement owners are running for #75 (8357b0aa-a939-5da5-9dc3-2873c5e1e0dc) and #74 (1c56719f-d46f-52a6-ba6b-2dba4c4477c3); #75 remains green at 3418cc6 on main, #74 remains failing at 7184c67 on main; stack remains unverified/unstacked; screen=stack/screens/20260925T092519Z-activity.txt
+2026-09-25T09:30:43Z	activity_checkpoint	stack/screens/20260925T093043Z-activity.txt
+2026-09-25T09:31:05Z	pr_head_update	PR #74 renamed by replacement owner to 626594b8a1a06aeefef7d68fee4f1e3315b5551d; local-ci/test SUCCESS at 09:28:43Z; still based on main and not root-verified. PR #75 remains at 3418cc6 with green CI; replacement owner has an uncommitted 12-line test/cli.test.ts diff, no push yet; screen=screens/20260925T093043Z-activity.txt; snapshots=stack/pr-74-20260925T093104Z.json,stack/pr-75-20260925T093104Z.json
+2026-09-25T09:34:31Z	activity_checkpoint	stack/screens/20260925T093431Z-activity.txt
+2026-09-25T09:35:03Z	pr75_ready_and_pr74_verification_started	PR #75 head c84ebfd8325ff14d61063ebde47b3cdf37301893 with local-ci/test SUCCESS at 09:32:21Z; PR #74 remains head 626594b8a1a06aeefef7d68fee4f1e3315b5551d with CI SUCCESS. Root started swarm lanes for #74 while holding stack topology until #75 gets an independent root verdict; both still base main at capture. Screen=screens/20260925T093431Z-activity.txt; snapshots=stack/pr-74-20260925T093502Z.json,stack/pr-75-20260925T093502Z.json
+2026-09-25T09:38:24Z	activity_checkpoint	stack/screens/20260925T093824Z-activity.txt
+2026-09-25T09:38:56Z	pr74_verification_progress	PR #74 owner task completed at 626594b8a1a06aeefef7d68fee4f1e3315b5551d with local-ci/test SUCCESS; independent root gate/live/trunk lanes are running or completed; PR #75 head c84ebfd8325ff14d61063ebde47b3cdf37301893 with green CI but still awaits its own root verdict; screen=stack/screens/20260925T093824Z-activity.txt
+2026-09-25T09:41:48Z	activity_checkpoint	stack/screens/20260925T094148Z-activity.txt
+2026-09-25T09:42:09Z	pr75_swarm_started	Root now has independent verification rounds in progress for PR #74 head 626594b and PR #75 head c84ebfd; both local-ci/test checks green; root explicitly holds topology until #75 gets verdict and will stack #75 first, #74 second; screen=stack/screens/20260925T094148Z-activity.txt; snapshots=stack/pr-74-20260925T094207Z.json,stack/pr-75-20260925T094207Z.json
+2026-09-25T09:44:55Z	activity_checkpoint	stack/screens/20260925T094455Z-activity.txt
+2026-09-25T09:45:29Z	verifier_lane_recovery	During PR #74 round at 626594b, lane 6c178c55 was explicitly interrupted and stopped by SIGTERM; replacement reviewer 205d0a8a is running; root requires a separate full verification of #75 before topology changes; screen=stack/screens/20260925T094455Z-activity.txt
+2026-09-25T09:48:41Z	activity_checkpoint	stack/screens/20260925T094841Z-activity.txt
+2026-09-25T09:49:07Z	root_verdict_progress	PR #74 head 626594b is root-verified clean. For #75 head c84ebfd, root gates/live PASS and one review lane PASS; the other required review lane could not run with readonly tools, so a shell-capable replacement 5d442d60 is running; no topology edit yet. Screens=stack/screens/20260925T094841Z-activity.txt; snapshots=stack/pr-74-20260925T094906Z.json,stack/pr-75-20260925T094906Z.json
+2026-09-25T09:52:33Z	activity_checkpoint	stack/screens/20260925T095233Z-activity.txt
+2026-09-25T09:53:07Z	stack_rebase_conflict	Both PRs have independent root PASS on #74 head 626594b and #75 head c84ebfd with green CI, but root rebase/append attempt hit CONFLICT (content) in test/cli.test.ts; PR #74 still base main, no topology push; root must owner-fix and reverify rewritten head; screen=stack/screens/20260925T095233Z-activity.txt; snapshots=stack/pr-74-20260925T095305Z.json,stack/pr-75-20260925T095305Z.json
+2026-09-25T09:56:22Z	activity_checkpoint	stack/screens/20260925T095622Z-activity.txt
+2026-09-25T09:56:55Z	stack_ready_conflict_handling	Both PRs passed root verification independently; PR #75 clean at c84ebfd. Root began topology step #20 in required order (#75 then #74) after first attempt conflicted in test/cli.test.ts; it is analyzing rebase resolution, PR bases still main, nothing merged; screen=stack/screens/20260925T095622Z-activity.txt; snapshots=stack/pr-74-20260925T095653Z.json,stack/pr-75-20260925T095653Z.json
+2026-09-25T10:00:10Z	activity_checkpoint	stack/screens/20260925T100010Z-activity.txt
+2026-09-25T10:00:37Z	stack_topology_updated	Root resolved test/cli.test.ts rebase conflict in temp clone; PR #74 moved from 626594b to 2c8c579860f978698fce57183e56f2bf3ea6277e and base changed to PR #75 branch ux5-stack-clear-done-r1; local-ci/test SUCCESS at 09:59:30Z. This rewritten head needs fresh verification before delivery; PR #75 remains main, both open/unmerged; screen=stack/screens/20260925T100010Z-activity.txt; snapshots=stack/pr-74-20260925T100035Z.json,stack/pr-75-20260925T100035Z.json
+2026-09-25T10:04:16Z	activity_checkpoint	stack/screens/20260925T100416Z-activity.txt
+2026-09-25T10:06:03Z	owner_conflict_ownership	After the rebase conflicted in test/cli.test.ts, no new PR-owner Task appeared before root used /tmp/pstack-ux5-rename-rebase-20260925, force-with-lease pushed head 2c8c579 and retargeted #74 to #75. Step 7 assigns conflicts in owner files to that owner; the transcript shows root-side resolution instead. Root correctly launched fresh verification at rewritten head; screen=stack/screens/20260925T100416Z-activity.txt (and prior 095653Z activity)
+2026-09-25T10:09:19Z	activity_checkpoint	stack/screens/20260925T100919Z-activity.txt
+2026-09-25T10:09:47Z	stack_delivered_unmerged	Root reports #75 main->c84 and #74 based on #75 at 2c8, CI green, final fresh three-review/gate/live proof PASS, root verdict comments on both PRs, no merges. #74 rebase changed head and passed fresh stack verification; goal COMPLETE and stop-loop request are in progress. Screen=stack/screens/20260925T100919Z-activity.txt; snapshots=stack/pr-74-20260925T100946Z.json,stack/pr-75-20260925T100946Z.json
+2026-09-25T10:12:59Z	activity_checkpoint	stack/screens/20260925T101259Z-activity.txt
+2026-09-25T10:13:34Z	stack_delivered	Root delivered open/unmerged verified stack: #75 c84 on main; #74 2c8 based on #75; all required tests/typecheck/live checks, local CI, and three fresh review lanes PASS; root comments present; audit Shell 64966 stopped and no sleeper for its pid; screen=stack/screens/20260925T101259Z-activity.txt; snapshots=stack/pr-74-20260925T101332Z.json,stack/pr-75-20260925T101332Z.json
+2026-09-25T10:16:50Z	activity_checkpoint	stack/screens/20260925T101650Z-activity.txt
+2026-09-25T10:17:30Z	owner_tool_limitations	An owner report states nested Tasks were prohibited, so independent trail and Comment Sicko reviews did not run, and CreateGoal was unavailable in that headless owner session; root goal/stack delivery still completed. Audit Shells 06679 and 64966 were stopped by the root; no audit loop remains; screen=stack/screens/20260925T101650Z-activity.txt
+2026-09-25T10:20:46Z	activity_checkpoint	stack/screens/20260925T102046Z-activity.txt
+2026-09-25T10:24:26Z	activity_checkpoint	stack/screens/20260925T102426Z-activity.txt
+2026-09-25T10:26:56Z	activity_checkpoint	stack/screens/20260925T102656Z-activity.txt
+2026-09-25T10:29:46Z	activity_checkpoint	stack/screens/20260925T102946Z-activity.txt
+2026-09-25T10:32:51Z	activity_checkpoint	stack/screens/20260925T103251Z-activity.txt
+2026-09-25T10:35:23Z	activity_checkpoint	stack/screens/20260925T103523Z-activity.txt
+2026-09-25T10:38:06Z	activity_checkpoint	stack/screens/20260925T103806Z-activity.txt
+2026-09-25T10:40:29Z	activity_checkpoint	stack/screens/20260925T104029Z-activity.txt
+2026-09-25T10:47:07Z	activity_checkpoint	stack/screens/20260925T104707Z-activity.txt
+2026-09-25T10:48:19Z	cleanup_prompt	Sent exact operator cleanup prompt; screen=stack/screens/20260925T104819Z-cleanup.txt
+2026-09-25T10:52:05Z	cleanup_snapshot	Saved required pre-cleanup snapshots for open stack PRs #74 and #75 before cleanup writes
+2026-09-25T10:57:42Z	cleanup_complete	Root confirmed all started tasks terminal, audit loops absent; Pi session exited; pre-close snapshots preserved, #74/#75 closed and ux5 branches deleted; post-cleanup snapshots at 20260925T105738Z
