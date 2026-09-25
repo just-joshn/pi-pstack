@@ -14,7 +14,7 @@ Loading `/skill:poteto-mode`, or a pstack skill whose steps launch agents, autho
 | `run_in_background: true` | Return an `agent_id` and notify the parent on completion. Without it, `Task` runs in the foreground and returns the child's text. Parallel fan-out uses several `Task` calls in one message. |
 | `readonly: true` | Limit the agent to `read`, `grep`, `find`, and `ls`. |
 | `model` | Pass a configured provider/model id and thinking suffix, such as `openai-codex/gpt-6-luna:max`. Omit `model` to use the parent model. See [Which model a spawn uses](#which-model-a-spawn-uses). |
-| `attachments` and `output` | Attach file paths as context. Set `output` to save the child's final text to a file; the response includes its output reference. |
+| `attachments` | Attach file paths as context. Pi includes each file in the child's first prompt. |
 | `environment: "local"` | Run in the current checkout. The agent can see its uncommitted state. |
 | `environment: "cloud"` | Run locally in an isolated managed worktree. Set `cloud_base_branch` to a named branch after fetching it, for example `origin/main`. Do not pass a raw SHA. |
 | `Task({resume: agent_id, ...})` | Continue an existing agent. Include its current task details and standing orders in the new prompt. |

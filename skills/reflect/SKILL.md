@@ -42,7 +42,7 @@ Each reviewer and the synthesizer name a role line in the pstack models block in
 | Tooling | `reflect tooling` | `openai-codex/gpt-5.6-sol:max` | `references/tooling-reviewer.md` |
 | Divergent | `reflect judgment, divergent, synthesizer` | `anthropic/claude-opus-5-5:max` | `references/divergent-reviewer.md` |
 
-Pass each template verbatim, substituting the transcript path or digest where marked. Reviewers return findings as their child `output`.
+Pass each template verbatim, substituting the transcript path or digest where marked. Reviewers return findings in the `Task` response body.
 
 ### 3. Synthesize
 
