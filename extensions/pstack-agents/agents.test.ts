@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
@@ -466,6 +466,15 @@ describe("Task boundary parsing", () => {
     expect(() => parseTaskInput(base, taskContext(agentDir, cwd, { depth: 3 }))).toThrow("Maximum Task nesting depth is 3");
     expect(() => parseTaskInput({ ...base, attachments: ["../outside.txt"] }, taskContext(agentDir, cwd))).toThrow("Attachment escapes the workspace");
   });
+});
+
+test("Comment Sicko names the same how and why skills as the upstream agent", () => {
+  const localPath = new URL("../../agents/comment-sicko.md", import.meta.url);
+  const upstreamPath = new URL("../../parity/upstream/0.15.5/pstack/agents/comment-sicko.md", import.meta.url);
+  const local = readFileSync(localPath, "utf8").match(/Before judging,[\s\S]*?on the named symbol or call\./);
+  const upstream = readFileSync(upstreamPath, "utf8").match(/Before judging,[\s\S]*?on the named symbol or call\./);
+  if (!local || !upstream) throw new Error("Comment Sicko is missing its skill-instruction sentence");
+  expect(local[0]).toBe(upstream[0]);
 });
 
 test("agent names may contain single spaces, like Cursor's Comment Sicko", () => {
