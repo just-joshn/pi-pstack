@@ -504,12 +504,14 @@ export function createRunStore(options: StoreOptions): RunStore {
 
   const emitNotification = (notification: RunNotification, delivered: ReadonlySet<string>, notify: (notification: RunNotification) => void): void => {
     if (observers && !observers.notificationsEnabled) return;
+    // Pi holds a queued notice in memory until the current turn ends. Acknowledge only once the session has saved it,
+    // so a restart before then sends it again instead of dropping it.
+    if (delivered.has(notification.notificationId)) return;
     if (isAcknowledged(notification.id, notification.notificationId)) return;
     if (!shouldNotify({ notificationId: notification.notificationId, delivered, inFlight: notificationInFlight })) return;
     notificationInFlight.add(notification.notificationId);
     try {
       notify(notification);
-      acknowledge(notification.id, notification.notificationId);
     } catch (error) {
       notificationInFlight.delete(notification.notificationId);
       throw error;
@@ -518,6 +520,12 @@ export function createRunStore(options: StoreOptions): RunStore {
 
   const reconcile = async (branch: readonly SessionEntry[], notify: (notification: RunNotification) => void, includeRunning: boolean): Promise<void> => {
     const delivered = deliveredNotificationIds(branch);
+    for (const notificationId of delivered) {
+      const id = parseRunId(notificationId.split(":", 1)[0] ?? "");
+      if (!id || !fs.existsSync(runDirectory(options.sessionDir, id))) continue;
+      if (!isAcknowledged(id, notificationId)) acknowledge(id, notificationId);
+      notificationInFlight.delete(notificationId);
+    }
     const completedToolCalls = toolResultsByCallId(branch);
     const completedAttempts = completedRunAttempts(branch);
     const latestEntries = indexEntries(branch);
