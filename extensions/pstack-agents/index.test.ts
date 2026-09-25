@@ -551,6 +551,10 @@ describe("bounded run output", () => {
         agent_id: backgroundId,
         timeout_ms: 0,
       }, undefined);
+      const awaitedText = firstAwait.content[0]?.text ?? "";
+      expect(awaitedText).toContain("TASK_LINE_0001");
+      expect(awaitedText).not.toContain("TASK_LINE_2500");
+      expect(awaitedText).toContain(`[Output truncated. Full transcript: ${backgroundTranscript}]`);
       expect(firstAwait.usage).toEqual({
         input: 2,
         output: 3,

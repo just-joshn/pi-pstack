@@ -535,6 +535,14 @@ function latestStatusText(result: AwaitResult): string {
   return describeStatus(result.status);
 }
 
+function subagentAwaitText(id: RunId, result: AwaitResult, store: RunStore): string {
+  const transcript = store.transcript(id);
+  const heading = `Task ${id}: ${latestStatusText(result)}. Transcript: ${transcript}`;
+  if (!isTerminal(result.status)) return heading;
+  const excerpt = boundedTaskOutput(store.finalOutput(id), transcript);
+  return excerpt ? `${heading}\n\n${excerpt}` : heading;
+}
+
 async function executeAwait(params: AwaitParameters | SubagentAwaitParameters, signal: AbortSignal | undefined): Promise<ReturnType<typeof toolResult>> {
   const subagentAwait = "timeout_ms" in params;
   const isAgent = "agent_id" in params;
@@ -553,7 +561,7 @@ async function executeAwait(params: AwaitParameters | SubagentAwaitParameters, s
   const transcript = isAgent ? store.transcript(id) : undefined;
   const outputLog = isAgent ? undefined : store.outputLog(id);
   const text = subagentAwait
-    ? `Task ${id}: ${latestStatusText(result)}. Transcript: ${store.transcript(id)}`
+    ? subagentAwaitText(id, result, store)
     : `${isAgent ? "Task" : "Shell"} ${id}: ${latestStatusText(result)}${transcript ? `. Transcript: ${transcript}` : `. Output log: ${outputLog}`}`;
   const details = subagentAwait
     ? { agent_id: id, runId: id, status, transcript: store.transcript(id), completed }
