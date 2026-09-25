@@ -5,7 +5,7 @@ description: Configure which models pstack uses per role and at what reasoning b
 
 # Setup pstack
 
-Write the pstack block in `~/.pi/agent/AGENTS.md`. Pi loads that file into every session, which makes it the always-applied rule that sets pstack's model per role. The block also carries the poteto-mode reminder, since Pi has no sticky modes.
+Write the pstack block to `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/AGENTS.md`. Pi loads that file into every session, which makes it the always-applied rule that sets pstack's model per role. The block also carries the poteto-mode reminder, since Pi has no sticky modes.
 
 ## Steps
 
@@ -36,7 +36,7 @@ Every real value written must be a detected id plus an optional valid suffix. `i
 
 ### 5. Write the block
 
-Create `~/.pi/agent/AGENTS.md` if it is missing. Replace everything between the two markers with the new block, or append the block at the end when the markers are absent. Leave the rest of the file untouched, so re-runs stay idempotent. Resolve `../poteto-mode/SKILL.md` relative to this skill's directory, then replace `ABSOLUTE_PATH_TO_POTETO_MODE_SKILL` in the template with that absolute path before writing the block. Write it with a small script rather than by hand (principle-build-the-lever), then print the block back to confirm. Shape:
+Create `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/AGENTS.md` if it is missing. Replace everything between the two markers with the new block, or append the block at the end when the markers are absent. Leave the rest of the file untouched, so re-runs stay idempotent. Resolve `../poteto-mode/SKILL.md` relative to this skill's directory, then replace `ABSOLUTE_PATH_TO_POTETO_MODE_SKILL` in the template with that absolute path before writing the block. Write it with a small script rather than by hand (principle-build-the-lever), then print the block back to confirm. Shape:
 
 ````markdown
 <!-- pstack-models:begin -->
@@ -72,7 +72,7 @@ interrogate reviewers: anthropic/claude-opus-5-5:max, openai-codex/gpt-5.6-sol:m
 <!-- pstack-models:end -->
 ````
 
-Then enforce it. In `~/.pi/agent/extensions/pstack-agents.json`, set `modelScope` to `{ "enforce": true, "allow": [...] }` so the file contains `{ "modelScope": { "enforce": true, "allow": [...] } }`, where the list is `"inherit"` plus every real id the block names, each written as `provider/id` without its `:<thinking>` suffix. Keep every other setting in the file. With that policy, a Task call that passes a model outside the configured set fails with a modelScope error instead of running on a model the user did not choose.
+Then enforce it. In `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/extensions/pstack-agents.json`, set `modelScope` to `{ "enforce": true, "allow": [...] }` so the file contains `{ "modelScope": { "enforce": true, "allow": [...] } }`, where the list is `"inherit"` plus every real id the block names, each written as `provider/id` without its `:<thinking>` suffix. Keep every other setting in the file. With that policy, a Task call that passes a model outside the configured set fails with a modelScope error instead of running on a model the user did not choose.
 
 ### 6. Confirm
 

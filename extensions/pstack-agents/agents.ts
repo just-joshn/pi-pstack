@@ -285,8 +285,10 @@ function escapeGlob(pattern: string): string {
 }
 
 export function parseModelScope(config: unknown): ModelScopePolicy | undefined {
-  if (!isRecord(config) || !isRecord(config.modelScope)) return undefined;
+  if (!isRecord(config)) throw new Error("pstack-agents.json must contain a JSON object");
+  if (!Object.prototype.hasOwnProperty.call(config, "modelScope")) return undefined;
   const raw = config.modelScope;
+  if (!isRecord(raw)) throw new Error("pstack-agents.json modelScope must be an object");
   if (typeof raw.enforce !== "boolean" || !Array.isArray(raw.allow)) {
     throw new Error("pstack-agents.json modelScope must contain boolean enforce and string[] allow");
   }
@@ -347,8 +349,10 @@ function loadModelScope(agentDir: string): ModelScopePolicy | undefined {
   let contents: string;
   try {
     contents = fs.readFileSync(configPath, "utf8");
-  } catch {
-    return undefined;
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return undefined;
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Cannot read model-scope configuration ${configPath}: ${reason}`);
   }
   let config: unknown;
   try {
@@ -356,7 +360,12 @@ function loadModelScope(agentDir: string): ModelScopePolicy | undefined {
   } catch {
     throw new Error(`Invalid JSON in ${configPath}`);
   }
-  return parseModelScope(config);
+  try {
+    return parseModelScope(config);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid model-scope configuration ${configPath}: ${reason}`);
+  }
 }
 
 export function selectContextFiles(options: {
