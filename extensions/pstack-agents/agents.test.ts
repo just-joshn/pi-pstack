@@ -429,11 +429,19 @@ test("agent names may contain single spaces, like Cursor's Comment Sicko", () =>
   expect(parseAgentDefinition("---\nname: trailing \ndescription: d\n---\n", "/x/c.md", "user")?.name).not.toBe("trailing ");
 });
 
-test("children always load the hook-only guard extension when it exists", () => {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "pa-guards-"));
-  mkdirSync(path.join(dir, "extensions"), { recursive: true });
-  expect(withGuardExtensions(["/x/todo.ts"], dir)).toEqual(["/x/todo.ts"]);
-  writeFileSync(path.join(dir, "extensions", "pstack-guards.ts"), "export default () => {}");
-  expect(withGuardExtensions(["/x/todo.ts"], dir)).toEqual(["/x/todo.ts", path.join(dir, "extensions", "pstack-guards.ts")]);
-  rmSync(dir, { recursive: true, force: true });
+test("children load the package guard exactly once without an agent-dir copy", () => {
+  const root = tempRoot();
+  const agentDir = path.join(root, "agent");
+  const cwd = path.join(root, "project");
+  putAgent(path.join(agentDir, "agents"), "worker", "worker", "tools: read");
+
+  const command = parseTaskInput({
+    description: "Inspect",
+    prompt: "Read a file.",
+    subagent_type: "worker",
+  }, taskContext(agentDir, cwd));
+  if (command.action !== "start") throw new Error("Expected a Task launch");
+
+  expect(command.request.extensionPaths).toEqual([packageResources.guardExtension]);
+  expect(withGuardExtensions([...command.request.extensionPaths, packageResources.guardExtension])).toEqual([packageResources.guardExtension]);
 });

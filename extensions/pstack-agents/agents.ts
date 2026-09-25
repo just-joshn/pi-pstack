@@ -318,13 +318,8 @@ export function selectAgentTools(options: {
   return { tools, extensionPaths };
 }
 
-// Hook-only pstack extensions register no tools, so tool-based selection never loads them.
-// Every child gets them so the guards hold at every depth.
-const GUARD_EXTENSIONS = ["pstack-guards.ts"];
-
-export function withGuardExtensions(paths: readonly string[], agentDir: string): string[] {
-  const guards = GUARD_EXTENSIONS.map((name) => path.join(agentDir, "extensions", name)).filter((file) => fs.existsSync(file));
-  return [...new Set([...paths, ...guards])];
+export function withGuardExtensions(paths: readonly string[]): string[] {
+  return [...new Set([...paths, packageResources.guardExtension])];
 }
 
 function loadModelScope(agentDir: string): ModelScopePolicy | undefined {
@@ -440,7 +435,7 @@ export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext)
     cwd: context.cwd,
     attachments: resolveAttachments(input.attachments, context.cwd),
     tools: selectedTools.tools,
-    extensionPaths: withGuardExtensions(selectedTools.extensionPaths, context.agentDir),
+    extensionPaths: withGuardExtensions(selectedTools.extensionPaths),
     potetoModeSkill: agent.name === "poteto-agent" ? packageResources.potetoModeSkillDirectory : undefined,
     output,
     depth: context.depth + 1,
