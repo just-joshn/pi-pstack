@@ -16,7 +16,7 @@ This skill orchestrates three others: an inline mining pass (see step 1), the **
 
 ### 0. Check for an existing skill
 
-Look recursively for Cursor's project and user skill directories (`*-mode/SKILL.md`) matching the user's handle. On Pi, look recursively in project `.pi/skills/` and `.agents/skills/`, and in `$PI_CODING_AGENT_DIR/skills/` in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`); include `~/.agents/skills/` for other-agent skills. Mode skills can live in a personal category directory (`.pi/skills/<handle>/`), not only at the top level. If one exists, confirm intent with one `questionnaire` question (Pi's `AskQuestion`; lettered options in chat when it reports no UI) unless they already said "update my skill" or similar:
+Look recursively for Cursor's project and user skill directories (`*-mode/SKILL.md`) matching the user's handle. On Pi, look recursively in project `.pi/skills/` and `.agents/skills/`, and in `~/.pi/agent/skills/` in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`); include `~/.agents/skills/` for other-agent skills. Mode skills can live in a personal category directory (`.pi/skills/<handle>/`), not only at the top level. If one exists, confirm intent with one `questionnaire` question (Pi's `AskQuestion`; lettered options in chat when it reports no UI) unless they already said "update my skill" or similar:
 
 - Update the existing skill (default for repeat runs)
 - Start fresh (rare, ask why before doing it)
@@ -28,7 +28,7 @@ Update mode changes the rest of the flow:
 
 ### 1. Mine their history
 
-Locate the active workspace's transcripts before fanning out. They are the `*.jsonl` files in the directory holding `$PI_SESSION_FILE` (`$PI_CODING_AGENT_DIR/sessions/--<cwd with / as ->--/`). Use only that path. Don't glob across Cursor projects. On Pi, don't glob across `$PI_CODING_AGENT_DIR/sessions/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.
+Locate the active workspace's transcripts before fanning out. They are the `*.jsonl` files in the directory holding `$PI_SESSION_FILE` (`~/.pi/agent/sessions/--<cwd with / as ->--/`). Use only that path. Don't glob across Cursor projects. On Pi, don't glob across `~/.pi/agent/sessions/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.
 
 Survey recent agent conversations within that scope for recurring patterns. Run one Task per history slice with `subagent_type: "generalPurpose"`, all in one message (e.g. the last 2-4 weeks, split into 3 slices so each has enough material). Each Task prompt names the workspace-scoped transcript path the parent provides. Each mining subagent looks for the signals below and returns a short structured list of patterns with evidence pointers. Default signals worth hunting:
 
@@ -68,11 +68,11 @@ The **poteto-mode** skill shows the shape. Read it for granularity. Don't copy i
 
 Use the **create-skill** skill to author the skill. Placement:
 
-- Path: preserve an existing mode skill's category. For a new mode, use `.pi/skills/<handle>/<handle>-mode/SKILL.md` when the repo has an established personal category for that handle. Otherwise default to `.pi/skills/<handle>-mode/SKILL.md` in the project (or `$PI_CODING_AGENT_DIR/skills/<handle>-mode/` if the user prefers a personal skill). The frontmatter `name` must be `<handle>-mode`, lowercase letters, digits, and hyphens only, matching the directory.
+- Path: preserve an existing mode skill's category. For a new mode, use `.pi/skills/<handle>/<handle>-mode/SKILL.md` when the repo has an established personal category for that handle. Otherwise default to `.pi/skills/<handle>-mode/SKILL.md` in the project (or `~/.pi/agent/skills/<handle>-mode/` if the user prefers a personal skill). The frontmatter `name` must be `<handle>-mode`, lowercase letters, digits, and hyphens only, matching the directory.
 - Handle: the user's first name or chosen identifier.
 - Frontmatter `description`: trigger on their name + `/skill:<handle>-mode` + "work in their style", not on generic keywords like "write code" or "review PR".
 - Frontmatter formatting: follow `create-skill`'s YAML rules. Keep `description` as one YAML scalar. Quote it or use `description: >-` with indented continuation lines when punctuation or wrapping requires it.
-- Frontmatter `disable-model-invocation: true` by default. Opt out only if the user explicitly wants their mode to apply on every turn. In Pi, an every-turn mode also needs a one-line pointer in `$PI_CODING_AGENT_DIR/AGENTS.md`, since Pi has no sticky modes.
+- Frontmatter `disable-model-invocation: true` by default. Opt out only if the user explicitly wants their mode to apply on every turn. In Pi, an every-turn mode also needs a one-line pointer in `~/.pi/agent/AGENTS.md`, since Pi has no sticky modes.
 
 ### 5. Iterate on prose
 

@@ -48,21 +48,21 @@ An active goal continues across turns and pauses after three continuations witho
 |---|---|
 | `AskQuestion` | The `questionnaire` tool (the `questionnaire` extension). Use `questionnaire({questions: [{id, prompt, options: [{value, label, description?}], allowOther?, allowMultiple?}]})`. Dialogs work whenever the session has a UI, including RPC. Without a UI, ask in chat using the lettered block and end the turn. Ask only for a genuine product or preference call. |
 | `TodoWrite`, todolist | The `todo` tool (the `todo` extension). Add all steps in one call with `todo({action: "add", items: [...]})`. Mark work with `todo({action: "set", id, status: "in_progress"})` and close it with `completed` or `cancelled`. Keep skipped steps as `<step> skip: <reason>`. |
-| Active workspace transcripts (`agent-transcripts/`) | Cursor's `agent-transcripts/` maps to the directory holding `$PI_SESSION_FILE`: `$PI_CODING_AGENT_DIR/sessions/--<cwd with each "/" as "-">--/`. Top-level sessions are `<timestamp>_<id>.jsonl`. A Task transcript is under `<session file basename>/<agent_id>/session.jsonl`; run data is under `$PI_CODING_AGENT_DIR/pstack-agents/<agent_id>/`. |
-| Transcript boundaries | Stay in the active workspace's session directory. Do not glob across `$PI_CODING_AGENT_DIR/sessions/*/`. Transcripts are JSON Lines. Chat turns use `type: "message"`; tool calls are content items of type `toolCall` with `name` and `arguments`. |
+| Active workspace transcripts (`agent-transcripts/`) | Cursor's `agent-transcripts/` maps to the directory holding `$PI_SESSION_FILE`: `~/.pi/agent/sessions/--<cwd with each "/" as "-">--/`. Top-level sessions are `<timestamp>_<id>.jsonl`. A Task transcript is under `<session file basename>/<agent_id>/session.jsonl`; run data is under `pstack-agents/<agent_id>/` in that same directory. |
+| Transcript boundaries | Stay in the active workspace's session directory. Do not glob across `~/.pi/agent/sessions/*/`. Transcripts are JSON Lines. Chat turns use `type: "message"`; tool calls are content items of type `toolCall` with `name` and `arguments`. |
 
 ## Configuration, skills, and plugins
 
 | Cursor term | Pi equivalent |
 |---|---|
-| `~/.cursor/rules/pstack-models.mdc` | The block between `<!-- pstack-models:begin -->` and `<!-- pstack-models:end -->` in `$PI_CODING_AGENT_DIR/AGENTS.md`. `/skill:setup-pstack` writes it. |
-| Model-scope configuration | `$PI_CODING_AGENT_DIR/extensions/pstack-agents.json` stores a top-level `modelScope` object; `/skill:setup-pstack` writes it. |
+| `~/.cursor/rules/pstack-models.mdc` | The block between `<!-- pstack-models:begin -->` and `<!-- pstack-models:end -->` in `~/.pi/agent/AGENTS.md`. `/skill:setup-pstack` writes it. |
+| Model-scope configuration | `~/.pi/agent/extensions/pstack-agents.json` stores a top-level `modelScope` object; `/skill:setup-pstack` writes it. |
 | `.cursor/skills/<name>/` | `.pi/skills/<name>/` in the project, or `.agents/skills/<name>/`. |
-| `~/.cursor/skills/<name>/` | `$PI_CODING_AGENT_DIR/skills/<name>/`. Pstack's own skills are package resources. |
+| `~/.cursor/skills/<name>/` | `~/.pi/agent/skills/<name>/`. Pstack's own skills are package resources. |
 | `.cursor/rules/`, `AGENTS.md` rules | `AGENTS.md` in the project, or `.pi/APPEND_SYSTEM.md`. |
 | Slash skill `/<name>` | `/skill:<name>`. Skills with `disable-model-invocation: true` run only through that command or when another skill names their path. |
 | Cursor's built-in `create-skill` | The local `create-skill` skill (`/skill:create-skill`). |
-| `mode: true`, `reminder:`, sticky mode | The `pstack-mode` extension keeps poteto-mode active for the session, repeats its reminder, shows `👑 poteto`, and supports `/poteto off`. `/skill:setup-pstack` also writes the reminder into the pstack block of `$PI_CODING_AGENT_DIR/AGENTS.md`, so it survives compaction and new sessions. |
+| `mode: true`, `reminder:`, sticky mode | The `pstack-mode` extension keeps poteto-mode active for the session, repeats its reminder, shows `👑 poteto`, and supports `/poteto off`. `/skill:setup-pstack` also writes the reminder into the pstack block of `~/.pi/agent/AGENTS.md`, so it survives compaction and new sessions. |
 | Paths in poteto-mode playbooks | Resolve references from the skill directory. Use `playbooks/...` or `scripts/...` for files in this skill and `../<skill>/...` for another skill. Pass absolute paths to Tasks because agents can run in another checkout. |
 | Broken installed skill | Confirm breakage from the skill's own references. Edit the installed copy at the path Pi loaded it from; never search `~` or unrelated repos for its source. Open a PR only against a skills repo the operator named. |
 
@@ -82,4 +82,4 @@ A category with none of these is a gap. Name it in the coverage map. Never fake 
 
 Map every Task to its pstack role before setting `model`. Code writers use `feature, refactoring`, `bug-fix`, `perf-issue`, or `hillclimb`. Reviewers, judges, verifiers, auditors, synthesizers, and prose use `judgment and prose` unless a skill names a role. Explorers and investigators use their skill's role. A Task that fits no line uses `judgment and prose`.
 
-Use the exact provider/model id and thinking suffix in the pstack model block. A role value of `inherit-parent` or `auto` means omit `model` to inherit the parent model. `/skill:setup-pstack` writes `modelScope` to `$PI_CODING_AGENT_DIR/extensions/pstack-agents.json`; a Task model outside that configured scope fails. See the `pstack-models` block in `$PI_CODING_AGENT_DIR/AGENTS.md` when its values are available in the context. If the block is absent, use the skill defaults.
+Use the exact provider/model id and thinking suffix in the pstack model block. A role value of `inherit-parent` or `auto` means omit `model` to inherit the parent model. `/skill:setup-pstack` writes `modelScope` to `~/.pi/agent/extensions/pstack-agents.json`; a Task model outside that configured scope fails. See the `pstack-models` block in `~/.pi/agent/AGENTS.md` when its values are available in the context. If the block is absent, use the skill defaults.

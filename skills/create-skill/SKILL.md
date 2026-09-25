@@ -11,7 +11,7 @@ metadata:
 
 # Create Skill
 
-Interactively gather requirements from the user and create a working Pi skill on disk. Pi's skills documentation is authoritative: `docs/skills.md` in the installed Pi package (`$(dirname "$(dirname "$(readlink -f "$(command -v pi)")")")/docs/skills.md`, or search for it under `$PI_CODING_AGENT_DIR/install/`). Read it before the first skill you write in a session.
+Interactively gather requirements from the user and create a working Pi skill on disk. Pi's skills documentation is authoritative: `docs/skills.md` in the installed Pi package (`$(dirname "$(dirname "$(readlink -f "$(command -v pi)")")")/docs/skills.md`, or search for it under `~/.pi/agent/install/`). Read it before the first skill you write in a session.
 
 ## Step 1: Gather information
 
@@ -21,7 +21,7 @@ Ask the user the following questions **one at a time**. Use the `questionnaire` 
 2. **Scope.** Present the user with these options:
    - **Project** (Recommended inside a git repo): `<repo-root>/.pi/skills/<name>/SKILL.md`. Available only in this repo, shareable with teammates. Project skills need project trust.
    - **Project, portable**: `<repo-root>/.agents/skills/<name>/SKILL.md`. Also read by other Agent Skills harnesses.
-   - **User**: `$PI_CODING_AGENT_DIR/skills/<name>/SKILL.md` in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`). Available in all projects.
+   - **User**: `~/.pi/agent/skills/<name>/SKILL.md` in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`). Available in all projects.
    - Default to **Project** if inside a git repo, otherwise **User**.
 3. **What it should do.** Ask the user to describe the workflow, paste an example prompt they keep repeating, or explain the task the skill should automate.
 4. **Invocation.** Ask whether the model may load it automatically, or only through `/skill:<name>`. The explicit-only choice sets `disable-model-invocation: true`, which hides it from the system prompt.
