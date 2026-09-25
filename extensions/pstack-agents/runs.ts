@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import type { ExtensionAPI, SessionEntry } from "@earendil-works/pi-coding-agent";
+import type { Usage } from "@earendil-works/pi-ai";
 import { parseRunId, parseRunStatus, parseRunnerJsonl, type RunId, type RunStatus, type ShellLine } from "./contracts.ts";
 import type { AgentLaunchRequest } from "./agents.ts";
 import type { WorktreeResult } from "./worktrees.ts";
@@ -120,7 +121,8 @@ export type RunReceipt =
 export type AwaitResult =
   | { state: "matched"; id: RunId; status: RunStatus; sequence: number; line: string }
   | { state: "terminal"; id: RunId; status: RunStatus }
-  | { state: "timeout"; id: RunId; status: RunStatus };
+  | { state: "timeout"; id: RunId; status: RunStatus }
+  | { state: "detached"; id: RunId; status: RunStatus };
 
 export type RunNotification = {
   notificationId: string;
@@ -152,6 +154,8 @@ export type RunStore = {
   outputLog(id: RunId): string;
   outputText(id: RunId): string;
   finalOutput(id: RunId): string;
+  usage(id: RunId, attempt: number): Usage | undefined;
+  claimUsage(id: RunId, attempt: number): Usage | undefined;
   reconcile(branch: readonly SessionEntry[], notify: (notification: RunNotification) => void, includeRunning: boolean): Promise<void>;
   observe(options: {
     branch: () => readonly SessionEntry[];
@@ -722,7 +726,12 @@ export function createRunStore(options: StoreOptions): RunStore {
           reject(error);
         };
         const abort = (): void => {
-          if (detachOnAbort) return fail(new Error(`Wait aborted; ${id} keeps running and its completion notice still arrives`));
+          if (detachOnAbort) {
+            const status = runStatus(findLaunch(observers?.branch() ?? [], id));
+            return terminal(status)
+              ? finish({ state: "terminal", id, status }, true)
+              : finish({ state: "detached", id, status });
+          }
           void store.interrupt(id).then(
             () => fail(new Error("Run wait was aborted")),
             (error: unknown) => fail(error instanceof Error ? error : new Error(String(error))),
@@ -786,6 +795,36 @@ export function createRunStore(options: StoreOptions): RunStore {
     },
     finalOutput(id) {
       return finalAssistantOutput(runDirectory(options.sessionDir, id));
+    },
+    usage(id, attempt) {
+      return readRecords(runDirectory(options.sessionDir, id)).usageByAttempt.get(attempt);
+    },
+    claimUsage(id, attempt) {
+      const usage = readRecords(runDirectory(options.sessionDir, id)).usageByAttempt.get(attempt);
+      if (!usage) return undefined;
+      const notificationId = `usage:${attempt}`;
+      const claimPath = acknowledgementPath(id, notificationId);
+      fs.mkdirSync(path.dirname(claimPath), { recursive: true, mode: 0o700 });
+      let descriptor: number;
+      try {
+        descriptor = fs.openSync(claimPath, "wx", 0o600);
+      } catch (error) {
+        if (isRecord(error) && error.code === "EEXIST") return undefined;
+        throw error;
+      }
+      try {
+        fs.writeFileSync(descriptor, `${JSON.stringify({ notificationId, acknowledgedAt: Date.now() })}\n`);
+        fs.fsyncSync(descriptor);
+      } finally {
+        fs.closeSync(descriptor);
+      }
+      const directoryDescriptor = fs.openSync(path.dirname(claimPath), "r");
+      try {
+        fs.fsyncSync(directoryDescriptor);
+      } finally {
+        fs.closeSync(directoryDescriptor);
+      }
+      return usage;
     },
     async reconcile(branch, notify, includeRunning) {
       await reconcile(branch, notify, includeRunning);

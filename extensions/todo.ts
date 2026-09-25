@@ -13,35 +13,50 @@
 import { StringEnum } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, Text, truncateToWidth } from "@earendil-works/pi-tui";
-import { Type } from "typebox";
+import { Type, type Static } from "typebox";
+import { Value } from "typebox/value";
 
-type TodoStatus = "pending" | "in_progress" | "completed" | "cancelled";
+type TodoExtensionAPI = Pick<ExtensionAPI, "registerTool" | "registerCommand" | "on">;
 
-interface Todo {
-	id: number;
-	text: string;
-	done: boolean;
-	status?: TodoStatus;
-}
+const TodoStatusSchema = StringEnum(["pending", "in_progress", "completed", "cancelled"] as const, {
+	description: "New status (for set). Mark the step you start as in_progress, as TodoWrite does.",
+});
+const TodoActionSchema = StringEnum(["list", "add", "toggle", "set", "clear"] as const);
+const TodoSchema = Type.Object({
+	id: Type.Integer({ minimum: 1 }),
+	text: Type.String({ minLength: 1 }),
+	done: Type.Boolean(),
+	status: Type.Optional(TodoStatusSchema),
+}, { additionalProperties: false });
+const TodoDetailsSchema = Type.Object({
+	action: TodoActionSchema,
+	todos: Type.Array(TodoSchema),
+	nextId: Type.Integer({ minimum: 1 }),
+	error: Type.Optional(Type.String()),
+}, { additionalProperties: false });
 
-interface TodoDetails {
-	action: "list" | "add" | "toggle" | "set" | "clear";
-	todos: Todo[];
-	nextId: number;
-	error?: string;
-}
-
+type TodoStatus = Static<typeof TodoStatusSchema>;
+type Todo = Static<typeof TodoSchema>;
+export type TodoDetails = Static<typeof TodoDetailsSchema>;
 const TodoParams = Type.Object({
-	action: StringEnum(["list", "add", "toggle", "set", "clear"] as const),
+	action: TodoActionSchema,
 	text: Type.Optional(Type.String({ description: "Todo text (for add), or replacement text (for set, e.g. '<step> skip: <reason>')" })),
 	items: Type.Optional(Type.Array(Type.String(), { description: "Several todo texts added in order (for add). Use to copy a playbook's steps verbatim in one call." })),
 	id: Type.Optional(Type.Number({ description: "Todo ID (for toggle or set)" })),
-	status: Type.Optional(
-		StringEnum(["pending", "in_progress", "completed", "cancelled"] as const, {
-			description: "New status (for set). Mark the step you start as in_progress, as TodoWrite does.",
-		}),
-	),
+	status: Type.Optional(TodoStatusSchema),
 });
+
+export type TodoParameters = Static<typeof TodoParams>;
+type TodoState = { todos: Todo[]; nextId: number };
+type TodoResult = { content: Array<{ type: "text"; text: string }>; details: TodoDetails };
+
+export function parseTodoDetails(value: unknown): TodoDetails | undefined {
+	return Value.Check(TodoDetailsSchema, value) ? value : undefined;
+}
+
+export function createTodoState(): TodoState {
+	return { todos: [], nextId: 1 };
+}
 
 function statusOf(todo: Todo): TodoStatus {
 	return todo.status ?? (todo.done ? "completed" : "pending");
@@ -83,6 +98,106 @@ function isClosed(todo: Todo): boolean {
 
 function snapshotTodos(todos: Todo[]): Todo[] {
 	return structuredClone(todos);
+}
+
+export function runTodo(state: TodoState, params: TodoParameters): TodoResult {
+	switch (params.action) {
+		case "list":
+			return {
+				content: [{ type: "text", text: state.todos.length
+					? state.todos.map((todo) => `${MARK[statusOf(todo)]} #${todo.id}: ${todo.text}`).join("\n")
+					: "No todos" }],
+			details: { action: "list", todos: snapshotTodos(state.todos), nextId: state.nextId },
+			};
+
+		case "add": {
+			const texts = params.items?.length ? params.items : params.text ? [params.text] : [];
+			if (!texts.length) {
+				return {
+					content: [{ type: "text", text: "Error: text required for add" }],
+					details: { action: "add", todos: snapshotTodos(state.todos), nextId: state.nextId, error: "text required" },
+				};
+			}
+			const open = new Set(state.todos.filter((todo) => !isClosed(todo)).map((todo) => todo.text));
+			const skipped: string[] = [];
+			const added: Todo[] = [];
+			for (const raw of texts) {
+				const text = raw.replace(LIST_MARKER, "").trim();
+				if (!text) continue;
+				if (open.has(text)) {
+					skipped.push(text);
+					continue;
+				}
+				open.add(text);
+				added.push({ id: state.nextId++, text, done: false });
+			}
+			state.todos.push(...added);
+			const lines = added.map((todo) => `Added todo #${todo.id}: ${todo.text}`);
+			if (skipped.length) lines.push(`Already open, not added again: ${skipped.join(" | ")}`);
+			return {
+				content: [{ type: "text", text: lines.join("\n") }],
+				details: { action: "add", todos: snapshotTodos(state.todos), nextId: state.nextId },
+			};
+		}
+
+		case "toggle": {
+			if (params.id === undefined) {
+				return {
+					content: [{ type: "text", text: "Error: id required for toggle" }],
+					details: { action: "toggle", todos: snapshotTodos(state.todos), nextId: state.nextId, error: "id required" },
+				};
+			}
+			const todo = state.todos.find((item) => item.id === params.id);
+			if (!todo) {
+				return {
+					content: [{ type: "text", text: `Todo #${params.id} not found` }],
+					details: { action: "toggle", todos: snapshotTodos(state.todos), nextId: state.nextId, error: `#${params.id} not found` },
+				};
+			}
+			todo.done = statusOf(todo) !== "completed";
+			todo.status = todo.done ? "completed" : "pending";
+			return {
+				content: [{ type: "text", text: `Todo #${todo.id} ${todo.done ? "completed" : "uncompleted"}` }],
+				details: { action: "toggle", todos: snapshotTodos(state.todos), nextId: state.nextId },
+			};
+		}
+
+		case "set": {
+			const todo = params.id === undefined ? undefined : state.todos.find((item) => item.id === params.id);
+			if (!todo || !params.status) {
+				const error = !params.status ? "status required for set" : `#${params.id} not found`;
+				return {
+					content: [{ type: "text", text: `Error: ${error}` }],
+					details: { action: "set", todos: snapshotTodos(state.todos), nextId: state.nextId, error },
+				};
+			}
+			todo.status = params.status;
+			todo.done = params.status === "completed";
+			if (params.text?.trim()) todo.text = params.text.trim();
+			return {
+				content: [{ type: "text", text: `Todo #${todo.id} ${params.status}` }],
+				details: { action: "set", todos: snapshotTodos(state.todos), nextId: state.nextId },
+			};
+		}
+
+		case "clear": {
+			const open = state.todos.filter((todo) => !isClosed(todo));
+			if (open.length) {
+				const error = `${open.length} open todo(s): ${open.map((todo) => `#${todo.id}`).join(", ")}. Close each first with set (completed, or cancelled), using text "<step> skip: <reason>" for a step you chose not to do, then clear.`;
+				return {
+					content: [{ type: "text", text: `Error: ${error}` }],
+					details: { action: "clear", todos: snapshotTodos(state.todos), nextId: state.nextId, error },
+				};
+			}
+			const count = state.todos.length;
+			state.todos = [];
+			state.nextId = 1;
+			return {
+				content: [{ type: "text", text: `Cleared ${count} todos` }],
+				details: { action: "clear", todos: [], nextId: 1 },
+			};
+		}
+	}
 }
 
 /**
@@ -151,40 +266,38 @@ class TodoListComponent {
 	}
 }
 
-export default function (pi: ExtensionAPI) {
-	// In-memory state (reconstructed from session on load)
-	let todos: Todo[] = [];
-	let nextId = 1;
+export default function (pi: TodoExtensionAPI) {
+	const state = createTodoState();
 
 	/**
 	 * Reconstruct state from session entries.
 	 * Scans tool results for this tool and applies them in order.
 	 */
 	const reconstructState = (ctx: ExtensionContext) => {
-		todos = [];
-		nextId = 1;
+		state.todos = [];
+		state.nextId = 1;
 
 		for (const entry of ctx.sessionManager.getBranch()) {
 			if (entry.type !== "message") continue;
 			const msg = entry.message;
 			if (msg.role !== "toolResult" || msg.toolName !== "todo") continue;
 
-			const details = msg.details as TodoDetails | undefined;
+			const details = parseTodoDetails(msg.details);
 			if (details) {
-				todos = structuredClone(details.todos);
-				nextId = details.nextId;
+				state.todos = structuredClone(details.todos);
+				state.nextId = details.nextId;
 			}
 		}
 	};
 
 	const renderWidget = (ctx: ExtensionContext) => {
-		if (todos.length === 0 || todos.every(isClosed)) {
+		if (state.todos.length === 0 || state.todos.every(isClosed)) {
 			ctx.ui.setWidget("todo", undefined);
 			return;
 		}
 		ctx.ui.setWidget("todo", (_tui, theme) => {
-			const lines = [theme.fg("muted", `Todos ${tally(todos)}`)];
-			for (const t of todos) {
+			const lines = [theme.fg("muted", `Todos ${tally(state.todos)}`)];
+			for (const t of state.todos) {
 				const text = isClosed(t) ? theme.fg("dim", t.text) : statusOf(t) === "in_progress" ? theme.fg("accent", t.text) : t.text;
 				lines.push(`${glyph(t, theme)} ${theme.fg("accent", `#${t.id}`)} ${text}`);
 			}
@@ -205,136 +318,16 @@ export default function (pi: ExtensionAPI) {
 		renderWidget(ctx);
 	});
 
-	const runTodo = (params: { action: TodoDetails["action"]; text?: string; items?: string[]; id?: number; status?: TodoStatus }) => {
-		switch (params.action) {
-			case "list":
-				return {
-					content: [
-						{
-							type: "text",
-							text: todos.length
-								? todos.map((t) => `${MARK[statusOf(t)]} #${t.id}: ${t.text}`).join("\n")
-								: "No todos",
-						},
-					],
-					details: { action: "list", todos: snapshotTodos(todos), nextId } as TodoDetails,
-				};
-
-			case "add": {
-				const texts = params.items?.length ? params.items : params.text ? [params.text] : [];
-				if (!texts.length) {
-					return {
-						content: [{ type: "text", text: "Error: text required for add" }],
-						details: { action: "add", todos: snapshotTodos(todos), nextId, error: "text required" } as TodoDetails,
-					};
-				}
-				const open = new Set(todos.filter((t) => !isClosed(t)).map((t) => t.text));
-				const skipped: string[] = [];
-				const added: Todo[] = [];
-				for (const raw of texts) {
-					const text = raw.replace(LIST_MARKER, "").trim();
-					if (!text) continue;
-					if (open.has(text)) {
-						skipped.push(text);
-						continue;
-					}
-					open.add(text);
-					added.push({ id: nextId++, text, done: false });
-				}
-				todos.push(...added);
-				const lines = added.map((t) => `Added todo #${t.id}: ${t.text}`);
-				if (skipped.length) lines.push(`Already open, not added again: ${skipped.join(" | ")}`);
-				return {
-					content: [{ type: "text", text: lines.join("\n") }],
-					details: { action: "add", todos: snapshotTodos(todos), nextId } as TodoDetails,
-				};
-			}
-
-			case "toggle": {
-				if (params.id === undefined) {
-					return {
-						content: [{ type: "text", text: "Error: id required for toggle" }],
-						details: { action: "toggle", todos: snapshotTodos(todos), nextId, error: "id required" } as TodoDetails,
-					};
-				}
-				const todo = todos.find((t) => t.id === params.id);
-				if (!todo) {
-					return {
-						content: [{ type: "text", text: `Todo #${params.id} not found` }],
-						details: {
-							action: "toggle",
-							todos: snapshotTodos(todos),
-							nextId,
-							error: `#${params.id} not found`,
-						} as TodoDetails,
-					};
-				}
-				todo.done = statusOf(todo) !== "completed";
-				todo.status = todo.done ? "completed" : "pending";
-				return {
-					content: [{ type: "text", text: `Todo #${todo.id} ${todo.done ? "completed" : "uncompleted"}` }],
-					details: { action: "toggle", todos: snapshotTodos(todos), nextId } as TodoDetails,
-				};
-			}
-
-			case "set": {
-				const todo = params.id === undefined ? undefined : todos.find((t) => t.id === params.id);
-				if (!todo || !params.status) {
-					const error = !params.status ? "status required for set" : `#${params.id} not found`;
-					return {
-						content: [{ type: "text", text: `Error: ${error}` }],
-						details: { action: "set", todos: snapshotTodos(todos), nextId, error } as TodoDetails,
-					};
-				}
-				todo.status = params.status;
-				todo.done = params.status === "completed";
-				if (params.text?.trim()) todo.text = params.text.trim();
-				return {
-					content: [{ type: "text", text: `Todo #${todo.id} ${params.status}` }],
-					details: { action: "set", todos: snapshotTodos(todos), nextId } as TodoDetails,
-				};
-			}
-
-			case "clear": {
-				const open = todos.filter((t) => !isClosed(t));
-				if (open.length) {
-					const error = `${open.length} open todo(s): ${open.map((t) => `#${t.id}`).join(", ")}. Close each first with set (completed, or cancelled), using text "<step> skip: <reason>" for a step you chose not to do, then clear.`;
-					return {
-						content: [{ type: "text", text: `Error: ${error}` }],
-						details: { action: "clear", todos: snapshotTodos(todos), nextId, error } as TodoDetails,
-					};
-				}
-				const count = todos.length;
-				todos = [];
-				nextId = 1;
-				return {
-					content: [{ type: "text", text: `Cleared ${count} todos` }],
-					details: { action: "clear", todos: [], nextId: 1 } as TodoDetails,
-				};
-			}
-
-			default:
-				return {
-					content: [{ type: "text", text: `Unknown action: ${params.action}` }],
-					details: {
-						action: "list",
-						todos: snapshotTodos(todos),
-						nextId,
-						error: `unknown action: ${params.action}`,
-					} as TodoDetails,
-				};
-		}
-	};
-
 	// Register the todo tool for the LLM
 	pi.registerTool({
 		name: "todo",
 		label: "Todo",
 		description: "Manage the session todo list (Pi's TodoWrite). Actions: list, add (text, or items for several at once; list numbers are stripped and already-open duplicates skipped), set (id + status: pending, in_progress, completed, cancelled; optional text replaces the item text), toggle (id, flips completed), clear (only when every item is closed). Mark a skipped step with set {id, status: 'completed', text: '<step> skip: <reason>'}.",
 		parameters: TodoParams,
+		executionMode: "sequential",
 
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-			const result = runTodo(params);
+			const result = runTodo(state, params);
 			renderWidget(ctx);
 			return result;
 		},
@@ -348,7 +341,7 @@ export default function (pi: ExtensionAPI) {
 		},
 
 		renderResult(result, { expanded }, theme, _context) {
-			const details = result.details as TodoDetails | undefined;
+			const details = parseTodoDetails(result.details);
 			if (!details) {
 				const text = result.content[0];
 				return new Text(text?.type === "text" ? text.text : "", 0, 0);
@@ -407,7 +400,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			await ctx.ui.custom<void>((_tui, theme, _kb, done) => {
-				return new TodoListComponent(todos, theme, () => done());
+				return new TodoListComponent(state.todos, theme, () => done());
 			});
 		},
 	});

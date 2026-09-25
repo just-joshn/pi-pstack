@@ -1,10 +1,12 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
+import { packageResources } from "../package-resources.ts";
 import {
   createAgentParseWarningReporter,
   modelMatchesScope,
+  loadTaskContext,
   withGuardExtensions,
   parseAgentDefinition,
   parseAgentFiles,
@@ -76,6 +78,31 @@ afterEach(() => {
 });
 
 describe("agent resolution", () => {
+  test("resolves bundled agents from an empty user agent directory", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "empty-agent-dir");
+    const cwd = path.join(root, "project");
+    mkdirSync(agentDir, { recursive: true });
+
+    const agents = parseAgentFiles({ agentDir, cwd, projectTrusted: false });
+    const requestedNames = ["generalPurpose", "poteto-agent", "pstack-general", "pstack-reader", "Comment Sicko"];
+
+    expect(requestedNames.map((name) => String(resolveAgent(name, agents).name))).toEqual([
+      "pstack-general",
+      "poteto-agent",
+      "pstack-general",
+      "pstack-reader",
+      "Comment Sicko",
+    ]);
+    expect(requestedNames.map((name) => resolveAgent(name, agents).source)).toEqual([
+      "package",
+      "package",
+      "package",
+      "package",
+      "package",
+    ]);
+  });
+
   test("loads trusted project agents and lets them override user agents by name", () => {
     const root = tempRoot();
     const userDir = path.join(root, "user");
@@ -84,12 +111,12 @@ describe("agent resolution", () => {
     putAgent(path.join(cwd, ".pi", "agents"), "general", "pstack-general", "tools: grep");
     putAgent(path.join(cwd, ".pi", "agents"), "local", "local-agent", "tools: read");
 
+    expect(resolveAgent("pstack-general", parseAgentFiles({ agentDir: userDir, cwd, projectTrusted: false })).source).toBe("user");
+
     const agents = parseAgentFiles({ agentDir: userDir, cwd, projectTrusted: true });
-    expect(agents.map((item) => [item.name, item.source])).toEqual([
-      ["pstack-general", "project"],
-      ["local-agent", "project"],
-    ]);
-    expect(resolveAgent("generalPurpose", agents).name).toBe("pstack-general");
+    expect(resolveAgent("pstack-general", agents).source).toBe("project");
+    expect(resolveAgent("local-agent", agents).source).toBe("project");
+    expect(String(resolveAgent("generalPurpose", agents).name)).toBe("pstack-general");
   });
 
   test("reports why a malformed agent file was skipped", () => {
@@ -102,12 +129,14 @@ describe("agent resolution", () => {
     writeFileSync(filePath, "---\nname: broken\ndescription: Broken\nallowNestedSubagents: yes\n---\nPrompt.\n");
     const skipped: string[] = [];
 
-    expect(parseAgentFiles({
+    const agents = parseAgentFiles({
       agentDir,
       cwd,
       projectTrusted: false,
       onSkipped: (path, reason) => skipped.push(`${path}: ${reason}`),
-    })).toEqual([]);
+    });
+    expect(agents.some((item) => item.name === "broken")).toBe(false);
+    expect(agents.some((item) => item.source === "package")).toBe(true);
     expect(skipped).toEqual([`${filePath}: Agent frontmatter allowNestedSubagents must be a boolean`]);
   });
 
@@ -135,7 +164,9 @@ describe("agent resolution", () => {
     const userDir = path.join(root, "user");
     const cwd = path.join(root, "project");
     putAgent(path.join(cwd, ".pi", "agents"), "local", "local-agent");
-    expect(parseAgentFiles({ agentDir: userDir, cwd, projectTrusted: false })).toEqual([]);
+    const agents = parseAgentFiles({ agentDir: userDir, cwd, projectTrusted: false });
+    expect(agents.some((item) => item.name === "local-agent")).toBe(false);
+    expect(agents.every((item) => item.source === "package")).toBe(true);
   });
 
   test("parses agent flags and ignores async frontmatter", () => {
@@ -162,14 +193,58 @@ describe("agent resolution", () => {
 
 describe("model scope", () => {
   test("checks explicit model IDs against case-insensitive glob patterns", () => {
-    const policy = parseModelScope({ subagents: { modelScope: { enforce: true, allow: ["OpenAI-Codex/gpt-6-*", "inherit"] } } });
+    const policy = parseModelScope({ modelScope: { enforce: true, allow: ["OpenAI-Codex/gpt-6-*", "inherit"] } });
     expect(modelMatchesScope("openai-codex/gpt-6-luna:low", policy, false)).toBe(true);
     expect(modelMatchesScope("anthropic/claude-sonnet-5", policy, false)).toBe(false);
     expect(modelMatchesScope("anthropic/claude-sonnet-5", policy, true)).toBe(true);
   });
 
   test("does not bypass enforced scopes with a malformed model-scope setting", () => {
-    expect(() => parseModelScope({ subagents: { modelScope: { enforce: true, allow: ["model", 4] } } })).toThrow("allow must contain only strings");
+    expect(() => parseModelScope({ modelScope: { enforce: true, allow: ["model", 4] } })).toThrow("allow must contain only strings");
+  });
+
+  test("loads model scope from pstack-agents.json and ignores settings.json", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "configured-agent");
+    const settingsOnlyDir = path.join(root, "settings-only-agent");
+    const cwd = path.join(root, "project");
+    putAgent(path.join(agentDir, "agents"), "worker", "worker", "tools: read");
+    mkdirSync(path.join(agentDir, "extensions"), { recursive: true });
+    writeFileSync(path.join(agentDir, "extensions", "pstack-agents.json"), JSON.stringify({
+      modelScope: { enforce: true, allow: ["anthropic/allowed"] },
+    }));
+    mkdirSync(settingsOnlyDir, { recursive: true });
+    writeFileSync(path.join(settingsOnlyDir, "settings.json"), JSON.stringify({
+      subagents: { modelScope: { enforce: true, allow: ["anthropic/allowed"] } },
+    }));
+
+    const context = taskContext(agentDir, cwd);
+    const loaded = loadTaskContext({
+      cwd: context.cwd,
+      projectTrusted: context.projectTrusted,
+      parentModel: context.parentModel,
+      thinkingLevel: context.thinkingLevel,
+      depth: context.depth,
+      nestingAllowed: context.nestingAllowed,
+      activeTools: context.activeTools,
+      allTools: context.allTools,
+    }, agentDir);
+
+    expect(loaded.modelScope).toEqual({ enforce: true, allow: ["anthropic/allowed"] });
+    expect(() => parseTaskInput({
+      description: "Use the scoped model",
+      prompt: "Return a result.",
+      subagent_type: "worker",
+      model: "openai-codex/gpt-6-luna",
+    }, loaded)).toThrow("Model openai-codex/gpt-6-luna is outside pstack-agents.json modelScope.allow");
+    expect(loadTaskContext({
+      cwd,
+      projectTrusted: false,
+      depth: 0,
+      nestingAllowed: false,
+      activeTools: [],
+      allTools: [],
+    }, settingsOnlyDir).modelScope).toBeUndefined();
   });
 });
 
@@ -264,6 +339,48 @@ describe("resume execution settings", () => {
 });
 
 describe("Task boundary parsing", () => {
+  test("uses agent is_background only when run_in_background is omitted", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "empty-agent-dir");
+    const cwd = path.join(root, "project");
+    mkdirSync(agentDir, { recursive: true });
+    const context = taskContext(agentDir, cwd);
+    const base = { description: "Route", prompt: "Read the poteto workflow.", subagent_type: "poteto-agent" };
+
+    expect(parseTaskInput(base, context)).toMatchObject({ action: "start", runInBackground: true });
+    expect(parseTaskInput({ ...base, run_in_background: false }, context)).toMatchObject({ runInBackground: false });
+    expect(parseTaskInput({ ...base, run_in_background: true }, context)).toMatchObject({ runInBackground: true });
+    expect(parseAgentDefinition("---\nname: default-agent\ndescription: Default\n---\n", "/default.md", "user")?.isBackground).toBe(false);
+  });
+
+  test("passes the package agent's declared skill through Task without a path token", () => {
+    const root = tempRoot();
+    const agentDir = path.join(root, "empty-agent-dir");
+    const cwd = path.join(root, "project");
+    mkdirSync(agentDir, { recursive: true });
+    const agents = parseAgentFiles({ agentDir, cwd, projectTrusted: false });
+    const poteto = resolveAgent("poteto-agent", agents);
+    const regular = parseTaskInput({
+      description: "Inspect",
+      prompt: "Read the package agent.",
+      subagent_type: "pstack-general",
+    }, taskContext(agentDir, cwd));
+    const potetoCommand = parseTaskInput({
+      description: "Inspect",
+      prompt: "Read the poteto workflow.",
+      subagent_type: "poteto-agent",
+    }, taskContext(agentDir, cwd));
+
+    if (regular.action !== "start" || potetoCommand.action !== "start") throw new Error("Expected Task launch commands");
+    expect(poteto.systemPrompt).toContain("Read the `poteto-mode` skill's `SKILL.md` in full before doing any work, including its inline Principles index.");
+    expect(poteto.systemPrompt).not.toContain("<pstack>");
+    expect(poteto.skill).toBe("poteto-mode");
+    expect(regular.request.agent.skill).toBeUndefined();
+    expect(potetoCommand.request.agent.skill).toBe("poteto-mode");
+    expect(potetoCommand.request.declaredSkill).toEqual({ name: "poteto-mode", file: path.join(packageResources.skillsDirectory, "poteto-mode", "SKILL.md") });
+    expect(regular.request.declaredSkill).toBeUndefined();
+  });
+
   test("defaults to foreground and inherits the parent model and thinking level", () => {
     const root = tempRoot();
     const agentDir = path.join(root, "user");
@@ -310,8 +427,9 @@ describe("Task boundary parsing", () => {
     const base = { description: "Read", prompt: "Read only.", subagent_type: "worker" };
 
     expect(parseTaskInput({ ...base, readonly: true }, context)).toMatchObject({ action: "start", request: { tools: ["read"] } });
-    expect(() => parseTaskInput({ ...base, model: "anthropic/claude-sonnet-5" }, context)).toThrow("outside settings.json subagents.modelScope.allow");
-    expect(() => parseTaskInput({ ...base, machine: "remote" }, context)).toThrow("machine execution is unsupported");
+    expect(() => parseTaskInput({ ...base, model: "anthropic/claude-sonnet-5" }, context)).toThrow("outside pstack-agents.json modelScope.allow");
+    expect(() => parseTaskInput({ ...base, machine: { same_machine: {} } }, context)).toThrow("Task.machine is not supported on Pi.");
+    expect(() => parseTaskInput({ ...base, cloud_requested_environment_build_id: "build-123" }, context)).toThrow("Task.cloud_requested_environment_build_id is not supported on Pi.");
     expect(() => parseTaskInput({ ...base, environment: "cloud" }, context)).toThrow("requires cloud_base_branch");
     expect(parseTaskInput({ ...base, output: "result.md" }, context)).toMatchObject({ request: { output: path.resolve(cwd, "result.md") } });
     expect(() => parseTaskInput({ ...base, resume: "bad-id" }, context)).toThrow("valid agent_id");
@@ -353,18 +471,35 @@ describe("Task boundary parsing", () => {
   });
 });
 
+test("Comment Sicko names the same how and why skills as the upstream agent", () => {
+  const localPath = new URL("../../agents/comment-sicko.md", import.meta.url);
+  const upstreamPath = new URL("../../parity/upstream/0.15.5/pstack/agents/comment-sicko.md", import.meta.url);
+  const local = readFileSync(localPath, "utf8").match(/Before judging,[\s\S]*?on the named symbol or call\./);
+  const upstream = readFileSync(upstreamPath, "utf8").match(/Before judging,[\s\S]*?on the named symbol or call\./);
+  if (!local || !upstream) throw new Error("Comment Sicko is missing its skill-instruction sentence");
+  expect(local[0]).toBe(upstream[0]);
+});
+
 test("agent names may contain single spaces, like Cursor's Comment Sicko", () => {
   const agent = parseAgentDefinition("---\nname: Comment Sicko\ndescription: deletes comments\n---\nbody", "/x/comment-sicko.md", "user");
-  expect(agent?.name).toBe("Comment Sicko");
+  expect(String(agent?.name)).toBe("Comment Sicko");
   expect(parseAgentDefinition("---\nname: bad  name\ndescription: d\n---\n", "/x/b.md", "user")).toBeUndefined();
   expect(parseAgentDefinition("---\nname: trailing \ndescription: d\n---\n", "/x/c.md", "user")?.name).not.toBe("trailing ");
 });
 
-test("children always load the hook-only guard extension when it exists", () => {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "pa-guards-"));
-  mkdirSync(path.join(dir, "extensions"), { recursive: true });
-  expect(withGuardExtensions(["/x/todo.ts"], dir)).toEqual(["/x/todo.ts"]);
-  writeFileSync(path.join(dir, "extensions", "pstack-guards.ts"), "export default () => {}");
-  expect(withGuardExtensions(["/x/todo.ts"], dir)).toEqual(["/x/todo.ts", path.join(dir, "extensions", "pstack-guards.ts")]);
-  rmSync(dir, { recursive: true, force: true });
+test("children load the package guard exactly once without an agent-dir copy", () => {
+  const root = tempRoot();
+  const agentDir = path.join(root, "agent");
+  const cwd = path.join(root, "project");
+  putAgent(path.join(agentDir, "agents"), "worker", "worker", "tools: read");
+
+  const command = parseTaskInput({
+    description: "Inspect",
+    prompt: "Read a file.",
+    subagent_type: "worker",
+  }, taskContext(agentDir, cwd));
+  if (command.action !== "start") throw new Error("Expected a Task launch");
+
+  expect(command.request.extensionPaths).toEqual([packageResources.guardExtension]);
+  expect(withGuardExtensions([...command.request.extensionPaths, packageResources.guardExtension])).toEqual([packageResources.guardExtension]);
 });

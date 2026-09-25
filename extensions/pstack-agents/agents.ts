@@ -1,10 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, loadProjectContextFiles, parseFrontmatter } from "@earendil-works/pi-coding-agent";
+import { packageResources } from "../package-resources.ts";
 import { parseRunId, type RunId } from "./contracts.ts";
 
 export type AgentName = string & { readonly __brand: "AgentName" };
-export type AgentSource = "user" | "project";
+export type AgentSource = "package" | "user" | "project";
 export type SystemPromptMode = "append" | "replace";
 
 export type AgentDefinition = {
@@ -12,6 +13,7 @@ export type AgentDefinition = {
   description: string;
   tools?: string[];
   model?: string;
+  skill?: string;
   systemPrompt: string;
   source: AgentSource;
   filePath: string;
@@ -20,6 +22,7 @@ export type AgentDefinition = {
   inheritGlobalContext: boolean;
   inheritSkills: boolean;
   allowNestedSubagents: boolean;
+  isBackground: boolean;
 };
 
 type AgentFrontmatter = {
@@ -27,11 +30,13 @@ type AgentFrontmatter = {
   description?: unknown;
   tools?: unknown;
   model?: unknown;
+  skills?: unknown;
   systemPromptMode?: unknown;
   inheritProjectContext?: unknown;
   inheritGlobalContext?: unknown;
   inheritSkills?: unknown;
   allowNestedSubagents?: unknown;
+  is_background?: unknown;
 };
 
 export type ModelScopePolicy = { enforce: boolean; allow: string[] };
@@ -48,6 +53,8 @@ export type AgentLaunchRequest = {
   attachments: string[];
   tools: string[];
   extensionPaths: string[];
+  /** Hidden skills are absent from a child's skill list, so the runner names their file in the system prompt. */
+  declaredSkill?: { name: string; file: string };
   output?: string;
   depth: number;
   projectContext: Array<{ path: string; content: string }>;
@@ -66,7 +73,8 @@ export type TaskToolInput =
       attachments?: string[];
       environment?: "local" | "cloud";
       cloud_base_branch?: string;
-      machine?: string;
+      machine?: unknown;
+      cloud_requested_environment_build_id?: unknown;
       interrupt?: false;
       output?: string;
     };
@@ -118,6 +126,16 @@ function parseToolNames(value: unknown): string[] | undefined {
   return names;
 }
 
+function parseSkillName(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new Error("Agent frontmatter skills must be a skill name string");
+  const name = value.trim();
+  if (name.length > 64 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) {
+    throw new Error("Agent frontmatter skills must be a lowercase skill name of at most 64 characters");
+  }
+  return name;
+}
+
 export function parseAgentDefinition(content: string, filePath: string, source: AgentSource): AgentDefinition | undefined {
   const { frontmatter, body } = parseFrontmatter<AgentFrontmatter>(content);
   const rawName = frontmatter.name;
@@ -138,6 +156,7 @@ export function parseAgentDefinition(content: string, filePath: string, source: 
     description: frontmatter.description.trim(),
     tools: parseToolNames(frontmatter.tools),
     model,
+    skill: parseSkillName(frontmatter.skills),
     systemPrompt: body,
     source,
     filePath,
@@ -146,6 +165,7 @@ export function parseAgentDefinition(content: string, filePath: string, source: 
     inheritGlobalContext: parseBoolean(frontmatter.inheritGlobalContext, false, "inheritGlobalContext"),
     inheritSkills: parseBoolean(frontmatter.inheritSkills, true, "inheritSkills"),
     allowNestedSubagents: parseBoolean(frontmatter.allowNestedSubagents, false, "allowNestedSubagents"),
+    isBackground: parseBoolean(frontmatter.is_background, false, "is_background"),
   };
 }
 
@@ -216,10 +236,12 @@ export function parseAgentFiles(options: {
   projectTrusted: boolean;
   onSkipped?: (filePath: string, reason: string) => void;
 }): AgentDefinition[] {
+  const packageAgents = readAgentDirectory(packageResources.agentsDirectory, "package", options.onSkipped);
   const userAgents = readAgentDirectory(path.join(options.agentDir, "agents"), "user", options.onSkipped);
   const projectDir = options.projectTrusted ? nearestProjectAgentsDirectory(options.cwd) : undefined;
   const projectAgents = projectDir ? readAgentDirectory(projectDir, "project", options.onSkipped) : [];
   const byName = new Map<string, AgentDefinition>();
+  for (const agent of packageAgents) byName.set(agent.name, agent);
   for (const agent of userAgents) byName.set(agent.name, agent);
   for (const agent of projectAgents) byName.set(agent.name, agent);
   return [...byName.values()];
@@ -264,15 +286,15 @@ function escapeGlob(pattern: string): string {
   return pattern.replace(MODEL_GLOB_META, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
 }
 
-export function parseModelScope(settings: unknown): ModelScopePolicy | undefined {
-  if (!isRecord(settings) || !isRecord(settings.subagents) || !isRecord(settings.subagents.modelScope)) return undefined;
-  const raw = settings.subagents.modelScope;
+export function parseModelScope(config: unknown): ModelScopePolicy | undefined {
+  if (!isRecord(config) || !isRecord(config.modelScope)) return undefined;
+  const raw = config.modelScope;
   if (typeof raw.enforce !== "boolean" || !Array.isArray(raw.allow)) {
-    throw new Error("settings.json subagents.modelScope must contain boolean enforce and string[] allow");
+    throw new Error("pstack-agents.json modelScope must contain boolean enforce and string[] allow");
   }
   const allow: string[] = [];
   for (const item of raw.allow) {
-    if (typeof item !== "string") throw new Error("settings.json subagents.modelScope.allow must contain only strings");
+    if (typeof item !== "string") throw new Error("pstack-agents.json modelScope.allow must contain only strings");
     allow.push(item);
   }
   return { enforce: raw.enforce, allow };
@@ -311,30 +333,32 @@ export function selectAgentTools(options: {
   return { tools, extensionPaths };
 }
 
-// Hook-only pstack extensions register no tools, so tool-based selection never loads them.
-// Every child gets them so the guards hold at every depth.
-const GUARD_EXTENSIONS = ["pstack-guards.ts"];
+export function resolveSkillFile(name: string, agentDir: string): string {
+  const candidates = [path.join(packageResources.skillsDirectory, name, "SKILL.md"), path.join(agentDir, "skills", name, "SKILL.md")];
+  const found = candidates.find((file) => fs.existsSync(file));
+  if (!found) throw new Error(`Agent skill ${name} is not installed (looked in ${candidates.join(", ")})`);
+  return found;
+}
 
-export function withGuardExtensions(paths: readonly string[], agentDir: string): string[] {
-  const guards = GUARD_EXTENSIONS.map((name) => path.join(agentDir, "extensions", name)).filter((file) => fs.existsSync(file));
-  return [...new Set([...paths, ...guards])];
+export function withGuardExtensions(paths: readonly string[]): string[] {
+  return [...new Set([...paths, packageResources.guardExtension])];
 }
 
 function loadModelScope(agentDir: string): ModelScopePolicy | undefined {
-  const settingsPath = path.join(agentDir, "settings.json");
+  const configPath = path.join(agentDir, "extensions", "pstack-agents.json");
   let contents: string;
   try {
-    contents = fs.readFileSync(settingsPath, "utf8");
+    contents = fs.readFileSync(configPath, "utf8");
   } catch {
     return undefined;
   }
-  let settings: unknown;
+  let config: unknown;
   try {
-    settings = JSON.parse(contents);
+    config = JSON.parse(contents);
   } catch {
-    throw new Error(`Invalid JSON in ${settingsPath}`);
+    throw new Error(`Invalid JSON in ${configPath}`);
   }
-  return parseModelScope(settings);
+  return parseModelScope(config);
 }
 
 export function selectContextFiles(options: {
@@ -375,12 +399,15 @@ function resolveOutput(output: string | undefined, cwd: string): string | undefi
 }
 
 export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext): TaskCommand {
+  if ("machine" in input && input.machine !== undefined) throw new Error("Task.machine is not supported on Pi.");
+  if ("cloud_requested_environment_build_id" in input && input.cloud_requested_environment_build_id !== undefined) {
+    throw new Error("Task.cloud_requested_environment_build_id is not supported on Pi.");
+  }
   if ("interrupt" in input && input.interrupt === true) {
     const id = parseRunId(input.resume);
     if (!id) throw new Error("Task interrupt requires a valid agent_id in resume");
     return { action: "interrupt", id };
   }
-  if (typeof input.machine === "string") throw new Error("machine execution is unsupported by the local runtime");
   if (input.description.trim() === "") throw new Error("Task description is required");
   if (input.prompt.trim() === "") throw new Error("Task prompt is required");
   if (input.subagent_type.trim() === "") throw new Error("Task subagent_type is required");
@@ -401,7 +428,7 @@ export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext)
   const model = input.model === "inherit" ? context.parentModel : input.model ?? agent.model ?? context.parentModel;
   if (!model) throw new Error("Task requires a model, but the parent session has none");
   if (!modelMatchesScope(model, context.modelScope, inheritsParentModel)) {
-    throw new Error(`Model ${model} is outside settings.json subagents.modelScope.allow`);
+    throw new Error(`Model ${model} is outside pstack-agents.json modelScope.allow`);
   }
 
   const selectedTools = selectAgentTools({
@@ -433,14 +460,15 @@ export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext)
     cwd: context.cwd,
     attachments: resolveAttachments(input.attachments, context.cwd),
     tools: selectedTools.tools,
-    extensionPaths: withGuardExtensions(selectedTools.extensionPaths, context.agentDir),
+    extensionPaths: withGuardExtensions(selectedTools.extensionPaths),
+    declaredSkill: agent.skill ? { name: agent.skill, file: resolveSkillFile(agent.skill, context.agentDir) } : undefined,
     output,
     depth: context.depth + 1,
     projectContext,
   };
   const common = {
     request,
-    runInBackground: input.run_in_background === true,
+    runInBackground: input.run_in_background ?? agent.isBackground,
     cloudBaseBranch: input.cloud_base_branch,
   } as const;
   return id

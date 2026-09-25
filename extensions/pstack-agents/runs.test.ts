@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, test } from "bun:test";
+import type { JsonValue } from "@earendil-works/pi-ai";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import {
   NOTIFICATION_TYPE,
@@ -18,7 +19,7 @@ import {
   type LaunchEntry,
   type RunNotification,
 } from "./runs.ts";
-import type { AgentName } from "./agents.ts";
+import { parseAgentDefinition } from "./agents.ts";
 import { parseRunId } from "./contracts.ts";
 
 const runnerPath = fileURLToPath(new URL("./runner.mjs", import.meta.url));
@@ -60,7 +61,7 @@ function appendNotice(branch: SessionEntry[], notification: RunNotification): vo
   branch.push(entry);
 }
 
-function appendToolResult(branch: SessionEntry[], details: Record<string, unknown>): void {
+function appendToolResult(branch: SessionEntry[], details: JsonValue): void {
   branch.push({
     type: "message",
     id: `result-${branch.length + 1}`,
@@ -230,21 +231,16 @@ function shellEntry(store: ReturnType<typeof createRunStore>, sessionFile: strin
 }
 
 function agentRequest(cwd: string, prompt: string, output: string): AgentRunRequest {
+  const agent = parseAgentDefinition(
+    "---\nname: test-agent\ndescription: Test-only agent\ninheritProjectContext: false\ninheritGlobalContext: false\ninheritSkills: false\n---\n",
+    path.join(cwd, "agent.md"),
+    "user",
+  );
+  if (!agent) throw new Error("Failed to create test agent definition");
   return {
     kind: "agent",
     description: "Run a test agent",
-    agent: {
-      name: "test-agent" as AgentName,
-      description: "Test-only agent",
-      systemPrompt: "",
-      source: "user",
-      filePath: path.join(cwd, "agent.md"),
-      systemPromptMode: "append",
-      inheritProjectContext: false,
-      inheritGlobalContext: false,
-      inheritSkills: false,
-      allowNestedSubagents: false,
-    },
+    agent,
     prompt,
     model: "openai-codex/gpt-6-luna:low",
     readonly: true,
@@ -315,6 +311,67 @@ describe("durable run store", () => {
 
       expect(result).toMatchObject({ state: "terminal", status: { state: "completed", attempt: 1 } });
       expect(notifications.filter((notification) => notification.event === "completed")).toEqual([]);
+    } finally {
+      store.closeWatchers();
+    }
+  });
+
+  test("a declared skill is named in the child system prompt and the prompt stays unprefixed, with or without attachments", async () => {
+    const root = testRoot();
+    const { sessionFile, branch, store, pi, fakePi } = testHarness(root);
+    fs.writeFileSync(fakePi, [
+      'const message = { role: "assistant", content: [{ type: "text", text: JSON.stringify(process.argv.slice(2)) }], stopReason: "end" };',
+      'process.stdout.write(`${JSON.stringify({ type: "message_end", message })}\\n`);',
+    ].join("\n"));
+    const agent = parseAgentDefinition([
+      "---",
+      "name: custom-agent",
+      "description: Test-only agent",
+      "skills: poteto-mode",
+      "inheritProjectContext: false",
+      "inheritGlobalContext: false",
+      "inheritSkills: true",
+      "---",
+    ].join("\n"), path.join(root, "agent.md"), "user");
+    if (!agent) throw new Error("Failed to create a skill-declaring test agent");
+    const attachment = path.join(root, "note.txt");
+    fs.writeFileSync(attachment, "attached\n");
+    const launchOwner = owner(sessionFile, "poteto-skill-call");
+    const entry: LaunchEntry = {
+      kind: "launch",
+      id: nextTestId(store),
+      attempt: 1,
+      requestKey: store.requestKey(launchOwner),
+      owner: launchOwner,
+      request: {
+        ...agentRequest(root, "Report your CLI arguments.", path.join(root, "result.md")),
+        agent,
+        attachments: [attachment],
+        declaredSkill: { name: "poteto-mode", file: "/pkg/skills/poteto-mode/SKILL.md" },
+      },
+      runInBackground: false,
+      createdAt: Date.now(),
+    };
+    store.prepare(entry);
+    recordLaunch(pi, entry);
+    store.observe({ branch: () => branch, notify: () => {}, onChange: () => {}, onError: (error) => { throw error; } });
+
+    try {
+      await store.start(entry);
+      await store.wait(entry.id, 5000);
+      const rawArgs = store.finalOutput(entry.id);
+      if (!rawArgs) throw new Error("Fake Pi returned no command arguments");
+      const args: unknown = JSON.parse(rawArgs);
+      if (!Array.isArray(args) || !args.every((arg): arg is string => typeof arg === "string")) {
+        throw new Error("Fake Pi returned invalid command arguments");
+      }
+      expect(args).not.toContain("--skill");
+      expect(args).not.toContain("--no-skills");
+      expect(args.at(-1)).toBe("Run a test agent: Report your CLI arguments.");
+      expect(args.at(-2)).toBe(`@${attachment}`);
+      const promptFile = args[args.indexOf("--append-system-prompt") + 1];
+      if (!promptFile) throw new Error("Child received no appended system prompt");
+      expect(fs.readFileSync(promptFile, "utf8")).toContain("The `poteto-mode` skill's `SKILL.md` is at `/pkg/skills/poteto-mode/SKILL.md`.");
     } finally {
       store.closeWatchers();
     }
@@ -406,8 +463,14 @@ describe("durable run store", () => {
     const awaitAbort = new AbortController();
     const awaiting = store.wait(detached.id, 5000, undefined, awaitAbort.signal, true);
     awaitAbort.abort();
-    await expect(awaiting).rejects.toThrow("keeps running");
+    const detachedResult = await awaiting;
+    expect(detachedResult).toMatchObject({ state: "detached", id: detached.id });
+    expect(["starting", "running"]).toContain(detachedResult.status.state);
     expect(await waitForShellTerminal(store, detached.id)).toMatchObject({ state: "completed", exitCode: 0 });
+    await expect(store.wait(detached.id, 5000, undefined, awaitAbort.signal, true)).resolves.toMatchObject({
+      state: "terminal",
+      status: { state: "completed" },
+    });
 
     const foreground = shellEntry(store, sessionFile, "sleep 30", { background: true });
     store.prepare(foreground);
@@ -566,7 +629,21 @@ describe("durable run store", () => {
 
   test("preserves an agent transcript across resume attempts and writes file-only output", async () => {
     const root = testRoot();
-    const { sessionFile, branch, store, pi } = testHarness(root);
+    const { sessionFile, branch, store, pi, fakePi } = testHarness(root);
+    fs.writeFileSync(fakePi, [
+      'const attempt = Number(process.env.PSTACK_AGENTS_PARENT_RUN_ATTEMPT);',
+      'const usages = attempt === 1 ? [',
+      '  { input: 1, output: 2, cacheRead: 3, cacheWrite: 4, totalTokens: 6, cost: { input: 0.01, output: 0.02, cacheRead: 0.03, cacheWrite: 0.04, total: 0.1 } },',
+      '  { input: 10, output: 20, cacheRead: 30, cacheWrite: 40, totalTokens: 60, cost: { input: 1, output: 2, cacheRead: 3, cacheWrite: 4, total: 10 } },',
+      '] : [',
+      '  { input: 100, output: 200, cacheRead: 300, cacheWrite: 400, totalTokens: 600, cost: { input: 10, output: 20, cacheRead: 30, cacheWrite: 40, total: 100 } },',
+      '  { input: 1000, output: 2000, cacheRead: 3000, cacheWrite: 4000, totalTokens: 6000, cost: { input: 100, output: 200, cacheRead: 300, cacheWrite: 400, total: 1000 } },',
+      '];',
+      'for (const [index, usage] of usages.entries()) {',
+      '  const message = { role: "assistant", content: [{ type: "text", text: index === 1 ? process.argv.at(-1) : `attempt ${attempt} interim` }], usage, stopReason: "stop" };',
+      '  process.stdout.write(`${JSON.stringify({ type: "message_end", message })}\\n`);',
+      '}',
+    ].join("\n"));
     const output = path.join(root, "result.md");
     const initialOwner = owner(sessionFile, "agent-call-1");
     const first: LaunchEntry = {
@@ -585,6 +662,15 @@ describe("durable run store", () => {
     await store.start(first);
     const firstResult = await store.wait(first.id, 5000);
     expect(firstResult).toMatchObject({ state: "terminal", status: { state: "completed", attempt: 1 } });
+    expect(store.usage(first.id, 1)).toEqual({
+      input: 11,
+      output: 22,
+      cacheRead: 33,
+      cacheWrite: 44,
+      totalTokens: 66,
+      cost: { input: 1.01, output: 2.02, cacheRead: 3.03, cacheWrite: 4.04, total: 10.1 },
+    });
+    expect(store.usage(first.id, 2)).toBeUndefined();
     expect(store.finalOutput(first.id)).toBe("Run a test agent: first prompt");
     expect(fs.readFileSync(output, "utf8")).toBe("Run a test agent: first prompt");
 
@@ -603,6 +689,22 @@ describe("durable run store", () => {
     await store.resume(resumed);
     const resumedResult = await store.wait(first.id, 5000);
     expect(resumedResult).toMatchObject({ state: "terminal", status: { state: "completed", attempt: 2 } });
+    expect(store.usage(first.id, 2)).toEqual({
+      input: 1100,
+      output: 2200,
+      cacheRead: 3300,
+      cacheWrite: 4400,
+      totalTokens: 6600,
+      cost: { input: 110, output: 220, cacheRead: 330, cacheWrite: 440, total: 1100 },
+    });
+    expect(store.usage(first.id, 1)).toEqual({
+      input: 11,
+      output: 22,
+      cacheRead: 33,
+      cacheWrite: 44,
+      totalTokens: 66,
+      cost: { input: 1.01, output: 2.02, cacheRead: 3.03, cacheWrite: 4.04, total: 10.1 },
+    });
     expect(store.transcript(first.id)).toBe(path.join(path.dirname(sessionFile), "parent", first.id, "session.jsonl"));
     expect(store.finalOutput(first.id)).toBe("Run a test agent: second prompt");
     expect(fs.readFileSync(output, "utf8")).toBe("Run a test agent: second prompt");
