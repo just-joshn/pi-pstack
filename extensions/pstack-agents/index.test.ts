@@ -2,18 +2,20 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, test } from "bun:test";
+import type { TSchema } from "typebox";
+import { Value } from "typebox/value";
 import registerPstackAgents from "./index.ts";
 import { RUN_ENTRY_TYPE } from "./runs.ts";
 
 function failureHarness(scratch: string) {
   type ToolResult = { content: Array<{ text: string }>; details?: unknown; usage?: unknown };
-  type TestTool = { execute: (...args: unknown[]) => Promise<ToolResult> };
+  type TestTool = { parameters: TSchema; execute: (...args: unknown[]) => Promise<ToolResult> };
   const tools = new Map<string, TestTool>();
   const hooks = new Map<string, (...args: unknown[]) => unknown>();
   const branch: Array<Record<string, unknown>> = [];
   const sentMessages: Array<{ content: unknown }> = [];
   const pi = {
-    registerTool: (tool: { name: string; execute: (...args: unknown[]) => Promise<ToolResult> }) => tools.set(tool.name, tool),
+    registerTool: (tool: { name: string; parameters: TSchema; execute: (...args: unknown[]) => Promise<ToolResult> }) => tools.set(tool.name, tool),
     registerCommand: () => {},
     on: (event: string, handler: (...args: unknown[]) => unknown) => hooks.set(event, handler),
     appendEntry: (customType: string, data: unknown) => branch.push({
@@ -164,6 +166,15 @@ describe("tool execution failures", () => {
         prompt: "Return a result.",
         subagent_type: "missing-agent",
       }, undefined, undefined, context)).rejects.toThrow('Unknown agent "missing-agent"');
+      const machineInput = {
+        description: "Use a remote machine",
+        prompt: "Return a result.",
+        subagent_type: "generalPurpose",
+        machine: { same_machine: {} },
+      };
+      expect(Value.Check(task.parameters, machineInput)).toBe(true);
+      await expect(task.execute("unsupported-machine", machineInput, undefined, undefined, context)).rejects.toThrow("Task.machine is not supported on Pi.");
+      expect(branch).toEqual([]);
       await expect(shell.execute("bad-shell", { command: " " }, undefined, undefined, context)).rejects.toThrow("non-empty command");
       await expect(awaitTask.execute("bad-await", { task_id: "not-a-run-id" }, undefined)).rejects.toThrow("Await requires a valid task_id");
       await expect(awaitAgent.execute("bad-subagent-await", { agent_id: "not-a-run-id", timeout_ms: 0 }, undefined)).rejects.toThrow("Await requires a valid agent_id");

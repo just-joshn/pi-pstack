@@ -70,7 +70,7 @@ export type TaskToolInput =
       attachments?: string[];
       environment?: "local" | "cloud";
       cloud_base_branch?: string;
-      machine?: string;
+      machine?: unknown;
       interrupt?: false;
       output?: string;
     };
@@ -377,12 +377,12 @@ function resolveOutput(output: string | undefined, cwd: string): string | undefi
 }
 
 export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext): TaskCommand {
+  if ("machine" in input && input.machine !== undefined) throw new Error("Task.machine is not supported on Pi.");
   if ("interrupt" in input && input.interrupt === true) {
     const id = parseRunId(input.resume);
     if (!id) throw new Error("Task interrupt requires a valid agent_id in resume");
     return { action: "interrupt", id };
   }
-  if (typeof input.machine === "string") throw new Error("machine execution is unsupported by the local runtime");
   if (input.description.trim() === "") throw new Error("Task description is required");
   if (input.prompt.trim() === "") throw new Error("Task prompt is required");
   if (input.subagent_type.trim() === "") throw new Error("Task subagent_type is required");
