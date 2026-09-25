@@ -353,7 +353,7 @@ describe("Task boundary parsing", () => {
     expect(parseAgentDefinition("---\nname: default-agent\ndescription: Default\n---\n", "/default.md", "user")?.isBackground).toBe(false);
   });
 
-  test("loads poteto-mode through a resolved skill resource without a path token", () => {
+  test("passes the package agent's declared skill through Task without a path token", () => {
     const root = tempRoot();
     const agentDir = path.join(root, "empty-agent-dir");
     const cwd = path.join(root, "project");
@@ -374,8 +374,9 @@ describe("Task boundary parsing", () => {
     if (regular.action !== "start" || potetoCommand.action !== "start") throw new Error("Expected Task launch commands");
     expect(poteto.systemPrompt).toContain("Read the `poteto-mode` skill's `SKILL.md` in full before doing any work, including its inline Principles index.");
     expect(poteto.systemPrompt).not.toContain("<pstack>");
-    expect(regular.request.potetoModeSkill).toBeUndefined();
-    expect(potetoCommand.request.potetoModeSkill).toBe(packageResources.potetoModeSkillDirectory);
+    expect(poteto.skill).toBe("poteto-mode");
+    expect(regular.request.agent.skill).toBeUndefined();
+    expect(potetoCommand.request.agent.skill).toBe("poteto-mode");
   });
 
   test("defaults to foreground and inherits the parent model and thinking level", () => {

@@ -20,7 +20,6 @@ import {
   type RunNotification,
 } from "./runs.ts";
 import { parseAgentDefinition } from "./agents.ts";
-import { packageResources } from "../package-resources.ts";
 import { parseRunId } from "./contracts.ts";
 
 const runnerPath = fileURLToPath(new URL("./runner.mjs", import.meta.url));
@@ -317,13 +316,24 @@ describe("durable run store", () => {
     }
   });
 
-  test("loads poteto-mode with --skill after --no-skills", async () => {
+  test("declared Pi skills prefix child prompts without a CLI skill override", async () => {
     const root = testRoot();
     const { sessionFile, branch, store, pi, fakePi } = testHarness(root);
     fs.writeFileSync(fakePi, [
       'const message = { role: "assistant", content: [{ type: "text", text: JSON.stringify(process.argv.slice(2)) }], stopReason: "end" };',
       'process.stdout.write(`${JSON.stringify({ type: "message_end", message })}\\n`);',
     ].join("\n"));
+    const agent = parseAgentDefinition([
+      "---",
+      "name: custom-agent",
+      "description: Test-only agent",
+      "skills: poteto-mode",
+      "inheritProjectContext: false",
+      "inheritGlobalContext: false",
+      "inheritSkills: true",
+      "---",
+    ].join("\n"), path.join(root, "agent.md"), "user");
+    if (!agent) throw new Error("Failed to create a skill-declaring test agent");
     const launchOwner = owner(sessionFile, "poteto-skill-call");
     const entry: LaunchEntry = {
       kind: "launch",
@@ -333,7 +343,7 @@ describe("durable run store", () => {
       owner: launchOwner,
       request: {
         ...agentRequest(root, "Report your CLI arguments.", path.join(root, "result.md")),
-        potetoModeSkill: packageResources.potetoModeSkillDirectory,
+        agent,
       },
       runInBackground: false,
       createdAt: Date.now(),
@@ -351,12 +361,9 @@ describe("durable run store", () => {
       if (!Array.isArray(args) || !args.every((arg): arg is string => typeof arg === "string")) {
         throw new Error("Fake Pi returned invalid command arguments");
       }
-      const skillIndex = args.indexOf("--skill");
-      expect(args.slice(skillIndex - 1, skillIndex + 2)).toEqual([
-        "--no-skills",
-        "--skill",
-        packageResources.potetoModeSkillDirectory,
-      ]);
+      expect(args).not.toContain("--skill");
+      expect(args).not.toContain("--no-skills");
+      expect(args.at(-1)).toBe("/skill:poteto-mode Run a test agent: Report your CLI arguments.");
     } finally {
       store.closeWatchers();
     }

@@ -13,6 +13,7 @@ export type AgentDefinition = {
   description: string;
   tools?: string[];
   model?: string;
+  skill?: string;
   systemPrompt: string;
   source: AgentSource;
   filePath: string;
@@ -29,6 +30,7 @@ type AgentFrontmatter = {
   description?: unknown;
   tools?: unknown;
   model?: unknown;
+  skills?: unknown;
   systemPromptMode?: unknown;
   inheritProjectContext?: unknown;
   inheritGlobalContext?: unknown;
@@ -51,7 +53,6 @@ export type AgentLaunchRequest = {
   attachments: string[];
   tools: string[];
   extensionPaths: string[];
-  potetoModeSkill?: string;
   output?: string;
   depth: number;
   projectContext: Array<{ path: string; content: string }>;
@@ -122,6 +123,16 @@ function parseToolNames(value: unknown): string[] | undefined {
   return names;
 }
 
+function parseSkillName(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new Error("Agent frontmatter skills must be a skill name string");
+  const name = value.trim();
+  if (name.length > 64 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) {
+    throw new Error("Agent frontmatter skills must be a lowercase skill name of at most 64 characters");
+  }
+  return name;
+}
+
 export function parseAgentDefinition(content: string, filePath: string, source: AgentSource): AgentDefinition | undefined {
   const { frontmatter, body } = parseFrontmatter<AgentFrontmatter>(content);
   const rawName = frontmatter.name;
@@ -142,6 +153,7 @@ export function parseAgentDefinition(content: string, filePath: string, source: 
     description: frontmatter.description.trim(),
     tools: parseToolNames(frontmatter.tools),
     model,
+    skill: parseSkillName(frontmatter.skills),
     systemPrompt: body,
     source,
     filePath,
@@ -436,7 +448,6 @@ export function parseTaskInput(input: TaskToolInput, context: ParentTaskContext)
     attachments: resolveAttachments(input.attachments, context.cwd),
     tools: selectedTools.tools,
     extensionPaths: withGuardExtensions(selectedTools.extensionPaths),
-    potetoModeSkill: agent.name === "poteto-agent" ? packageResources.potetoModeSkillDirectory : undefined,
     output,
     depth: context.depth + 1,
     projectContext,
