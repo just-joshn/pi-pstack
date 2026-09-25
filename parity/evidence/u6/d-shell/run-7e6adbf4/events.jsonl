@@ -1,0 +1,4 @@
+{"sequence":1,"at":1790311031896,"type":"status","status":{"state":"starting","id":"7e6adbf4-13dc-522d-8378-d41f62cc501e","attempt":1,"updatedAt":1790311031887}}
+{"sequence":2,"at":1790311031910,"type":"status","status":{"state":"running","id":"7e6adbf4-13dc-522d-8378-d41f62cc501e","attempt":1,"pid":85714,"startedAt":1790311031887,"updatedAt":1790311031887}}
+{"sequence":3,"at":1790311051910,"type":"shell-line","lineSequence":1,"stream":"stdout","line":"READY_X","notificationMatch":true}
+{"sequence":4,"at":1790311051944,"type":"terminal","status":{"state":"completed","id":"7e6adbf4-13dc-522d-8378-d41f62cc501e","attempt":1,"exitCode":0,"stopReason":"exit","endedAt":1790311051923}}

@@ -1,0 +1,5 @@
+command=pi --print '/skill:loop 1m x'
+started_at=2026-09-25T05:51:33Z
+finished_at=2026-09-25T05:53:15Z
+exit_code=0
+elapsed_seconds=102

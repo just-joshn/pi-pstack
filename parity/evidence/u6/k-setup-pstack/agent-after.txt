@@ -1,0 +1,16 @@
+/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.K7ZZEQ0ONo:
+total 44
+drwx------   8 josh-desktop staff   256 Sep 24 22:31 .
+drwx------ 253 josh-desktop staff  8096 Sep 24 22:32 ..
+-rw-r--r--   1 josh-desktop staff  2644 Sep 24 22:30 AGENTS.md
+-rw-------   1 josh-desktop staff  2573 Sep 24 20:53 auth.json
+drwxr-xr-x   3 josh-desktop staff    96 Sep 24 22:30 extensions
+-rw-------   1 josh-desktop staff 30235 Sep 24 21:23 models-store.json
+drwxr-xr-x   3 josh-desktop staff    96 Sep 24 21:23 sessions
+-rw-r--r--   1 josh-desktop staff   641 Sep 24 21:20 settings.json
+
+/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.K7ZZEQ0ONo/extensions:
+total 4
+drwxr-xr-x 3 josh-desktop staff  96 Sep 24 22:30 .
+drwx------ 8 josh-desktop staff 256 Sep 24 22:31 ..
+-rw-r--r-- 1 josh-desktop staff 152 Sep 24 22:30 pstack-agents.json

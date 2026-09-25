@@ -1,0 +1,12 @@
+- Todo #21 is in progress.
+- Todo #22 remains pending.
+The child returned no heading because its read was blocked. Guard message: “You are a Task child, not a poteto-agent. Follow your brief and the skill it names; do not load a poteto-mode playbook or seed its steps.” The file’s first heading, from my earlier read, is `### Investigation`.
+Appended `<!-- U6_GUARD_PROBE -->` to the end of `/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.b08aVoImvG/skills/how/SKILL.md` and confirmed the existing content is intact. The frontmatter and referenced `references/explainer-prompt.md` are valid. I skipped behavior tests for this comment-only edit and a PR because the target directory is not a Git repository.
+Appended `<!-- U6_AUTHORIZED_EDIT -->` as the final line in `/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.b08aVoImvG/skills/how/SKILL.md`. Read-back confirmed the line is last and the existing content is intact. I skipped behavior tests because this is a comment-only edit; the target path is not in a Git repository, so a PR was not possible.
+**Overview.** `labelFor(score)` maps a score to one of three labels.
+
+**How It Works.** In `src/labels.js`, scores of 80 or higher return `"strong"`. Scores from 50 up to 80 return `"developing"`. Lower scores return `"starting"`. The thresholds are inclusive.
+
+**Gotchas.** `NaN` maps to `"starting"` because both comparisons fail. JavaScript also coerces non-number values during comparisons.
+
+**Where Things Live.** The mapping is implemented entirely in `src/labels.js`.

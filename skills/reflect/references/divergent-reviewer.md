@@ -20,7 +20,7 @@ Scan for:
 
 Findings must point to skills, tools, or MCPs invoked in this transcript. Speculative routings to skills the parent never opened do not count. To check whether a skill was used, scan the transcript for:
 
-- `read` tool calls against any `SKILL.md` file (project `.pi/skills/` or `.agents/skills/`, user-level `~/.pi/agent/skills/` in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`), or `~/.agents/skills/`, or Pi package paths)
+- `read` tool calls against any `SKILL.md` file (project `.pi/skills/` or `.agents/skills/`, user-level `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/` in Pi's agent directory (`$PI_CODING_AGENT_DIR`, default `~/.pi/agent`), or `~/.agents/skills/`, or Pi package paths)
 - `/skill:<name>` commands in user messages
 - `Task` calls whose `prompt` or `description` names a skill path
 - Tool calls (`bash`, `grep`, MCP, etc.) that match a skill's documented commands

@@ -1,0 +1,24 @@
+
+ Accept as-is or change roles? Detected model IDs are anthropic/claude-fable-5,
+ anthropic/claude-fable-5-1, anthropic/claude-haiku-4-5,
+ anthropic/claude-haiku-4-5-20251001, anthropic/claude-opus-4-5,
+ anthropic/claude-opus-4-5-20251101, anthropic/claude-opus-4-6,
+ anthropic/claude-opus-4-7, anthropic/claude-opus-4-8, anthropic/claude-opus-5,
+ anthropic/claude-opus-5-5, anthropic/claude-sonnet-4-5,
+ anthropic/claude-sonnet-4-5-20250929, anthropic/claude-sonnet-4-6,
+ anthropic/claude-sonnet-5, deepseek/deepseek-flash, deepseek/deepseek-v4-pro,
+ openai-codex/gpt-5.3-codex-spark, openai-codex/gpt-5.5,
+ openai-codex/gpt-5.6-luna, openai-codex/gpt-5.6-sol,
+ openai-codex/gpt-5.6-terra, openai-codex/gpt-6-astra, openai-codex/gpt-6-luna,
+ openai-codex/gpt-6-sol, plus `inherit-parent` and `auto`. If you choose
+ changes, I will collect the specific role/model pairs next.
+
+> 1. Accept as-is (Recommended)
+     Use the proposed `small` budget mapping.
+  2. Change specific roles
+     Choose role/model overrides in a follow-up.
+
+ ↑↓ navigate • Enter select • Esc cancel
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.pmPmmVsDQH (main)
+↑238k ↓53k R9.0M CH99.3% $0.140 (sub) 47.4%/272k (auto)         gpt-6-luna • max

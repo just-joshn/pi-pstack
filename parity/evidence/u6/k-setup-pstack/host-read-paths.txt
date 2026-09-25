@@ -1,0 +1,4 @@
+/Users/josh-desktop/.pi/agent/AGENTS.md
+/Users/josh-desktop/.pi/agent/AGENTS.md
+/Users/josh-desktop/.cursor/rules/pstack-models.mdc
+/Users/josh-desktop/.pi/agent/extensions/pstack-agents.json

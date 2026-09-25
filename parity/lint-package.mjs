@@ -53,6 +53,7 @@ export function lintPackage(root, shipped = packFiles(root)) {
       const at = `${file}:${index + 1}`;
       if (line.includes("<pstack>")) findings.push(`${at}: unresolved <pstack> token`);
       if (ABSOLUTE_HOME.test(line)) findings.push(`${at}: absolute home path`);
+      if (file.startsWith("skills/") && /~\/\.pi\/agent\//.test(line)) findings.push(`${at}: agent-dir path ignores PI_CODING_AGENT_DIR; use \${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/`);
       if (BARE_AGENT_DIR.test(line)) findings.push(`${at}: bare $PI_CODING_AGENT_DIR/ (unset by default); use \${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/`);
       if (packageSkillRef.test(line)) findings.push(`${at}: package skill referenced at a user install path; use a skill-relative path or the skill name`);
       if (packageFileRef.test(line)) findings.push(`${at}: package extension or agent referenced at a user install path`);

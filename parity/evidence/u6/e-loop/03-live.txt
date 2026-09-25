@@ -1,0 +1,24 @@
+ [pstack-agents/notice]
+
+ Shell 2a95c23d-a767-5f31-86bc-8d4adb95d9f5 matched output line 2:
+ AGENT_LOOP_TICK_echo_tick {"prompt":"echo tick"}
+
+ Output log:
+ /var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.K7ZZEQ0ONo/sessions/--pri
+ vate-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T-tmp.pmPmmVsDQH--/pstack-a
+ gents/2a95c23d-a767-5f31-86bc-8d4adb95d9f5/output.log
+
+
+
+ read
+ /var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.K7ZZEQ0ONo/sessions/--pri
+ vate-var-folders-11-m_kwnqr97632l_cjt0mhytvh0000gn-T-tmp.pmPmmVsDQH--/pstack-a
+ gents/2a95c23d-a767-5f31-86bc-8d4adb95d9f5/output.log:1
+
+
+── ⠇ Working ───────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────
+/private/var/folders/11/m_kwnqr97632l_cjt0mhytvh0000gn/T/tmp.pmPmmVsDQH (main)
+↑74k ↓14k R1.2M CH99.4% $0.026 (sub) 14.3%/272k (auto)          gpt-6-luna • max
+Shells 1 running

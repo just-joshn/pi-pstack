@@ -1,0 +1,2 @@
+Probe 1 (agent 598b5787-c897-5a01-8d23-b0f9982a87c3) used the requested sleep 90 background Task but completed before the parent TUI was quit; it was not used for the resume check.
+Probe 2 (agent d38d98cc-87c4-5fab-bbb9-9909a8aa365f) used the same request. It was running before /quit, produced a still-running notice at 2026-09-25T05:43:08.853Z after pi -c resumed, then completed at 2026-09-25T05:43:15.863Z. Exactly one completion notice for this run appears after resume.

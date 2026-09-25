@@ -32,9 +32,10 @@ test.each([
   ["skills/how/SKILL.md", "See `<pstack>/skills/why/SKILL.md`.", "unresolved <pstack> token"],
   ["agents/poteto-agent.md", "Read /Users/alice/code/x.md first.", "absolute home path"],
   ["skills/how/SKILL.md", "Write `$PI_CODING_AGENT_DIR/AGENTS.md`.", "bare $PI_CODING_AGENT_DIR/"],
-  ["skills/how/SKILL.md", "Open `~/.pi/agent/skills/why/SKILL.md`.", "package skill referenced at a user install path"],
-  ["skills/how/SKILL.md", "Edit `~/.pi/agent/extensions/todo.ts`.", "package extension or agent referenced at a user install path"],
+  ["agents/poteto-agent.md", "Open `~/.pi/agent/skills/why/SKILL.md`.", "package skill referenced at a user install path"],
+  ["agents/poteto-agent.md", "Edit `~/.pi/agent/extensions/todo.ts`.", "package extension or agent referenced at a user install path"],
   ["extensions/pstack-mode.ts", "const d = join(homedir(), \".pi\", \"agent\");", "homedir() joined with .pi/agent"],
+  ["skills/how/SKILL.md", "Read `~/.pi/agent/AGENTS.md` first.", "agent-dir path ignores PI_CODING_AGENT_DIR"],
 ])("catches a planted violation in %s: %s", (file, line, message) => {
   const findings = withCopy((dir) => append(dir, file, line));
   expect(findings).toHaveLength(1);
@@ -43,7 +44,7 @@ test.each([
 
 test("allows the documented user-data and generic user-skill locations", () => {
   const findings = withCopy((dir) => append(dir, "skills/how/SKILL.md",
-    "Pi's agent directory (`~/.pi/agent` by default) holds `~/.pi/agent/AGENTS.md`, `~/.pi/agent/extensions/pstack-agents.json`, and user skills in `~/.pi/agent/skills/<name>/`; scripts use `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions`."));
+    "Pi's agent directory (`~/.pi/agent` by default) holds `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/AGENTS.md`, `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/extensions/pstack-agents.json`, and user skills in `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/<name>/`."));
   expect(findings).toEqual([]);
 });
 

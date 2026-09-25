@@ -15,7 +15,7 @@ Run `pi --list-models` to enumerate model ids available to Task. Every id is `<p
 
 ### 2. Load current state
 
-The default role-to-model mapping is the block shape shown in step 5 below. If `~/.pi/agent/AGENTS.md` already has a block between `<!-- pstack-models:begin -->` and `<!-- pstack-models:end -->`, read it and treat its `# budget` line and role values as the current choices. Also read an existing `~/.cursor/rules/pstack-models.mdc` once, if present, as a migration source for the user's role choices. Otherwise start from the defaults. A line whose role is not in step 5, such as the retired `how critics` role, is obsolete and should be dropped.
+The default role-to-model mapping is the block shape shown in step 5 below. If `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/AGENTS.md` already has a block between `<!-- pstack-models:begin -->` and `<!-- pstack-models:end -->`, read it and treat its `# budget` line and role values as the current choices. Also read an existing `~/.cursor/rules/pstack-models.mdc` once, if present, as a migration source for the user's role choices. Otherwise start from the defaults. A line whose role is not in step 5, such as the retired `how critics` role, is obsolete and should be dropped.
 
 ### 3. Budget, map, and confirm
 
