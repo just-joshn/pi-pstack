@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, test } from "bun:test";
+import type { JsonValue } from "@earendil-works/pi-ai";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import {
   NOTIFICATION_TYPE,
@@ -18,7 +19,7 @@ import {
   type LaunchEntry,
   type RunNotification,
 } from "./runs.ts";
-import type { AgentName } from "./agents.ts";
+import { parseAgentDefinition } from "./agents.ts";
 import { packageResources } from "../package-resources.ts";
 import { parseRunId } from "./contracts.ts";
 
@@ -61,7 +62,7 @@ function appendNotice(branch: SessionEntry[], notification: RunNotification): vo
   branch.push(entry);
 }
 
-function appendToolResult(branch: SessionEntry[], details: Record<string, unknown>): void {
+function appendToolResult(branch: SessionEntry[], details: JsonValue): void {
   branch.push({
     type: "message",
     id: `result-${branch.length + 1}`,
@@ -231,21 +232,16 @@ function shellEntry(store: ReturnType<typeof createRunStore>, sessionFile: strin
 }
 
 function agentRequest(cwd: string, prompt: string, output: string): AgentRunRequest {
+  const agent = parseAgentDefinition(
+    "---\nname: test-agent\ndescription: Test-only agent\ninheritProjectContext: false\ninheritGlobalContext: false\ninheritSkills: false\n---\n",
+    path.join(cwd, "agent.md"),
+    "user",
+  );
+  if (!agent) throw new Error("Failed to create test agent definition");
   return {
     kind: "agent",
     description: "Run a test agent",
-    agent: {
-      name: "test-agent" as AgentName,
-      description: "Test-only agent",
-      systemPrompt: "",
-      source: "user",
-      filePath: path.join(cwd, "agent.md"),
-      systemPromptMode: "append",
-      inheritProjectContext: false,
-      inheritGlobalContext: false,
-      inheritSkills: false,
-      allowNestedSubagents: false,
-    },
+    agent,
     prompt,
     model: "openai-codex/gpt-6-luna:low",
     readonly: true,

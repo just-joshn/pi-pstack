@@ -27,7 +27,7 @@ test("guards configured-agent and package skills but not unrelated workspace ski
   try {
     const agentSkill = path.join(agentDir, "skills", "local-skill", "SKILL.md");
     const packageSkill = path.join(packageResources.skillsDirectory, "poteto-mode", "SKILL.md");
-    const expected = {
+    const expected: NonNullable<ReturnType<typeof skillWriteBlock>> = {
       block: true,
       reason: "Installed skills change only when the user asks. If a skill looks broken, check that its own text references the missing thing; if it does not, the claim is false.",
     };

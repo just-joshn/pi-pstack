@@ -33,7 +33,7 @@ const completed: RunStatus = {
 
 describe("run contract parsing", () => {
   test("brands valid UUIDs and rejects malformed run identifiers", () => {
-    expect(parseRunId(id)).toBe(id);
+    expect(String(parseRunId(id))).toBe(id);
     expect(parseRunId("run-1")).toBeUndefined();
     expect(parseRunId("11111111-1111-4111-8111-11111111111z")).toBeUndefined();
   });

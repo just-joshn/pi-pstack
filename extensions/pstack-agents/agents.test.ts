@@ -87,7 +87,7 @@ describe("agent resolution", () => {
     const agents = parseAgentFiles({ agentDir, cwd, projectTrusted: false });
     const requestedNames = ["generalPurpose", "poteto-agent", "pstack-general", "pstack-reader", "Comment Sicko"];
 
-    expect(requestedNames.map((name) => resolveAgent(name, agents).name)).toEqual([
+    expect(requestedNames.map((name) => String(resolveAgent(name, agents).name))).toEqual([
       "pstack-general",
       "poteto-agent",
       "pstack-general",
@@ -116,7 +116,7 @@ describe("agent resolution", () => {
     const agents = parseAgentFiles({ agentDir: userDir, cwd, projectTrusted: true });
     expect(resolveAgent("pstack-general", agents).source).toBe("project");
     expect(resolveAgent("local-agent", agents).source).toBe("project");
-    expect(resolveAgent("generalPurpose", agents).name).toBe("pstack-general");
+    expect(String(resolveAgent("generalPurpose", agents).name)).toBe("pstack-general");
   });
 
   test("reports why a malformed agent file was skipped", () => {
@@ -469,7 +469,7 @@ describe("Task boundary parsing", () => {
 
 test("agent names may contain single spaces, like Cursor's Comment Sicko", () => {
   const agent = parseAgentDefinition("---\nname: Comment Sicko\ndescription: deletes comments\n---\nbody", "/x/comment-sicko.md", "user");
-  expect(agent?.name).toBe("Comment Sicko");
+  expect(String(agent?.name)).toBe("Comment Sicko");
   expect(parseAgentDefinition("---\nname: bad  name\ndescription: d\n---\n", "/x/b.md", "user")).toBeUndefined();
   expect(parseAgentDefinition("---\nname: trailing \ndescription: d\n---\n", "/x/c.md", "user")?.name).not.toBe("trailing ");
 });
