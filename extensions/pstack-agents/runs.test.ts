@@ -295,6 +295,13 @@ describe("Shell request parsing", () => {
     });
   });
 
+  test("arms no output notification for an empty or whitespace-only pattern, as Cursor does", () => {
+    const root = testRoot();
+    for (const output_notification of ["", "   ", { pattern: "" }, { pattern: " \t ", reason: "ignored" }]) {
+      expect(parseShellInput({ command: "true", is_background: true, output_notification }, root).request.outputNotification).toBeUndefined();
+    }
+  });
+
   test("rejects output-notification patterns longer than 500 characters", () => {
     const root = testRoot();
     expect(() => parseShellInput({ command: "true", output_notification: "R".repeat(501) }, root)).toThrow("500 characters");

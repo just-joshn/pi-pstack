@@ -789,6 +789,88 @@ describe("Shell output notifications", () => {
   }, 15000);
 });
 
+describe("Shell output notifications with a blank pattern", () => {
+  test("sends no match notices for an empty pattern, only the completion", async () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-shell-blank-pattern-test-"));
+    const { tools, hooks, context, sentMessages } = failureHarness(scratch);
+    const shell = tools.get("Shell");
+    const awaitShell = tools.get("Await");
+    const sessionStart = hooks.get("session_start");
+    if (!shell || !awaitShell || !sessionStart) throw new Error("Missing Shell notification tools or lifecycle hook");
+
+    try {
+      await sessionStart({}, context);
+      const started = await shell.execute("shell-blank-pattern", {
+        command: "printf 'one\\ntwo\\nthree\\n'",
+        is_background: true,
+        output_notification: "",
+      }, undefined, undefined, context);
+      const taskId = /task_id: ([0-9a-f-]+)/i.exec(started.content[0]?.text ?? "")?.[1];
+      if (!taskId) throw new Error("Background Shell did not return its id");
+      await awaitShell.execute("await-shell-blank-pattern", { task_id: taskId, block_until_ms: 10000 }, undefined);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const notices = sentMessages.map((message) => String(message.content));
+      expect(notices.filter((notice) => notice.includes("matched"))).toEqual([]);
+    } finally {
+      await hooks.get("session_shutdown")?.({}, context);
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  }, 15000);
+});
+
+describe("goal interrupt", () => {
+  type GoalEntryData = { kind: string; status?: string };
+
+  function goalEvents(branch: readonly Record<string, unknown>[]): GoalEntryData[] {
+    return branch.filter((entry) => entry.customType === "pstack-agents/goal").map((entry) => entry.data as GoalEntryData);
+  }
+
+  async function endRun(hooks: Map<string, (...args: unknown[]) => unknown>, context: object, signal: AbortSignal | undefined) {
+    const agentEnd = hooks.get("agent_end");
+    if (!agentEnd) throw new Error("Missing agent_end handler");
+    await agentEnd({ type: "agent_end", messages: [] }, { ...context, signal });
+  }
+
+  function abortedSignal(): AbortSignal {
+    const controller = new AbortController();
+    controller.abort();
+    return controller.signal;
+  }
+
+  test("an interrupted run pauses an ACTIVE goal once; completed runs and other states are untouched", async () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-goal-interrupt-test-"));
+    const { tools, hooks, branch, context } = failureHarness(scratch);
+    const createGoal = tools.get("CreateGoal");
+    const updateGoal = tools.get("UpdateGoal");
+    const sessionStart = hooks.get("session_start");
+    if (!createGoal || !updateGoal || !sessionStart) throw new Error("Missing goal tools or lifecycle hook");
+
+    try {
+      await sessionStart({}, context);
+      await endRun(hooks, context, abortedSignal());
+      expect(goalEvents(branch)).toEqual([]);
+
+      await createGoal.execute("create-goal", { objective: "Ship the release" }, undefined, undefined, context);
+      await endRun(hooks, context, new AbortController().signal);
+      await endRun(hooks, context, undefined);
+      expect(goalEvents(branch).map((event) => event.kind)).toEqual(["created"]);
+
+      await endRun(hooks, context, abortedSignal());
+      expect(goalEvents(branch).map((event) => event.status ?? event.kind)).toEqual(["created", "PAUSED"]);
+
+      await endRun(hooks, context, abortedSignal());
+      expect(goalEvents(branch)).toHaveLength(2);
+
+      await updateGoal.execute("complete-goal", { status: "COMPLETE" }, undefined, undefined, context);
+      await endRun(hooks, context, abortedSignal());
+      expect(goalEvents(branch).map((event) => event.status ?? event.kind)).toEqual(["created", "PAUSED", "COMPLETE"]);
+    } finally {
+      await hooks.get("session_shutdown")?.({}, context);
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("agent parse warnings", () => {
   test("notifies once per invalid file and session", async () => {
     const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "pstack-agents-agent-warning-test-"));

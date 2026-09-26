@@ -732,6 +732,17 @@ export default function registerPstackAgents(pi: ExtensionAPI): void {
     return { entries, continue: continuation.kind === "continue" };
   });
 
+  pi.on("agent_end", async (_event, ctx) => {
+    // An interrupted run ends with its abort signal set, whether it stopped mid-text or mid-tool.
+    if (!ctx.signal?.aborted) return;
+    const branch = ctx.sessionManager.getBranch();
+    if (goalStateFromBranch(branch).state !== "ACTIVE") return;
+    updateGoal(pi, branch, "PAUSED");
+    updateGoalStatusLine(ctx.sessionManager.getBranch(), ctx);
+    const store = runStore;
+    if (store) void refreshStatus(ctx, store);
+  });
+
   pi.on("session_shutdown", async (_event, ctx) => {
     const store = runStore;
     runStore = undefined;

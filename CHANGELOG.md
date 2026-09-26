@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Interrupting a run (Esc, or an RPC `abort`) pauses an active goal, as Cursor does. Before, the goal stayed active and resumed continuing after the next message.
+- A blank `output_notification` pattern arms no notification, as Cursor does. Before, it matched every output line and woke a turn for each batch.
+
 ## 0.15.5-pi.1
 
 This release replaces the whole repository with a Pi package built from pstack 0.15.5 (cursor/plugins `12d587d`). Nothing from the earlier `0.15.2-pi.1` tree remains. `parity/provenance.mjs` checks that every file traces to this port or to the vendored upstream.

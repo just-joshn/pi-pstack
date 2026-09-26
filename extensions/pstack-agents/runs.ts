@@ -119,13 +119,16 @@ export function parseShellInput(input: unknown, cwd: string): ParsedShellInput {
       throw new Error("Shell output_notification must be a regex string or an object with a pattern of 500 characters or fewer");
     }
     const config: ShellOutputNotificationSettings = typeof parsed === "string" ? { pattern: parsed } : parsed;
-    compileSafeRegex(config.pattern, "Shell output_notification");
-    outputNotification = {
-      pattern: config.pattern,
-      ...(config.reason === undefined ? {} : { reason: config.reason }),
-      ...(config.debounce === undefined ? {} : { debounce: config.debounce }),
-      notificationLimit: config.notification_limit ?? 100,
-    };
+    // Cursor arms no observer for a blank pattern; compiled as-is it would match every line.
+    if (config.pattern.trim() !== "") {
+      compileSafeRegex(config.pattern, "Shell output_notification");
+      outputNotification = {
+        pattern: config.pattern,
+        ...(config.reason === undefined ? {} : { reason: config.reason }),
+        ...(config.debounce === undefined ? {} : { debounce: config.debounce }),
+        notificationLimit: config.notification_limit ?? 100,
+      };
+    }
   }
   if (input.is_background !== undefined && typeof input.is_background !== "boolean") throw new Error("Shell is_background must be a boolean");
   return {

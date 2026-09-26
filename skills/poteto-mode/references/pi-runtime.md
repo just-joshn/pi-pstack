@@ -20,7 +20,7 @@ Loading `/skill:poteto-mode`, or a pstack skill whose steps launch agents, autho
 | `Task({resume: agent_id, ...})` | Continue an existing agent. Include its current task details and standing orders in the new prompt. |
 | `Task({resume: agent_id, interrupt: true})` | Stop an agent. |
 | `SubagentAwait({agent_id, timeout_ms})` | Wait for an agent. Use `timeout_ms: 0` for a status probe. A timeout does not stop the agent. |
-| `Shell({command, is_background, output_notification})` | Run a shell command. `output_notification` accepts a regex string or `{pattern, reason?, debounce?, notification_limit?}` with patterns up to 500 characters; debounce is in seconds with a five-second default and minimum, and the notification limit defaults to 100. Set both background fields to receive a wake on a matching output line and another when the command exits. |
+| `Shell({command, is_background, output_notification})` | Run a shell command. `output_notification` accepts a regex string or `{pattern, reason?, debounce?, notification_limit?}` with patterns up to 500 characters; debounce is in seconds with a five-second default and minimum, and the notification limit defaults to 100. A blank pattern arms no notification. Set both background fields to receive a wake on a matching output line and another when the command exits. |
 | `Await({task_id, block_until_ms?, regex?})` | Wait for a Shell task, an agent, or a matching Shell output line. A timeout does not stop the run. |
 | `CreateGoal({objective})` | Create the current conversation branch's goal. It requires an interactive TUI or RPC session. |
 | `UpdateGoal({status})` | Set the goal to `ACTIVE`, `PAUSED`, `COMPLETE`, or `CLEARED`. `/goal` shows the current goal. |
@@ -40,7 +40,7 @@ done
 
 For an event watcher, print `AGENT_LOOP_WAKE_<purpose>` only when the event fires. Use a separate one-shot background Shell that prints the same wake prefix as a fallback heartbeat when needed. Use `Await` to receive output and completion notifications. Track the Shell task_id. Stop it with `Task({ resume: task_id, interrupt: true })`, which stops its whole process group. Never kill the PID. Use `Await({task_id})` to confirm it stopped.
 
-An active goal continues across turns and pauses after three continuations without a tool call. Create it with `CreateGoal({objective})`. Update it with `UpdateGoal({status: "ACTIVE"})`, `UpdateGoal({status: "PAUSED"})`, `UpdateGoal({status: "COMPLETE"})`, or `UpdateGoal({status: "CLEARED"})`.
+An active goal continues across turns and pauses after three continuations without a tool call. Interrupting the run (Esc, or an RPC `abort`) also pauses it. Create it with `CreateGoal({objective})`. Update it with `UpdateGoal({status: "ACTIVE"})`, `UpdateGoal({status: "PAUSED"})`, `UpdateGoal({status: "COMPLETE"})`, or `UpdateGoal({status: "CLEARED"})`.
 
 ## Humans, todos, and transcripts
 

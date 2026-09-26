@@ -29,7 +29,7 @@ Accept `/skill:goal <objective>`.
 
 - This goal persists across turns. Ending this turn does not require shrinking the objective to what fits now.
 - Keep the full objective intact. If it cannot be finished now, make concrete progress toward the real requested end state, leave the goal active, and do not redefine success around a smaller or easier task. Temporary rough edges are acceptable while the work is moving in the right direction. Completion still requires the requested end state to be true and verified.
-- An active goal continues after idle turns, but pauses after three consecutive continuations without a tool call. If it pauses while work remains, resume it with `UpdateGoal({ status: "ACTIVE" })` and make progress. Use `UpdateGoal({ status: "PAUSED" })` to pause or `UpdateGoal({ status: "CLEARED" })` to abandon a goal when the user asks.
+- An active goal continues after idle turns, but pauses after three consecutive continuations without a tool call. An interrupt from the user also pauses it. If it pauses while work remains, resume it with `UpdateGoal({ status: "ACTIVE" })` and make progress. Use `UpdateGoal({ status: "PAUSED" })` to pause or `UpdateGoal({ status: "CLEARED" })` to abandon a goal when the user asks.
 
 ### Work from evidence
 
