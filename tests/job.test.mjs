@@ -99,21 +99,13 @@ void test("Benny refuses disabled config or broad tools before dispatch", async 
     { override: { config: { ...config, enabled: false } }, message: /incomplete or disabled/ },
     { override: { tools: ["read"] }, message: /requires explicit scoped MCP/ },
     { override: { tools: ["bash", "mcp__slack__read_thread"] }, message: /narrow native file/ },
-    {
-      override: { tools: ["read", "mcp__slack__delete_thread"] },
-      message: /disallows general command execution/,
-    },
     ...[
+      "mcp__slack__delete_thread",
       "mcp__gh__pr_squash",
       "mcp__github__push_files",
       "mcp__github__create_or_update_file",
       "mcp__github__update_pull_request_branch",
       "mcp__github__create_branch",
-    ].map((tool) => ({
-      override: { tools: ["read", tool] },
-      message: /disallows general command execution/,
-    })),
-    ...[
       "mcp__github__mergePullRequest",
       "mcp__github__PRMerge",
       "mcp__codemode__run",
@@ -208,7 +200,11 @@ void test("reproduction requires a confirmed marker and preserves child failure 
   await writeSigned(marker);
   const failed = run(7);
   assert.equal(failed.status, 7, failed.stderr);
-  const output = JSON.parse(await readFile(JSON.parse(failed.stdout).log, "utf8"));
+  const { log, runDir } = JSON.parse(failed.stdout);
+  const receipt = JSON.parse(await readFile(join(runDir, "result.json"), "utf8"));
+  assert.equal(receipt.status, "exited");
+  assert.equal(receipt.code, 7);
+  const output = JSON.parse(await readFile(log, "utf8"));
   assert.equal(output.args[output.args.indexOf("--model") + 1], "dev/test");
   assert.equal(output.args[output.args.indexOf("--thinking") + 1], "low");
   assert.match(output.prompt, /BUG-1/);
@@ -216,12 +212,24 @@ void test("reproduction requires a confirmed marker and preserves child failure 
 });
 
 void test("a child startup failure does not print the event or the child argument list", async (t) => {
-  const { run, writeSigned } = await fixture(t);
+  const { run, writeSigned, runs } = await fixture(t);
   await writeSigned({ ...report, text: "private-report-text" });
   const failed = run(0, join(tmpdir(), "nonexistent-pstack-pi"));
   assert.notEqual(failed.status, 0);
   assert.match(failed.stderr, /Unable to start Pi/);
   assert.doesNotMatch(failed.stderr, /private-report-text|spawnargs/);
+  const [claim] = await readdir(runs);
+  const dir = join(runs, claim);
+  const receipt = await readFile(join(dir, "result.json"), "utf8");
+  const result = JSON.parse(receipt);
+  assert.equal(result.status, "not-started");
+  assert.equal(result.code, failed.status);
+  assert.equal(result.eventId, report.eventId);
+  assert.match(result.error, /ENOENT/);
+  assert.equal(JSON.parse(failed.stdout).runDir, dir);
+  assert.doesNotMatch(receipt + failed.stdout, /private-report-text|spawnargs|test-secret/);
+  assert.match(run().stderr, /EEXIST/);
+  assert.equal(await readFile(join(dir, "result.json"), "utf8"), receipt);
 });
 
 void test("custom jobs pass Pi's max thinking level through to the child", async (t) => {

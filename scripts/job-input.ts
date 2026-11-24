@@ -30,7 +30,7 @@ export interface JobEvent {
 const thinkingLevels = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 const nativeReads = new Set(["read", "grep", "find", "ls"]);
 const nativeWrites = new Set(["edit", "write"]);
-const requiredConfig = ["slackChannel", "tracker", "repository", "featureMap", "controlAdapter"];
+const requiredConfig = ["tracker", "repository", "featureMap", "controlAdapter"];
 const hasText = (value: unknown): value is string => typeof value === "string" && !!value.trim();
 const optionalModel = (value: unknown): value is string | undefined =>
   value === undefined || (hasText(value) && !value.startsWith("-") && !value.includes("\0"));
@@ -76,24 +76,26 @@ const discoveryVerbs = new Set(["search", "find", "discover", "load"]);
 const writeVerbs = new Set(["create", "update", "put", "write"]);
 const repoObjects = new Set(["file", "files", "contents", "branch", "ref"]);
 const prObjects = new Set(["pr", "pull"]);
-const pairs = (name: string, verbs: Set<string>, objects: Set<string>) => {
-  const all = words(name);
-  return all.some((w) => verbs.has(w)) && all.some((w) => objects.has(w));
-};
-const forbidden = (tool: string) =>
-  isMcp(tool) &&
-  (words(tool).some((w) => forbiddenWords.has(w)) ||
+const hasPair = (tokens: string[], verbs: Set<string>, objects: Set<string>) =>
+  tokens.some((w) => verbs.has(w)) && tokens.some((w) => objects.has(w));
+
+function forbidden(tool: string) {
+  if (!isMcp(tool)) return false;
+  const tokens = words(tool);
+  return (
+    tokens.some((w) => forbiddenWords.has(w)) ||
     words(tool.split("__").at(-1) ?? "")[0] === "run" ||
-    pairs(tool, discoveryVerbs, toolObjects) ||
-    pairs(tool, writeVerbs, repoObjects));
-const createsPr = (tool: string) => pairs(tool, writeVerbs, prObjects);
+    hasPair(tokens, discoveryVerbs, toolObjects) ||
+    hasPair(tokens, writeVerbs, repoObjects)
+  );
+}
 
 function bennyConfig(kind: BennyKind, tools: string[], cfg: unknown): BennyConfig {
   if (
     !isRecord(cfg) ||
     cfg.enabled !== true ||
-    requiredConfig.some((key) => !hasText(cfg[key])) ||
     !hasText(cfg.slackChannel) ||
+    requiredConfig.some((key) => !hasText(cfg[key])) ||
     !optionalModel(cfg.triageModel) ||
     !optionalModel(cfg.reproModel) ||
     (cfg.allowDraftPr !== undefined && typeof cfg.allowDraftPr !== "boolean")
@@ -109,7 +111,7 @@ function bennyConfig(kind: BennyKind, tools: string[], cfg: unknown): BennyConfi
       "Benny disallows general command execution and merge/push/deploy/delete or repository-write tools; configure narrowly scoped MCP tools instead",
     );
   const draftPr = kind === "benny-repro" && cfg.allowDraftPr === true;
-  if (!draftPr && tools.some(createsPr))
+  if (!draftPr && tools.some((t) => hasPair(words(t), writeVerbs, prObjects)))
     throw Error("Benny pull request tools require benny-repro with allowDraftPr");
   return { ...cfg, slackChannel: cfg.slackChannel };
 }

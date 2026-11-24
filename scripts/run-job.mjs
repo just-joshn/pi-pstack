@@ -1,11 +1,13 @@
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
+import { once } from "node:events";
 import { writeFile, mkdir, open, realpath } from "node:fs/promises";
 import { resolve, dirname, join } from "node:path";
 import { finished } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 
 import { aliases } from "../lib/models.ts";
+import { isRecord } from "../lib/validation.ts";
 import { configuredModel, readJob, readEvent } from "./job-input.ts";
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -26,8 +28,6 @@ const runDir = join(dir, key);
 await mkdir(runDir, { mode: 0o700 });
 const log = join(runDir, "stdout.txt");
 const errorLog = join(runDir, "stderr.txt");
-const out = await open(log, "wx", 0o600);
-const err = await open(errorLog, "wx", 0o600);
 const env = { ...process.env };
 delete env.PSTACK_EVENT_SECRET;
 const prompt = [
@@ -59,41 +59,61 @@ if (job.kind === "custom" && job.tools.some((t) => t.startsWith("pstack_")))
 const model = configuredModel(job);
 if (model && !aliases.includes(model)) args.push("--model", model);
 if (job.thinking) args.push("--thinking", job.thinking);
-const child = spawn(process.env.PSTACK_PI_BIN ?? "pi", args, {
-  cwd,
-  env,
-  stdio: ["pipe", out.fd, err.fd],
-});
-const stdin = child.stdin;
-if (!stdin) throw Error("Pi started without a prompt stream");
-const abort = () => child.kill("SIGTERM");
-process.once("SIGINT", abort);
-process.once("SIGTERM", abort);
-let code;
-try {
-  const exited = new Promise((resolveExit, reject) => {
-    child.once("error", (error) => {
-      const reason = "code" in error ? String(error.code) : "unknown error";
-      reject(new Error(`Unable to start Pi (${reason}); check PSTACK_PI_BIN`));
+
+async function runPi() {
+  let out, err;
+  /** @type {ReturnType<typeof spawn> | undefined} */
+  let child;
+  const abort = () => child?.kill("SIGTERM");
+  try {
+    out = await open(log, "wx", 0o600);
+    err = await open(errorLog, "wx", 0o600);
+    child = spawn(process.env.PSTACK_PI_BIN ?? "pi", args, {
+      cwd,
+      env,
+      stdio: ["pipe", out.fd, err.fd],
     });
-    child.once("exit", (status) => resolveExit(status ?? 1));
-  });
-  const sent = finished(stdin).then(
-    () => true,
-    () => false,
-  );
-  stdin.end(prompt);
-  code = await exited;
-  if (!(await sent) && code === 0) throw Error("Pi exited before receiving the job prompt");
-} finally {
-  await Promise.all([out.close(), err.close()]);
-  process.removeListener("SIGINT", abort);
-  process.removeListener("SIGTERM", abort);
+    const stdin = child.stdin;
+    if (!stdin) throw Error("Pi started without a prompt stream");
+    process.once("SIGINT", abort);
+    process.once("SIGTERM", abort);
+    const exited = once(child, "exit");
+    const sent = finished(stdin).then(
+      () => true,
+      () => false,
+    );
+    stdin.end(prompt);
+    await exited;
+    const code = child.exitCode ?? 1;
+    if (code === 0 && !(await sent))
+      return { status: "exited", code: 1, error: "Pi exited before receiving the job prompt" };
+    return { status: "exited", code };
+  } catch (error) {
+    const reason = isRecord(error) && typeof error.code === "string" ? error.code : "unknown error";
+    return child?.pid === undefined
+      ? {
+          status: "not-started",
+          code: 1,
+          error: `Unable to start Pi (${reason}); check PSTACK_PI_BIN`,
+        }
+      : {
+          status: "unconfirmed",
+          code: 1,
+          error: `Pi run failed after launch (${reason}); inspect ${runDir}`,
+        };
+  } finally {
+    process.removeListener("SIGINT", abort);
+    process.removeListener("SIGTERM", abort);
+    await Promise.all([out?.close(), err?.close()]);
+  }
 }
+
+const outcome = await runPi();
 await writeFile(
   join(runDir, "result.json"),
-  JSON.stringify({ code, eventId: event?.eventId, log, errorLog }, null, 2),
+  JSON.stringify({ ...outcome, eventId: event?.eventId, log, errorLog }, null, 2),
   { flag: "wx", mode: 0o600 },
 );
-console.log(JSON.stringify({ code, runDir, log }));
-process.exitCode = code;
+if (outcome.error) console.error(outcome.error);
+console.log(JSON.stringify({ code: outcome.code, runDir, log }));
+process.exitCode = outcome.code;
