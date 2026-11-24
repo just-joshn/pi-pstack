@@ -4,11 +4,9 @@ import { dirname, join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { packageFile } from "../lib/catalog.ts";
+import { catalog, packageFile } from "../lib/catalog.ts";
 import { isJobKind } from "../lib/jobs.ts";
 import { artifacts, hasErrorCode, result, tsvRow, type Notify } from "./support.ts";
-
-const bennyInstructions = { "benny-triage": "triage", "benny-repro": "repro" };
 
 export function registerRecords(pi: ExtensionAPI, notify: Notify) {
   pi.registerCommand("pstack-automation", {
@@ -21,7 +19,7 @@ export function registerRecords(pi: ExtensionAPI, notify: Notify) {
         kind === "custom"
           ? { instructions: "Supply explicit task, approved tools, trigger and finish predicate." }
           : {
-              instructions: packageFile(`reference/benny/${bennyInstructions[kind]}.md`),
+              instructions: packageFile(catalog.paths[kind]),
               config: JSON.parse(packageFile("reference/benny/config.example.json")),
             };
       const job = { version: 1, enabled: false, kind, cwd: ctx.cwd, tools: [], ...draft };

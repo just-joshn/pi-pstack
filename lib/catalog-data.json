@@ -1,6 +1,16 @@
 {
   "generatedBy": "scripts/generate.py",
   "paths": {
+    "agent-poteto": "agents/poteto-agent.md",
+    "agent-comment": "agents/comment-sicko.md",
+    "kit-ci-watcher": "agents/ci-watcher.md",
+    "kit-quality-agent": "agents/quality-agent.md",
+    "kit-exhaustive-switch": "reference/rules/typescript-exhaustive-switch.md",
+    "kit-no-inline-imports": "reference/rules/no-inline-imports.md",
+    "worker": "agents/worker.md",
+    "benny-setup": "reference/benny/setup.md",
+    "benny-triage": "reference/benny/triage.md",
+    "benny-repro": "reference/benny/repro.md",
     "setup-pstack": "skills/setup-pstack/SKILL.md",
     "poteto-mode": "skills/poteto-mode/SKILL.md",
     "poteto-help": "skills/poteto-help/SKILL.md",

@@ -65,8 +65,7 @@ export const routeTriggers = () => routes.map((id) => ({ id, when: known("pb-" +
 export function nativeNode(id: string) {
   const n = known(id);
   const [classification, implementation] = catalog.implementations[id];
-  const path = catalog.paths[id] ?? implementation.split(" + ")[0];
-  const instructionFile = /^(agents|reference)\/[^ ]+\.md$/.test(path) || !!catalog.paths[id];
+  const path = catalog.paths[id];
   return {
     id,
     label: n.label,
@@ -76,7 +75,7 @@ export function nativeNode(id: string) {
     classification,
     implementation,
     sources: n.source,
-    instructions: instructionFile ? packageFile(path) : undefined,
+    instructions: path ? packageFile(path) : undefined,
     outgoing: outgoing.get(id) ?? [],
     incoming: incoming.get(id) ?? [],
   };

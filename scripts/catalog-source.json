@@ -228,6 +228,18 @@
     "kit-workflow-from-chats": "Read relevant authorized Pi sessions and extract repeated decisions and instructions into a durable Pi skill or AGENTS.md change; show evidence and validate.",
     "kit-thermo-nuclear-code-quality-review": "Review actual changes for needless layers, coupling, type holes, mutation and reader load; classify only actionable findings with paths and evidence; use a read-only quality worker for independent review."
   },
+  "instructionPaths": {
+    "agent-poteto": "agents/poteto-agent.md",
+    "agent-comment": "agents/comment-sicko.md",
+    "kit-ci-watcher": "agents/ci-watcher.md",
+    "kit-quality-agent": "agents/quality-agent.md",
+    "kit-exhaustive-switch": "reference/rules/typescript-exhaustive-switch.md",
+    "kit-no-inline-imports": "reference/rules/no-inline-imports.md",
+    "worker": "agents/worker.md",
+    "benny-setup": "reference/benny/setup.md",
+    "benny-triage": "reference/benny/triage.md",
+    "benny-repro": "reference/benny/repro.md"
+  },
   "implementations": {
     "cli": ["host", "pi interactive / --print / --mode json / --mode rpc"],
     "cli-plugins": ["host", "pi install, pi config, pi list, /reload"],

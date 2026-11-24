@@ -4,11 +4,15 @@ Inputs:  reference/source-map.json (upstream graph, never edited)
          scripts/catalog-source.json (the instructions written for Pi)
 Outputs: skills/**, lib/catalog-data.json, reference/parity.json, reference/PARITY.md
 
-Run `bun run generate`; it formats the JSON and Markdown afterwards. Do not edit the outputs.
+Run `bun run generate` to refresh owned outputs or `bun run check:generated` to check them.
 """
 
+import argparse
 import json
+import subprocess
 from pathlib import Path
+from shutil import which
+from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[1]
 GENERATED_BY = "scripts/generate.py"
@@ -104,11 +108,52 @@ def relationships(node_id):
     return RELATIONSHIPS + "\n".join(links) if links else ""
 
 
-def write_json(path, value):
-    (ROOT / path).write_text(json.dumps(value, indent=2) + "\n")
+def json_text(value):
+    return json.dumps(value, indent=2) + "\n"
 
 
-paths, implementations, matrix = {}, {}, []
+def reconcile(outputs, check):
+    stale = []
+    with TemporaryDirectory(prefix="pstack-generate-") as tmp:
+        stage = Path(tmp)
+        for path, content in outputs.items():
+            target = stage / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+        formatter = which("oxfmt", path=str(ROOT / "node_modules/.bin")) or "oxfmt"
+        subprocess.run(
+            [formatter, "--config", ROOT / ".oxfmtrc.json", *outputs], cwd=stage, check=True
+        )
+
+        for path in outputs:
+            expected = (stage / path).read_bytes()
+            target = ROOT / path
+            if target.is_file() and target.read_bytes() == expected:
+                continue
+            stale.append(path)
+            if not check:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(expected)
+
+    for target in (ROOT / "skills").rglob("*.md"):
+        path = target.relative_to(ROOT).as_posix()
+        if path in outputs or target.is_symlink() or not target.is_file():
+            continue
+        if target.read_bytes().rstrip().endswith(MARKER.encode()):
+            stale.append(path)
+            if not check:
+                target.unlink()
+    if check and stale:
+        raise SystemExit(
+            "Stale generated files; run `bun run generate`:\n" + "\n".join(sorted(stale))
+        )
+
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--check", action="store_true", help="check generated files without writing")
+args = parser.parse_args()
+outputs = {}
+paths, implementations, matrix = dict(source["instructionPaths"]), {}, []
 for node in upstream["nodes"]:
     status, implementation, path, invocation = classify(node)
     implementations[node["id"]] = (status, implementation)
@@ -125,12 +170,9 @@ for node in upstream["nodes"]:
     if path:
         paths[node["id"]] = path
         sections = [body(node), relationships(node["id"]), MARKER]
-        target = ROOT / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("\n\n".join(filter(None, sections)) + "\n")
+        outputs[path] = "\n\n".join(filter(None, sections)) + "\n"
 
-write_json(
-    "lib/catalog-data.json",
+outputs["lib/catalog-data.json"] = json_text(
     {
         "generatedBy": GENERATED_BY,
         "paths": paths,
@@ -138,8 +180,7 @@ write_json(
         "implementations": implementations,
     },
 )
-write_json(
-    "reference/parity.json",
+outputs["reference/parity.json"] = json_text(
     {
         "generatedBy": GENERATED_BY,
         "sourceVersion": upstream["version"],
@@ -153,10 +194,11 @@ rows = "".join(
     f"| `{row['id']}` | {row['status']} | {row['implementation'].replace('|', ' or ')} |\n"
     for row in matrix
 )
-(ROOT / "reference/PARITY.md").write_text(
+outputs["reference/PARITY.md"] = (
     "# Node coverage\n\n"
     "Every original ID is mapped. Status is implementation classification, not behavioral proof.\n\n"
     "| Node | Classification | Pi implementation |\n|---|---|---|\n"
     f"{rows}\n{MARKER}\n"
 )
-print(f"{len(paths)} files, {len(steps)} playbooks, {len(matrix)} nodes")
+reconcile(outputs, args.check)
+print(f"{len(outputs)} generated files, {len(steps)} playbooks, {len(matrix)} nodes")
