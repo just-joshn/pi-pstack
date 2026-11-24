@@ -4,11 +4,10 @@ import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createInterface } from "node:readline";
 import { setTimeout as wait } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
 
-import { catalog, slashSkills } from "../lib/catalog.ts";
-const root = fileURLToPath(new URL("../", import.meta.url));
+import { catalog, root, slashSkills } from "../lib/catalog.ts";
 const cwd = await mkdtemp(join(tmpdir(), "pstack-smoke-"));
 const child = spawn(
   process.env.PSTACK_PI_BIN ?? "pi",
@@ -33,38 +32,22 @@ const child = spawn(
     stdio: ["pipe", "pipe", "pipe"],
   },
 );
-let stderr = "",
-  buffer = "";
+let stderr = "";
 child.stderr.setEncoding("utf8").on("data", (s) => (stderr += s));
 const responses = new Map();
-child.stdout.setEncoding("utf8").on("data", (chunk) => {
-  buffer += chunk;
-  let i;
-  while ((i = buffer.indexOf("\n")) >= 0) {
-    const line = buffer.slice(0, i);
-    buffer = buffer.slice(i + 1);
-    if (!line) continue;
-    let item;
-    try {
-      item = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (item.type === "response" && responses.has(item.id)) {
-      responses.get(item.id)(item);
-      responses.delete(item.id);
-    }
+createInterface({ input: child.stdout, crlfDelay: Infinity }).on("line", (line) => {
+  let item;
+  try {
+    item = JSON.parse(line);
+  } catch {
+    return;
   }
+  if (item.type === "response") responses.get(item.id)?.(item);
 });
 const exited = once(child, "exit");
-exited.catch(() => {});
-const failed = new Promise((_, reject) => {
-  child.once("error", reject);
-  child.once("exit", (code, signal) =>
-    reject(Error(`Pi exited (${code ?? signal}) before smoke completed: ${stderr}`)),
-  );
+const failed = exited.then(([code, signal]) => {
+  throw Error(`Pi exited (${code ?? signal}) before smoke completed: ${stderr}`);
 });
-failed.catch(() => {});
 /** @param {string} id @param {string} type @param {Record<string, unknown>} fields */
 async function rpc(id, type, fields = {}) {
   let timer;
