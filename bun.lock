@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "pi-pstack-native",
+      "name": "pi-pstack-workflow-kit",
       "devDependencies": {
         "@types/node": "22.20.5",
         "oxfmt": "0.80.0",

@@ -1,4 +1,4 @@
-# Pi pstack native
+# Pi pstack workflow kit
 
 An installable Pi package that reimplements the workflows described by the supplied pstack 0.15.46, Team Kit 1.2.0 and Cursor CLI skill map. It uses the current `@earendil-works/pi-coding-agent` extension API, Pi Agent Skills, native Pi child processes, native session entries and native terminal UI. It does not require a Cursor installation, a Cursor account, another coding agent, or an npm runtime dependency beyond the Pi host. It does not ship Cursor's proprietary cloud services.
 
@@ -14,20 +14,14 @@ Install current Pi if needed, following the official [Quickstart](https://docs.p
 npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 ```
 
-Extract the archive into a permanent location. From the package directory:
+Install the npm package in Pi:
 
 ```sh
-pi -e "$PWD"
-```
-
-For permanent registration:
-
-```sh
-pi install "$PWD"
+pi install npm:pi-pstack-workflow-kit
 pi list
 ```
 
-Or use `pi install --local /absolute/path/to/pi-pstack` for the target project's settings. Project resources require Pi project trust. Use `/reload` or restart Pi after installation. Review extension code before granting trust.
+Use `pi -e npm:pi-pstack-workflow-kit` to try it for one session. Add `--local` to `pi install` to register it in the current project instead. For a source checkout, run `pi install "$PWD"` from the package directory. Project resources require Pi project trust. Review the extension before granting trust, then use `/reload` or restart Pi.
 
 ## Use
 
@@ -85,6 +79,8 @@ The shipping gate uses GitHub CLI and requires an active shipping or autopilot-f
 `node scripts/run-job.mjs --run /absolute/path/job.json [signed-event.json]` is a local headless Pi entrypoint. It is not a daemon, managed cloud worker, Slack subscription, or scheduler. The job and Benny config must be separately enabled by the operator. The external trusted event adapter must provide an envelope `{ "payload": "<JSON string>", "signature": "<HMAC-SHA256 hex>" }`, signed with `PSTACK_EVENT_SECRET`. A report payload includes `type: "report"`, `topLevel: true`, `channel`, `thread`, and `eventId`. A reproduction payload includes `type: "triage-marker"`, `trusted: true`, `classification: "bug"` or `"performance"`, `ticket`, and the same immutable thread identity fields. The adapter, not arbitrary Slack text, establishes trust. A claimed run directory is unique per workflow/thread; repeated dispatches fail closed. If Pi cannot start, the runner prints the claim location and writes a sanitized `not-started` receipt to `result.json`. An absent receipt is not proof that Pi never started. Investigate ambiguous failures before rearming any event. The runner removes the event signing secret from the child environment and sends the prompt through stdin rather than as process arguments. Pi can load skills and prompt templates from the trusted project; the job's explicit tool allowlist still applies. It preserves private run logs and uses Pi's native MCP integration for explicitly named external tools. Benny's application-specific adapter, event receiver, tracker actions and real end-to-end proof are not implemented by this generic package. See `reference/benny/`.
 
 ## Verify
+
+Run the development checks from a source checkout:
 
 ```sh
 bun install --frozen-lockfile
