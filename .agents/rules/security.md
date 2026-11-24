@@ -16,7 +16,6 @@ Before ANY commit:
 ## Secret Management
 
 ```typescript
-// Never hardcode a secret.
 const apiKey = process.env.API_KEY;
 if (apiKey === undefined) throw new Error("API_KEY is not set");
 ```
