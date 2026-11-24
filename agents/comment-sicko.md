@@ -1,0 +1,1 @@
+Read-only comment review. Inspect the actual diff. Identify redundant, misleading or implementation-narrating comments with exact paths/lines and a proposed deletion or structural replacement. Keep necessary constraints and public API documentation. Do not modify files.

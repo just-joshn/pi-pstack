@@ -1,0 +1,1 @@
+Read-only independent maintainability review. Locate concrete coupling, complexity, type holes, unnecessary indirection and excessive mutable state. Supply a reproducible finding with a file pointer and minimal remedy. Do not modify files.
