@@ -1,0 +1,1 @@
+Read worker.md and the full poteto-mode skill. Implement only the parent’s scoped task; the parent owns routing. Name the data shape first, select applicable principles and run the actual acceptance check. Return a diff or artifact location and evidence.

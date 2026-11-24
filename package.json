@@ -1,0 +1,70 @@
+{
+  "name": "pi-pstack-workflow-kit",
+  "version": "0.1.0",
+  "description": "Map-driven pstack and Team Kit workflows for Pi",
+  "keywords": [
+    "pi-package"
+  ],
+  "homepage": "https://github.com/just-joshn/pi-pstack/tree/feature/pi-native-workflow-kit#readme",
+  "bugs": {
+    "url": "https://github.com/just-joshn/pi-pstack/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/just-joshn/pi-pstack.git"
+  },
+  "files": [
+    "agents",
+    "extensions",
+    "lib",
+    "reference",
+    "scripts/job-input.ts",
+    "scripts/run-job.mjs",
+    "skills"
+  ],
+  "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "generate": "python3 scripts/generate.py",
+    "check:generated": "python3 scripts/generate.py --check",
+    "typecheck": "tsrs --noEmit",
+    "typecheck:fast": "tsrs --noEmit --fast",
+    "typecheck:ci": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 --test-coverage-include='extensions/**' --test-coverage-include='lib/**' --test-coverage-include='scripts/run-job.mjs' --test-coverage-include='scripts/job-input.ts' tests/*.test.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "check": "bun run check:generated && oxlint && oxfmt --check && tsrs --noEmit && bun run test:coverage",
+    "check:ci": "bun run check:generated && oxlint && oxfmt --check && tsc --noEmit && bun run test:coverage"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "oxfmt": "0.80.0",
+    "oxlint": "1.95.0",
+    "tsrs": "7.1.0-beta.tsrs5",
+    "typescript": "7.0.2"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "pi": {
+    "extensions": [
+      "extensions/index.ts"
+    ],
+    "skills": [
+      "skills"
+    ]
+  }
+}

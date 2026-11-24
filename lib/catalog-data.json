@@ -1,0 +1,560 @@
+{
+  "generatedBy": "scripts/generate.py",
+  "paths": {
+    "agent-poteto": "agents/poteto-agent.md",
+    "agent-comment": "agents/comment-sicko.md",
+    "kit-ci-watcher": "agents/ci-watcher.md",
+    "kit-quality-agent": "agents/quality-agent.md",
+    "kit-exhaustive-switch": "reference/rules/typescript-exhaustive-switch.md",
+    "kit-no-inline-imports": "reference/rules/no-inline-imports.md",
+    "worker": "agents/worker.md",
+    "benny-setup": "reference/benny/setup.md",
+    "benny-triage": "reference/benny/triage.md",
+    "benny-repro": "reference/benny/repro.md",
+    "setup-pstack": "skills/setup-pstack/SKILL.md",
+    "poteto-mode": "skills/poteto-mode/SKILL.md",
+    "poteto-help": "skills/poteto-help/SKILL.md",
+    "in-your-own-words": "skills/in-your-own-words/SKILL.md",
+    "sharpen": "skills/sharpen/SKILL.md",
+    "how": "skills/how/SKILL.md",
+    "why": "skills/why/SKILL.md",
+    "teach": "skills/teach/SKILL.md",
+    "recall": "skills/recall/SKILL.md",
+    "ketchup": "skills/ketchup/SKILL.md",
+    "ketchup-video": "skills/ketchup-video/SKILL.md",
+    "architect": "skills/architect/SKILL.md",
+    "arena": "skills/arena/SKILL.md",
+    "swarm": "skills/swarm/SKILL.md",
+    "interrogate": "skills/interrogate/SKILL.md",
+    "blast-radius": "skills/blast-radius/SKILL.md",
+    "tdd": "skills/tdd/SKILL.md",
+    "benchmark-checklist": "skills/benchmark-checklist/SKILL.md",
+    "no-comments": "skills/no-comments/SKILL.md",
+    "typescript-best-practices": "skills/typescript-best-practices/SKILL.md",
+    "figure-it-out": "skills/figure-it-out/SKILL.md",
+    "show-me-your-work": "skills/show-me-your-work/SKILL.md",
+    "create-verification-skill": "skills/create-verification-skill/SKILL.md",
+    "maintain-verification-skill": "skills/maintain-verification-skill/SKILL.md",
+    "create-formal-verification-skill": "skills/create-formal-verification-skill/SKILL.md",
+    "maintain-formal-verification-skill": "skills/maintain-formal-verification-skill/SKILL.md",
+    "statechart": "skills/statechart/SKILL.md",
+    "reflect": "skills/reflect/SKILL.md",
+    "correct": "skills/correct/SKILL.md",
+    "automate-me": "skills/automate-me/SKILL.md",
+    "make-bot-ui": "skills/make-bot-ui/SKILL.md",
+    "unslop": "skills/unslop/SKILL.md",
+    "bro": "skills/bro/SKILL.md",
+    "technical-writing": "skills/technical-writing/SKILL.md",
+    "principle-laziness-protocol": "skills/principle-laziness-protocol/SKILL.md",
+    "principle-foundational-thinking": "skills/principle-foundational-thinking/SKILL.md",
+    "principle-redesign-from-first-principles": "skills/principle-redesign-from-first-principles/SKILL.md",
+    "principle-attack-the-premise": "skills/principle-attack-the-premise/SKILL.md",
+    "principle-subtract-before-you-add": "skills/principle-subtract-before-you-add/SKILL.md",
+    "principle-minimize-reader-load": "skills/principle-minimize-reader-load/SKILL.md",
+    "principle-outcome-oriented-execution": "skills/principle-outcome-oriented-execution/SKILL.md",
+    "principle-experience-first": "skills/principle-experience-first/SKILL.md",
+    "principle-exhaust-the-design-space": "skills/principle-exhaust-the-design-space/SKILL.md",
+    "principle-build-the-lever": "skills/principle-build-the-lever/SKILL.md",
+    "principle-model-the-domain": "skills/principle-model-the-domain/SKILL.md",
+    "principle-boundary-discipline": "skills/principle-boundary-discipline/SKILL.md",
+    "principle-type-system-discipline": "skills/principle-type-system-discipline/SKILL.md",
+    "principle-make-operations-idempotent": "skills/principle-make-operations-idempotent/SKILL.md",
+    "principle-migrate-callers-then-delete-legacy-apis": "skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
+    "principle-separate-before-serializing-shared-state": "skills/principle-separate-before-serializing-shared-state/SKILL.md",
+    "principle-prove-it-works": "skills/principle-prove-it-works/SKILL.md",
+    "principle-fix-root-causes": "skills/principle-fix-root-causes/SKILL.md",
+    "principle-sequence-verifiable-units": "skills/principle-sequence-verifiable-units/SKILL.md",
+    "principle-test-behavior-not-implementation": "skills/principle-test-behavior-not-implementation/SKILL.md",
+    "principle-explain-the-number": "skills/principle-explain-the-number/SKILL.md",
+    "principle-guard-the-context-window": "skills/principle-guard-the-context-window/SKILL.md",
+    "principle-never-block-on-the-human": "skills/principle-never-block-on-the-human/SKILL.md",
+    "principle-encode-lessons-in-structure": "skills/principle-encode-lessons-in-structure/SKILL.md",
+    "kit-control-ui": "skills/control-ui/SKILL.md",
+    "kit-control-cli": "skills/control-cli/SKILL.md",
+    "kit-deslop": "skills/deslop/SKILL.md",
+    "kit-verify-this": "skills/verify-this/SKILL.md",
+    "kit-loop-on-ci": "skills/loop-on-ci/SKILL.md",
+    "kit-fix-ci": "skills/fix-ci/SKILL.md",
+    "kit-review-and-ship": "skills/review-and-ship/SKILL.md",
+    "kit-pr-review-canvas": "skills/pr-review-canvas/SKILL.md",
+    "kit-make-pr-easy-to-review": "skills/make-pr-easy-to-review/SKILL.md",
+    "kit-run-smoke-tests": "skills/run-smoke-tests/SKILL.md",
+    "kit-new-branch-and-pr": "skills/new-branch-and-pr/SKILL.md",
+    "kit-get-pr-comments": "skills/get-pr-comments/SKILL.md",
+    "kit-check-compiler-errors": "skills/check-compiler-errors/SKILL.md",
+    "kit-what-did-i-get-done": "skills/what-did-i-get-done/SKILL.md",
+    "kit-weekly-review": "skills/weekly-review/SKILL.md",
+    "kit-fix-merge-conflicts": "skills/fix-merge-conflicts/SKILL.md",
+    "kit-workflow-from-chats": "skills/workflow-from-chats/SKILL.md",
+    "kit-thermo-nuclear-code-quality-review": "skills/thermo-nuclear-code-quality-review/SKILL.md",
+    "pb-investigation": "skills/poteto-mode/playbooks/investigation.md",
+    "pb-bug-fix": "skills/poteto-mode/playbooks/bug-fix.md",
+    "pb-perf-issue": "skills/poteto-mode/playbooks/perf-issue.md",
+    "pb-hillclimb": "skills/poteto-mode/playbooks/hillclimb.md",
+    "pb-runtime-forensics": "skills/poteto-mode/playbooks/runtime-forensics.md",
+    "pb-trace-forensics": "skills/poteto-mode/playbooks/trace-forensics.md",
+    "pb-feature": "skills/poteto-mode/playbooks/feature.md",
+    "pb-refactoring": "skills/poteto-mode/playbooks/refactoring.md",
+    "pb-prototype": "skills/poteto-mode/playbooks/prototype.md",
+    "pb-visual-parity": "skills/poteto-mode/playbooks/visual-parity.md",
+    "pb-authoring-a-skill": "skills/poteto-mode/playbooks/authoring-a-skill.md",
+    "pb-eval": "skills/poteto-mode/playbooks/eval.md",
+    "pb-babysit": "skills/poteto-mode/playbooks/babysit.md",
+    "pb-shipping": "skills/poteto-mode/playbooks/shipping.md",
+    "pb-autonomous-run": "skills/poteto-mode/playbooks/autonomous-run.md",
+    "pb-autopilot-full": "skills/poteto-mode/playbooks/autopilot-full.md",
+    "pb-autopilot-stack": "skills/poteto-mode/playbooks/autopilot-stack.md",
+    "pb-session-pickup": "skills/poteto-mode/playbooks/session-pickup.md",
+    "pb-pause-safely": "skills/poteto-mode/playbooks/pause-safely.md",
+    "pb-multi-phase-plan": "skills/poteto-mode/playbooks/multi-phase-plan.md",
+    "pb-worktree-cleanup": "skills/poteto-mode/playbooks/worktree-cleanup.md",
+    "pb-opening-a-pr": "skills/poteto-mode/playbooks/opening-a-pr.md"
+  },
+  "steps": {
+    "investigation": [
+      "Restate the question and set a read-only scope.",
+      "Trace actual callers, state, and control flow.",
+      "Use why for historical motivation when relevant.",
+      "Report facts, uncertainty, and evidence; apply unslop."
+    ],
+    "bug-fix": [
+      "Restate expected and actual behavior; reproduce the original failure on the real UI, CLI, or other matching surface.",
+      "Trace to the earliest invalid state; use why to establish constraints.",
+      "Read architect if the boundary changes; select the smallest root-cause fix.",
+      "Use tdd if a cheap behavioral red test exists; delegate scoped implementation with the reproduction.",
+      "Run the original reproduction and relevant regression checks; inspect worker diff.",
+      "Use no-comments and deslop before the applicable ready PR flow."
+    ],
+    "perf-issue": [
+      "Define the workload, metric, and threshold; capture a representative baseline on the matching surface.",
+      "Use benchmark-checklist; locate the actual limiter and record the baseline.",
+      "Trace the source; use architect if changing boundaries; delegate a focused fix.",
+      "Capture treatment using identical conditions; repeat runs and check behavior.",
+      "Compare results, explain the number, and prepare a ready PR when authorized."
+    ],
+    "hillclimb": [
+      "Fix the workload, metric, target, and behavior constraints.",
+      "Build and freeze a sensitive benchmark; validate using benchmark-checklist.",
+      "Start a decision TSV; record one hypothesis at a time.",
+      "Implement and measure each isolated experiment; discard regressions and noisy wins.",
+      "Repeat accepted measurements and run end-to-end checks; stop at target or evidence-backed dead end.",
+      "Prepare a ready PR when authorized."
+    ],
+    "runtime-forensics": [
+      "Set read-only scope; select the real UI or CLI control method.",
+      "Capture profile, heap snapshot, or trace with a repeatable scenario.",
+      "Reduce large captures using read-only delegates and identify the first causal mechanism.",
+      "Prove the mechanism and link the source; report evidence without changing code."
+    ],
+    "trace-forensics": [
+      "Identify artifact format, time range, workload and question.",
+      "Parse the artifact into a queryable structure; delegate bulk reads if needed.",
+      "Narrow and attribute findings to actual source; compare paired captures if available.",
+      "Report evidence and uncertainty; only route to bug-fix or perf-issue if the user requests a fix."
+    ],
+    "feature": [
+      "Restate new behavior and acceptance predicate; trace the existing subsystem.",
+      "Use architect for caller-facing shape; model domain state before writing logic.",
+      "Record implementation and verification checkpoints; delegate a scoped change.",
+      "Verify on the real UI, CLI, or other matching surface.",
+      "Inspect diff and order verified commits; interrogate a contested design.",
+      "Apply no-comments and deslop, then prepare a ready PR when authorized."
+    ],
+    "refactoring": [
+      "Pin the observable behavior and test it before editing.",
+      "Name the target structure with architect where needed; model domain and subtract dead weight.",
+      "Move callers in individually verified slices, without unnecessary compatibility wrappers.",
+      "Prove behavioral equivalence, lower reader load, and inspect the final diff.",
+      "Prepare a ready PR when authorized."
+    ],
+    "prototype": [
+      "Name the decision, competing hypotheses, and evaluation criteria.",
+      "Build isolated lightweight alternatives; avoid production commitments.",
+      "Exercise each on the matching real surface and capture comparable evidence.",
+      "Report tradeoffs and select or recommend a direction; hand the chosen design to feature only with applicable scope."
+    ],
+    "visual-parity": [
+      "Capture baseline under fixed conditions and preserve the verification setup.",
+      "Partition independent components into isolated worker scopes.",
+      "Capture treatment and compare pixels on the real surface; retain diff images and settings.",
+      "Repeat with bounded loop until exact match or evidence-backed blocker; avoid overwriting baseline.",
+      "Prepare a ready PR when authorized."
+    ],
+    "authoring-a-skill": [
+      "Inspect existing Pi SKILL.md and its callers; decide whether a skill is appropriate.",
+      "Write or edit valid Agent Skills frontmatter and relative supporting references.",
+      "Check name, description, paths, cross-skill references, and structural cases.",
+      "Load the skill in fresh Pi and test representative positive and negative prompts.",
+      "Prepare a ready PR when authorized."
+    ],
+    "eval": [
+      "Write a judge-only rubric and outcome definition.",
+      "Sanitize candidate environments and remove identifying labels.",
+      "Run each candidate with the same organic prompt and independent Pi sessions.",
+      "Give the blinded judge actual outputs/transcripts, not summaries; verify transcript reads.",
+      "Inspect every output and report method, scores and failure cases."
+    ],
+    "babysit": [
+      "Identify forge, PR number, current head and merge base.",
+      "Read current PR checks, conflicts and review comments.",
+      "Investigate failures; reproduce each bot finding before fixing or dismissing.",
+      "Run checks again after each patch; never equate old-head green with current green.",
+      "Report merge readiness and blockers; do not merge."
+    ],
+    "shipping": [
+      "Require explicit authorization for the ordered PR stack; identify forge and target heads.",
+      "Independently verify each patch on its actual behavior; record head identity and evidence.",
+      "Compute contiguous verified prefix; stop at first missing, stale or failed proof.",
+      "Check fresh CI and current head before each authorized merge; land bottom-up.",
+      "Stop at ceiling or any changed head, failed check, conflict or missing permission; report actual merge results."
+    ],
+    "autonomous-run": [
+      "Write a checkable completion predicate, constraints, and stop conditions.",
+      "Record baseline and choose bounded wake cadence.",
+      "Make small evidence-backed changes, one hypothesis at a time.",
+      "Verify each iteration and record decisions; recheck actual predicate.",
+      "Stop the loop at verified completion or a real dead end; report evidence and resume state."
+    ],
+    "autopilot-full": [
+      "Require explicit queue scope and merge authorization; identify independent PRs and dependencies.",
+      "Assign one isolated owner per PR off trunk; keep verified checkpoints.",
+      "Run deslop and no-comments before code-ready; obtain independent verification.",
+      "Audit current-head CI and exact patch identity; use shipping policy for authorized merges only.",
+      "Use bounded loop to reconcile state, stop at blockers and report actual merges."
+    ],
+    "autopilot-stack": [
+      "Identify operator-owned landing and explicitly prohibit merges.",
+      "Use autopilot-full ownership and independent verification policy; stack only true dependencies.",
+      "Rebase or update dependent patches and repeat affected checks after each head change.",
+      "Stop when all requested PRs have fresh verification and green current-head CI; hand back without merging."
+    ],
+    "session-pickup": [
+      "Read native Pi branch/session history, worktree state, and decision log.",
+      "Reconstruct goal, branch, completed and pending tasks with evidence.",
+      "Re-run critical inherited claims on the real artifact.",
+      "Route remaining work through poteto-mode; do not repeat verified work needlessly."
+    ],
+    "pause-safely": [
+      "Stop scheduled wakes; let or cancel nested work at a safe boundary.",
+      "Inspect worktree state; avoid irreversible actions and do not discard changes.",
+      "If appropriate and authorized, preserve a local WIP commit; otherwise preserve files.",
+      "Write a resume note with goal, branch, tasks, evidence, blockers and next action."
+    ],
+    "multi-phase-plan": [
+      "Define outcome, constraints, and measurable acceptance.",
+      "Prototype unresolved empirical forks; settle caller-facing design.",
+      "Write dependency graph and each PR scope, tests, live/perf predicates and sequencing.",
+      "Stop for explicit operator authorization before execution."
+    ],
+    "worktree-cleanup": [
+      "List worktrees, branches, dirty status, and merge/ancestry evidence.",
+      "Cross-check active or pinned sessions and worker records; unknown ownership is not safe.",
+      "Require explicit approval of each clean, confirmed inactive and merged worktree.",
+      "Remove without force and verify disk usage; preserve dirty or uncertain work."
+    ],
+    "opening-a-pr": [
+      "Inspect git state, target branch and worktree; preserve unrelated edits.",
+      "Review diff, verify actual behavior, and apply no-comments plus deslop before committing.",
+      "Create ordered commits only within authorized scope; write why, change and evidence.",
+      "Use configured forge to create a ready PR when authorized; confirm URL and status."
+    ]
+  },
+  "implementations": {
+    "setup-pstack": ["extension", "skills/setup-pstack/SKILL.md; /setup-pstack"],
+    "poteto-mode": ["extension", "skills/poteto-mode/SKILL.md; /poteto-mode"],
+    "poteto-help": ["instruction", "skills/poteto-help/SKILL.md; /poteto-help"],
+    "in-your-own-words": ["instruction", "skills/in-your-own-words/SKILL.md; /in-your-own-words"],
+    "sharpen": ["instruction", "skills/sharpen/SKILL.md; /sharpen"],
+    "how": ["instruction", "skills/how/SKILL.md; /how"],
+    "why": ["instruction", "skills/why/SKILL.md; /why"],
+    "teach": ["instruction", "skills/teach/SKILL.md; /teach"],
+    "recall": ["instruction", "skills/recall/SKILL.md; /recall"],
+    "ketchup": ["instruction", "skills/ketchup/SKILL.md; /ketchup"],
+    "ketchup-video": ["conditional", "skills/ketchup-video/SKILL.md; /ketchup-video"],
+    "architect": ["instruction", "skills/architect/SKILL.md; /architect"],
+    "arena": ["extension", "skills/arena/SKILL.md; /arena"],
+    "swarm": ["extension", "skills/swarm/SKILL.md; /swarm"],
+    "interrogate": ["extension", "skills/interrogate/SKILL.md; /interrogate"],
+    "blast-radius": ["instruction", "skills/blast-radius/SKILL.md; /blast-radius"],
+    "tdd": ["instruction", "skills/tdd/SKILL.md; /tdd"],
+    "benchmark-checklist": [
+      "instruction",
+      "skills/benchmark-checklist/SKILL.md; /benchmark-checklist"
+    ],
+    "no-comments": ["extension", "skills/no-comments/SKILL.md; /no-comments"],
+    "typescript-best-practices": [
+      "instruction",
+      "skills/typescript-best-practices/SKILL.md; /typescript-best-practices"
+    ],
+    "figure-it-out": ["instruction", "skills/figure-it-out/SKILL.md; /figure-it-out"],
+    "show-me-your-work": ["extension", "skills/show-me-your-work/SKILL.md; /show-me-your-work"],
+    "create-verification-skill": [
+      "conditional",
+      "skills/create-verification-skill/SKILL.md; /create-verification-skill"
+    ],
+    "maintain-verification-skill": [
+      "conditional",
+      "skills/maintain-verification-skill/SKILL.md; /maintain-verification-skill"
+    ],
+    "create-formal-verification-skill": [
+      "conditional",
+      "skills/create-formal-verification-skill/SKILL.md; /create-formal-verification-skill"
+    ],
+    "maintain-formal-verification-skill": [
+      "conditional",
+      "skills/maintain-formal-verification-skill/SKILL.md; /maintain-formal-verification-skill"
+    ],
+    "statechart": ["conditional", "skills/statechart/SKILL.md; /statechart"],
+    "reflect": ["instruction", "skills/reflect/SKILL.md; /reflect"],
+    "correct": ["instruction", "skills/correct/SKILL.md; /correct"],
+    "automate-me": ["instruction", "skills/automate-me/SKILL.md; /automate-me"],
+    "make-bot-ui": ["conditional", "skills/make-bot-ui/SKILL.md; /make-bot-ui"],
+    "unslop": ["instruction", "skills/unslop/SKILL.md; /unslop"],
+    "bro": ["instruction", "skills/bro/SKILL.md; /bro"],
+    "technical-writing": ["instruction", "skills/technical-writing/SKILL.md; /technical-writing"],
+    "principle-laziness-protocol": ["instruction", "skills/principle-laziness-protocol/SKILL.md"],
+    "principle-foundational-thinking": [
+      "instruction",
+      "skills/principle-foundational-thinking/SKILL.md"
+    ],
+    "principle-redesign-from-first-principles": [
+      "instruction",
+      "skills/principle-redesign-from-first-principles/SKILL.md"
+    ],
+    "principle-attack-the-premise": ["instruction", "skills/principle-attack-the-premise/SKILL.md"],
+    "principle-subtract-before-you-add": [
+      "instruction",
+      "skills/principle-subtract-before-you-add/SKILL.md"
+    ],
+    "principle-minimize-reader-load": [
+      "instruction",
+      "skills/principle-minimize-reader-load/SKILL.md"
+    ],
+    "principle-outcome-oriented-execution": [
+      "instruction",
+      "skills/principle-outcome-oriented-execution/SKILL.md"
+    ],
+    "principle-experience-first": ["instruction", "skills/principle-experience-first/SKILL.md"],
+    "principle-exhaust-the-design-space": [
+      "instruction",
+      "skills/principle-exhaust-the-design-space/SKILL.md"
+    ],
+    "principle-build-the-lever": ["instruction", "skills/principle-build-the-lever/SKILL.md"],
+    "principle-model-the-domain": ["instruction", "skills/principle-model-the-domain/SKILL.md"],
+    "principle-boundary-discipline": [
+      "instruction",
+      "skills/principle-boundary-discipline/SKILL.md"
+    ],
+    "principle-type-system-discipline": [
+      "instruction",
+      "skills/principle-type-system-discipline/SKILL.md"
+    ],
+    "principle-make-operations-idempotent": [
+      "instruction",
+      "skills/principle-make-operations-idempotent/SKILL.md"
+    ],
+    "principle-migrate-callers-then-delete-legacy-apis": [
+      "instruction",
+      "skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md"
+    ],
+    "principle-separate-before-serializing-shared-state": [
+      "instruction",
+      "skills/principle-separate-before-serializing-shared-state/SKILL.md"
+    ],
+    "principle-prove-it-works": ["instruction", "skills/principle-prove-it-works/SKILL.md"],
+    "principle-fix-root-causes": ["instruction", "skills/principle-fix-root-causes/SKILL.md"],
+    "principle-sequence-verifiable-units": [
+      "instruction",
+      "skills/principle-sequence-verifiable-units/SKILL.md"
+    ],
+    "principle-test-behavior-not-implementation": [
+      "instruction",
+      "skills/principle-test-behavior-not-implementation/SKILL.md"
+    ],
+    "principle-explain-the-number": ["instruction", "skills/principle-explain-the-number/SKILL.md"],
+    "principle-guard-the-context-window": [
+      "instruction",
+      "skills/principle-guard-the-context-window/SKILL.md"
+    ],
+    "principle-never-block-on-the-human": [
+      "instruction",
+      "skills/principle-never-block-on-the-human/SKILL.md"
+    ],
+    "principle-encode-lessons-in-structure": [
+      "instruction",
+      "skills/principle-encode-lessons-in-structure/SKILL.md"
+    ],
+    "kit-control-ui": ["conditional", "skills/control-ui/SKILL.md; /control-ui"],
+    "kit-control-cli": ["conditional", "skills/control-cli/SKILL.md; /control-cli"],
+    "kit-deslop": ["instruction", "skills/deslop/SKILL.md; /deslop"],
+    "kit-verify-this": ["conditional", "skills/verify-this/SKILL.md; /verify-this"],
+    "kit-loop-on-ci": ["conditional", "skills/loop-on-ci/SKILL.md; /loop-on-ci"],
+    "kit-fix-ci": ["conditional", "skills/fix-ci/SKILL.md; /fix-ci"],
+    "kit-review-and-ship": ["conditional", "skills/review-and-ship/SKILL.md; /review-and-ship"],
+    "kit-pr-review-canvas": ["conditional", "skills/pr-review-canvas/SKILL.md; /pr-review-canvas"],
+    "kit-make-pr-easy-to-review": [
+      "conditional",
+      "skills/make-pr-easy-to-review/SKILL.md; /make-pr-easy-to-review"
+    ],
+    "kit-run-smoke-tests": ["conditional", "skills/run-smoke-tests/SKILL.md; /run-smoke-tests"],
+    "kit-new-branch-and-pr": [
+      "conditional",
+      "skills/new-branch-and-pr/SKILL.md; /new-branch-and-pr"
+    ],
+    "kit-get-pr-comments": ["conditional", "skills/get-pr-comments/SKILL.md; /get-pr-comments"],
+    "kit-check-compiler-errors": [
+      "instruction",
+      "skills/check-compiler-errors/SKILL.md; /check-compiler-errors"
+    ],
+    "kit-what-did-i-get-done": [
+      "instruction",
+      "skills/what-did-i-get-done/SKILL.md; /what-did-i-get-done"
+    ],
+    "kit-weekly-review": ["instruction", "skills/weekly-review/SKILL.md; /weekly-review"],
+    "kit-fix-merge-conflicts": [
+      "conditional",
+      "skills/fix-merge-conflicts/SKILL.md; /fix-merge-conflicts"
+    ],
+    "kit-workflow-from-chats": [
+      "instruction",
+      "skills/workflow-from-chats/SKILL.md; /workflow-from-chats"
+    ],
+    "kit-thermo-nuclear-code-quality-review": [
+      "instruction",
+      "skills/thermo-nuclear-code-quality-review/SKILL.md; /thermo-nuclear-code-quality-review"
+    ],
+    "kit-ci-watcher": ["extension", "agents/ci-watcher.md + pstack_delegate"],
+    "kit-quality-agent": ["extension", "agents/quality-agent.md + pstack_delegate"],
+    "kit-exhaustive-switch": ["instruction", "reference/rules/typescript-exhaustive-switch.md"],
+    "kit-no-inline-imports": ["instruction", "reference/rules/no-inline-imports.md"],
+    "cli": ["host", "pi interactive / --print / --mode json / --mode rpc"],
+    "cli-plugins": ["host", "pi install, pi config, pi list, /reload"],
+    "cli-mode": ["extension", "/poteto-mode on|off and before_agent_start"],
+    "cli-goal": ["extension", "/pstack-goal and pstack_plan"],
+    "cli-loop": ["extension", "/pstack-loop and pstack_wake"],
+    "cli-automate": [
+      "conditional",
+      "/pstack-automation drafts and scripts/run-job.mjs; external scheduler required"
+    ],
+    "cli-cloud": ["gap", "Local isolated Pi workers; no managed remote worker service"],
+    "cli-subagents": ["extension", "pstack_delegate"],
+    "cli-worktree": ["extension", "pstack_worktree and git worktree"],
+    "cli-headless": ["host", "pi --print or --mode json"],
+    "cli-model": ["host", "/model"],
+    "cli-mcp": ["host", "Pi built-in MCP and /mcp"],
+    "cli-resume": ["host", "/resume, /tree"],
+    "cli-summarize": ["host", "/compact"],
+    "cli-rules": ["host", "AGENTS.md, .pi/skills, Pi package settings"],
+    "cli-create-skill": ["extension", "/pstack-create-skill and Pi skills authoring"],
+    "cli-bugbot": [
+      "conditional",
+      "pstack_pr and evidence-based triage of configured forge bot comments; no hosted Bugbot"
+    ],
+    "cli-automations": [
+      "gap",
+      "Local headless event/schedule entrypoint; no managed cloud scheduler"
+    ],
+    "agent-poteto": ["extension", "agents/poteto-agent.md + pstack_delegate"],
+    "agent-comment": ["extension", "agents/comment-sicko.md + read-only Pi tool allowlist"],
+    "worker": ["extension", "agents/worker.md"],
+    "models": ["extension", "user Pi pstack-models.json"],
+    "decision-log": ["extension", "pstack_log / session artifact TSV"],
+    "local-verifier": ["conditional", "project .pi/skills/verify-* generated by skill"],
+    "formal-verifier": ["conditional", "project .pi/skills formal verification skill + proof tool"],
+    "watch-pr": ["conditional", "pstack_pr (GitHub CLI)"],
+    "audit-worktree": ["extension", "pstack_worktree audit"],
+    "forge": ["conditional", "GitHub CLI; Origin via project instructions only"],
+    "pb-investigation": [
+      "instruction",
+      "skills/poteto-mode/playbooks/investigation.md + pstack_plan"
+    ],
+    "pb-bug-fix": ["instruction", "skills/poteto-mode/playbooks/bug-fix.md + pstack_plan"],
+    "pb-perf-issue": ["instruction", "skills/poteto-mode/playbooks/perf-issue.md + pstack_plan"],
+    "pb-hillclimb": ["instruction", "skills/poteto-mode/playbooks/hillclimb.md + pstack_plan"],
+    "pb-runtime-forensics": [
+      "conditional",
+      "skills/poteto-mode/playbooks/runtime-forensics.md + pstack_plan"
+    ],
+    "pb-trace-forensics": [
+      "instruction",
+      "skills/poteto-mode/playbooks/trace-forensics.md + pstack_plan"
+    ],
+    "pb-feature": ["instruction", "skills/poteto-mode/playbooks/feature.md + pstack_plan"],
+    "pb-refactoring": ["instruction", "skills/poteto-mode/playbooks/refactoring.md + pstack_plan"],
+    "pb-prototype": ["instruction", "skills/poteto-mode/playbooks/prototype.md + pstack_plan"],
+    "pb-visual-parity": [
+      "conditional",
+      "skills/poteto-mode/playbooks/visual-parity.md + pstack_plan"
+    ],
+    "pb-authoring-a-skill": [
+      "instruction",
+      "skills/poteto-mode/playbooks/authoring-a-skill.md + pstack_plan"
+    ],
+    "pb-eval": ["instruction", "skills/poteto-mode/playbooks/eval.md + pstack_plan"],
+    "pb-babysit": ["conditional", "skills/poteto-mode/playbooks/babysit.md + pstack_plan"],
+    "pb-shipping": ["conditional", "skills/poteto-mode/playbooks/shipping.md + pstack_plan"],
+    "pb-autonomous-run": [
+      "instruction",
+      "skills/poteto-mode/playbooks/autonomous-run.md + pstack_plan"
+    ],
+    "pb-autopilot-full": [
+      "conditional",
+      "skills/poteto-mode/playbooks/autopilot-full.md + pstack_plan"
+    ],
+    "pb-autopilot-stack": [
+      "conditional",
+      "skills/poteto-mode/playbooks/autopilot-stack.md + pstack_plan"
+    ],
+    "pb-session-pickup": [
+      "instruction",
+      "skills/poteto-mode/playbooks/session-pickup.md + pstack_plan"
+    ],
+    "pb-pause-safely": [
+      "instruction",
+      "skills/poteto-mode/playbooks/pause-safely.md + pstack_plan"
+    ],
+    "pb-multi-phase-plan": [
+      "instruction",
+      "skills/poteto-mode/playbooks/multi-phase-plan.md + pstack_plan"
+    ],
+    "pb-worktree-cleanup": [
+      "instruction",
+      "skills/poteto-mode/playbooks/worktree-cleanup.md + pstack_plan"
+    ],
+    "pb-opening-a-pr": [
+      "conditional",
+      "skills/poteto-mode/playbooks/opening-a-pr.md + pstack_plan"
+    ],
+    "benny-setup": ["conditional", "reference/benny/setup.md / pstack-automation"],
+    "benny-triage": ["conditional", "reference/benny/triage.md / headless job"],
+    "benny-repro": ["conditional", "reference/benny/repro.md / headless job"],
+    "benny-config": ["conditional", "reference/benny/config.example.json"],
+    "benny-adapter": ["conditional", "project-specific real app adapter"],
+    "benny-slack": ["conditional", "configured Slack/tracker MCP; no service supplied"],
+    "playbooks": ["navigation", "/pstack-map playbooks"],
+    "skill-library": ["navigation", "/pstack-map skill-library"],
+    "principles": ["navigation", "/pstack-map principles"],
+    "team-kit": ["navigation", "/pstack-map team-kit"],
+    "runtime": ["navigation", "/pstack-map runtime"],
+    "delegates": ["navigation", "/pstack-map delegates"],
+    "benny": ["navigation", "/pstack-map benny"],
+    "tk-adjacent": ["navigation", "/pstack-map tk-adjacent"],
+    "pb-understand": ["navigation", "/pstack-map pb-understand"],
+    "pb-build": ["navigation", "/pstack-map pb-build"],
+    "pb-verify": ["navigation", "/pstack-map pb-verify"],
+    "pb-delivery": ["navigation", "/pstack-map pb-delivery"],
+    "pb-long": ["navigation", "/pstack-map pb-long"],
+    "sk-understand": ["navigation", "/pstack-map sk-understand"],
+    "sk-design": ["navigation", "/pstack-map sk-design"],
+    "sk-verify": ["navigation", "/pstack-map sk-verify"],
+    "sk-maintain": ["navigation", "/pstack-map sk-maintain"],
+    "pr-core": ["navigation", "/pstack-map pr-core"],
+    "pr-architecture": ["navigation", "/pstack-map pr-architecture"],
+    "pr-verification": ["navigation", "/pstack-map pr-verification"],
+    "pr-delegation": ["navigation", "/pstack-map pr-delegation"],
+    "pr-meta": ["navigation", "/pstack-map pr-meta"],
+    "cli-exec": ["navigation", "/pstack-map cli-exec"],
+    "cli-persist": ["navigation", "/pstack-map cli-persist"],
+    "cli-integrate": ["navigation", "/pstack-map cli-integrate"]
+  }
+}

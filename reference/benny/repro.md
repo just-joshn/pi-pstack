@@ -1,0 +1,3 @@
+# Reproduce and fix issues
+
+Accept only a confirmed bug/performance marker authenticated by the configured adapter and tied to the original thread. Respect existing ownership and PRs. Use the configured feature map and real control adapter. Reproduce the behavior twice and capture evidence plus a state cross-check. Use why and TDD when appropriate. Make at most one bounded root-cause fix in an isolated worktree when justified. Require passing before/after evidence. Open at most a draft PR if explicitly authorized. Never merge or deploy. Reply in the original thread only through the coordinator. Use unslop and return evidence paths. If any required dependency or proof is missing, stop and report the blocker.

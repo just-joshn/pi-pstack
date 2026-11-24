@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "slackChannel": "",
+  "operationsChannel": "",
+  "tracker": "",
+  "repository": "",
+  "featureMap": "",
+  "controlAdapter": "",
+  "triageModel": "inherit-parent",
+  "reproModel": "inherit-parent",
+  "allowDraftPr": false
+}
