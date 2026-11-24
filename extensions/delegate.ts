@@ -10,9 +10,9 @@ import {
   crossJudge,
   effort,
   isRole,
+  judgeRole,
   modelFor,
   selectPanel,
-  validateConfig,
   type Budget,
   type Effort,
   type Role,
@@ -20,8 +20,9 @@ import {
 } from "../lib/models.ts";
 import { pool, type PoolResult } from "../lib/pool.ts";
 import { blindTranscript, readPaths } from "../lib/transcript.ts";
+import { errorMessage } from "../lib/validation.ts";
 import { gitIn } from "./git.ts";
-import { availableModels, readConfig } from "./models.ts";
+import { availableWorkerModels, readConfig } from "./models.ts";
 import { saveParentDiff, type ParentDiff } from "./parent-diff.ts";
 import { artifacts, fail, result, stringEnum } from "./support.ts";
 import { createWorktree } from "./worktrees.ts";
@@ -68,7 +69,12 @@ const parameters = Type.Object({
 });
 type DelegateParams = Static<typeof parameters>;
 
-function resolveWorkers(p: DelegateParams, config: RoleConfig, parent: string) {
+function resolveWorkers(
+  p: DelegateParams,
+  config: RoleConfig,
+  parent: string,
+  available: ReadonlySet<string>,
+) {
   const role = p.role ?? (p.mode === "single" ? "poteto-agent" : "general-purpose");
   const worker = workerRoles.get(role);
   if (!worker) fail("Unknown worker role");
@@ -83,10 +89,11 @@ function resolveWorkers(p: DelegateParams, config: RoleConfig, parent: string) {
   if (panel && choices.length < 2) fail("Configure at least two panel seats in /setup-pstack");
   const tasks = panel ? choices.map(() => p.tasks[0]) : p.tasks;
   const models = selectPanel(config, modelRole, tasks.length).map((m) => modelFor(m, parent));
-  const judge = p.mode === "arena" ? crossJudge(config, parent, models) : undefined;
+  assertReachable(available, models);
+  const judge = p.mode === "arena" ? crossJudge(config, parent, models, available) : undefined;
   if (p.mode === "arena" && !judge)
     fail(
-      "Configure a judge from another provider than the parent and all candidates in /setup-pstack",
+      `Configure an available judge from another provider than the parent and all candidates in /setup-pstack. Configured pool: ${config.roles[judgeRole].join(", ") || "(empty)"}.`,
     );
   return { role, modelRole, readOnly, tasks, models, judge };
 }
@@ -242,7 +249,7 @@ async function judgeArena(
   run: RunWorker,
 ) {
   if (!outputs.every((entry) => entry.status === "fulfilled"))
-    return "INCONCLUSIVE: a candidate failed";
+    return { status: "INCONCLUSIVE: a candidate failed" };
   const candidates = outputs.map((entry) => entry.value);
   const blindDir = join(dir, "blinded");
   await mkdir(blindDir, { mode: 0o700 });
@@ -257,7 +264,7 @@ async function judgeArena(
     }),
   );
   if (!files.every((path) => path !== null))
-    return "INCONCLUSIVE: missing or empty candidate transcript";
+    return { status: "INCONCLUSIVE: missing or empty candidate transcript" };
   const worktrees = candidates
     .map((candidate, i) => `Candidate ${i + 1}: ${candidate.path}`)
     .join("; ");
@@ -267,28 +274,26 @@ async function judgeArena(
     index: candidates.length,
     readOnly: true,
     role: "general-purpose",
-    modelRole: "arena cross-judge pool",
+    modelRole: judgeRole,
   });
   const reads = new Set(
     assessment.transcript ? readPaths(await readFile(assessment.transcript, "utf8")) : [],
   );
+  const readAudit = files.map((path) => ({ path, read: reads.has(path) }));
   return {
     ...assessment,
-    readAudit: files.map((path) => ({ path, read: reads.has(path) })),
-    status: files.every((path) => reads.has(path))
+    readAudit,
+    status: readAudit.every((entry) => entry.read)
       ? "reviewed"
       : "INCONCLUSIVE: judge did not read every projected transcript",
   };
 }
 
-function assertReachable(ctx: ExtensionContext, models: string[]) {
-  const extensionProviders = new Set(ctx.modelRegistry.getRegisteredProviderIds());
-  const unreachable = [...new Set(models)].filter((model) =>
-    extensionProviders.has(model.split("/")[0]),
-  );
+function assertReachable(available: ReadonlySet<string>, models: string[]) {
+  const unreachable = [...new Set(models)].filter((model) => !available.has(model));
   if (unreachable.length)
     fail(
-      `Workers run without extensions and cannot use extension-provided models: ${unreachable.join(", ")}. Choose built-in provider models in /setup-pstack`,
+      `Workers run without extensions. Unavailable in the current worker scope: ${unreachable.join(", ")}. Choose an available model in /setup-pstack.`,
     );
 }
 
@@ -300,11 +305,16 @@ export function registerDelegation(pi: ExtensionAPI, active: Set<string>) {
       "Run independent native Pi CLI sessions: single, swarm, arena or interrogate. Read-only by default; write workers use detached worktrees. Child sessions and reports are retained.",
     parameters,
     async execute(_id, p, signal, onUpdate, ctx) {
-      const config = validateConfig(await readConfig(), availableModels(ctx));
+      const config = await readConfig();
       if (!ctx.model) fail("Select a parent model first");
       const parent = `${ctx.model.provider}/${ctx.model.id}`;
-      const { role, modelRole, readOnly, tasks, models, judge } = resolveWorkers(p, config, parent);
-      assertReachable(ctx, judge ? [...models, judge] : models);
+      const available = new Set(availableWorkerModels(ctx));
+      const { role, modelRole, readOnly, tasks, models, judge } = resolveWorkers(
+        p,
+        config,
+        parent,
+        available,
+      );
       if (
         !readOnly &&
         (!ctx.hasUI ||
@@ -328,7 +338,13 @@ export function registerDelegation(pi: ExtensionAPI, active: Set<string>) {
       const outputs = await pool(tasks, p.concurrency ?? 3, (task, index) =>
         run({ task, index, model: models[index], readOnly, role, modelRole }),
       );
-      const judgment = judge && (await judgeArena(dir, outputs, p.rubric, judge, run));
+      const judgment =
+        judge &&
+        (await judgeArena(dir, outputs, p.rubric, judge, run).catch((error: unknown) => ({
+          status: "INCONCLUSIVE: could not complete arena judgment",
+          model: judge,
+          error: errorMessage(error),
+        })));
       return result({
         outputs,
         judgment,

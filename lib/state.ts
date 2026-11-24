@@ -31,6 +31,8 @@ export interface State {
   wake: Wake | null;
 }
 
+export const activePlan = ({ plan }: State) => (plan?.finishedEvidence === undefined ? plan : null);
+
 export const initialState = (): State => ({
   version: 1,
   mode: false,

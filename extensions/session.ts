@@ -2,6 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 
 import { packageFile, routeTriggers } from "../lib/catalog.ts";
 import {
+  activePlan,
   initialState,
   restore,
   stateType,
@@ -27,7 +28,7 @@ function statusLine({ mode, plan, wake }: State) {
 }
 
 function systemPromptAdditions(state: State) {
-  const plan = state.plan?.finishedEvidence ? null : state.plan;
+  const plan = activePlan(state);
   return [
     ...(state.mode
       ? [

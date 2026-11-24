@@ -65,11 +65,8 @@ const list = async (git: Git) =>
 const status = (git: Git, tree: string) =>
   git.run(["status", "--porcelain", "--untracked-files=all", "--ignore-submodules=none"], tree);
 async function ignoredPaths(git: Git, tree: string) {
-  const args = ["status", "--porcelain", "-z", "--ignored", "--untracked-files=normal"];
-  return (await git.run(args, tree))
-    .split("\0")
-    .filter((entry) => entry.startsWith("!! "))
-    .map((entry) => entry.slice(3));
+  const args = ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"];
+  return (await git.run(args, tree)).split("\0").filter(Boolean);
 }
 
 export async function createWorktree(git: Git, ctx: ExtensionContext, name: string, ref = "HEAD") {

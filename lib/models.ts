@@ -106,9 +106,14 @@ export function vendor(model: string) {
   if (/(^|[/.-])grok|xai/.test(id)) return "xai";
   return provider;
 }
-export function crossJudge(config: RoleConfig, parent: string, candidates: string[] = []) {
+export function crossJudge(
+  config: RoleConfig,
+  parent: string,
+  candidates: readonly string[],
+  available: ReadonlySet<string>,
+) {
   const excluded = new Set([parent, ...candidates].map(vendor));
-  return config.roles[judgeRole].find((m) => !excluded.has(vendor(m)));
+  return config.roles[judgeRole].find((m) => available.has(m) && !excluded.has(vendor(m)));
 }
 export function selectPanel(config: RoleConfig, role: Role, count: number) {
   if (!Number.isInteger(count) || count < 1 || count > 8)

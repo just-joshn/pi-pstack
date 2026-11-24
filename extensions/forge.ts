@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { isRecord, parseJson } from "../lib/validation.ts";
+import { errorMessage, isRecord, parseJson } from "../lib/validation.ts";
 import { fail, result, text } from "./support.ts";
 
 const checksFields =
@@ -32,8 +32,7 @@ const checksPass = (pr: PullRequestStatus) =>
       ? passingConclusions.has(check.conclusion ?? "")
       : check.state === "SUCCESS",
   );
-const mergeReady = (proof: Proof, pr: PullRequestStatus | undefined) =>
-  !!pr &&
+const mergeReady = (proof: Proof, pr: PullRequestStatus) =>
   !!proof.evidence?.trim() &&
   proof.independent &&
   proof.head === pr.headRefOid &&
@@ -43,10 +42,18 @@ const mergeReady = (proof: Proof, pr: PullRequestStatus | undefined) =>
   pr.mergeStateStatus === "CLEAN" &&
   checksPass(pr);
 
-export function verifiedPrefix<T extends Proof>(proofs: T[], statuses: PullRequestStatus[]): T[] {
+type Approved = Proof & { url: string };
+
+export function verifiedPrefix(proofs: Proof[], statuses: PullRequestStatus[]): Approved[] {
   const byNumber = new Map(statuses.map((status) => [status.number, status]));
-  const firstUnready = proofs.findIndex((proof) => !mergeReady(proof, byNumber.get(proof.number)));
-  return firstUnready < 0 ? proofs : proofs.slice(0, firstUnready);
+  const prefix: Approved[] = [];
+  for (const proof of proofs) {
+    const pr = byNumber.get(proof.number);
+    if (!pr || !mergeReady(proof, pr)) break;
+    const { number, head, evidence, independent } = proof;
+    prefix.push({ number, head, evidence, independent, url: pr.url });
+  }
+  return prefix;
 }
 
 function prUrl(value: unknown, number: number): value is string {
@@ -104,11 +111,38 @@ async function fetchPr(
 
 export const mergeRoutes = ["shipping", "autopilot-full"];
 
-type Approved = Proof & { url: string };
+async function previewPrefix(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  proofs: Proof[],
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  const reads = await Promise.allSettled(
+    proofs.map((proof) => fetchPr(pi, ctx, proof.number, signal)),
+  );
+  signal?.throwIfAborted();
+  const statuses = reads.flatMap((read) => (read.status === "fulfilled" ? [read.value] : []));
+  const prefix = verifiedPrefix(proofs, statuses);
+  const next = reads[prefix.length];
+  const lookupFailure =
+    next?.status === "rejected"
+      ? { number: proofs[prefix.length].number, error: errorMessage(next.reason) }
+      : undefined;
+  if (!prefix.length)
+    fail(
+      lookupFailure
+        ? `Could not check PR #${lookupFailure.number}: ${lookupFailure.error}`
+        : "No verified merge-ready prefix",
+    );
+  return { prefix, lookupFailure };
+}
+
 async function mergePrefix(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
   prefix: Approved[],
+  requireActivePlan: () => void,
   signal?: AbortSignal,
 ) {
   const merged: { number: number; head: string; url: string }[] = [];
@@ -116,16 +150,18 @@ async function mergePrefix(
     const stopped = { merged, stopped: proof.number };
     let fresh;
     try {
+      requireActivePlan();
       // oxlint-disable-next-line eslint/no-await-in-loop -- Recheck each approved PR immediately before merging it.
       fresh = await fetchPr(pi, ctx, proof.url, signal);
+      requireActivePlan();
     } catch (error) {
       return {
         ...stopped,
         reason: "Could not recheck readiness; merge not attempted",
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
       };
     }
-    if (!verifiedPrefix([proof], [fresh]).length) {
+    if (!mergeReady(proof, fresh)) {
       return { ...stopped, reason: "Head or readiness changed" };
     }
 
@@ -145,10 +181,10 @@ async function mergePrefix(
 
       // oxlint-disable-next-line eslint/no-await-in-loop -- Confirm the merge before advancing.
       const after = await fetchPr(pi, ctx, proof.url, signal);
-      if (after.state !== "MERGED") return uncertain;
-      merged.push({ number: proof.number, head: proof.head, url: after.url });
+      if (after.state !== "MERGED" || after.headRefOid !== proof.head) return uncertain;
+      merged.push({ number: proof.number, head: after.headRefOid, url: after.url });
     } catch (error) {
-      return { ...uncertain, error: error instanceof Error ? error.message : String(error) };
+      return { ...uncertain, error: errorMessage(error) };
     }
   }
   return { merged, ceiling: prefix.at(-1)?.number };
@@ -182,30 +218,23 @@ export function registerForge(pi: ExtensionAPI, currentRoute: () => string | und
       ),
     }),
     async execute(_id, p, signal, _update, ctx) {
-      if (!ctx.hasUI || !mergeRoutes.includes(currentRoute() ?? "")) {
-        fail("Merging requires a shipping or autopilot-full plan and interactive approval");
-      }
+      const requireActivePlan = () => {
+        if (!ctx.hasUI || !mergeRoutes.includes(currentRoute() ?? ""))
+          fail("Merging requires a shipping or autopilot-full plan and interactive approval");
+      };
+      requireActivePlan();
       if (new Set(p.proofs.map((proof) => proof.number)).size !== p.proofs.length)
         fail("Duplicate PR");
-      const statuses = await Promise.all(
-        p.proofs.map((proof) => fetchPr(pi, ctx, proof.number, signal)),
-      );
-      const prefix = verifiedPrefix(p.proofs, statuses).map(
-        ({ number, head, evidence, independent }, i) => ({
-          number,
-          head,
-          evidence,
-          independent,
-          url: statuses[i].url,
-        }),
-      );
-      if (!prefix.length) fail("No verified merge-ready prefix");
+      const { prefix, lookupFailure } = await previewPrefix(pi, ctx, p.proofs, signal);
+      requireActivePlan();
       if (!(await ctx.ui.confirm("Merge these exact PR heads bottom-up?", text(prefix))))
         fail("Merge not authorized");
-      const outcome = await mergePrefix(pi, ctx, prefix, signal);
+      signal?.throwIfAborted();
+      const outcome = await mergePrefix(pi, ctx, prefix, requireActivePlan, signal);
       const unconfirmed = "unconfirmed" in outcome ? outcome.unconfirmed : undefined;
       return result({
         ...outcome,
+        lookupFailure,
         unmerged: p.proofs
           .slice(outcome.merged.length)
           .map((proof) => proof.number)

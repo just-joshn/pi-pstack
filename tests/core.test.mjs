@@ -87,6 +87,17 @@ void test("76 native skills, 22 ordered playbooks and all conditional links", ()
   }
   for (const p of Object.values(catalog.paths)) assert(existsSync(join(root, p)), p);
 });
+void test("catalog nodes return their declared instruction files, not display labels", () => {
+  for (const [id, path] of [
+    ["benny-setup", "reference/benny/setup.md"],
+    ["benny-triage", "reference/benny/triage.md"],
+    ["benny-repro", "reference/benny/repro.md"],
+    ["kit-quality-agent", "agents/quality-agent.md"],
+    ["kit-no-inline-imports", "reference/rules/no-inline-imports.md"],
+  ])
+    assert.equal(nativeNode(id).instructions, readFileSync(join(root, path), "utf8"), id);
+  assert.equal(nativeNode("benny-config").instructions, undefined);
+});
 void test("search and catalog reject missing references", () => {
   assert(lookup("runtime diagnosis").some((n) => n.id === "pb-runtime-forensics"));
   assert.throws(() => view("unknown"));
@@ -106,7 +117,7 @@ void test("roles, budget, alias and cross-vendor judge validation", () => {
   validateConfig(cfg, [a, b, c]);
   assert.equal(modelFor("auto", a), a);
   assert.equal(modelFor("inherit-parent", a), a);
-  assert.equal(crossJudge(cfg, a), b);
+  assert.equal(crossJudge(cfg, a, [], new Set([a, b, c])), b);
   assert.equal(vendor("openrouter/anthropic/claude-sonnet"), "anthropic");
   assert.equal(vendor("openrouter/openai/gpt-5"), "openai");
   assert.equal(effort("feature, refactoring", "large"), "xhigh");
@@ -119,10 +130,11 @@ void test("roles, budget, alias and cross-vendor judge validation", () => {
   assert.throws(() => modelFor("auto", ""));
 });
 function completedPlan() {
-  const [first, ...rest] = startPlan("bug-fix", "repair").tasks;
+  const plan = startPlan("bug-fix", "repair");
+  const [first, ...rest] = plan.tasks;
   return rest.reduce(
-    (plan, task) => updateTask(plan, task.id, "skipped", "not applicable"),
-    updateTask(startPlan("bug-fix", "repair"), first.id, "done", "red test output"),
+    (p, task) => updateTask(p, task.id, "skipped", "not applicable"),
+    updateTask(plan, first.id, "done", "red test output"),
   );
 }
 const savedState = (data) => ({ type: "custom", customType: "pstack-state", data });

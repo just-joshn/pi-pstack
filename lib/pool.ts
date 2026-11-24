@@ -1,3 +1,5 @@
+import { errorMessage } from "./validation.ts";
+
 export type PoolResult<T> =
   | { status: "fulfilled"; value: T }
   | { status: "rejected"; reason: string };
@@ -18,10 +20,7 @@ export async function pool<T, U>(
         // oxlint-disable-next-line eslint/no-await-in-loop -- One item at a time per worker.
         results[i] = { status: "fulfilled", value: await fn(items[i], i) };
       } catch (error) {
-        results[i] = {
-          status: "rejected",
-          reason: error instanceof Error ? error.message : String(error),
-        };
+        results[i] = { status: "rejected", reason: errorMessage(error) };
       }
     }
   }

@@ -8,8 +8,8 @@ export function gitIn(
   signal?: AbortSignal,
   maxBuffer = 4 * 1024 * 1024,
 ) {
-  async function probe(args: string[], at = cwd) {
-    const r = await pi.exec("git", args, { cwd: at, signal, timeout: 30000, maxBuffer });
+  async function probe(args: string[], at = cwd, limit = maxBuffer) {
+    const r = await pi.exec("git", args, { cwd: at, signal, timeout: 30000, maxBuffer: limit });
     return r.truncated || r.killed ? undefined : r;
   }
   async function run(args: string[], at = cwd) {

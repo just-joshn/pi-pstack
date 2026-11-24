@@ -1,9 +1,9 @@
 import { join } from "node:path";
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Type, type Static } from "typebox";
+import { Type } from "typebox";
 
-import { nativeNode, routes, workflowPrompt } from "../lib/catalog.ts";
+import { nativeNode, routes } from "../lib/catalog.ts";
 import {
   isTaskStatus,
   planComplete,
@@ -13,9 +13,8 @@ import {
   taskStatuses,
   updateTask,
   wakeConfig,
-  type Plan,
-  type TaskStatus,
 } from "../lib/state.ts";
+import { sendWorkflow } from "./catalog-ui.ts";
 import { mergeRoutes } from "./forge.ts";
 import type { Session } from "./session.ts";
 import {
@@ -38,33 +37,6 @@ const planParameters = Type.Object({
   status: Type.Optional(stringEnum(taskStatuses)),
   evidence: Type.Optional(Type.String()),
 });
-type PlanRequest =
-  | { action: "show" }
-  | { action: "start"; route: string; goal: string }
-  | { action: "custom"; goal: string; steps?: string[] }
-  | { action: "update"; task: number; status: TaskStatus; evidence?: string }
-  | { action: "finish"; evidence: string };
-
-function planRequest(p: Static<typeof planParameters>): PlanRequest {
-  switch (p.action) {
-    case "show":
-      return { action: "show" };
-    case "start":
-      if (!p.route || !routes.includes(p.route))
-        fail("Choose a known playbook or use action custom");
-      return { action: "start", route: p.route, goal: p.goal ?? "" };
-    case "custom":
-      return { action: "custom", goal: p.goal ?? "", steps: p.steps };
-    case "update":
-      if (p.task === undefined || !isTaskStatus(p.status)) fail("Specify task and status");
-      return { action: "update", task: p.task, status: p.status, evidence: p.evidence };
-    case "finish":
-      return { action: "finish", evidence: p.evidence ?? "" };
-    default:
-      return unreachable(p.action);
-  }
-}
-
 async function approveMergeRoute(ctx: ExtensionContext, route: string, goal: string) {
   if (!mergeRoutes.includes(route)) return;
   const approved =
@@ -77,25 +49,16 @@ async function approveMergeRoute(ctx: ExtensionContext, route: string, goal: str
     fail(`Starting ${route} requires operator approval; use /pstack-run ${route} <goal>`);
 }
 
-function finished(plan: Plan | null, evidence: string): Plan {
-  if (!plan || !planComplete(plan) || !evidence.trim())
-    fail("Incomplete plan or missing final evidence");
-  return { ...plan, finishedEvidence: evidence };
-}
-
 export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify) {
-  const send = (id: string, request: string) =>
-    pi.sendUserMessage(workflowPrompt(id, request), { deliverAs: "followUp" });
-
   pi.registerCommand("poteto-mode", {
     description: "Run a task with poteto-mode, or persist it with on/off",
     handler: async (args, ctx) => {
       const value = args.trim();
       if (value === "on" || value === "off") return session.commit(ctx, { mode: value === "on" });
-      if (value) return send("poteto-mode", value);
+      if (value) return sendWorkflow(pi, "poteto-mode", value);
       if (!ctx.hasUI) return notify(ctx, "Use /poteto-mode on or /poteto-mode <goal>.");
       const goal = await ctx.ui.input("Goal and observable completion predicate");
-      if (goal) send("poteto-mode", goal);
+      if (goal) sendWorkflow(pi, "poteto-mode", goal);
     },
   });
   pi.registerCommand("pstack-run", {
@@ -106,7 +69,7 @@ export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify)
       if (!routes.includes(route) || !goal)
         return notify(ctx, `Choose a route and goal:\n${routes.join(", ")}`);
       session.commit(ctx, { plan: startPlan(route, goal) });
-      send("pb-" + route, goal);
+      sendWorkflow(pi, "pb-" + route, goal);
     },
   });
   pi.registerCommand("pstack-status", {
@@ -161,30 +124,38 @@ export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify)
     executionMode: "sequential",
     parameters: planParameters,
     async execute(_id, p, _signal, _update, ctx) {
-      const request = planRequest(p);
       const { plan, wake } = session.state();
       let instructions: string | undefined;
-      switch (request.action) {
+      switch (p.action) {
         case "show":
           return result(summary(session.state()));
-        case "start":
-          await approveMergeRoute(ctx, request.route, request.goal);
-          instructions = nativeNode("pb-" + request.route).instructions;
-          session.commit(ctx, { plan: startPlan(request.route, request.goal) });
+        case "start": {
+          const route = p.route;
+          const goal = p.goal ?? "";
+          if (!route || !routes.includes(route))
+            fail("Choose a known playbook or use action custom");
+          await approveMergeRoute(ctx, route, goal);
+          instructions = nativeNode("pb-" + route).instructions;
+          session.commit(ctx, { plan: startPlan(route, goal) });
           break;
+        }
         case "custom":
-          session.commit(ctx, { plan: startPlan("figure-it-out", request.goal, request.steps) });
+          session.commit(ctx, { plan: startPlan("figure-it-out", p.goal ?? "", p.steps) });
           break;
         case "update":
-          session.commit(ctx, {
-            plan: updateTask(plan, request.task, request.status, request.evidence),
-          });
+          if (p.task === undefined || !isTaskStatus(p.status)) fail("Specify task and status");
+          session.commit(ctx, { plan: updateTask(plan, p.task, p.status, p.evidence) });
           break;
         case "finish":
-          session.commit(ctx, { plan: finished(plan, request.evidence), wake: stopped(wake) });
+          if (!plan || !planComplete(plan) || !p.evidence?.trim())
+            fail("Incomplete plan or missing final evidence");
+          session.commit(ctx, {
+            plan: { ...plan, finishedEvidence: p.evidence },
+            wake: stopped(wake),
+          });
           break;
         default:
-          unreachable(request);
+          unreachable(p.action);
       }
       return result({ state: summary(session.state()), instructions });
     },

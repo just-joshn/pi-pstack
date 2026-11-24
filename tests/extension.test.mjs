@@ -1,105 +1,11 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
-import { promisify } from "node:util";
-const exec = promisify(execFile);
-import { slashSkills } from "../lib/catalog.ts";
 
-const sandbox = await mkdtemp(join(tmpdir(), "pi-pstack-test-"));
-process.env.PI_CODING_AGENT_DIR = sandbox;
-const { default: extension } = await import("../extensions/index.ts");
-const configFile = join(sandbox, "pstack-models.json");
-function host({
-  confirm = false,
-  mode = "tui",
-  cwd = sandbox,
-  realGit = false,
-  execute,
-  extensionProviders = [],
-} = {}) {
-  const sessionId = randomUUID();
-  const commands = new Map(),
-    tools = new Map(),
-    events = new Map(),
-    entries = [],
-    messages = [],
-    notifications = [],
-    executions = [];
-  const pi = {
-    registerCommand: (name, options) => {
-      assert(!commands.has(name));
-      commands.set(name, options);
-    },
-    registerTool: (t) => {
-      assert(!tools.has(t.name));
-      tools.set(t.name, t);
-    },
-    on: (name, handler) => events.set(name, handler),
-    appendEntry: (customType, data) => entries.push({ type: "custom", customType, data }),
-    sendMessage: (m) => messages.push(m),
-    sendUserMessage: (m) => messages.push(m),
-    exec: async (...args) => {
-      executions.push(args);
-      if (realGit && args[0] === "git") {
-        try {
-          const r = await exec(args[0], args[1], { cwd: args[2]?.cwd });
-          return { ...r, code: 0 };
-        } catch (e) {
-          return { code: e.code, stdout: e.stdout ?? "", stderr: e.stderr ?? "" };
-        }
-      }
-      if (execute) return execute(...args);
-      throw Error("unexpected external execution");
-    },
-  };
-  const ctx = {
-    cwd,
-    mode,
-    hasUI: mode === "tui" || mode === "rpc",
-    model: { provider: "anthropic", id: "claude" },
-    scopedModels: [],
-    modelRegistry: {
-      getAvailable: () => [
-        { provider: "anthropic", id: "claude" },
-        { provider: "google", id: "gemini" },
-        { provider: "openai", id: "gpt" },
-      ],
-      getRegisteredProviderIds: () => extensionProviders,
-    },
-    sessionManager: {
-      getSessionId: () => sessionId,
-      getSessionFile: () => null,
-      getBranch: () => entries,
-    },
-    ui: {
-      notify: (m) => notifications.push(m),
-      setStatus() {},
-      setWidget() {},
-      confirm: async (...args) => (typeof confirm === "function" ? confirm(...args) : confirm),
-      input: async () => undefined,
-      select: async () => undefined,
-    },
-    isIdle: () => true,
-    hasPendingMessages: () => false,
-  };
-  extension(pi);
-  return {
-    commands,
-    tools,
-    events,
-    entries,
-    messages,
-    notifications,
-    executions,
-    ctx,
-    call: (name, args) => tools.get(name).execute("test", args, undefined, undefined, ctx),
-    cmd: (name, args = "") => commands.get(name).handler(args, ctx),
-  };
-}
+import { slashSkills } from "../lib/catalog.ts";
+import { configFile, exec, host, readResult, sandbox } from "./host.mjs";
+
 void test("mock host registers all 52 slash skills and 9 native tools", () => {
   const h = host();
   assert.equal(slashSkills.length, 52);
@@ -137,7 +43,7 @@ void test("model configuration validates available models and saves only after c
   });
   await h.cmd("setup-pstack", args);
   await assert.rejects(() => readFile(configFile));
-  const yes = host({ confirm: true });
+  const yes = host({ confirm: true, extensionProviders: ["openai"] });
   await yes.cmd("setup-pstack", args);
   const config = JSON.parse(await readFile(configFile, "utf8"));
   assert.equal(config.budget, "small");
@@ -145,16 +51,21 @@ void test("model configuration validates available models and saves only after c
   await assert.rejects(() =>
     yes.cmd("setup-pstack", JSON.stringify({ roles: { "bug-fix": ["invalid/model"] } })),
   );
+  await assert.rejects(
+    () => yes.cmd("setup-pstack", JSON.stringify({ roles: { "bug-fix": ["openai/gpt"] } })),
+    /Unavailable model for bug-fix/,
+  );
 });
 void test("interactive setup saves the selected budget and panel without changing the parent model", async (t) => {
   t.after(() => rm(configFile, { force: true }));
-  const h = host({ confirm: true });
+  const h = host({ confirm: true, extensionProviders: ["openai"] });
   let panelSeats = 0;
   h.ctx.ui.select = async (label, choices) => {
     if (label === "Reasoning budget") return choices[1];
     if (choices.includes("Keep current")) {
       return label.startsWith("arena runners:") ? "Choose model(s)" : "Keep current";
     }
+    assert(!choices.includes("openai/gpt"), "workers cannot load extension providers");
     return ["anthropic/claude", "google/gemini", "Done"][panelSeats++];
   };
   await h.cmd("setup-pstack");
@@ -220,8 +131,6 @@ void test("a truncated Git worktree list is not accepted as complete", async () 
   );
 });
 
-const readResult = (response) => JSON.parse(response.content[0].text);
-
 void test("catalog tools expose routes, views, search results and node instructions", async () => {
   const h = host();
   const call = async (action, id) => readResult(await h.call("pstack_catalog", { action, id }));
@@ -286,65 +195,6 @@ void test("RPC shipping pins approved repository URLs and stops before merging a
   assert.deepEqual(outcome.unmerged, [2]);
   assert.equal(outcome.stopped, 2);
 });
-
-for (const phase of ["before", "after"]) {
-  void test(`a status-read failure ${phase} a merge preserves confirmed progress and stops the stack`, async () => {
-    const head = "a".repeat(40);
-    const url = "https://github.com/team/project/pull/";
-    const mergeCalls = [];
-    const h = host({
-      confirm: true,
-      execute: async (bin, args) => {
-        assert.equal(bin, "gh");
-        const number = Number(args[2].split("/").at(-1));
-        if (args[1] === "merge") {
-          mergeCalls.push(number);
-          return { code: 0, stdout: "", stderr: "" };
-        }
-        const merged = mergeCalls.includes(number);
-        if (args[2] === `${url}2` && merged === (phase === "after")) {
-          return { code: 0, truncated: true, stdout: "", stderr: "" };
-        }
-        return {
-          code: 0,
-          stderr: "",
-          stdout: JSON.stringify({
-            number,
-            url: `${url}${number}`,
-            headRefOid: head,
-            state: merged ? "MERGED" : "OPEN",
-            isDraft: false,
-            mergeable: "MERGEABLE",
-            mergeStateStatus: "CLEAN",
-            statusCheckRollup: [{ state: "SUCCESS" }],
-          }),
-        };
-      },
-    });
-    await h.cmd("pstack-run", "shipping Merge checked heads");
-    const proofs = [1, 2, 3].map((number) => ({
-      number,
-      head,
-      evidence: "local check",
-      independent: true,
-    }));
-    const outcome = readResult(await h.call("pstack_ship", { proofs }));
-    assert.deepEqual(outcome.merged, [{ number: 1, head, url: `${url}1` }]);
-    assert.equal(outcome.stopped, 2);
-    assert.match(outcome.error, /gh pr view failed/);
-    if (phase === "after") {
-      assert.equal(outcome.unconfirmed, 2);
-      assert.match(outcome.reason, /inspect forge state/);
-      assert.deepEqual(outcome.unmerged, [3]);
-      assert.deepEqual(mergeCalls, [1, 2]);
-    } else {
-      assert.equal(outcome.unconfirmed, undefined);
-      assert.match(outcome.reason, /readiness/);
-      assert.deepEqual(outcome.unmerged, [2, 3]);
-      assert.deepEqual(mergeCalls, [1]);
-    }
-  });
-}
 
 void test("RPC shipping refuses duplicates, missing evidence and a declined confirmation without merging", async () => {
   const head = "a".repeat(40);
@@ -652,10 +502,8 @@ async function repo() {
 void test("real Git detached worktree audit and approved RPC removal; dirty tree is protected", async () => {
   const cwd = await repo();
   const h = host({ mode: "rpc", confirm: true, cwd, realGit: true });
-  const made = JSON.parse(
-    (await h.call("pstack_worktree", { action: "create", name: "fixture" })).content[0].text,
-  );
-  const audit = JSON.parse((await h.call("pstack_worktree", { action: "audit" })).content[0].text);
+  const made = readResult(await h.call("pstack_worktree", { action: "create", name: "fixture" }));
+  const audit = readResult(await h.call("pstack_worktree", { action: "audit" }));
   assert(
     audit.some(
       (x) =>
@@ -675,9 +523,8 @@ void test("real Git detached worktree audit and approved RPC removal; dirty tree
     /uncommitted/,
   );
   await unlink(dirty);
-  const removal = JSON.parse(
-    (await h.call("pstack_worktree", { action: "remove", name: "fixture", base: "HEAD" }))
-      .content[0].text,
+  const removal = readResult(
+    await h.call("pstack_worktree", { action: "remove", name: "fixture", base: "HEAD" }),
   );
   assert.equal(removal.removed, made.path);
 });
@@ -755,22 +602,16 @@ void test("worktree removal rejects a non-branch target such as the worktree's o
   await commit(tree.path, "only in the worktree");
   const head = (await exec("git", ["rev-parse", "HEAD"], { cwd: tree.path })).stdout.trim();
   await exec("git", ["tag", "unique", head], { cwd });
-  for (const base of [head, "unique"]) {
-    await assert.rejects(
-      () => h.call("pstack_worktree", { action: "remove", name: "fixture", base }),
-      /must be a branch/,
-    );
-  }
-  await assert.rejects(
-    () => h.call("pstack_worktree", { action: "remove", name: "fixture", base: "HEAD" }),
-    /merge-base failed/,
-  );
+  const remove = (base) => h.call("pstack_worktree", { action: "remove", name: "fixture", base });
+  await assert.rejects(() => remove(head), /must be a branch/);
+  await assert.rejects(() => remove("unique"), /must be a branch/);
+  await assert.rejects(() => remove("HEAD"), /merge-base failed/);
   assert.equal((await exec("git", ["rev-parse", "HEAD"], { cwd: tree.path })).stdout.trim(), head);
 });
 
-void test("worktree removal names ignored files and deletes them only after approval", async () => {
+void test("worktree removal inventories ignored directory contents and rechecks after approval", async () => {
   const cwd = await repo();
-  await writeFile(join(cwd, ".gitignore"), ".env*\n");
+  await writeFile(join(cwd, ".gitignore"), ".env*\nbuild/\n");
   await exec("git", ["add", ".gitignore"], { cwd });
   await commit(cwd, "ignore secrets");
   const prompts = [];
@@ -785,17 +626,20 @@ void test("worktree removal names ignored files and deletes them only after appr
   });
   const tree = readResult(await h.call("pstack_worktree", { action: "create", name: "fixture" }));
   const secret = join(tree.path, ".env");
-  const late = join(tree.path, ".env.local");
+  await mkdir(join(tree.path, "build"));
+  await writeFile(join(tree.path, "build", "first.txt"), "first");
+  const late = join(tree.path, "build", "second.txt");
   await writeFile(secret, "SECRET");
   const audit = readResult(await h.call("pstack_worktree", { action: "audit" }));
   const entry = audit.find((item) => item.value?.path === tree.path).value;
   assert.equal(entry.dirty, false);
-  assert.equal(entry.ignored, 1);
+  assert.equal(entry.ignored, 2);
   const remove = () =>
     h.call("pstack_worktree", { action: "remove", name: "fixture", base: "HEAD" });
   await assert.rejects(remove, /Removal not authorized/);
   assert.match(prompts[0], /ignored files\?/);
-  assert.match(prompts[0], /1 ignored path\(s\)[^]*\.env/);
+  assert.match(prompts[0], /2 ignored path\(s\)[^]*\.env/);
+  assert.match(prompts[0], /build\/first\.txt/);
   approve = async () => {
     await writeFile(late, "LATE");
     return true;
@@ -808,16 +652,21 @@ void test("worktree removal names ignored files and deletes them only after appr
   await assert.rejects(() => readFile(secret), { code: "ENOENT" });
 });
 
-void test("the parent diff artifact includes untracked files and reports unreadable ones", async () => {
+void test("the parent diff includes root-relative tracked and untracked paths from a subdirectory", async () => {
   const cwd = await repo();
+  const subdir = join(cwd, "pkg");
+  await mkdir(subdir);
+  await writeFile(join(subdir, "local.txt"), "old\n");
   await writeFile(join(cwd, "tracked.txt"), "one\n");
-  await exec("git", ["add", "tracked.txt"], { cwd });
+  await exec("git", ["add", "."], { cwd });
   await commit(cwd, "tracked");
+  await exec("git", ["config", "diff.relative", "true"], { cwd });
+  await writeFile(join(subdir, "local.txt"), "new\n");
   await writeFile(join(cwd, "tracked.txt"), "two\n");
   await writeFile(join(cwd, "fresh.txt"), "brand new\n");
   const prompts = [];
   const h = host({
-    cwd,
+    cwd: subdir,
     realGit: true,
     execute: async (_, args) => {
       prompts.push(args.at(-1));
@@ -826,6 +675,7 @@ void test("the parent diff artifact includes untracked files and reports unreada
   });
   const output = readResult(await h.call("pstack_delegate", { mode: "swarm", tasks: ["review"] }));
   const diff = await readFile(join(output.dir, "parent.diff"), "utf8");
+  assert.match(diff, /diff --git a\/pkg\/local\.txt b\/pkg\/local\.txt/);
   assert.match(diff, /\+two/);
   assert.match(diff, /fresh\.txt/);
   assert.match(diff, /\+brand new/);
@@ -846,8 +696,42 @@ void test("a worker is told when the parent diff could not be captured", async (
   assert.match(prompts[0], /Parent diff artifact unavailable/);
 });
 
+void test("delegation checks the selected workers and judge, not unused roles", async (t) => {
+  t.after(() => rm(configFile, { force: true }));
+  const h = host({
+    confirm: true,
+    execute: async (bin) =>
+      bin === "git"
+        ? { code: 128, stdout: "", stderr: "not a repo" }
+        : { code: 0, stdout: "worker report", stderr: "" },
+  });
+  await h.cmd(
+    "setup-pstack",
+    JSON.stringify({
+      roles: {
+        "arena runners": ["auto", "inherit-parent"],
+        "arena cross-judge pool": ["openai/gpt"],
+      },
+    }),
+  );
+  h.ctx.scopedModels = [{ model: h.ctx.model }];
+  const tasks = ["review"];
+  const result = readResult(await h.call("pstack_delegate", { mode: "single", tasks }));
+  assert.equal(result.outputs[0].value.model, "anthropic/claude");
+  const runs = h.executions.length;
+  await assert.rejects(
+    () => h.call("pstack_delegate", { mode: "arena", tasks, rubric: "quality" }),
+    /openai\/gpt/,
+  );
+  assert.equal(h.executions.length, runs, "do not start an arena without a usable judge");
+});
+
 void test("delegation refuses models from extension-registered providers before spawning", async () => {
   const h = host({ extensionProviders: ["anthropic"] });
+  await h.cmd("setup-pstack", "show");
+  const shown = JSON.parse(h.notifications.at(-1));
+  assert(!shown.available.includes("anthropic/claude"));
+  assert.match(shown.warning, /inherit-parent.*anthropic\/claude/);
   await assert.rejects(
     () => h.call("pstack_delegate", { mode: "swarm", tasks: ["review"] }),
     /without extensions.*anthropic\/claude/,
@@ -883,5 +767,3 @@ void test("stopping a wake loop records why it stopped", async () => {
   assert.equal(h.entries.at(-1).data.wake.stopEvidence, undefined);
   await h.events.get("session_shutdown")({}, h.ctx);
 });
-
-test.after(async () => rm(sandbox, { recursive: true, force: true }));

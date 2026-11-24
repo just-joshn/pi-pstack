@@ -1,5 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
+import { activePlan } from "../lib/state.ts";
 import { registerCatalog } from "./catalog-ui.ts";
 import { registerDelegation } from "./delegate.ts";
 import { registerForge } from "./forge.ts";
@@ -20,5 +21,5 @@ export default function pstack(pi: ExtensionAPI) {
   registerRecords(pi, notify);
   registerWorktrees(pi, activeWorktrees);
   registerDelegation(pi, activeWorktrees);
-  registerForge(pi, () => session.state().plan?.route);
+  registerForge(pi, () => activePlan(session.state())?.route);
 }

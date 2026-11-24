@@ -44,19 +44,19 @@ async function browse(pi: ExtensionAPI, ctx: ExtensionContext, start: string) {
   }
 }
 
-export function registerCatalog(pi: ExtensionAPI, notify: Notify) {
-  const send = (id: string, request: string) =>
-    pi.sendUserMessage(workflowPrompt(id, request), { deliverAs: "followUp" });
+export const sendWorkflow = (pi: ExtensionAPI, id: string, request: string) =>
+  pi.sendUserMessage(workflowPrompt(id, request), { deliverAs: "followUp" });
 
+export function registerCatalog(pi: ExtensionAPI, notify: Notify) {
   for (const n of slashSkills.filter((skill) => !ownCommands.has(skill.id))) {
     pi.registerCommand(n.label.slice(1), {
       description: n.what,
-      handler: async (args) => send(n.id, args.trim()),
+      handler: async (args) => sendWorkflow(pi, n.id, args.trim()),
     });
   }
   pi.registerCommand("pstack-create-skill", {
     description: "Author a project-local Agent Skill",
-    handler: async (args) => send("pb-authoring-a-skill", args),
+    handler: async (args) => sendWorkflow(pi, "pb-authoring-a-skill", args),
   });
   pi.registerCommand("pstack-map", {
     description: "Browse all source map nodes, relationships and views",

@@ -20,22 +20,26 @@ import {
 import { parseJson } from "../lib/validation.ts";
 import { agentDir, atomicWrite, fail, hasErrorCode, text, type Notify } from "./support.ts";
 
-const configPath = join(agentDir, "pstack-models.json");
-export async function readConfig(): Promise<RoleConfig> {
+const modelConfigPath = () => join(agentDir(), "pstack-models.json");
+export async function readConfig(configPath = modelConfigPath()): Promise<RoleConfig> {
+  let source: string;
   try {
-    return parseModelConfig(
-      parseJson(await readFile(configPath, "utf8"), "pstack model configuration"),
-    );
+    source = await readFile(configPath, "utf8");
   } catch (e) {
     if (hasErrorCode(e, "ENOENT")) return defaultConfig();
     throw e;
   }
+  return parseModelConfig(parseJson(source, "pstack model configuration"));
 }
-export function availableModels(ctx: ExtensionContext) {
+export function availableWorkerModels(ctx: ExtensionContext) {
+  const extensionProviders = new Set(ctx.modelRegistry.getRegisteredProviderIds());
   const models = ctx.scopedModels.length
     ? ctx.scopedModels.map((m) => m.model)
     : ctx.modelRegistry.getAvailable();
-  return [...new Set(models.map((m) => `${m.provider}/${m.id}`))].toSorted();
+  const ids = models
+    .filter((m) => !extensionProviders.has(m.provider))
+    .map((m) => `${m.provider}/${m.id}`);
+  return [...new Set(ids)].toSorted();
 }
 
 async function chooseRole(ctx: ExtensionContext, role: Role, available: string[]) {
@@ -83,14 +87,21 @@ export function registerModelSetup(pi: ExtensionAPI, notify: Notify) {
   pi.registerCommand("setup-pstack", {
     description: "Configure pstack role models and reasoning budget",
     handler: async (args, ctx) => {
-      const available = availableModels(ctx);
-      const current = await readConfig();
+      const available = availableWorkerModels(ctx);
+      const parent = ctx.model && `${ctx.model.provider}/${ctx.model.id}`;
+      const warning =
+        parent && !available.includes(parent)
+          ? `auto and inherit-parent resolve to ${parent}, which is unavailable to workers in this session. Select an available model explicitly.`
+          : undefined;
+      const configPath = modelConfigPath();
+      const current = await readConfig(configPath);
       const input = args.trim();
       if (input === "show" || (!input && !ctx.hasUI)) {
-        notify(ctx, text({ config: current, available, path: configPath }));
+        notify(ctx, text({ config: current, available, path: configPath, warning }));
         return;
       }
       if (!ctx.hasUI) fail("Use /setup-pstack interactively to confirm model configuration.");
+      if (warning) notify(ctx, warning);
       const chosen = input
         ? applyConfigPatch(current, parseJson(input, "setup arguments"))
         : await chooseConfig(ctx, current, available);
