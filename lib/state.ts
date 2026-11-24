@@ -1,5 +1,5 @@
 import { catalog } from "./catalog.ts";
-import { isRecord } from "./validation.mjs";
+import { isRecord } from "./validation.ts";
 
 export const taskStatuses = ["pending", "active", "done", "blocked", "skipped"] as const;
 export type TaskStatus = (typeof taskStatuses)[number];
@@ -74,13 +74,15 @@ const isState = (state: unknown): state is State =>
   (state.wake === null || isWake(state.wake));
 
 export const stateType = "pstack-state";
+export const stopped = (wake: Wake | null, stopEvidence?: string): Wake | null =>
+  wake && { ...wake, running: false, ...(stopEvidence === undefined ? {} : { stopEvidence }) };
 export function restore(entries: readonly unknown[]): State {
   const saved = entries.findLast(
     (entry) => isRecord(entry) && entry.type === "custom" && entry.customType === stateType,
   );
   if (!isRecord(saved) || !isState(saved.data)) return initialState();
   const state = structuredClone(saved.data);
-  return { ...state, wake: state.wake && { ...state.wake, running: false } };
+  return { ...state, wake: stopped(state.wake) };
 }
 
 export function startPlan(route: string, goal: string, customSteps?: string[]): Plan {
@@ -109,6 +111,13 @@ export function updateTask(plan: Plan | null, id: number, status: TaskStatus, ev
 export function planComplete(plan: Plan | null) {
   return !!plan && plan.tasks.every((t) => t.status === "done" || t.status === "skipped");
 }
+export const summary = (state: State) => ({
+  mode: state.mode,
+  goal: state.goal,
+  plan: state.plan,
+  wake: state.wake,
+  complete: planComplete(state.plan),
+});
 export function wakeConfig(seconds: number, max: number, predicate: string): Wake {
   if (!inRange(seconds, 5, 86400) || !inRange(max, 1, 100) || !predicate.trim())
     throw Error("Wake requires 5–86400 seconds, 1–100 iterations, and a predicate");

@@ -1,5 +1,6 @@
-import { aliases } from "./model-aliases.mjs";
-import { isRecord } from "./validation.mjs";
+import { isRecord } from "./validation.ts";
+
+export const aliases = ["auto", "inherit-parent"];
 
 export const roles = [
   "feature, refactoring",
@@ -79,9 +80,9 @@ export function defaultConfig(): RoleConfig {
   });
 }
 export function applyConfigPatch(config: RoleConfig, patch: unknown): RoleConfig {
-  if (!isRecord(patch) || ("roles" in patch && !isRecord(patch.roles)))
-    throw Error("Invalid model configuration patch");
-  return parseModelConfig({ ...config, ...patch, roles: { ...config.roles, ...patch.roles } });
+  const selections = isRecord(patch) && "roles" in patch ? patch.roles : {};
+  if (!isRecord(patch) || !isRecord(selections)) throw Error("Invalid model configuration patch");
+  return parseModelConfig({ ...config, ...patch, roles: { ...config.roles, ...selections } });
 }
 export function validateConfig(input: unknown, available: readonly string[]): RoleConfig {
   const config = parseModelConfig(input);

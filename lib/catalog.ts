@@ -49,6 +49,11 @@ const edges = new Map(map.edges.map((e) => [e.id, e]));
 const outgoing = Map.groupBy(map.edges, (e) => e.from);
 const incoming = Map.groupBy(map.edges, (e) => e.to);
 export const routes = Object.keys(catalog.steps);
+export const slashSkills = map.nodes.filter(
+  (n) =>
+    (n.kind === "public" || (n.id.startsWith("kit-") && n.label.startsWith("/"))) &&
+    !n.id.startsWith("principle-"),
+);
 
 function known(id: string) {
   const n = nodes.get(id);
@@ -75,6 +80,10 @@ export function nativeNode(id: string) {
     outgoing: outgoing.get(id) ?? [],
     incoming: incoming.get(id) ?? [],
   };
+}
+export function workflowPrompt(id: string, request: string) {
+  const node = nativeNode(id);
+  return `Execute the Pi-native workflow ${id} for the operator's request.\n\n${node.instructions ?? node.implementation}\n\nOperator request:\n${request || "(Use the current conversation context.)"}`;
 }
 export function view(id: string) {
   const v = views.get(id);

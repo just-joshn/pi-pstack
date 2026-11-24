@@ -3,6 +3,10 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
+import { workerArgs, workerRoles } from "../extensions/delegate.ts";
+import { verifiedPrefix } from "../extensions/forge.ts";
+import { tsvRow } from "../extensions/support.ts";
+import { parseWorktrees } from "../extensions/worktrees.ts";
 import {
   map,
   root,
@@ -13,6 +17,8 @@ import {
   nativeNode,
   view,
   lookup,
+} from "../lib/catalog.ts";
+import {
   defaultConfig,
   validateConfig,
   modelFor,
@@ -20,20 +26,17 @@ import {
   crossJudge,
   effort,
   selectPanel,
+} from "../lib/models.ts";
+import { pool } from "../lib/pool.ts";
+import {
   initialState,
   restore,
   startPlan,
   updateTask,
   planComplete,
   wakeConfig,
-  tsvRow,
-  pool,
-  workerArgs,
-  parseWorktrees,
-  verifiedPrefix,
-  blindTranscript,
-  readPaths,
-} from "../lib/core.mjs";
+} from "../lib/state.ts";
+import { blindTranscript, readPaths } from "../lib/transcript.ts";
 
 const parity = JSON.parse(readFileSync(join(root, "reference/parity.json"), "utf8"));
 void test("all original nodes, edges and views are preserved and mapped", () => {
@@ -115,35 +118,58 @@ void test("roles, budget, alias and cross-vendor judge validation", () => {
   assert.throws(() => validateConfig(cfg, [a, b, c]));
   assert.throws(() => modelFor("auto", ""));
 });
-void test("plan status requires evidence and restores only the selected branch", () => {
-  let p = startPlan("bug-fix", "repair");
-  assert(!planComplete(p));
-  assert.throws(() => updateTask(p, 1, "done"));
-  assert.throws(() => updateTask(p, 100, "done", "proof"));
-  p = updateTask(p, 1, "done", "red test output");
-  for (const t of p.tasks.slice(1)) p = updateTask(p, t.id, "skipped", "not applicable");
-  assert(planComplete(p));
-  const finished = { ...p, finishedEvidence: "green" };
+function completedPlan() {
+  const [first, ...rest] = startPlan("bug-fix", "repair").tasks;
+  return rest.reduce(
+    (plan, task) => updateTask(plan, task.id, "skipped", "not applicable"),
+    updateTask(startPlan("bug-fix", "repair"), first.id, "done", "red test output"),
+  );
+}
+const savedState = (data) => ({ type: "custom", customType: "pstack-state", data });
+
+void test("a plan needs a goal and known or custom steps", () => {
+  assert.throws(() => startPlan("unknown", "goal"));
+  assert.throws(() => startPlan("bug-fix", " "));
+  assert.throws(() => startPlan("figure-it-out", "goal", []));
+  assert.equal(startPlan("figure-it-out", "goal", ["custom"]).tasks.length, 1);
+});
+void test("closing a task requires evidence and a known task", () => {
+  const plan = startPlan("bug-fix", "repair");
+  assert(!planComplete(plan));
+  assert.throws(() => updateTask(plan, 1, "done"));
+  assert.throws(() => updateTask(plan, 100, "done", "proof"));
+  assert.throws(() => updateTask(null, 1, "done", "proof"));
+  assert(planComplete(completedPlan()));
+});
+void test("final evidence survives re-recording a task but not a changed status", () => {
+  const finished = { ...completedPlan(), finishedEvidence: "green" };
   assert.equal(updateTask(finished, 1, "done", "rerun").finishedEvidence, "green");
   assert.equal(updateTask(finished, 1, "skipped", "never ran").finishedEvidence, undefined);
   const reopened = updateTask(finished, 1, "active");
   assert(!planComplete(reopened));
   assert.equal(reopened.finishedEvidence, undefined);
-  const state = { ...initialState(), mode: true, plan: p, wake: wakeConfig(5, 3, "green") };
-  const saved = { type: "custom", customType: "pstack-state", data: state };
+});
+void test("restore takes the latest saved state and pauses its wake loop", () => {
+  const state = {
+    ...initialState(),
+    mode: true,
+    plan: completedPlan(),
+    wake: wakeConfig(5, 3, "green"),
+  };
+  const saved = savedState(state);
   assert.equal(restore([saved]).mode, true);
   assert.equal(restore([saved]).wake.running, false);
-  const stopped = { ...saved, data: { ...state, wake: { ...state.wake, stopEvidence: "green" } } };
-  assert.equal(restore([stopped]).wake.stopEvidence, "green");
-  const invalid = { ...saved, data: { ...state, wake: { ...state.wake, stopEvidence: 1 } } };
-  assert.equal(restore([invalid]).plan, null);
   assert.equal(state.wake.running, true);
   assert.equal(restore([]).plan, null);
   const unrelated = { type: "custom", customType: "other", data: { version: 1 } };
   assert.equal(restore([saved, null, unrelated]).plan.goal, "repair");
-  assert.throws(() => startPlan("unknown", "goal"));
-  assert.throws(() => startPlan("figure-it-out", "goal", []));
-  assert.equal(startPlan("figure-it-out", "goal", ["custom"]).tasks.length, 1);
+});
+void test("restore keeps recorded stop evidence and rejects a malformed one", () => {
+  const state = { ...initialState(), plan: completedPlan(), wake: wakeConfig(5, 3, "green") };
+  const withEvidence = (stopEvidence) =>
+    savedState({ ...state, wake: { ...state.wake, stopEvidence } });
+  assert.equal(restore([withEvidence("green")]).wake.stopEvidence, "green");
+  assert.equal(restore([withEvidence(1)]).plan, null);
 });
 void test("an invalid latest state cannot resurrect an earlier shipping plan", () => {
   const data = { ...initialState(), plan: startPlan("shipping", "previous plan") };
@@ -190,6 +216,11 @@ void test("worker flags disable nested extensions and MCP, and reviewers cannot 
   assert.equal(read[read.indexOf("--tools") + 1], "read,grep,find,ls");
   assert.equal(write[write.indexOf("--tools") + 1], "read,grep,find,ls,bash,edit,write");
   assert.deepEqual(read.slice(-2), ["--", "--not-a-flag"]);
+});
+void test("every worker role with a contract has its file in agents/", () => {
+  const contracts = [...workerRoles.values()].flatMap((role) => role.contract ?? []);
+  assert.equal(contracts.length, 4);
+  for (const contract of contracts) assert(existsSync(join(root, "agents", contract)), contract);
 });
 void test("worktree porcelain preserves spaces and locked status", () => {
   assert.deepEqual(

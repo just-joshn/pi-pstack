@@ -1,10 +1,8 @@
-/** @param {unknown} value @returns {value is Record<string, unknown>} */
-export function isRecord(value) {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** @param {string} source @param {string} label @returns {unknown} */
-export function parseJson(source, label) {
+export function parseJson(source: string, label: string): unknown {
   try {
     return JSON.parse(source);
   } catch (error) {
