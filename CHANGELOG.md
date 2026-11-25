@@ -5,7 +5,7 @@
 NEW FEATURES:
 
 - `/reframe` and `/skill:reframe` from upstream pstack 0.15.48. It gives the expert terms for what you are building, with checked sources and terms from neighboring fields, and rewrites your description with them. It does not do the task.
-- The two Team Kit rules, `no-inline-imports` and `typescript-exhaustive-switch`, are appended to the system prompt of every session. Upstream marks them `alwaysApply`. Before, the package only kept them as reference files that nothing loaded.
+- The two Team Kit rules, `no-inline-imports` and `typescript-exhaustive-switch`, are appended to the system prompt while poteto-mode is on. Upstream marks them `alwaysApply`; they are limited to poteto-mode so that sessions not using pstack, which may not be TypeScript projects, do not pay for them. Before, the package only kept them as reference files that nothing loaded.
 
 CHANGED:
 

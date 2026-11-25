@@ -27,9 +27,9 @@ function statusLine({ mode, plan, wake }: State) {
   return `pstack ${mode ? "on" : "off"}${progress}${wake?.running ? " | loop" : ""}`;
 }
 
-/** Team Kit's always-applied rules, which upstream loads in every session. */
+/** Team Kit's always-applied rules; loaded with poteto-mode so non-TypeScript sessions skip them. */
 const teamKitRules = [
-  "Team Kit rules (always applied):",
+  "Team Kit rules:",
   packageFile("reference/rules/no-inline-imports.md"),
   packageFile("reference/rules/typescript-exhaustive-switch.md"),
 ].join("\n\n");
@@ -37,9 +37,9 @@ const teamKitRules = [
 function systemPromptAdditions(state: State) {
   const plan = activePlan(state);
   return [
-    teamKitRules,
     ...(state.mode
       ? [
+          teamKitRules,
           packageFile("skills/poteto-mode/SKILL.md"),
           `Native playbook triggers:\n${routeTriggers()
             .map((r) => `${r.id}: ${r.when}`)
@@ -119,6 +119,7 @@ function listen(pi: ExtensionAPI, session: SessionEvents) {
   });
   pi.on("before_agent_start", (event) => {
     const additions = systemPromptAdditions(session.state());
+    if (!additions.length) return undefined;
     return { systemPrompt: [event.systemPrompt, ...additions].join("\n\n") };
   });
 }

@@ -46,7 +46,7 @@ Use `pi -e npm:pi-pstack-workflow-kit` to try it for one session. Add `--local` 
 
 The package registers 53 original slash-skill names (35 ordinary pstack and 18 Team Kit) and nine model-callable tools. All 77 skills, including 24 principle leaves, use the standard `/skill:<name>` interface. Playbooks remain supporting files, not 22 extra ordinary skills. Use Pi's standard `/model`, `/resume`, `/tree`, `/compact`, `/mcp`, `/reload`, `pi install`, and headless JSON/RPC interfaces for host capabilities.
 
-The extension appends the two always-applied Team Kit rules, `no-inline-imports` and `typescript-exhaustive-switch`, to the system prompt of every session, as upstream applies them in every Cursor session. They are in `src/reference/rules/`.
+The extension appends the two always-applied Team Kit rules, `no-inline-imports` and `typescript-exhaustive-switch`, to the system prompt while poteto-mode is on (`/poteto-mode on`). Upstream applies them in every Cursor session; here they stay out of sessions that do not use pstack, which may not be TypeScript projects. They are in `src/reference/rules/`.
 
 | Tool              | Behavior                                                                                                               |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------- |

@@ -849,7 +849,7 @@
       "id": "kit-exhaustive-switch",
       "kind": "external",
       "status": "extension",
-      "implementation": "reference/rules/typescript-exhaustive-switch.md; appended to every system prompt",
+      "implementation": "reference/rules/typescript-exhaustive-switch.md; appended to the system prompt while poteto-mode is on",
       "invocation": null,
       "source": [
         "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/rules/typescript-exhaustive-switch.mdc",
@@ -860,7 +860,7 @@
       "id": "kit-no-inline-imports",
       "kind": "external",
       "status": "extension",
-      "implementation": "reference/rules/no-inline-imports.md; appended to every system prompt",
+      "implementation": "reference/rules/no-inline-imports.md; appended to the system prompt while poteto-mode is on",
       "invocation": null,
       "source": [
         "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/rules/no-inline-imports.mdc",

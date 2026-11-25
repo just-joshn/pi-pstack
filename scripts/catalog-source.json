@@ -275,11 +275,11 @@
     "kit-quality-agent": ["extension", "agents/quality-agent.md + pstack_delegate"],
     "kit-exhaustive-switch": [
       "extension",
-      "reference/rules/typescript-exhaustive-switch.md; appended to every system prompt"
+      "reference/rules/typescript-exhaustive-switch.md; appended to the system prompt while poteto-mode is on"
     ],
     "kit-no-inline-imports": [
       "extension",
-      "reference/rules/no-inline-imports.md; appended to every system prompt"
+      "reference/rules/no-inline-imports.md; appended to the system prompt while poteto-mode is on"
     ],
     "worker": ["extension", "agents/worker.md"],
     "models": ["extension", "user Pi pstack-models.json"],

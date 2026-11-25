@@ -248,16 +248,16 @@ test("the plan tool accepts custom steps only through the custom action", async 
   assert.equal(made.complete, false);
 });
 
-test("a finished plan records its evidence and leaves the system prompt", async () => {
+test("a finished plan records its evidence and leaves the system prompt alone", async () => {
   const { h, done } = await finishedPlan();
   assert.equal(done.plan?.finishedEvidence, "green");
-  const prompt = systemPrompt(h.emit("before_agent_start", { systemPrompt: "base" }));
-  assert(!prompt.includes("Branch-local task state"));
-  assert(!prompt.includes("Native playbook triggers"));
+  assert.equal(h.emit("before_agent_start", { systemPrompt: "base" }), undefined);
 });
 
-test("Team Kit rules are appended to every system prompt, with pstack mode off", () => {
+test("Team Kit rules are appended to the system prompt only while poteto-mode is on", async () => {
   const h = host();
+  assert.equal(h.emit("before_agent_start", { systemPrompt: "base" }), undefined);
+  await h.cmd("poteto-mode", "on");
   const prompt = systemPrompt(h.emit("before_agent_start", { systemPrompt: "base" }));
   assert(prompt.startsWith("base\n\n"));
   assert.match(prompt, /# No inline imports/);
