@@ -64,7 +64,10 @@ test("77 native skills, 22 ordered playbooks and all conditional links", async (
       assert(name, id);
       assert.equal(name, p.split("/")[1]);
       assert(name.length <= 64);
-      const described: unknown = JSON.parse(description);
+      // Ported files keep upstream's frontmatter, which quotes some descriptions and not others.
+      const described: unknown = description.startsWith('"')
+        ? JSON.parse(description)
+        : description;
       assert(typeof described === "string" && described.length <= 1024);
       assert(!f.includes("~/.cursor"));
     }),

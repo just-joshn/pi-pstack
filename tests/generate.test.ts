@@ -45,13 +45,13 @@ test(
     const { dir, run, success } = await generatorCopy();
     await success();
     await success("--check");
-    const old = join(dir, "src/skills/bro/SKILL.md");
+    const old = join(dir, "src/skills/deslop/SKILL.md");
     const original = await readFile(old, "utf8");
     const input = join(dir, "scripts/catalog-source.json");
     const source = shaped<{ skills: Record<string, string> }>(
       JSON.parse(await readFile(input, "utf8")),
     );
-    source.skills["bro"] = "Changed source instructions.";
+    source.skills["kit-deslop"] = "Changed source instructions.";
     await writeFile(input, JSON.stringify(source));
     assert.notEqual((await run("--check")).status, 0);
     assert.equal(await readFile(old, "utf8"), original);
@@ -62,18 +62,18 @@ test(
     const map = shaped<{ nodes: { id: string; label: string }[] }>(
       JSON.parse(await readFile(mapFile, "utf8")),
     );
-    const bro = map.nodes.find((n) => n.id === "bro");
-    assert(bro);
-    bro.label = "/renamed-bro";
+    const deslop = map.nodes.find((n) => n.id === "kit-deslop");
+    assert(deslop);
+    deslop.label = "/renamed-deslop";
     await writeFile(mapFile, JSON.stringify(map));
     const manual = join(dir, "src/skills/hand-authored/SKILL.md");
     await mkdir(dirname(manual));
     await writeFile(manual, "Keep my skill.\n");
     const check = await run("--check");
     assert.notEqual(check.status, 0);
-    assert.match(check.stdout + check.stderr, /src\/skills\/bro\/SKILL\.md/);
-    assert.match(check.stdout + check.stderr, /src\/skills\/renamed-bro\/SKILL\.md/);
-    const renamed = join(dir, "src/skills/renamed-bro/SKILL.md");
+    assert.match(check.stdout + check.stderr, /src\/skills\/deslop\/SKILL\.md/);
+    assert.match(check.stdout + check.stderr, /src\/skills\/renamed-deslop\/SKILL\.md/);
+    const renamed = join(dir, "src/skills/renamed-deslop/SKILL.md");
     await assert.rejects(() => readFile(renamed), { code: "ENOENT" });
     await success();
     await success("--check");
