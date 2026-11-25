@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { onTestFinished, test } from "vitest";
 
 import { readJob } from "../src/jobs/job-input.ts";
-import { root } from "../src/lib/catalog.ts";
+import { srcDir } from "../src/lib/catalog.ts";
 import { flag, shaped, spawned } from "./support.ts";
 
 const runner = fileURLToPath(new URL("../src/jobs/run-job.mjs", import.meta.url));
@@ -318,7 +318,7 @@ test(
     const skills = flag(args, "--skill") ?? "";
     const extension = flag(args, "-e") ?? "";
     await access(join(skills, "poteto-mode", "SKILL.md"));
-    assert.equal(extension, join(root, "index.ts"));
+    assert.equal(extension, join(srcDir, "index.ts"));
     await access(extension);
   },
 );

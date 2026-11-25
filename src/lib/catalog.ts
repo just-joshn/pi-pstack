@@ -79,8 +79,8 @@ const isCatalog = (value: unknown): value is Catalog =>
   isRecordOf(value["implementations"], isMapping);
 
 /** The `src` directory, which holds every file the installed extension reads. */
-export const root = fileURLToPath(new URL("../", import.meta.url));
-export const packageFile = (path: string) => readFileSync(join(root, path), "utf8");
+export const srcDir = fileURLToPath(new URL("../", import.meta.url));
+export const packageFile = (path: string) => readFileSync(join(srcDir, path), "utf8");
 function packageData<T>(path: string, isValid: (value: unknown) => value is T): T {
   const value = parseJson(packageFile(path), path);
   if (!isValid(value)) throw Error(`Invalid ${path}`);

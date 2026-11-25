@@ -139,25 +139,29 @@ async function previewPrefix(
   return { prefix, lookupFailure };
 }
 
-/** Merges one approved PR and returns its receipt, or no receipt when the merge is unconfirmed. */
+type MergeOutcome =
+  | { confirmed: true; receipt: { number: number; head: string; url: string } }
+  | { confirmed: false; error?: string };
+
 async function mergeOne(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
   proof: Approved,
   signal?: AbortSignal,
-): Promise<{ receipt?: { number: number; head: string; url: string }; error?: string }> {
+): Promise<MergeOutcome> {
   try {
     const r = await pi.exec(
       "gh",
       ["pr", "merge", proof.url, "--merge", "--match-head-commit", proof.head],
       { cwd: ctx.cwd, timeout: 60000, maxBuffer: 1024 * 1024, ...(signal && { signal }) },
     );
-    if (r.code !== 0 || r.killed || r.truncated) return { error: r.stderr };
+    if (r.code !== 0 || r.killed || r.truncated) return { confirmed: false, error: r.stderr };
     const after = await fetchPr(pi, ctx, proof.url, signal);
-    if (after.state !== "MERGED" || after.headRefOid !== proof.head) return {};
-    return { receipt: { number: proof.number, head: after.headRefOid, url: after.url } };
+    if (after.state !== "MERGED" || after.headRefOid !== proof.head) return { confirmed: false };
+    const receipt = { number: proof.number, head: after.headRefOid, url: after.url };
+    return { confirmed: true, receipt };
   } catch (error) {
-    return { error: errorMessage(error) };
+    return { confirmed: false, error: errorMessage(error) };
   }
 }
 
@@ -189,15 +193,15 @@ async function mergePrefix(
     }
 
     // oxlint-disable-next-line eslint/no-await-in-loop -- Stack merges must run in order, each confirmed before the next.
-    const { receipt, error } = await mergeOne(pi, ctx, proof, signal);
-    if (!receipt)
+    const outcome = await mergeOne(pi, ctx, proof, signal);
+    if (!outcome.confirmed)
       return {
         ...stopped,
         unconfirmed: proof.number,
         reason: "Merge not confirmed; inspect forge state",
-        error,
+        error: outcome.error,
       };
-    merged.push(receipt);
+    merged.push(outcome.receipt);
   }
   return { merged, ceiling: prefix.at(-1)?.number };
 }

@@ -10,15 +10,15 @@ import {
   map,
   nativeNode,
   nodes,
-  root,
   routes,
+  srcDir,
   view,
   views,
 } from "../src/lib/catalog.ts";
 import { startPlan } from "../src/lib/state.ts";
 import { shaped } from "./support.ts";
 
-const packaged = (path: string) => readFile(join(root, path), "utf8");
+const packaged = (path: string) => readFile(join(srcDir, path), "utf8");
 const parity = shaped<{ nodes: { id: string }[]; edges: unknown; views: unknown }>(
   JSON.parse(await packaged("reference/parity.json")),
 );
@@ -74,7 +74,7 @@ test("76 native skills, 22 ordered playbooks and all conditional links", async (
     assert.equal(startPlan(r, "goal").tasks.length, catalog.steps[r]?.length);
     for (const e of n.outgoing) assert(n.instructions?.includes("`" + e.to + "`"));
   }
-  await Promise.all(Object.values(catalog.paths).map((p) => access(join(root, p))));
+  await Promise.all(Object.values(catalog.paths).map((p) => access(join(srcDir, p))));
 });
 
 test("catalog nodes return their declared instruction files, not display labels", async () => {

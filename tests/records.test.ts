@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { test } from "vitest";
 
-import { root } from "../src/lib/catalog.ts";
+import { srcDir } from "../src/lib/catalog.ts";
 import { host, resultText, sandbox } from "./host.ts";
 import { shaped } from "./support.ts";
 
@@ -92,6 +92,9 @@ test("an automation draft is written disabled and runs nothing", async () => {
   );
   assert.equal(draft.enabled, false);
   assert.equal(draft.config.enabled, false);
-  assert.equal(draft.instructions, await readFile(join(root, "reference/benny/triage.md"), "utf8"));
+  assert.equal(
+    draft.instructions,
+    await readFile(join(srcDir, "reference/benny/triage.md"), "utf8"),
+  );
   assert.equal(h.executions.length, 0);
 });

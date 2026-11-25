@@ -50,15 +50,15 @@ function ancestry(exitCode: number | undefined) {
 
 /** Paths of worktrees that a running write worker is using; removal refuses them. */
 export function activeWorktrees() {
-  let paths: ReadonlySet<string> = new Set();
+  const paths = new Set<string>();
   return {
     has: (path: string) => paths.has(path),
     async hold<T>(path: string, work: () => Promise<T>) {
-      paths = new Set([...paths, path]);
+      paths.add(path);
       try {
         return await work();
       } finally {
-        paths = new Set([...paths].filter((held) => held !== path));
+        paths.delete(path);
       }
     },
   };

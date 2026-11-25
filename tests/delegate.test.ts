@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { onTestFinished, test } from "vitest";
 
 import { workerArgs, workerRoles } from "../src/delegate.ts";
-import { root } from "../src/lib/catalog.ts";
+import { srcDir } from "../src/lib/catalog.ts";
 import {
   configFile,
   delegated,
@@ -191,5 +191,5 @@ test("worker flags disable nested extensions and MCP, and reviewers cannot write
 test("every worker role with a contract has its file in agents/", async () => {
   const contracts = [...workerRoles.values()].flatMap((role) => role.contract ?? []);
   assert.equal(contracts.length, 4);
-  await Promise.all(contracts.map((contract) => access(join(root, "agents", contract))));
+  await Promise.all(contracts.map((contract) => access(join(srcDir, "agents", contract))));
 });

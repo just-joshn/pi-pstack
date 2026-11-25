@@ -6,7 +6,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { type Static, Type } from "typebox";
 
 import { gitIn } from "./git.ts";
-import { root } from "./lib/catalog.ts";
+import { srcDir } from "./lib/catalog.ts";
 import {
   type Budget,
   crossJudge,
@@ -167,16 +167,16 @@ function diffNotes(diff: ParentDiff | undefined) {
 }
 
 async function workerPrompt(request: WorkerRequest, options: RunnerOptions) {
-  const kickoffPath = join(root, "agents", "worker.md");
+  const kickoffPath = join(srcDir, "agents", "worker.md");
   const contract = workerRoles.get(request.role)?.contract;
   return [
     `Read ${kickoffPath} before anything else.`,
     await readFile(kickoffPath, "utf8"),
     contract
-      ? await readFile(join(root, "agents", contract), "utf8")
+      ? await readFile(join(srcDir, "agents", contract), "utf8")
       : "Independent scoped worker.",
     request.role === "poteto-agent" &&
-      (await readFile(join(root, "skills", "poteto-mode", "SKILL.md"), "utf8")),
+      (await readFile(join(srcDir, "skills", "poteto-mode", "SKILL.md"), "utf8")),
     `Assigned task: ${request.task}`,
     options.rubric && `Finish predicate / rubric: ${options.rubric}`,
     ...diffNotes(options.diff),
@@ -333,8 +333,12 @@ async function delegate(
   if (!ctx.model) fail("Select a parent model first");
   const extensions = await workerExtensions(pi, ctx, signal);
   const available = new Set(availableWorkerModels(ctx, extensions));
-  const resolved = resolveWorkers(p, config, modelName(ctx.model), available);
-  const { role, modelRole, readOnly, workers, judge } = resolved;
+  const { role, modelRole, readOnly, workers, judge } = resolveWorkers(
+    p,
+    config,
+    modelName(ctx.model),
+    available,
+  );
   if (!readOnly) await authorizeWrites(ctx, workers.length, p.base);
   const dir = join(artifacts(ctx), "workers", randomUUID());
   await mkdir(dir, { recursive: true, mode: 0o700 });

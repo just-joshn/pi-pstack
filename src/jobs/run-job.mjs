@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { aliases } from "../lib/models.ts";
 import { isRecord } from "../lib/validation.ts";
 import { configuredModel, isMcp, readEvent, readJob } from "./job-input.ts";
-const packaged = fileURLToPath(new URL("../", import.meta.url));
+const srcDir = fileURLToPath(new URL("../", import.meta.url));
 
 const [flag, jobFile, eventFile] = process.argv.slice(2);
 if (flag !== "--run" || !jobFile)
@@ -50,14 +50,14 @@ const args = [
   "--no-extensions",
   ...(mcp ? ["-e", "builtin:mcp"] : ["--no-mcp"]),
   "--skill",
-  join(packaged, "skills"),
+  join(srcDir, "skills"),
   "--tools",
   job.tools.join(","),
   "--session-dir",
   runDir,
 ];
 if (job.kind === "custom" && job.tools.some((t) => t.startsWith("pstack_")))
-  args.push("-e", join(packaged, "index.ts"));
+  args.push("-e", join(srcDir, "index.ts"));
 const model = configuredModel(job);
 if (model && !aliases.includes(model)) args.push("--model", model);
 if (job.thinking) args.push("--thinking", job.thinking);

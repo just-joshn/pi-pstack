@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { setTimeout as wait } from "node:timers/promises";
 
-import { catalog, root, slashSkills } from "../src/lib/catalog.ts";
+import { catalog, slashSkills, srcDir } from "../src/lib/catalog.ts";
 import { errorMessage, isRecord } from "../src/lib/validation.ts";
 
 type Rpc = Record<string, unknown>;
@@ -25,11 +25,11 @@ const child = spawn(
     "--no-prompt-templates",
     "--no-mcp",
     "-e",
-    join(root, "index.ts"),
+    join(srcDir, "index.ts"),
     "-e",
     join(import.meta.dirname, "smoke-provider.ts"),
     "--skill",
-    join(root, "skills"),
+    join(srcDir, "skills"),
   ],
   {
     cwd,
