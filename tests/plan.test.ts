@@ -11,6 +11,11 @@ import { host, planned, readResult, type Summary, type ToolResponse } from "./ho
 import { nth, shaped } from "./support.ts";
 
 const woke = (response: ToolResponse) => shaped<Wake>(readResult(response));
+function systemPrompt(started: unknown) {
+  const prompt = isRecord(started) ? started["systemPrompt"] : undefined;
+  assert(typeof prompt === "string");
+  return prompt;
+}
 async function finishedPlan() {
   const h = host();
   await h.call("pstack_plan", { action: "custom", goal: "verify", steps: ["check"] });
@@ -149,9 +154,8 @@ test("command activation, explicit plan, native tool update and restore", async 
   const h = host();
   await h.cmd("poteto-mode", "on");
   assert.equal(h.state().mode, true);
-  const started = h.emit("before_agent_start", { systemPrompt: "base" });
-  const prompt = isRecord(started) ? started["systemPrompt"] : undefined;
-  assert(typeof prompt === "string" && prompt.includes("Native playbook triggers"));
+  const prompt = systemPrompt(h.emit("before_agent_start", { systemPrompt: "base" }));
+  assert(prompt.includes("Native playbook triggers"));
   await h.cmd("pstack-run", "bug-fix repair");
   assert(h.messages.at(-1)?.includes("Ordered steps"));
   assert.equal(h.state().plan?.route, "bug-fix");
@@ -244,10 +248,20 @@ test("the plan tool accepts custom steps only through the custom action", async 
   assert.equal(made.complete, false);
 });
 
-test("a finished plan records its evidence and leaves the system prompt alone", async () => {
+test("a finished plan records its evidence and leaves the system prompt", async () => {
   const { h, done } = await finishedPlan();
   assert.equal(done.plan?.finishedEvidence, "green");
-  assert.equal(h.emit("before_agent_start", { systemPrompt: "base" }), undefined);
+  const prompt = systemPrompt(h.emit("before_agent_start", { systemPrompt: "base" }));
+  assert(!prompt.includes("Branch-local task state"));
+  assert(!prompt.includes("Native playbook triggers"));
+});
+
+test("Team Kit rules are appended to every system prompt, with pstack mode off", () => {
+  const h = host();
+  const prompt = systemPrompt(h.emit("before_agent_start", { systemPrompt: "base" }));
+  assert(prompt.startsWith("base\n\n"));
+  assert.match(prompt, /# No inline imports/);
+  assert.match(prompt, /# Exhaustive TypeScript switches/);
 });
 
 test("clearing state keeps the resume note written by a pause", async () => {

@@ -427,8 +427,14 @@
     ],
     "kit-ci-watcher": ["extension", "agents/ci-watcher.md + pstack_delegate"],
     "kit-quality-agent": ["extension", "agents/quality-agent.md + pstack_delegate"],
-    "kit-exhaustive-switch": ["instruction", "reference/rules/typescript-exhaustive-switch.md"],
-    "kit-no-inline-imports": ["instruction", "reference/rules/no-inline-imports.md"],
+    "kit-exhaustive-switch": [
+      "extension",
+      "reference/rules/typescript-exhaustive-switch.md; appended to every system prompt"
+    ],
+    "kit-no-inline-imports": [
+      "extension",
+      "reference/rules/no-inline-imports.md; appended to every system prompt"
+    ],
     "cli": ["host", "pi interactive / --print / --mode json / --mode rpc"],
     "cli-plugins": ["host", "pi install, pi config, pi list, /reload"],
     "cli-mode": ["extension", "/poteto-mode on|off and before_agent_start"],

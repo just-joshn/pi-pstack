@@ -273,8 +273,14 @@
     "agent-comment": ["extension", "agents/comment-sicko.md + read-only Pi tool allowlist"],
     "kit-ci-watcher": ["extension", "agents/ci-watcher.md + pstack_delegate"],
     "kit-quality-agent": ["extension", "agents/quality-agent.md + pstack_delegate"],
-    "kit-exhaustive-switch": ["instruction", "reference/rules/typescript-exhaustive-switch.md"],
-    "kit-no-inline-imports": ["instruction", "reference/rules/no-inline-imports.md"],
+    "kit-exhaustive-switch": [
+      "extension",
+      "reference/rules/typescript-exhaustive-switch.md; appended to every system prompt"
+    ],
+    "kit-no-inline-imports": [
+      "extension",
+      "reference/rules/no-inline-imports.md; appended to every system prompt"
+    ],
     "worker": ["extension", "agents/worker.md"],
     "models": ["extension", "user Pi pstack-models.json"],
     "decision-log": ["extension", "pstack_log / session artifact TSV"],
