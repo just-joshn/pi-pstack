@@ -64,26 +64,27 @@ async function git(args: string[], cwd: string | undefined): Promise<ExecResult>
   return { code: status, stdout, stderr, killed: false, truncated: false };
 }
 
-export function host({
-  confirm = false,
-  mode = "tui",
-  cwd = sandbox,
-  realGit = false,
-  execute,
-  extensionProviders = [],
-  loadedExtensions = [],
-}: HostOptions = {}) {
-  const sessionId = randomUUID();
-  const commands = new Map<string, Command>();
-  const tools = new Map<string, Tool>();
-  const events = new Map<string, Handler>();
-  const entries: Entry[] = [];
-  const messages: string[] = [];
-  const notifications: string[] = [];
-  const executions: [bin: string, args: string[], options: ExecOptions | undefined][] = [];
+function recorder() {
+  return {
+    commands: new Map<string, Command>(),
+    tools: new Map<string, Tool>(),
+    events: new Map<string, Handler>(),
+    entries: [] as Entry[],
+    messages: [] as string[],
+    notifications: [] as string[],
+    executions: [] as [bin: string, args: string[], options: ExecOptions | undefined][],
+  };
+}
+type Recorder = ReturnType<typeof recorder>;
+
+function fakePi(
+  record: Recorder,
+  { realGit = false, execute, loadedExtensions = [] }: HostOptions,
+): ExtensionAPI {
+  const { commands, tools, events, entries, messages, executions } = record;
   const sent = (content: unknown) =>
     messages.push(typeof content === "string" ? content : JSON.stringify(content));
-  const pi = double<ExtensionAPI>({
+  return double<ExtensionAPI>({
     registerCommand: (name, options) => {
       assert(!commands.has(name));
       commands.set(name, options);
@@ -105,14 +106,9 @@ export function host({
       })),
     ],
     appendEntry: (customType, data) => {
-      entries.push({
-        type: "custom",
-        id: randomUUID(),
-        parentId: null,
-        timestamp: new Date().toISOString(),
-        customType,
-        data,
-      });
+      const id = randomUUID();
+      const timestamp = new Date().toISOString();
+      entries.push({ type: "custom", id, parentId: null, timestamp, customType, data });
     },
     sendMessage: (message) => {
       sent(message.content);
@@ -127,7 +123,14 @@ export function host({
       return { killed: false, truncated: false, ...(await execute(bin, args, options)) };
     },
   });
-  const ctx = double<Context>({
+}
+
+function fakeContext(
+  record: Recorder,
+  sessionId: string,
+  { confirm = false, mode = "tui", cwd = sandbox, extensionProviders = [] }: HostOptions,
+) {
+  return double<Context>({
     cwd,
     mode,
     hasUI: mode === "tui" || mode === "rpc",
@@ -144,11 +147,11 @@ export function host({
     sessionManager: double<Context["sessionManager"]>({
       getSessionId: () => sessionId,
       getSessionFile: () => undefined,
-      getBranch: () => entries,
+      getBranch: () => record.entries,
     }),
     ui: double<Context["ui"]>({
       notify: (message) => {
-        notifications.push(message);
+        record.notifications.push(message);
       },
       setStatus() {},
       setWidget() {},
@@ -160,15 +163,16 @@ export function host({
     isIdle: () => true,
     hasPendingMessages: () => false,
   });
-  extension(pi);
+}
+
+export function host(options: HostOptions = {}) {
+  const sessionId = randomUUID();
+  const record = recorder();
+  const ctx = fakeContext(record, sessionId, options);
+  extension(fakePi(record, options));
+  const { commands, tools, events, entries, notifications } = record;
   return {
-    commands,
-    tools,
-    events,
-    entries,
-    messages,
-    notifications,
-    executions,
+    ...record,
     ctx,
     artifacts: join(sandbox, "pstack", "sessions", sessionId),
     state: () => shaped<State>(entries.at(-1)?.data),

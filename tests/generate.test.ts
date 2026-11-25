@@ -8,26 +8,32 @@ import { describe, onTestFinished, test } from "vitest";
 import { root } from "../lib/catalog.ts";
 import { shaped, spawned } from "./support.ts";
 
+/** The generator and its inputs, copied into a temporary directory. */
+async function generatorCopy() {
+  const dir = await mkdtemp(join(tmpdir(), "catalog-generate-"));
+  onTestFinished(() => rm(dir, { recursive: true, force: true }));
+  await Promise.all(["scripts", "lib", "reference"].map((p) => mkdir(join(dir, p))));
+  await Promise.all(
+    [
+      "scripts/generate.py",
+      "scripts/catalog-source.json",
+      "reference/source-map.json",
+      "bunfig.toml",
+    ].map((p) => copyFile(join(root, p), join(dir, p))),
+  );
+  const run = (...args: string[]) =>
+    spawned("python3", ["scripts/generate.py", ...args], { cwd: dir });
+  const success = async (...args: string[]) => {
+    const r = await run(...args);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+  };
+  return { dir, run, success };
+}
+
 // The test runs the generator several times, so the default 5 seconds is too short on a slow machine.
 describe("generator", { timeout: 30_000 }, () => {
   test("generated checks are read-only, detect drift, and regenerate only owned files", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "catalog-generate-"));
-    onTestFinished(() => rm(dir, { recursive: true, force: true }));
-    await Promise.all(["scripts", "lib", "reference"].map((p) => mkdir(join(dir, p))));
-    await Promise.all(
-      [
-        "scripts/generate.py",
-        "scripts/catalog-source.json",
-        "reference/source-map.json",
-        "bunfig.toml",
-      ].map((p) => copyFile(join(root, p), join(dir, p))),
-    );
-    const run = (...args: string[]) =>
-      spawned("python3", ["scripts/generate.py", ...args], { cwd: dir });
-    const success = async (...args: string[]) => {
-      const r = await run(...args);
-      assert.equal(r.status, 0, r.stderr + r.stdout);
-    };
+    const { dir, run, success } = await generatorCopy();
     await success();
     await success("--check");
     const old = join(dir, "skills/bro/SKILL.md");

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "vitest";
 
 import { verifiedPrefix } from "../src/forge.ts";
-import { type Host, host, readResult, type Run, shipped } from "./host.ts";
+import { type Host, host, type HostOptions, readResult, type Run, shipped } from "./host.ts";
 import { shaped } from "./support.ts";
 
 const readyProof = (n: number) => ({
@@ -92,6 +92,45 @@ async function completeTasks(h: Host) {
       evidence: "checked",
     });
   }
+}
+
+/** A GitHub fake that merges PR 1 and moves PR 2 to a new head once the stack is approved. */
+function changingForge(url: string): HostOptions {
+  let approved = false;
+  const merged = new Set<number>();
+  return {
+    mode: "rpc",
+    confirm: (_, message) => {
+      assert.deepEqual(
+        shaped<{ url: string }[]>(JSON.parse(message)).map((proof) => proof.url),
+        [`${url}1`, `${url}2`],
+      );
+      approved = true;
+      return true;
+    },
+    execute: async (bin, args) => {
+      assert.equal(bin, "gh");
+      assert.equal(args[0], "pr");
+      const number = Number(args[2]?.split("/").at(-1));
+      if (args[1] === "merge") {
+        assert.deepEqual(args, ["pr", "merge", `${url}1`, "--merge", "--match-head-commit", head]);
+        merged.add(number);
+        return { code: 0, stdout: "", stderr: "" };
+      }
+      assert.equal(args[2], approved ? `${url}${number}` : String(number));
+      const status = {
+        number,
+        url: `${url}${number}`,
+        headRefOid: approved && number === 2 ? "b".repeat(40) : head,
+        state: merged.has(number) ? "MERGED" : "OPEN",
+        isDraft: false,
+        mergeable: "MERGEABLE",
+        mergeStateStatus: "CLEAN",
+        statusCheckRollup: [{ status: "COMPLETED", conclusion: "SUCCESS" }],
+      };
+      return { code: 0, stdout: JSON.stringify(status), stderr: "" };
+    },
+  };
 }
 
 describe("shipping gate", () => {
@@ -189,48 +228,7 @@ describe("shipping gate", () => {
 
   test("RPC shipping pins approved repository URLs and stops before merging a changed head", async () => {
     const url = "https://github.com/team/project/pull/";
-    let approved = false;
-    const merged = new Set<number>();
-    const h = host({
-      mode: "rpc",
-      confirm: (_, message) => {
-        assert.deepEqual(
-          shaped<{ url: string }[]>(JSON.parse(message)).map((proof) => proof.url),
-          [`${url}1`, `${url}2`],
-        );
-        approved = true;
-        return true;
-      },
-      execute: async (bin, args) => {
-        assert.equal(bin, "gh");
-        assert.equal(args[0], "pr");
-        const number = Number(args[2]?.split("/").at(-1));
-        if (args[1] === "merge") {
-          assert.deepEqual(args, [
-            "pr",
-            "merge",
-            `${url}1`,
-            "--merge",
-            "--match-head-commit",
-            head,
-          ]);
-          merged.add(number);
-          return { code: 0, stdout: "", stderr: "" };
-        }
-        assert.equal(args[2], approved ? `${url}${number}` : String(number));
-        const status = {
-          number,
-          url: `${url}${number}`,
-          headRefOid: approved && number === 2 ? "b".repeat(40) : head,
-          state: merged.has(number) ? "MERGED" : "OPEN",
-          isDraft: false,
-          mergeable: "MERGEABLE",
-          mergeStateStatus: "CLEAN",
-          statusCheckRollup: [{ status: "COMPLETED", conclusion: "SUCCESS" }],
-        };
-        return { code: 0, stdout: JSON.stringify(status), stderr: "" };
-      },
-    });
+    const h = host(changingForge(url));
     await h.cmd("pstack-run", "shipping Merge checked heads");
     const pinned = [1, 2].map((number) => ({
       number,

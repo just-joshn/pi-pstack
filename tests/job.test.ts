@@ -30,31 +30,31 @@ const outcome = (stdout: string) =>
 const child = async (log: string) => shaped<Child>(JSON.parse(await readFile(log, "utf8")));
 const receipt = (saved: string) => shaped<Receipt>(JSON.parse(saved));
 
+/** A Pi stand-in that prints the arguments, prompt and secret it received. */
+const fakePi = `#!/usr/bin/env node
+const prompt = require("node:fs").readFileSync(0, "utf8");
+console.log(JSON.stringify({args:process.argv.slice(2),prompt,secret:process.env.PSTACK_EVENT_SECRET??null}));
+process.exitCode = Number(process.env.PSTACK_TEST_EXIT_CODE ?? 0);
+`;
+const bennyConfig = () => ({
+  enabled: true,
+  slackChannel: "C1",
+  tracker: "tracker",
+  repository: "repo",
+  featureMap: "map",
+  controlAdapter: "adapter",
+  allowDraftPr: false,
+});
+
 async function fixture(kind = "benny-triage") {
   const dir = await mkdtemp(join(tmpdir(), "pstack-job-"));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));
   const fake = join(dir, "fake-pi");
-  await writeFile(
-    fake,
-    `#!/usr/bin/env node
-const prompt = require("node:fs").readFileSync(0, "utf8");
-console.log(JSON.stringify({args:process.argv.slice(2),prompt,secret:process.env.PSTACK_EVENT_SECRET??null}));
-process.exitCode = Number(process.env.PSTACK_TEST_EXIT_CODE ?? 0);
-`,
-    { mode: 0o700 },
-  );
+  await writeFile(fake, fakePi, { mode: 0o700 });
   const job = join(dir, "job.json");
   const event = join(dir, "event.json");
   const secret = "test-secret";
-  const config = {
-    enabled: true,
-    slackChannel: "C1",
-    tracker: "tracker",
-    repository: "repo",
-    featureMap: "map",
-    controlAdapter: "adapter",
-    allowDraftPr: false,
-  };
+  const config = bennyConfig();
   const enabled = {
     version: 1,
     enabled: true,
