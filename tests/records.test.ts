@@ -4,7 +4,9 @@ import { join } from "node:path";
 
 import { describe, test } from "vitest";
 
+import { root } from "../lib/catalog.ts";
 import { host, resultText, sandbox } from "./host.ts";
+import { shaped } from "./support.ts";
 
 const decision = {
   phase: "plan",
@@ -70,5 +72,34 @@ describe("records", () => {
         ["plan", "second", "why", "proof", "ok"],
       ],
     );
+  });
+
+  test("the decision log escapes tabs into one TSV row", async () => {
+    const h = host();
+    const path = resultText(
+      await h.call("pstack_log", {
+        phase: "test",
+        decision: "a\tb",
+        reason: "why",
+        evidence: "proof",
+        result: "green",
+      }),
+    );
+    assert((await readFile(path, "utf8")).includes("test\ta b\twhy\tproof\tgreen"));
+  });
+
+  test("an automation draft is written disabled and runs nothing", async () => {
+    const h = host();
+    await h.cmd("pstack-automation", "benny-triage");
+    const draft = shaped<{ enabled: boolean; instructions: string; config: { enabled: boolean } }>(
+      JSON.parse(await readFile(join(h.artifacts, "benny-triage.job.json"), "utf8")),
+    );
+    assert.equal(draft.enabled, false);
+    assert.equal(draft.config.enabled, false);
+    assert.equal(
+      draft.instructions,
+      await readFile(join(root, "reference/benny/triage.md"), "utf8"),
+    );
+    assert.equal(h.executions.length, 0);
   });
 });

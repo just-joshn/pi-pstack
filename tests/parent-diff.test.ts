@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -7,7 +7,9 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { describe, onTestFinished, test } from "vitest";
 
 import { saveParentDiff } from "../src/parent-diff.ts";
-import { double } from "./support.ts";
+import { delegated, host, swarm } from "./host.ts";
+import { commit, git, repo } from "./repo.ts";
+import { double, nth } from "./support.ts";
 
 const ran = (code: number, stdout: string) => ({
   code,
@@ -106,5 +108,36 @@ describe("parent diff", () => {
     });
     assert.deepEqual(diff?.omitted, ["unstarted", "unreadable"]);
     assert.equal(await readFile(diff.path, "utf8"), "+fine\n");
+  });
+
+  test("the parent diff includes root-relative tracked and untracked paths from a subdirectory", async () => {
+    const cwd = await repo();
+    const subdir = join(cwd, "pkg");
+    await mkdir(subdir);
+    await writeFile(join(subdir, "local.txt"), "old\n");
+    await writeFile(join(cwd, "tracked.txt"), "one\n");
+    await git(cwd, "add", ".");
+    await commit(cwd, "tracked");
+    await git(cwd, "config", "diff.relative", "true");
+    await writeFile(join(subdir, "local.txt"), "new\n");
+    await writeFile(join(cwd, "tracked.txt"), "two\n");
+    await writeFile(join(cwd, "fresh.txt"), "brand new\n");
+    const prompts: string[] = [];
+    const h = host({
+      cwd: subdir,
+      realGit: true,
+      execute: async (_, args) => {
+        prompts.push(args.at(-1) ?? "");
+        return { code: 0, stdout: "ok", stderr: "" };
+      },
+    });
+    const output = delegated(await h.call("pstack_delegate", swarm));
+    const diff = await readFile(join(output.dir, "parent.diff"), "utf8");
+    assert.match(diff, /diff --git a\/pkg\/local\.txt b\/pkg\/local\.txt/);
+    assert.match(diff, /\+two/);
+    assert.match(diff, /fresh\.txt/);
+    assert.match(diff, /\+brand new/);
+    assert.match(nth(prompts, 0), /tracked changes and untracked files/);
+    assert.doesNotMatch(nth(prompts, 0), /omitted/);
   });
 });

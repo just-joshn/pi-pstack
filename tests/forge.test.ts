@@ -2,8 +2,26 @@ import assert from "node:assert/strict";
 
 import { describe, test } from "vitest";
 
-import { type Host, host, type Run, shipped } from "./host.ts";
+import { verifiedPrefix } from "../src/forge.ts";
+import { type Host, host, readResult, type Run, shipped } from "./host.ts";
 import { shaped } from "./support.ts";
+
+const readyProof = (n: number) => ({
+  number: n,
+  head: `sha${n}`,
+  evidence: "actual run",
+  independent: true,
+});
+const readyPr = (n: number) => ({
+  number: n,
+  url: `https://example.invalid/pull/${n}`,
+  headRefOid: `sha${n}`,
+  state: "OPEN",
+  isDraft: false,
+  mergeable: "MERGEABLE",
+  mergeStateStatus: "CLEAN",
+  statusCheckRollup: [{ status: "COMPLETED", conclusion: "SUCCESS" }],
+});
 
 const head = "a".repeat(40);
 const baseUrl = "https://example.invalid/team/project/pull/";
@@ -167,5 +185,155 @@ describe("shipping gate", () => {
     assert.equal(result.unconfirmed, 2);
     assert.deepEqual(result.unmerged, [3]);
     assert.deepEqual(h.attempts, [1, 2]);
+  });
+
+  test("RPC shipping pins approved repository URLs and stops before merging a changed head", async () => {
+    const url = "https://github.com/team/project/pull/";
+    let approved = false;
+    const merged = new Set<number>();
+    const h = host({
+      mode: "rpc",
+      confirm: (_, message) => {
+        assert.deepEqual(
+          shaped<{ url: string }[]>(JSON.parse(message)).map((proof) => proof.url),
+          [`${url}1`, `${url}2`],
+        );
+        approved = true;
+        return true;
+      },
+      execute: async (bin, args) => {
+        assert.equal(bin, "gh");
+        assert.equal(args[0], "pr");
+        const number = Number(args[2]?.split("/").at(-1));
+        if (args[1] === "merge") {
+          assert.deepEqual(args, [
+            "pr",
+            "merge",
+            `${url}1`,
+            "--merge",
+            "--match-head-commit",
+            head,
+          ]);
+          merged.add(number);
+          return { code: 0, stdout: "", stderr: "" };
+        }
+        assert.equal(args[2], approved ? `${url}${number}` : String(number));
+        const status = {
+          number,
+          url: `${url}${number}`,
+          headRefOid: approved && number === 2 ? "b".repeat(40) : head,
+          state: merged.has(number) ? "MERGED" : "OPEN",
+          isDraft: false,
+          mergeable: "MERGEABLE",
+          mergeStateStatus: "CLEAN",
+          statusCheckRollup: [{ status: "COMPLETED", conclusion: "SUCCESS" }],
+        };
+        return { code: 0, stdout: JSON.stringify(status), stderr: "" };
+      },
+    });
+    await h.cmd("pstack-run", "shipping Merge checked heads");
+    const pinned = [1, 2].map((number) => ({
+      number,
+      head,
+      evidence: "local check",
+      independent: true,
+    }));
+    const outcome = shipped(await h.call("pstack_ship", { proofs: pinned }));
+    assert.deepEqual(
+      outcome.merged.map((entry) => entry.number),
+      [1],
+    );
+    assert.deepEqual(outcome.unmerged, [2]);
+    assert.equal(outcome.stopped, 2);
+  });
+
+  test("RPC shipping refuses duplicates, missing evidence and a declined confirmation without merging", async () => {
+    const h = host({
+      mode: "rpc",
+      execute: async (_, args) => {
+        assert.equal(args[1], "view");
+        return {
+          code: 0,
+          stderr: "",
+          stdout: JSON.stringify({
+            number: 1,
+            url: "https://github.com/team/project/pull/1",
+            headRefOid: head,
+            state: "OPEN",
+            isDraft: false,
+            mergeable: "MERGEABLE",
+            mergeStateStatus: "CLEAN",
+            statusCheckRollup: [{ state: "SUCCESS" }],
+          }),
+        };
+      },
+    });
+    await h.cmd("pstack-run", "shipping Merge reviewed head");
+    const proof = { number: 1, head, independent: true, evidence: "test passed" };
+    await assert.rejects(() => h.call("pstack_ship", { proofs: [proof, proof] }), /Duplicate PR/);
+    assert.equal(h.executions.length, 0);
+    await assert.rejects(
+      () => h.call("pstack_ship", { proofs: [{ ...proof, evidence: "" }] }),
+      /No verified merge-ready prefix/,
+    );
+    await assert.rejects(() => h.call("pstack_ship", { proofs: [proof] }), /Merge not authorized/);
+    assert.equal(h.executions.length, 2);
+  });
+
+  test("a malformed forge response is rejected rather than treated as merge-ready", async () => {
+    const h = host({ execute: async () => ({ code: 0, stdout: '{"number":1}', stderr: "" }) });
+    await assert.rejects(() => h.call("pstack_pr", { number: 1 }), /Unexpected GitHub PR response/);
+  });
+
+  test("PR inspection preserves a null check rollup, but shipping still requires checks", async () => {
+    const pr = {
+      number: 1,
+      url: "https://github.com/team/project/pull/1",
+      headRefOid: "a".repeat(40),
+      state: "OPEN",
+      isDraft: false,
+      mergeable: "MERGEABLE",
+      mergeStateStatus: "CLEAN",
+      statusCheckRollup: null,
+    };
+    const h = host({
+      confirm: () => assert.fail("Shipping must not request approval for missing checks"),
+      execute: async (bin, args) => {
+        assert.equal(bin, "gh");
+        assert.equal(args[1], "view");
+        return { code: 0, stdout: JSON.stringify(pr), stderr: "" };
+      },
+    });
+    assert.deepEqual(readResult(await h.call("pstack_pr", { number: pr.number })), pr);
+    await h.cmd("pstack-run", "shipping Merge reviewed head");
+    const proof = {
+      number: pr.number,
+      head: pr.headRefOid,
+      independent: true,
+      evidence: "test passed",
+    };
+    await assert.rejects(
+      () => h.call("pstack_ship", { proofs: [proof] }),
+      /No verified merge-ready prefix/,
+    );
+  });
+
+  test("shipping stops at stale head, missing proof, failing checks or noncontiguous prefix", () => {
+    const ready = [readyProof(1), readyProof(2), readyProof(3)],
+      statuses = [readyPr(1), readyPr(2), readyPr(3)];
+    assert.equal(verifiedPrefix(ready, statuses).length, 3);
+    for (const patch of [
+      { headRefOid: "changed" },
+      { statusCheckRollup: [] },
+      { mergeStateStatus: "BLOCKED" },
+      { statusCheckRollup: [{ status: "COMPLETED", conclusion: "FAILURE" }] },
+      { isDraft: true },
+    ])
+      assert.equal(
+        verifiedPrefix(ready, [readyPr(1), { ...readyPr(2), ...patch }, readyPr(3)]).length,
+        1,
+      );
+    assert.equal(verifiedPrefix([{ ...readyProof(1), independent: false }], statuses).length, 0);
+    assert.equal(verifiedPrefix([{ ...readyProof(1), evidence: "" }], statuses).length, 0);
   });
 });

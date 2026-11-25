@@ -247,3 +247,6 @@ export function fulfilled<T>(results: readonly PoolResult<T>[], index = 0): T {
 }
 
 afterAll(() => rm(sandbox, { recursive: true, force: true }));
+
+export const swarm = { mode: "swarm", tasks: ["review"] };
+export const notARepository = { code: 128, stdout: "", stderr: "not a repo" };

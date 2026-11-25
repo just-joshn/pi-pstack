@@ -1,11 +1,23 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import { describe, onTestFinished, test, vi } from "vitest";
 
 import { routes } from "../lib/catalog.ts";
 import type { Wake } from "../lib/state.ts";
-import { host, type Summary } from "./host.ts";
+import { isRecord } from "../lib/validation.ts";
+import { host, planned, readResult, type Summary, type ToolResponse } from "./host.ts";
 import { nth, shaped } from "./support.ts";
+
+const woke = (response: ToolResponse) => shaped<Wake>(readResult(response));
+async function finishedPlan() {
+  const h = host();
+  await h.call("pstack_plan", { action: "custom", goal: "verify", steps: ["check"] });
+  await h.call("pstack_plan", { action: "update", task: 1, status: "done", evidence: "passed" });
+  const done = planned(await h.call("pstack_plan", { action: "finish", evidence: "green" }));
+  return { h, done };
+}
 
 describe("plan commands", () => {
   test("/poteto-mode with a goal runs the router once without saving the mode", async () => {
@@ -132,5 +144,161 @@ describe("plan commands", () => {
       /goal is required/,
     );
     assert.equal(h.entries.length, 0);
+  });
+
+  test("command activation, explicit plan, native tool update and restore", async () => {
+    const h = host();
+    await h.cmd("poteto-mode", "on");
+    assert.equal(h.state().mode, true);
+    const started = h.emit("before_agent_start", { systemPrompt: "base" });
+    const prompt = isRecord(started) ? started["systemPrompt"] : undefined;
+    assert(typeof prompt === "string" && prompt.includes("Native playbook triggers"));
+    await h.cmd("pstack-run", "bug-fix repair");
+    assert(h.messages.at(-1)?.includes("Ordered steps"));
+    assert.equal(h.state().plan?.route, "bug-fix");
+    await h.call("pstack_plan", {
+      action: "update",
+      task: 1,
+      status: "done",
+      evidence: "red test",
+    });
+    assert.equal(h.state().plan?.tasks[0]?.status, "done");
+    await assert.rejects(() => h.call("pstack_plan", { action: "finish", evidence: "not enough" }));
+    h.emit("session_tree");
+    assert.equal(h.state().plan?.tasks[0]?.evidence, "red test");
+    await h.cmd("pstack-clear");
+    assert.equal(h.state().plan, null);
+  });
+
+  test("timer does not start without confirmation, is cancelled on shutdown and denied headless", async () => {
+    const h = host();
+    await h.cmd("pstack-loop", "5 2 done");
+    assert.equal(h.entries.length, 0);
+    const yes = host({ confirm: true });
+    await yes.cmd("pstack-loop", "5 2 done");
+    assert.equal(yes.state().wake?.running, true);
+    await yes.cmd("pstack-loop", "stop");
+    assert.equal(yes.state().wake?.running, false);
+    yes.emit("session_shutdown");
+    const headless = host({ mode: "print" });
+    await assert.rejects(() => headless.cmd("pstack-loop", "5 2 done"));
+  });
+
+  for (const mode of ["print", "json"] as const)
+    test(`${mode} mode rejects writes, merges, and worktree removal before executing shell`, async () => {
+      const h = host({ mode, confirm: true });
+      await h.cmd("pstack-run", "shipping Merge reviewed PR");
+      await assert.rejects(
+        () => h.call("pstack_delegate", { mode: "single", tasks: ["write"], readOnly: false }),
+        /Write delegation not authorized/,
+      );
+      await assert.rejects(
+        () =>
+          h.call("pstack_ship", {
+            proofs: [{ number: 1, head: "a".repeat(40), evidence: "proof", independent: true }],
+          }),
+        /interactive approval/,
+      );
+      await assert.rejects(
+        () => h.call("pstack_worktree", { action: "remove", name: "fixture", base: "HEAD" }),
+        /Removal not authorized/,
+      );
+      assert.equal(h.executions.length, 0);
+    });
+
+  test("a restored or completed wake loop cannot enqueue another turn", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const h = host({ confirm: true });
+    await h.cmd("pstack-loop", "5 1 green");
+    h.emit("session_tree");
+    vi.advanceTimersByTime(5000);
+    assert.equal(h.messages.length, 0);
+    await h.cmd("pstack-loop", "5 1 green");
+    vi.advanceTimersByTime(5000);
+    assert.equal(h.messages.length, 1);
+    assert.match(h.messages[0] ?? "", /Wake 1\/1/);
+    h.emit("agent_settled", { aborted: false });
+    vi.advanceTimersByTime(5000);
+    assert.equal(h.messages.length, 1);
+    assert.equal(woke(await h.call("pstack_wake", { action: "show" })).running, false);
+  });
+
+  test("the plan tool accepts custom steps only through the custom action", async () => {
+    const h = host();
+    await assert.rejects(
+      () =>
+        h.call("pstack_plan", {
+          action: "start",
+          route: "figure-it-out",
+          goal: "verify",
+          steps: ["check"],
+        }),
+      /known playbook/,
+    );
+    assert.equal(h.entries.length, 0);
+    const made = planned(
+      await h.call("pstack_plan", { action: "custom", goal: "verify", steps: ["check"] }),
+    );
+    assert.equal(made.complete, false);
+  });
+
+  test("a finished plan records its evidence and leaves the system prompt alone", async () => {
+    const { h, done } = await finishedPlan();
+    assert.equal(done.plan?.finishedEvidence, "green");
+    assert.equal(h.emit("before_agent_start", { systemPrompt: "base" }), undefined);
+  });
+
+  test("clearing state keeps the resume note written by a pause", async () => {
+    const { h } = await finishedPlan();
+    await h.cmd("pstack-goal", "keep progress");
+    await h.cmd("pstack-pause");
+    const history = shaped<{ entries: unknown[]; artifacts: string }>(
+      readResult(await h.call("pstack_history", { limit: 1 })),
+    );
+    assert.equal(history.entries.length, 1);
+    const path = join(history.artifacts, "resume.json");
+    const resumeGoal = async () =>
+      shaped<{ goal: string }>(JSON.parse(await readFile(path, "utf8"))).goal;
+    assert.equal(await resumeGoal(), "keep progress");
+    await h.cmd("pstack-clear");
+    const shown = shaped<Summary>(readResult(await h.call("pstack_plan", { action: "show" })));
+    assert.equal(shown.plan, null);
+    assert.equal(await resumeGoal(), "keep progress");
+  });
+
+  test("the agent cannot select a merge-capable route without operator approval", async () => {
+    const start = { action: "start", route: "shipping", goal: "Merge reviewed PR" };
+    for (const h of [host({ confirm: false }), host({ mode: "print", confirm: true })]) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- The hosts are independent; a plain loop is simpler than Promise.all.
+      await assert.rejects(() => h.call("pstack_plan", start), /operator approval/);
+      assert.equal(h.entries.length, 0);
+    }
+    const approved = host({ confirm: true });
+    const made = planned(await approved.call("pstack_plan", start));
+    assert.equal(made.plan?.route, "shipping");
+    const other = host({ confirm: () => assert.fail("Other routes need no approval") });
+    await other.call("pstack_plan", { action: "start", route: "bug-fix", goal: "repair" });
+  });
+
+  test("stopping a wake loop records why it stopped", async () => {
+    const h = host({ confirm: true });
+    await h.cmd("pstack-loop", "5 2 green");
+    await assert.rejects(
+      () => h.call("pstack_wake", { action: "stop", evidence: " " }),
+      /evidence/,
+    );
+    const stopped = woke(
+      await h.call("pstack_wake", { action: "stop", evidence: "CI green on abc123" }),
+    );
+    assert.equal(stopped.running, false);
+    assert.equal(stopped.stopEvidence, "CI green on abc123");
+    assert.equal(h.state().wake?.stopEvidence, "CI green on abc123");
+    await h.cmd("pstack-loop", "5 2 green");
+    assert.equal(h.state().wake?.running, true);
+    assert.equal(h.state().wake?.stopEvidence, undefined);
+    h.emit("session_shutdown");
   });
 });

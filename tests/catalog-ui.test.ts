@@ -119,4 +119,22 @@ describe("catalog commands", () => {
     assert.equal(everything.length, nodes.size);
     await assert.rejects(() => h.call("pstack_catalog", { action: "node" }), /Unknown node/);
   });
+
+  test("catalog tools expose routes, views, search results and node instructions", async () => {
+    const h = host();
+    const read = async (action: string, id?: string) =>
+      readResult(await h.call("pstack_catalog", { action, id }));
+    const listed = async (action: string, id?: string) =>
+      shaped<{ id: string }[]>(await read(action, id));
+    const one = async (action: string, id?: string) =>
+      shaped<{ id: string; instructions?: string }>(await read(action, id));
+    assert((await listed("routes")).some((route) => route.id === "bug-fix"));
+    assert.equal((await one("view")).id, "root");
+    assert(
+      (await listed("search", "runtime diagnosis")).some(
+        (node) => node.id === "pb-runtime-forensics",
+      ),
+    );
+    assert.match((await one("node", "pb-bug-fix")).instructions ?? "", /Ordered steps/);
+  });
 });
