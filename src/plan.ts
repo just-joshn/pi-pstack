@@ -21,11 +21,11 @@ import {
   artifacts,
   atomicWrite,
   fail,
+  type Notify,
   result,
+  stringEnum,
   text,
   unreachable,
-  type Notify,
-  stringEnum,
 } from "./support.ts";
 
 const planParameters = Type.Object({
@@ -66,7 +66,7 @@ export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify)
     handler: async (args, ctx) => {
       const [route, ...words] = args.trim().split(/\s+/);
       const goal = words.join(" ");
-      if (!routes.includes(route) || !goal)
+      if (!route || !routes.includes(route) || !goal)
         return notify(ctx, `Choose a route and goal:\n${routes.join(", ")}`);
       session.commit(ctx, { plan: startPlan(route, goal) });
       sendWorkflow(pi, "pb-" + route, goal);

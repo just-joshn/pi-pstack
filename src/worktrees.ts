@@ -5,13 +5,13 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Type } from "typebox";
 
 import { pool } from "../lib/pool.ts";
-import { gitIn, type Git } from "./git.ts";
+import { type Git, gitIn } from "./git.ts";
 import { artifacts, fail, hasErrorCode, result, stringEnum } from "./support.ts";
 
 export interface Worktree {
   path: string;
-  head?: string;
-  branch?: string;
+  head?: string | undefined;
+  branch?: string | undefined;
   locked: boolean;
   prunable: boolean;
   bare: boolean;

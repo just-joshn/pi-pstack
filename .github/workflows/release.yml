@@ -1,0 +1,119 @@
+# A push to main publishes the version in package.json when npm does not have it,
+# then creates the GitHub release and its tag at the published commit. To release,
+# merge a pull request that changes `version`. An existing tag is never touched.
+
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  queue: max
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ci:
+    name: CI
+    uses: $/.github/workflows/ci.yml
+
+  version:
+    name: Version
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      name: ${{ steps.package.outputs.name }}
+      version: ${{ steps.package.outputs.version }}
+      published: ${{ steps.npm.outputs.published }}
+      commit: ${{ steps.npm.outputs.commit }}
+      tagged: ${{ steps.tag.outputs.tagged }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read the package name and version
+        id: package
+        run: |
+          echo "name=$(jq --raw-output .name package.json)" >> "$GITHUB_OUTPUT"
+          echo "version=$(jq --raw-output .version package.json)" >> "$GITHUB_OUTPUT"
+      - name: Check whether npm has this version
+        id: npm
+        env:
+          NAME: ${{ steps.package.outputs.name }}
+          VERSION: ${{ steps.package.outputs.version }}
+        # npm records the commit a version was published from. A version published
+        # outside a Git checkout has none, and then no release is created for it.
+        run: |
+          published="$(npm view "$NAME" versions --json | jq --arg version "$VERSION" '[.] | flatten | any(. == $version)')"
+          if [[ "$published" == "true" ]]; then
+            commit="$(npm view "$NAME@$VERSION" gitHead)"
+          else
+            commit="$GITHUB_SHA"
+          fi
+          echo "published=$published" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: Check whether the tag exists
+        id: tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ steps.package.outputs.version }}
+          PUBLISHED: ${{ steps.npm.outputs.published }}
+        run: |
+          tagged="$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$TAG" | jq --arg ref "refs/tags/$TAG" 'any(.ref == $ref)')"
+          if [[ "$tagged" == "true" && "$PUBLISHED" != "true" ]]; then
+            echo "::error::The tag $TAG exists, but npm does not have this version. Delete the tag or release under another version."
+            exit 1
+          fi
+          echo "tagged=$tagged" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish to npm
+    needs: version
+    if: needs.version.outputs.published != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/${{ needs.version.outputs.name }}/v/${{ needs.version.outputs.version }}
+    permissions:
+      contents: read
+      id-token: write # npm provenance and trusted publishing
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      # Setup .npmrc file to publish to npm
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "24.x"
+          registry-url: "https://registry.npmjs.org/"
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release:
+    name: GitHub release
+    needs: [version, publish]
+    # `publish` is skipped when npm already has the version, so only a failed or
+    # cancelled job stops the release.
+    if: ${{ !cancelled() && !failure() && needs.version.outputs.tagged != 'true' && needs.version.outputs.commit != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # create the release and its tag
+    steps:
+      - name: Create the release and its tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ needs.version.outputs.version }}
+          COMMIT: ${{ needs.version.outputs.commit }}
+        run: gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$COMMIT" --generate-notes

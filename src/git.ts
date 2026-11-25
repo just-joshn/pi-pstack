@@ -9,7 +9,12 @@ export function gitIn(
   maxBuffer = 4 * 1024 * 1024,
 ) {
   async function probe(args: string[], at = cwd, limit = maxBuffer) {
-    const r = await pi.exec("git", args, { cwd: at, signal, timeout: 30000, maxBuffer: limit });
+    const r = await pi.exec("git", args, {
+      cwd: at,
+      timeout: 30000,
+      maxBuffer: limit,
+      ...(signal && { signal }),
+    });
     return r.truncated || r.killed ? undefined : r;
   }
   async function run(args: string[], at = cwd) {

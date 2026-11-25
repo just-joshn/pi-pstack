@@ -12,13 +12,13 @@ import {
   judgeRole,
   panelRoles,
   parseModelConfig,
-  roles,
-  validateConfig,
   type Role,
   type RoleConfig,
+  roles,
+  validateConfig,
 } from "../lib/models.ts";
 import { parseJson } from "../lib/validation.ts";
-import { agentDir, atomicWrite, fail, hasErrorCode, text, type Notify } from "./support.ts";
+import { agentDir, atomicWrite, fail, hasErrorCode, type Notify, piBin, text } from "./support.ts";
 
 const modelConfigPath = () => join(agentDir(), "pstack-models.json");
 export async function readConfig(configPath = modelConfigPath()): Promise<RoleConfig> {
@@ -31,14 +31,88 @@ export async function readConfig(configPath = modelConfigPath()): Promise<RoleCo
   }
   return parseModelConfig(parseJson(source, "pstack model configuration"));
 }
-export function availableWorkerModels(ctx: ExtensionContext) {
-  const extensionProviders = new Set(ctx.modelRegistry.getRegisteredProviderIds());
-  const models = ctx.scopedModels.length
-    ? ctx.scopedModels.map((m) => m.model)
-    : ctx.modelRegistry.getAvailable();
-  const ids = models
-    .filter((m) => !extensionProviders.has(m.provider))
-    .map((m) => `${m.provider}/${m.id}`);
+
+export const workerIsolation = [
+  "--no-approve",
+  "--no-extensions",
+  "--no-skills",
+  "--no-prompt-templates",
+  "--no-themes",
+  "--no-mcp",
+];
+const modelsInScope = (ctx: ExtensionContext) =>
+  ctx.scopedModels.length ? ctx.scopedModels.map((m) => m.model) : ctx.modelRegistry.getAvailable();
+export const modelName = (m: { provider: string; id: string }) => `${m.provider}/${m.id}`;
+
+async function listedModels(
+  pi: ExtensionAPI,
+  cwd: string,
+  signal?: AbortSignal,
+  extension?: string,
+) {
+  const run = await pi.exec(
+    piBin,
+    [...workerIsolation, ...(extension ? ["-e", extension] : []), "--list-models"],
+    { cwd, timeout: 30_000, ...(signal && { signal }) },
+  );
+  if (run.code !== 0 || run.killed) return undefined;
+  // Pi pads each row to the header's columns; ids can contain spaces, so split by position.
+  const [header = "", ...rows] = run.stdout.split("\n");
+  const [model, context] = [header.indexOf("model"), header.indexOf("context")];
+  return rows
+    .map((row) => ({ provider: row.slice(0, model).trim(), id: row.slice(model, context).trim() }))
+    .filter((listed) => listed.provider && listed.id)
+    .map((listed) => ({ provider: listed.provider, model: modelName(listed) }));
+}
+
+/**
+ * Maps each in-scope model of an extension-registered provider to the loaded extension a worker
+ * needs for it. Pi does not report which extension registered a provider, so every extension that
+ * registers a command is listed alone and compared with the listing without extensions.
+ */
+export async function workerExtensions(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  signal?: AbortSignal,
+) {
+  const registered = new Set(ctx.modelRegistry.getRegisteredProviderIds());
+  const wanted = new Set(
+    modelsInScope(ctx)
+      .filter((m) => registered.has(m.provider))
+      .map(modelName),
+  );
+  const loaded = [
+    ...new Set(
+      pi
+        .getCommands()
+        .filter((command) => command.source === "extension")
+        .map((command) => command.sourceInfo.path),
+    ),
+  ];
+  if (!wanted.size || !loaded.length) return new Map<string, string>();
+  const [builtIn, ...listings] = await Promise.all(
+    [undefined, ...loaded].map((extension) => listedModels(pi, ctx.cwd, signal, extension)),
+  );
+  if (signal?.aborted) fail("Cancelled");
+  if (!builtIn) fail(`Could not list worker models: ${piBin} --list-models failed`);
+  const builtInProviders = new Set(builtIn.map((listed) => listed.provider));
+  return new Map(
+    loaded.flatMap((extension, i) =>
+      (listings[i] ?? [])
+        .filter((listed) => wanted.has(listed.model) && !builtInProviders.has(listed.provider))
+        .map((listed) => [listed.model, extension] as const),
+    ),
+  );
+}
+
+export function availableWorkerModels(
+  ctx: ExtensionContext,
+  extensions: ReadonlyMap<string, string>,
+) {
+  const registered = new Set(ctx.modelRegistry.getRegisteredProviderIds());
+  const ids = modelsInScope(ctx)
+    .filter((m) => !registered.has(m.provider) || extensions.has(modelName(m)))
+    .map(modelName);
   return [...new Set(ids)].toSorted();
 }
 
@@ -87,8 +161,8 @@ export function registerModelSetup(pi: ExtensionAPI, notify: Notify) {
   pi.registerCommand("setup-pstack", {
     description: "Configure pstack role models and reasoning budget",
     handler: async (args, ctx) => {
-      const available = availableWorkerModels(ctx);
-      const parent = ctx.model && `${ctx.model.provider}/${ctx.model.id}`;
+      const available = availableWorkerModels(ctx, await workerExtensions(pi, ctx));
+      const parent = ctx.model && modelName(ctx.model);
       const warning =
         parent && !available.includes(parent)
           ? `auto and inherit-parent resolve to ${parent}, which is unavailable to workers in this session. Select an available model explicitly.`

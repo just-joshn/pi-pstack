@@ -1,14 +1,16 @@
+// tsconfig.json covers TypeScript only, so this script names its types for the linter.
+/// <reference types="node" />
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { writeFile, mkdir, open, realpath } from "node:fs/promises";
-import { resolve, dirname, join } from "node:path";
+import { mkdir, open, realpath, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { finished } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 
 import { aliases } from "../lib/models.ts";
 import { isRecord } from "../lib/validation.ts";
-import { configuredModel, readJob, readEvent } from "./job-input.ts";
+import { configuredModel, isMcp, readEvent, readJob } from "./job-input.ts";
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 
 const [flag, jobFile, eventFile] = process.argv.slice(2);
@@ -41,7 +43,7 @@ const prompt = [
 ]
   .filter(Boolean)
   .join("\n\n");
-const mcp = job.tools.some((t) => t.startsWith("mcp__"));
+const mcp = job.tools.some(isMcp);
 const args = [
   "--print",
   "--approve",
@@ -55,7 +57,7 @@ const args = [
   runDir,
 ];
 if (job.kind === "custom" && job.tools.some((t) => t.startsWith("pstack_")))
-  args.push("-e", join(packageRoot, "extensions/index.ts"));
+  args.push("-e", join(packageRoot, "src/index.ts"));
 const model = configuredModel(job);
 if (model && !aliases.includes(model)) args.push("--model", model);
 if (job.thinking) args.push("--thinking", job.thinking);
@@ -114,6 +116,6 @@ await writeFile(
   JSON.stringify({ ...outcome, eventId: event?.eventId, log, errorLog }, null, 2),
   { flag: "wx", mode: 0o600 },
 );
-if (outcome.error) console.error(outcome.error);
-console.log(JSON.stringify({ code: outcome.code, runDir, log }));
+if (outcome.error) process.stderr.write(`${outcome.error}\n`);
+process.stdout.write(`${JSON.stringify({ code: outcome.code, runDir, log })}\n`);
 process.exitCode = outcome.code;

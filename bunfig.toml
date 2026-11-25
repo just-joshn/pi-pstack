@@ -1,3 +1,35 @@
-[install]
-linker = "isolated"
-minimumReleaseAge = 259200
+[fmt]
+printWidth = 100
+tabWidth = 2
+useTabs = false
+semi = true
+singleQuote = false
+trailingComma = "all"
+bracketSpacing = true
+arrowParens = "always"
+endOfLine = "lf"
+quoteProps = "as-needed"
+proseWrap = "preserve"
+
+sortPackageJson = true
+sortTailwindcss = false
+
+ignorePatterns = [
+  "dist/",
+  "build/",
+  "coverage/",
+]
+
+[fmt.sortImports]
+groups = [
+  "builtin",
+  "external",
+  ["internal", "subpath"],
+  ["parent", "sibling", "index"],
+  "style",
+  "unknown",
+]
+order = "asc"
+ignoreCase = true
+newlinesBetween = true
+sortSideEffects = false

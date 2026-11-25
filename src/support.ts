@@ -9,7 +9,8 @@ import { Type } from "typebox";
 
 import { isRecord } from "../lib/validation.ts";
 
-export const agentDir = () => process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
+export const agentDir = () => process.env["PI_CODING_AGENT_DIR"] ?? join(homedir(), ".pi", "agent");
+export const piBin = process.env["PSTACK_PI_BIN"] ?? "pi";
 export const artifacts = (ctx: ExtensionContext) =>
   join(agentDir(), "pstack", "sessions", ctx.sessionManager.getSessionId());
 export const text = (value: unknown) =>
@@ -27,7 +28,7 @@ export function unreachable(value: never): never {
   throw new Error(`Unhandled case: ${String(value)}`);
 }
 export const hasErrorCode = (error: unknown, code: string) =>
-  isRecord(error) && error.code === code;
+  isRecord(error) && error["code"] === code;
 export async function atomicWrite(path: string, data: string) {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   const temporary = `${path}.${randomUUID()}.tmp`;

@@ -60,9 +60,9 @@ The package registers 52 original slash-skill names (34 ordinary pstack and 18 T
 
 ## Configuration and workers
 
-`/setup-pstack` uses Pi's model registry and native selection dialogs. Nine role selections and the reasoning budget are saved atomically at `$PI_CODING_AGENT_DIR/pstack-models.json`, default `~/.pi/agent/pstack-models.json`. The file uses a `defaults: 3` marker. The parent model remains unchanged. Cursor-specific model slugs do not map reliably to Pi provider IDs, so unconfigured roles inherit the parent; explicitly choose available `provider/id` models. The picker lists models in the current scope and excludes providers registered by extensions. Both `auto` and `inherit-parent` resolve to the current parent model; setup warns if workers cannot use it. Delegation checks availability only for the workers and judge selected for that run. For arena and interrogate configure at least two panel seats. Arena uses the first available judge in the configured pool whose vendor differs from the parent and every candidate. Pi itself may clamp reasoning to model support. The `large`, `medium`, `small` budgets lower the role's reasoning target; the Gemini panel seat uses its higher target where selected.
+`/setup-pstack` uses Pi's model registry and native selection dialogs. Nine role selections and the reasoning budget are saved atomically at `$PI_CODING_AGENT_DIR/pstack-models.json`, default `~/.pi/agent/pstack-models.json`. The file uses a `defaults: 3` marker. The parent model remains unchanged. Cursor-specific model slugs do not map reliably to Pi provider IDs, so unconfigured roles inherit the parent; explicitly choose available `provider/id` models. The picker lists the models in the current scope that workers can load. It includes a model of a provider registered by an extension when pstack finds that extension: pstack runs `pi --list-models` once per loaded extension that registers a slash command and uses the one that lists the model. Such a model stays excluded when its extension registers no slash command, or when Pi lists the provider without the extension, as it does for one that replaces a built-in provider. Both `auto` and `inherit-parent` resolve to the current parent model; setup warns if workers cannot use it. Delegation checks availability only for the workers and judge selected for that run. For arena and interrogate configure at least two panel seats. Arena uses the first available judge in the configured pool whose vendor differs from the parent and every candidate. Pi itself may clamp reasoning to model support. The `large`, `medium`, `small` budgets lower the role's reasoning target; the Gemini panel seat uses its higher target where selected.
 
-Each delegate starts a fresh Pi CLI process via `pi.exec`. `PSTACK_PI_BIN` can select the Pi binary. Concurrency is bounded to eight workers, with default three concurrent workers. Each job retains its report and native JSONL session. Only bounded output excerpts return to the parent. Read-only reviewers receive only Pi's read/grep/find/ls tools; no shell, write, edit, MCP or discovered extensions. Write delegates require explicit confirmation in the terminal UI or via Pi RPC and get separate detached Git worktrees at the selected committed ref (default HEAD). Uncommitted parent files are not copied automatically; the parent saves a repository-root-relative patch of up to 2 MiB. If tracked changes alone exceed the limit, no patch is attached. Otherwise, untracked, non-ignored files are added as whole patches while space remains, and workers are told which files were omitted. The parent inspects, reconciles and verifies worker output. Workers never automatically merge, cherry-pick, or delete worktrees. Worktrees are isolation of checkout state, not an OS security sandbox. Child processes inherit the OS environment and cannot use provider registrations supplied exclusively by disabled extensions; delegation refuses such models before starting any worker. Use a real external sandbox for untrusted code or secrets.
+Each delegate starts a fresh Pi CLI process via `pi.exec`. `PSTACK_PI_BIN` can select the Pi binary. Concurrency is bounded to eight workers, with default three concurrent workers. Each job retains its report and native JSONL session. Only bounded output excerpts return to the parent. Read-only reviewers receive only Pi's read/grep/find/ls tools; no shell, write, edit, MCP or discovered extensions. Write delegates require explicit confirmation in the terminal UI or via Pi RPC and get separate detached Git worktrees at the selected committed ref (default HEAD). Uncommitted parent files are not copied automatically; the parent saves a repository-root-relative patch of up to 2 MiB. If tracked changes alone exceed the limit, no patch is attached. Otherwise, untracked, non-ignored files are added as whole patches while space remains, and workers are told which files were omitted. The parent inspects, reconciles and verifies worker output. Workers never automatically merge, cherry-pick, or delete worktrees. Worktrees are isolation of checkout state, not an OS security sandbox. Child processes inherit the OS environment. A worker whose model comes from a provider registered by an extension also loads that extension. Its code runs in the worker with the trust it has in the parent session; the tool allowlist still limits what the model can call. Delegation refuses a model whose extension it cannot find before starting any worker. Use a real external sandbox for untrusted code or secrets.
 
 Arena stores candidate sessions, removes model metadata and known model names from message projections, asks the independent judge to read the actual projected transcripts, and audits read tool calls. This is partial blinding: transcript text, tool paths or outputs can still identify an author; a read call alone cannot prove the judge read every line. It does not claim a fully controlled evaluation environment. If judging fails, the tool returns an inconclusive judgment alongside the completed candidate reports and their artifact directory.
 
@@ -84,27 +84,51 @@ Run the development checks from a source checkout:
 
 ```sh
 bun install --frozen-lockfile
-bun run check:ci
-bun run smoke
+bun run check
+python3 scripts/generate.py --check
+node scripts/smoke.ts
 ```
 
-`check:ci` checks that generated files match their sources, then runs lint, format checks, the TypeScript compiler against the installed Pi SDK, and the Node test suite with an 80% gate for line, branch, and function coverage. Use `bun run check` to run the same checks with the local TSRS compiler, or `bun run test` to run only the tests. The suite uses a mock Pi host and forge, a fake child CLI for job dispatch, and temporary real Git repositories.
+`bun run check` runs the `bun fmt` format check, type-aware oxlint, the TypeScript compiler against the installed Pi SDK, and the tests with the coverage gate. `bun run format` and `bun run lint:fix` apply the fixes. The formatter skips the three configuration files listed in `.prettierignore`, which are kept exactly as written. `python3 scripts/generate.py --check` reports generated files that no longer match their sources.
 
-`smoke` launches real Pi in an isolated RPC session without model requests. It checks discovery of all 76 native skills and 52 original slash names, then writes and reads mode state. Set `PSTACK_PI_BIN` to point to a different Pi executable. This smoke does not exercise live models, GitHub, Slack, or MCP services. Test those integrations with disposable resources before relying on them.
+The tests are TypeScript on Vitest and run without a build step. `bun run test` runs them once and `bun run test:watch` reruns them as files change. They use a mock Pi host and forge, a fake child CLI for job dispatch, and temporary real Git repositories. `bun run test:coverage` also applies the gate in `vitest.config.ts`: each file in `src/` needs 80% statement, branch, function and line coverage.
+
+`node scripts/smoke.ts` launches real Pi in an isolated RPC session without model requests. It checks discovery of all 76 native skills and 52 original slash names, writes and reads mode state, and checks that `/setup-pstack` lists the model of a provider registered by a fixture extension. Set `PSTACK_PI_BIN` to point to a different Pi executable. This smoke does not exercise live models, GitHub, Slack, or MCP services. Test those integrations with disposable resources before relying on them.
+
+## Continuous integration and releases
+
+Three workflows in `.github/workflows` run on GitHub-hosted runners:
+
+- `ci.yml` runs on every pull request. The `Lint` job runs the format check, oxlint, the TypeScript compiler and the generator check. The `Test` jobs run the tests with the coverage gate and the smoke test on Node 22.19.0, 24 and 26. The smoke test uses the Pi that `bun install` puts in `node_modules`.
+- `release.yml` runs on every push to `main`. It runs the same checks, then compares `version` in `package.json` with npm. If npm does not have that version, the workflow publishes the package with provenance, then creates the tag `v<version>` and its GitHub release, with generated notes, at the published commit. Runs of this workflow do not overlap: up to 100 wait in a queue.
+- `verify-lockfile.yml` runs on pull requests and on pushes to `main`. It fails when `.github/workflows/actions.lock` no longer matches the workflows or the commits it pins.
+
+To release, change `version` in `package.json` in a pull request and merge it. Do not create the tag or the release by hand. The workflow never touches an existing tag, and it stops before publishing when the tag exists and npm does not have the version. npm refuses a prerelease version such as `1.0.0-beta.1` without a dist-tag, so the workflow cannot publish one.
+
+If a run fails after npm accepted the version, use **Re-run all jobs**. While `package.json` still names that version, a run finds it on npm, skips publishing and creates the missing tag and release at the commit npm recorded for it. It creates neither when the tag already exists, or when npm recorded no commit, which is the case for a version published outside a Git checkout.
+
+Publishing needs an npm [trusted publisher](https://docs.npmjs.com/trusted-publishers) for this repository, with the workflow `release.yml`, the environment `npm`, and `npm publish` allowed. No secret is involved. The workflow also accepts an npm access token in a [secret](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) named `NPM_TOKEN`, which is the method in GitHub's documentation, but npm removes direct publishing with a token in January 2027.
+
+The first release run creates the `npm` [environment](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments) without rules. Add a deployment branch rule for `main` so that no other branch can publish.
+
+`actions.lock` pins every action the workflows use to a commit. After you add or change a `uses:` line, run `gh actions-lock` and commit the result. The command comes from the [`gh-actions-lock`](https://github.com/github/gh-actions-lock) extension of the GitHub CLI. Dependabot proposes new releases of the actions each week and updates the lockfile in the same pull request.
+
+CI installs Bun 1.4.5, the release the files were formatted with. Change `BUN_VERSION` in `ci.yml` when you format with a newer Bun.
 
 ## Files
 
-- `extensions/`: one file per feature: `session.ts` (branch state and wake timer), `plan.ts`, `catalog-ui.ts`, `records.ts`, `models.ts`, `delegate.ts`, `parent-diff.ts`, `worktrees.ts`, `forge.ts`, with `git.ts` and `support.ts` shared.
+- `src/`: the extension, one file per feature: `session.ts` (branch state and wake timer), `plan.ts`, `catalog-ui.ts`, `records.ts`, `models.ts`, `delegate.ts`, `parent-diff.ts`, `worktrees.ts`, `forge.ts`, with `git.ts` and `support.ts` shared.
 - `lib/`: type-checked TypeScript with no Pi dependency: `catalog.ts`, `models.ts`, `state.ts`, `pool.ts`, `transcript.ts`, `jobs.ts`, `validation.ts`.
 - `scripts/catalog-source.json`: the instructions written for Pi: playbook steps, principle rules, skill bodies and implementation classifications. Edit this, not the generated files.
-- `scripts/generate.py`: `bun run generate` rebuilds `skills/`, `lib/catalog-data.json`, `reference/parity.json` and `reference/PARITY.md` from the source map and `catalog-source.json`. Regeneration removes obsolete generator-marked skill and playbook files, not hand-authored files. `bun run check:generated` reports drift without writing.
+- `scripts/generate.py`: `python3 scripts/generate.py` rebuilds `skills/`, `lib/catalog-data.json`, `reference/parity.json` and `reference/PARITY.md` from the source map and `catalog-source.json`, and formats them with `bun fmt`. Regeneration removes obsolete generator-marked skill and playbook files, not hand-authored files. With `--check` it reports drift without writing.
 - `skills/`: 76 native skill directories and 22 nested ordered playbooks (generated).
 - `agents/`: worker and reviewer contracts.
 - `reference/source-map.json`: original attachment, unchanged byte-for-byte.
 - `reference/parity.json` (generated): machine-readable original IDs, edges and views with implementation classifications.
 - `reference/PARITY.md`, `reference/GAPS.md`: audit matrix and residual gaps.
 - `reference/benny/`: dormant configuration and workflow instructions.
-- `scripts/run-job.mjs`, `scripts/job-input.ts`, `scripts/smoke.mjs`, `tests/`: runner, job validation and verification.
+- `scripts/run-job.mjs`, `scripts/job-input.ts`, `scripts/smoke.ts`, `scripts/smoke-provider.ts`, `tests/`: runner, job validation and verification.
+- `.github/`: the CI, release and lockfile workflows, the action lockfile and the Dependabot configuration.
 
 ## Official references
 

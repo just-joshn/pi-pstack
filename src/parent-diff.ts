@@ -43,8 +43,9 @@ export async function saveParentDiff(
         git.probe(["diff", "--no-index", "--", "/dev/null", file], repo, remaining),
       ),
     );
-    for (const [i, patch] of patches.entries()) {
-      const r = patch.status === "fulfilled" ? patch.value : undefined;
+    for (const [i, file] of batch.entries()) {
+      const patch = patches[i];
+      const r = patch?.status === "fulfilled" ? patch.value : undefined;
       if (r && (r.code === 0 || r.code === 1)) {
         const bytes = Buffer.byteLength(r.stdout);
         if (bytes <= remaining) {
@@ -53,7 +54,7 @@ export async function saveParentDiff(
           continue;
         }
       }
-      omitted.push(batch[i]);
+      omitted.push(file);
     }
     next += batch.length;
   }

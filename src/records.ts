@@ -4,9 +4,10 @@ import { dirname, join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { catalog, packageFile } from "../lib/catalog.ts";
+import { nativeNode, packageFile } from "../lib/catalog.ts";
 import { isJobKind } from "../lib/jobs.ts";
-import { artifacts, hasErrorCode, result, tsvRow, type Notify } from "./support.ts";
+import { parseJson } from "../lib/validation.ts";
+import { artifacts, hasErrorCode, type Notify, result, tsvRow } from "./support.ts";
 
 export function registerRecords(pi: ExtensionAPI, notify: Notify) {
   pi.registerCommand("pstack-automation", {
@@ -19,8 +20,11 @@ export function registerRecords(pi: ExtensionAPI, notify: Notify) {
         kind === "custom"
           ? { instructions: "Supply explicit task, approved tools, trigger and finish predicate." }
           : {
-              instructions: packageFile(catalog.paths[kind]),
-              config: JSON.parse(packageFile("reference/benny/config.example.json")),
+              instructions: nativeNode(kind).instructions,
+              config: parseJson(
+                packageFile("reference/benny/config.example.json"),
+                "Benny configuration example",
+              ),
             };
       const job = { version: 1, enabled: false, kind, cwd: ctx.cwd, tools: [], ...draft };
       await mkdir(dirname(path), { recursive: true, mode: 0o700 });

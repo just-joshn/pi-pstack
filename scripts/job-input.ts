@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
-import { isJobKind, type BennyKind } from "../lib/jobs.ts";
+import { type BennyKind, isJobKind } from "../lib/jobs.ts";
 import { isRecord, parseJson } from "../lib/validation.ts";
 
 interface BennyConfig {
@@ -15,12 +15,11 @@ interface JobBase {
   cwd: string;
   instructions: string;
   tools: string[];
-  model?: string;
-  thinking?: string;
+  model?: string | undefined;
+  thinking?: string | undefined;
 }
 export type Job =
-  | (JobBase & { kind: "custom" })
-  | (JobBase & { kind: BennyKind; config: BennyConfig });
+  (JobBase & { kind: "custom" }) | (JobBase & { kind: BennyKind; config: BennyConfig });
 export interface JobEvent {
   channel: string;
   thread: string;
@@ -38,7 +37,7 @@ const isToolList = (value: unknown): value is string[] =>
   Array.isArray(value) &&
   value.length > 0 &&
   value.every((t) => typeof t === "string" && /^[a-zA-Z0-9_][a-zA-Z0-9_-]*$/.test(t));
-const isMcp = (name: string) => name.startsWith("mcp__");
+export const isMcp = (name: string) => name.startsWith("mcp__");
 
 const words = (name: string) =>
   name
@@ -93,12 +92,12 @@ function forbidden(tool: string) {
 function bennyConfig(kind: BennyKind, tools: string[], cfg: unknown): BennyConfig {
   if (
     !isRecord(cfg) ||
-    cfg.enabled !== true ||
-    !hasText(cfg.slackChannel) ||
+    cfg["enabled"] !== true ||
+    !hasText(cfg["slackChannel"]) ||
     requiredConfig.some((key) => !hasText(cfg[key])) ||
-    !optionalModel(cfg.triageModel) ||
-    !optionalModel(cfg.reproModel) ||
-    (cfg.allowDraftPr !== undefined && typeof cfg.allowDraftPr !== "boolean")
+    !optionalModel(cfg["triageModel"]) ||
+    !optionalModel(cfg["reproModel"]) ||
+    (cfg["allowDraftPr"] !== undefined && typeof cfg["allowDraftPr"] !== "boolean")
   )
     throw Error("Benny configuration is incomplete or disabled");
   if (!tools.some(isMcp)) throw Error("Benny requires explicit scoped MCP tool names");
@@ -110,10 +109,10 @@ function bennyConfig(kind: BennyKind, tools: string[], cfg: unknown): BennyConfi
     throw Error(
       "Benny disallows general command execution and merge/push/deploy/delete or repository-write tools; configure narrowly scoped MCP tools instead",
     );
-  const draftPr = kind === "benny-repro" && cfg.allowDraftPr === true;
+  const draftPr = kind === "benny-repro" && cfg["allowDraftPr"] === true;
   if (!draftPr && tools.some((t) => hasPair(words(t), writeVerbs, prObjects)))
     throw Error("Benny pull request tools require benny-repro with allowDraftPr");
-  return { ...cfg, slackChannel: cfg.slackChannel };
+  return { ...cfg, slackChannel: cfg["slackChannel"] };
 }
 
 export function configuredModel(job: Job): string | undefined {
@@ -125,16 +124,16 @@ export async function readJob(path: string): Promise<Job> {
   const job = parseJson(await readFile(path, "utf8"), "job file");
   if (
     !isRecord(job) ||
-    job.version !== 1 ||
-    job.enabled !== true ||
-    typeof job.cwd !== "string" ||
-    !isAbsolute(job.cwd) ||
-    !isJobKind(job.kind) ||
-    !hasText(job.instructions) ||
-    !isToolList(job.tools) ||
-    !optionalModel(job.model) ||
-    (job.thinking !== undefined &&
-      (typeof job.thinking !== "string" || !thinkingLevels.has(job.thinking)))
+    job["version"] !== 1 ||
+    job["enabled"] !== true ||
+    typeof job["cwd"] !== "string" ||
+    !isAbsolute(job["cwd"]) ||
+    !isJobKind(job["kind"]) ||
+    !hasText(job["instructions"]) ||
+    !isToolList(job["tools"]) ||
+    !optionalModel(job["model"]) ||
+    (job["thinking"] !== undefined &&
+      (typeof job["thinking"] !== "string" || !thinkingLevels.has(job["thinking"])))
   ) {
     throw Error(
       "Job must be reviewed, enabled, and specify an absolute cwd, explicit tool allowlist, and valid model options",
@@ -144,7 +143,7 @@ export async function readJob(path: string): Promise<Job> {
   const base = { ...job, cwd, instructions, tools, model, thinking };
   return kind === "custom"
     ? { ...base, kind }
-    : { ...base, kind, config: bennyConfig(kind, tools, job.config) };
+    : { ...base, kind, config: bennyConfig(kind, tools, job["config"]) };
 }
 
 export async function readEvent(
@@ -158,32 +157,32 @@ export async function readEvent(
   const envelope = parseJson(await readFile(path, "utf8"), "event envelope");
   if (
     !isRecord(envelope) ||
-    typeof envelope.payload !== "string" ||
-    typeof envelope.signature !== "string" ||
-    !/^[0-9a-f]{64}$/i.test(envelope.signature)
+    typeof envelope["payload"] !== "string" ||
+    typeof envelope["signature"] !== "string" ||
+    !/^[0-9a-f]{64}$/i.test(envelope["signature"])
   )
     throw Error("Invalid signed event envelope");
-  const expected = createHmac("sha256", secret).update(envelope.payload).digest();
-  if (!timingSafeEqual(expected, Buffer.from(envelope.signature, "hex")))
+  const expected = createHmac("sha256", secret).update(envelope["payload"]).digest();
+  if (!timingSafeEqual(expected, Buffer.from(envelope["signature"], "hex")))
     throw Error("Event signature rejected");
-  const event = parseJson(envelope.payload, "signed event payload");
+  const event = parseJson(envelope["payload"], "signed event payload");
   if (
     !isRecord(event) ||
-    !hasText(event.channel) ||
-    event.channel !== job.config.slackChannel ||
-    !hasText(event.thread) ||
-    !hasText(event.eventId)
+    !hasText(event["channel"]) ||
+    event["channel"] !== job.config.slackChannel ||
+    !hasText(event["thread"]) ||
+    !hasText(event["eventId"])
   )
     throw Error("Event does not match configured immutable thread coordinates");
-  if (job.kind === "benny-triage" && (event.type !== "report" || event.topLevel !== true)) {
+  if (job.kind === "benny-triage" && (event["type"] !== "report" || event["topLevel"] !== true)) {
     throw Error("Expected a top-level report");
   }
   if (
     job.kind === "benny-repro" &&
-    (event.type !== "triage-marker" ||
-      (event.classification !== "bug" && event.classification !== "performance") ||
-      event.trusted !== true ||
-      !hasText(event.ticket))
+    (event["type"] !== "triage-marker" ||
+      (event["classification"] !== "bug" && event["classification"] !== "performance") ||
+      event["trusted"] !== true ||
+      !hasText(event["ticket"]))
   )
     throw Error("Expected authenticated confirmed triage marker");
   const { channel, thread, eventId } = event;

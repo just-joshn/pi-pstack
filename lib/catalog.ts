@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isRecord, parseJson } from "./validation.ts";
+
 export interface NodeRecord {
   id: string;
   label: string;
@@ -39,10 +41,52 @@ interface Catalog {
   implementations: Record<string, [classification: string, implementation: string]>;
 }
 
+const isText = (value: unknown): value is string => typeof value === "string";
+const isTexts = (value: unknown): value is string[] => Array.isArray(value) && value.every(isText);
+const hasText = (value: unknown, ...keys: string[]): value is Record<string, unknown> =>
+  isRecord(value) && keys.every((key) => isText(value[key]));
+const isRecordOf = <T>(
+  value: unknown,
+  isItem: (item: unknown) => item is T,
+): value is Record<string, T> => isRecord(value) && Object.values(value).every(isItem);
+
+const isEdge = (value: unknown): value is Edge =>
+  hasText(value, "id", "from", "to", "label", "when", "kind");
+const isNode = (value: unknown): value is NodeRecord =>
+  hasText(value, "id", "label", "kind", "what", "when", "how") &&
+  isTexts(value["source"]) &&
+  (value["opensView"] === undefined || isText(value["opensView"]));
+const isView = (value: unknown): value is MapView =>
+  hasText(value, "id", "title", "caption") &&
+  (value["parent"] === null || isText(value["parent"])) &&
+  isTexts(value["nodeIds"]) &&
+  Array.isArray(value["edges"]) &&
+  value["edges"].every((edge) => isText(edge) || isEdge(edge));
+const isSourceMap = (value: unknown): value is SourceMap =>
+  isRecord(value) &&
+  Array.isArray(value["nodes"]) &&
+  value["nodes"].every(isNode) &&
+  Array.isArray(value["edges"]) &&
+  value["edges"].every(isEdge) &&
+  Array.isArray(value["views"]) &&
+  value["views"].every(isView);
+const isMapping = (value: unknown): value is Catalog["implementations"][string] =>
+  isTexts(value) && value.length === 2;
+const isCatalog = (value: unknown): value is Catalog =>
+  isRecord(value) &&
+  isRecordOf(value["paths"], isText) &&
+  isRecordOf(value["steps"], isTexts) &&
+  isRecordOf(value["implementations"], isMapping);
+
 export const root = fileURLToPath(new URL("../", import.meta.url));
 export const packageFile = (path: string) => readFileSync(join(root, path), "utf8");
-export const map: SourceMap = JSON.parse(packageFile("reference/source-map.json"));
-export const catalog: Catalog = JSON.parse(packageFile("lib/catalog-data.json"));
+function packageData<T>(path: string, isValid: (value: unknown) => value is T): T {
+  const value = parseJson(packageFile(path), path);
+  if (!isValid(value)) throw Error(`Invalid ${path}`);
+  return value;
+}
+export const map = packageData("reference/source-map.json", isSourceMap);
+export const catalog = packageData("lib/catalog-data.json", isCatalog);
 export const nodes = new Map(map.nodes.map((n) => [n.id, n]));
 export const views = new Map(map.views.map((v) => [v.id, v]));
 const edges = new Map(map.edges.map((e) => [e.id, e]));
@@ -60,11 +104,16 @@ function known(id: string) {
   if (!n) throw Error(`Unknown node: ${id}`);
   return n;
 }
+function mapping(id: string) {
+  const entry = catalog.implementations[id];
+  if (!entry) throw Error(`Unmapped node: ${id}`);
+  return entry;
+}
 export const routeTriggers = () => routes.map((id) => ({ id, when: known("pb-" + id).when }));
 
 export function nativeNode(id: string) {
   const n = known(id);
-  const [classification, implementation] = catalog.implementations[id];
+  const [classification, implementation] = mapping(id);
   const path = catalog.paths[id];
   return {
     id,
@@ -96,7 +145,7 @@ export function view(id: string) {
     nodes: v.nodeIds.map((n) => ({
       id: n,
       label: known(n).label,
-      implementation: catalog.implementations[n][1],
+      implementation: mapping(n)[1],
     })),
     edges: v.edges.map((e) => edges.get(typeof e === "string" ? e : e.id)),
   };

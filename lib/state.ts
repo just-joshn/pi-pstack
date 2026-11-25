@@ -45,45 +45,45 @@ export const isTaskStatus = (status: unknown): status is TaskStatus =>
 const optionalText = (value: unknown) => value === undefined || typeof value === "string";
 const isTask = (task: unknown, i: number): task is Task =>
   isRecord(task) &&
-  task.id === i + 1 &&
-  typeof task.text === "string" &&
-  isTaskStatus(task.status) &&
-  typeof task.evidence === "string";
+  task["id"] === i + 1 &&
+  typeof task["text"] === "string" &&
+  isTaskStatus(task["status"]) &&
+  typeof task["evidence"] === "string";
 const isPlan = (plan: unknown): plan is Plan =>
   isRecord(plan) &&
-  typeof plan.route === "string" &&
-  typeof plan.goal === "string" &&
-  Array.isArray(plan.tasks) &&
-  plan.tasks.length > 0 &&
-  plan.tasks.every(isTask) &&
-  optionalText(plan.finishedEvidence);
+  typeof plan["route"] === "string" &&
+  typeof plan["goal"] === "string" &&
+  Array.isArray(plan["tasks"]) &&
+  plan["tasks"].length > 0 &&
+  plan["tasks"].every(isTask) &&
+  optionalText(plan["finishedEvidence"]);
 const inRange = (value: unknown, min: number, max: number): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
 const isWake = (wake: unknown): wake is Wake =>
   isRecord(wake) &&
-  inRange(wake.seconds, 5, 86400) &&
-  inRange(wake.max, 1, 100) &&
-  inRange(wake.count, 0, wake.max) &&
-  typeof wake.predicate === "string" &&
-  typeof wake.running === "boolean" &&
-  optionalText(wake.stopEvidence);
+  inRange(wake["seconds"], 5, 86400) &&
+  inRange(wake["max"], 1, 100) &&
+  inRange(wake["count"], 0, wake["max"]) &&
+  typeof wake["predicate"] === "string" &&
+  typeof wake["running"] === "boolean" &&
+  optionalText(wake["stopEvidence"]);
 const isState = (state: unknown): state is State =>
   isRecord(state) &&
-  state.version === 1 &&
-  typeof state.mode === "boolean" &&
-  typeof state.goal === "string" &&
-  (state.plan === null || isPlan(state.plan)) &&
-  (state.wake === null || isWake(state.wake));
+  state["version"] === 1 &&
+  typeof state["mode"] === "boolean" &&
+  typeof state["goal"] === "string" &&
+  (state["plan"] === null || isPlan(state["plan"])) &&
+  (state["wake"] === null || isWake(state["wake"]));
 
 export const stateType = "pstack-state";
 export const stopped = (wake: Wake | null, stopEvidence?: string): Wake | null =>
   wake && { ...wake, running: false, ...(stopEvidence === undefined ? {} : { stopEvidence }) };
 export function restore(entries: readonly unknown[]): State {
   const saved = entries.findLast(
-    (entry) => isRecord(entry) && entry.type === "custom" && entry.customType === stateType,
+    (entry) => isRecord(entry) && entry["type"] === "custom" && entry["customType"] === stateType,
   );
-  if (!isRecord(saved) || !isState(saved.data)) return initialState();
-  const state = structuredClone(saved.data);
+  if (!isRecord(saved) || !isState(saved["data"])) return initialState();
+  const state = structuredClone(saved["data"]);
   return { ...state, wake: stopped(state.wake) };
 }
 

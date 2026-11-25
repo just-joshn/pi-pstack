@@ -39,7 +39,7 @@ const baseEffort = (role: Role): Effort =>
   panelRoles.has(role) || role === "swarm workers" ? "high" : "xhigh";
 export function effort(role: Role, budget: Budget, model = ""): Effort {
   const target = panelRoles.has(role) && /gemini/i.test(model) ? "xhigh" : baseEffort(role);
-  return levels[Math.max(0, levels.indexOf(target) - budgets.indexOf(budget))];
+  return levels[Math.max(0, levels.indexOf(target) - budgets.indexOf(budget))] ?? target;
 }
 
 function assertSelections(
@@ -56,7 +56,7 @@ function assertSelections(
       values.some((v) => typeof v !== "string" || !v.trim())
     )
       throw Error(`Invalid selection for ${r}`);
-    if (r === judgeRole && values.some((v) => aliases.includes(v)))
+    if (r === judgeRole && values.some((v) => typeof v === "string" && aliases.includes(v)))
       throw Error("Judge pool requires explicit models");
   }
 }
@@ -64,13 +64,13 @@ function assertSelections(
 export function parseModelConfig(config: unknown): RoleConfig {
   if (
     !isRecord(config) ||
-    config.defaults !== 3 ||
-    !isBudget(config.budget) ||
-    !isRecord(config.roles)
+    config["defaults"] !== 3 ||
+    !isBudget(config["budget"]) ||
+    !isRecord(config["roles"])
   )
     throw Error("Invalid model configuration");
-  assertSelections(config.roles);
-  return { defaults: config.defaults, budget: config.budget, roles: config.roles };
+  assertSelections(config["roles"]);
+  return { defaults: config["defaults"], budget: config["budget"], roles: config["roles"] };
 }
 export function defaultConfig(): RoleConfig {
   return parseModelConfig({
@@ -80,7 +80,7 @@ export function defaultConfig(): RoleConfig {
   });
 }
 export function applyConfigPatch(config: RoleConfig, patch: unknown): RoleConfig {
-  const selections = isRecord(patch) && "roles" in patch ? patch.roles : {};
+  const selections = isRecord(patch) && "roles" in patch ? patch["roles"] : {};
   if (!isRecord(patch) || !isRecord(selections)) throw Error("Invalid model configuration patch");
   return parseModelConfig({ ...config, ...patch, roles: { ...config.roles, ...selections } });
 }
@@ -120,5 +120,6 @@ export function selectPanel(config: RoleConfig, role: Role, count: number) {
     throw Error("Worker count must be 1 to 8");
   const choices = config.roles[role];
   if (!choices.length) throw Error(`No models configured for ${role}`);
-  return Array.from({ length: count }, (_, i) => choices[i % choices.length]);
+  const rounds = Array.from({ length: Math.ceil(count / choices.length) }, () => choices);
+  return rounds.flat().slice(0, count);
 }

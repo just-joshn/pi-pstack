@@ -1,6 +1,6 @@
 {
   "name": "pi-pstack-workflow-kit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Map-driven pstack and Team Kit workflows for Pi",
   "keywords": [
     "pi-package"
@@ -16,12 +16,12 @@
   },
   "files": [
     "agents",
-    "extensions",
     "lib",
     "reference",
     "scripts/job-input.ts",
     "scripts/run-job.mjs",
-    "skills"
+    "skills",
+    "src"
   ],
   "type": "module",
   "publishConfig": {
@@ -29,27 +29,24 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "format": "bun fmt",
+    "format:check": "bun fmt --check",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "format": "oxfmt",
-    "format:check": "oxfmt --check",
-    "generate": "python3 scripts/generate.py",
-    "check:generated": "python3 scripts/generate.py --check",
-    "typecheck": "tsrs --noEmit",
-    "typecheck:fast": "tsrs --noEmit --fast",
-    "typecheck:ci": "tsc --noEmit",
-    "test": "node --test tests/*.test.mjs",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 --test-coverage-include='extensions/**' --test-coverage-include='lib/**' --test-coverage-include='scripts/run-job.mjs' --test-coverage-include='scripts/job-input.ts' tests/*.test.mjs",
-    "smoke": "node scripts/smoke.mjs",
-    "check": "bun run check:generated && oxlint && oxfmt --check && tsrs --noEmit && bun run test:coverage",
-    "check:ci": "bun run check:generated && oxlint && oxfmt --check && tsc --noEmit && bun run test:coverage"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test:coverage"
   },
   "devDependencies": {
-    "@types/node": "22.20.5",
-    "oxfmt": "0.80.0",
-    "oxlint": "1.95.0",
+    "@types/node": "22",
+    "@vitest/coverage-v8": "^5.1.1",
+    "oxlint": "^1.95.0",
+    "oxlint-tsgolint": "^7.0.2008",
     "tsrs": "7.1.0-beta.tsrs5",
-    "typescript": "7.0.2"
+    "typescript": "6",
+    "vitest": "^5.1.1"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
@@ -61,7 +58,7 @@
   },
   "pi": {
     "extensions": [
-      "extensions/index.ts"
+      "src/index.ts"
     ],
     "skills": [
       "skills"
