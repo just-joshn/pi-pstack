@@ -31,7 +31,7 @@ import {
 } from "./models.ts";
 import { type ParentDiff, saveParentDiff } from "./parent-diff.ts";
 import { artifacts, fail, piBin, result, stringEnum } from "./support.ts";
-import { createWorktree } from "./worktrees.ts";
+import { type ActiveWorktrees, createWorktree } from "./worktrees.ts";
 
 const modes = ["single", "swarm", "arena", "interrogate"] as const;
 type Mode = (typeof modes)[number];
@@ -186,64 +186,70 @@ async function workerPrompt(request: WorkerRequest, options: RunnerOptions) {
     .join("\n");
 }
 
+async function singleTranscript(sessionDir: string) {
+  const sessions = (await readdir(sessionDir, { recursive: true })).filter((path) =>
+    path.endsWith(".jsonl"),
+  );
+  const [session, ...others] = sessions;
+  return session !== undefined && !others.length ? join(sessionDir, session) : null;
+}
+
+async function launchWorker(
+  pi: ExtensionAPI,
+  request: WorkerRequest,
+  options: RunnerOptions,
+  id: string,
+  cwd: string,
+) {
+  const { dir, signal } = options;
+  const sessionDir = join(dir, id);
+  await mkdir(sessionDir, { mode: 0o700 });
+  const args = workerArgs({
+    model: request.model,
+    thinking: effort(request.modelRole, options.budget, request.model),
+    readOnly: request.readOnly,
+    extension: options.extensions.get(request.model),
+    sessionDir,
+    sessionId: id,
+    prompt: await workerPrompt(request, options),
+  });
+  options.progress(`Running ${id}`);
+  const run = await pi.exec(piBin, args, {
+    cwd,
+    timeout: 30 * 60 * 1000,
+    maxBuffer: 4 * 1024 * 1024,
+    ...(signal && { signal }),
+  });
+  const report = join(dir, `${id}.txt`);
+  await Promise.all([
+    writeFile(report, run.stdout, { mode: 0o600 }),
+    writeFile(join(dir, `${id}.stderr.txt`), run.stderr, { mode: 0o600 }),
+  ]);
+  if (run.code !== 0 || run.truncated || run.killed)
+    fail(`Worker ${id} failed (${run.code}); inspect ${report}`);
+  const transcript = await singleTranscript(sessionDir);
+  return { report, transcript, sessionDir, summary: run.stdout.slice(-6000) };
+}
+
 function createRunner(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
-  active: Set<string>,
+  active: ActiveWorktrees,
   options: RunnerOptions,
 ) {
   return async (request: WorkerRequest) => {
-    const { dir, signal } = options;
-    if (signal?.aborted) fail("Cancelled");
-    const { index, readOnly, model, modelRole } = request;
-    const id = `worker-${index + 1}-${randomUUID().slice(0, 8)}`;
-    const tree = readOnly
+    if (options.signal?.aborted) fail("Cancelled");
+    const id = `worker-${request.index + 1}-${randomUUID().slice(0, 8)}`;
+    const tree = request.readOnly
       ? { path: ctx.cwd, base: null }
-      : await createWorktree(gitIn(pi, ctx.cwd, signal), ctx, id, options.base);
-    if (!readOnly) active.add(tree.path);
-    try {
-      const sessionDir = join(dir, id);
-      await mkdir(sessionDir, { mode: 0o700 });
-      const args = workerArgs({
-        model,
-        thinking: effort(modelRole, options.budget, model),
-        readOnly,
-        extension: options.extensions.get(model),
-        sessionDir,
-        sessionId: id,
-        prompt: await workerPrompt(request, options),
-      });
-      options.progress(`Running ${id}`);
-      const run = await pi.exec(piBin, args, {
-        cwd: tree.path,
-        timeout: 30 * 60 * 1000,
-        maxBuffer: 4 * 1024 * 1024,
-        ...(signal && { signal }),
-      });
-      const report = join(dir, `${id}.txt`);
-      await Promise.all([
-        writeFile(report, run.stdout, { mode: 0o600 }),
-        writeFile(join(dir, `${id}.stderr.txt`), run.stderr, { mode: 0o600 }),
-      ]);
-      if (run.code !== 0 || run.truncated || run.killed)
-        fail(`Worker ${id} failed (${run.code}); inspect ${report}`);
-      const sessions = (await readdir(sessionDir, { recursive: true })).filter((path) =>
-        path.endsWith(".jsonl"),
-      );
-      const [session, ...others] = sessions;
-      const transcript = session !== undefined && !others.length ? join(sessionDir, session) : null;
-      return {
-        id,
-        model,
-        ...tree,
-        report,
-        transcript,
-        sessionDir,
-        summary: run.stdout.slice(-6000),
-      };
-    } finally {
-      if (!readOnly) active.delete(tree.path);
-    }
+      : await createWorktree(gitIn(pi, ctx.cwd, options.signal), ctx, id, options.base);
+    const work = async () => ({
+      id,
+      model: request.model,
+      ...tree,
+      ...(await launchWorker(pi, request, options, id, tree.path)),
+    });
+    return request.readOnly ? work() : active.hold(tree.path, work);
   };
 }
 
@@ -305,7 +311,63 @@ function assertReachable(available: ReadonlySet<string>, models: string[]) {
     );
 }
 
-export function registerDelegation(pi: ExtensionAPI, active: Set<string>) {
+async function authorizeWrites(ctx: ExtensionContext, workers: number, base?: string) {
+  const approved =
+    ctx.hasUI &&
+    (await ctx.ui.confirm(
+      "Authorize isolated write workers?",
+      `${workers} worker(s), detached worktrees from ${base ?? "HEAD"}. Workers can execute shell commands; worktrees are not a security sandbox.`,
+    ));
+  if (!approved) fail("Write delegation not authorized");
+}
+
+async function delegate(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  active: ActiveWorktrees,
+  p: DelegateParams,
+  signal: AbortSignal | undefined,
+  progress: (message: string) => void,
+) {
+  const config = await readConfig();
+  if (!ctx.model) fail("Select a parent model first");
+  const extensions = await workerExtensions(pi, ctx, signal);
+  const available = new Set(availableWorkerModels(ctx, extensions));
+  const resolved = resolveWorkers(p, config, modelName(ctx.model), available);
+  const { role, modelRole, readOnly, workers, judge } = resolved;
+  if (!readOnly) await authorizeWrites(ctx, workers.length, p.base);
+  const dir = join(artifacts(ctx), "workers", randomUUID());
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  const run = createRunner(pi, ctx, active, {
+    dir,
+    signal,
+    diff: await saveParentDiff(pi, ctx.cwd, dir, signal),
+    budget: config.budget,
+    extensions,
+    base: p.base,
+    rubric: p.rubric,
+    progress,
+  });
+  const outputs = await pool(workers, p.concurrency ?? 3, ({ task, model }, index) =>
+    run({ task, index, model, readOnly, role, modelRole }),
+  );
+  const judgment =
+    judge &&
+    (await judgeArena(dir, outputs, p.rubric, judge, run).catch((error: unknown) => ({
+      status: "INCONCLUSIVE: could not complete arena judgment",
+      model: judge,
+      error: errorMessage(error),
+    })));
+  return {
+    outputs,
+    judgment,
+    dir,
+    warning:
+      "Local workers only. Review actual artifacts and rerun acceptance checks; report text is not proof.",
+  };
+}
+
+export function registerDelegation(pi: ExtensionAPI, active: ActiveWorktrees) {
   pi.registerTool({
     name: "pstack_delegate",
     label: "Pstack Pi workers",
@@ -313,55 +375,8 @@ export function registerDelegation(pi: ExtensionAPI, active: Set<string>) {
       "Run independent native Pi CLI sessions: single, swarm, arena or interrogate. Read-only by default; write workers use detached worktrees. Child sessions and reports are retained.",
     parameters,
     async execute(_id, p, signal, onUpdate, ctx) {
-      const config = await readConfig();
-      if (!ctx.model) fail("Select a parent model first");
-      const parent = modelName(ctx.model);
-      const extensions = await workerExtensions(pi, ctx, signal);
-      const available = new Set(availableWorkerModels(ctx, extensions));
-      const { role, modelRole, readOnly, workers, judge } = resolveWorkers(
-        p,
-        config,
-        parent,
-        available,
-      );
-      if (
-        !readOnly &&
-        (!ctx.hasUI ||
-          !(await ctx.ui.confirm(
-            "Authorize isolated write workers?",
-            `${workers.length} worker(s), detached worktrees from ${p.base ?? "HEAD"}. Workers can execute shell commands; worktrees are not a security sandbox.`,
-          )))
-      )
-        fail("Write delegation not authorized");
-      const dir = join(artifacts(ctx), "workers", randomUUID());
-      await mkdir(dir, { recursive: true, mode: 0o700 });
-      const run = createRunner(pi, ctx, active, {
-        dir,
-        signal,
-        diff: await saveParentDiff(pi, ctx.cwd, dir, signal),
-        budget: config.budget,
-        extensions,
-        base: p.base,
-        rubric: p.rubric,
-        progress: (message) => onUpdate?.(result(message)),
-      });
-      const outputs = await pool(workers, p.concurrency ?? 3, ({ task, model }, index) =>
-        run({ task, index, model, readOnly, role, modelRole }),
-      );
-      const judgment =
-        judge &&
-        (await judgeArena(dir, outputs, p.rubric, judge, run).catch((error: unknown) => ({
-          status: "INCONCLUSIVE: could not complete arena judgment",
-          model: judge,
-          error: errorMessage(error),
-        })));
-      return result({
-        outputs,
-        judgment,
-        dir,
-        warning:
-          "Local workers only. Review actual artifacts and rerun acceptance checks; report text is not proof.",
-      });
+      const progress = (message: string) => onUpdate?.(result(message));
+      return result(await delegate(pi, ctx, active, p, signal, progress));
     },
   });
 }

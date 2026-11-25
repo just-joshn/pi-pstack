@@ -9,17 +9,17 @@ import { registerPlan } from "./plan.ts";
 import { registerRecords } from "./records.ts";
 import { createSession } from "./session.ts";
 import { notifier } from "./support.ts";
-import { registerWorktrees } from "./worktrees.ts";
+import { activeWorktrees, registerWorktrees } from "./worktrees.ts";
 
 export default function pstack(pi: ExtensionAPI) {
   const notify = notifier(pi);
   const session = createSession(pi);
-  const activeWorktrees = new Set<string>();
+  const active = activeWorktrees();
   registerModelSetup(pi, notify);
   registerPlan(pi, session, notify);
   registerCatalog(pi, notify);
   registerRecords(pi, notify);
-  registerWorktrees(pi, activeWorktrees);
-  registerDelegation(pi, activeWorktrees);
+  registerWorktrees(pi, active);
+  registerDelegation(pi, active);
   registerForge(pi, () => activePlan(session.state())?.route);
 }

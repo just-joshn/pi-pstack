@@ -17,8 +17,8 @@ import {
   sandbox,
   swarm,
 } from "./host.ts";
-import { git, repo } from "./repo.ts";
-import { flag, nth } from "./support.ts";
+import { audited, git, repo } from "./repo.ts";
+import { flag, nth, shaped } from "./support.ts";
 
 describe("delegation", () => {
   test("swarm preserves reports, errors, order and read-only tool restrictions", async () => {
@@ -97,6 +97,33 @@ describe("delegation", () => {
     assert.notEqual(worker.path, cwd);
     assert.deepEqual(launchedIn, [worker.path]);
     assert.equal(await git(worker.path, "branch", "--show-current"), "");
+  });
+
+  test("a running write worker's worktree is reported active and cannot be removed", async () => {
+    const cwd = await repo();
+    const seen: (boolean | undefined)[] = [];
+    const h: Host = host({
+      mode: "rpc",
+      cwd,
+      realGit: true,
+      confirm: true,
+      execute: async (_, _args, options) => {
+        const path = options?.cwd ?? "";
+        const audit = await h.call("pstack_worktree", { action: "audit" });
+        seen.push(shaped<{ activeWorker: boolean }>(audited(audit, path)).activeWorker);
+        const name = path.split("/").at(-1);
+        await assert.rejects(
+          () => h.call("pstack_worktree", { action: "remove", name, base: "HEAD" }),
+          /inactive/,
+        );
+        return { code: 0, stdout: "mock worker", stderr: "" };
+      },
+    });
+    const task = { mode: "single", tasks: ["write"], readOnly: false };
+    const worker = fulfilled(delegated(await h.call("pstack_delegate", task)).outputs);
+    assert.deepEqual(seen, [true]);
+    const after = audited(await h.call("pstack_worktree", { action: "audit" }), worker.path);
+    assert.equal(shaped<{ activeWorker: boolean }>(after).activeWorker, false);
   });
 
   test("a worker is told when the parent diff could not be captured", async () => {
