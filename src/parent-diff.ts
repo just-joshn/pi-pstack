@@ -3,35 +3,29 @@ import { join } from "node:path";
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-import { gitIn } from "./git.ts";
+import { type Git, gitIn } from "./git.ts";
 
 const diffBytes = 2 * 1024 * 1024;
 const untrackedLimit = 500;
 
 export interface ParentDiff {
   path: string;
+  /** The commit the tracked diff starts from. */
+  base: string;
   omitted: string[];
 }
 
-export async function saveParentDiff(
-  pi: ExtensionAPI,
-  cwd: string,
-  dir: string,
-  signal?: AbortSignal,
-): Promise<ParentDiff | undefined> {
-  const git = gitIn(pi, cwd, signal, diffBytes);
-  const top = await git.probe(["rev-parse", "--show-toplevel"]);
-  if (top?.code !== 0) return undefined;
-  const repo = top.stdout.replace(/\r?\n$/, "");
-  const [tracked, listed] = await Promise.all([
-    git.probe(["diff", "--no-relative", "HEAD"], repo),
-    git.probe(["ls-files", "--others", "--exclude-standard", "-z"], repo),
-  ]);
-  if (tracked?.code !== 0 || listed?.code !== 0) return undefined;
-  const files = listed.stdout.split("\0").filter(Boolean);
-  let remaining = diffBytes - Buffer.byteLength(tracked.stdout);
-  if (remaining < 0) return undefined;
-  const kept = [tracked.stdout];
+/** The merge base with the remote's default branch, so committed branch work is included. */
+async function diffBase(git: Git, repo: string) {
+  const branch = await git.probe(["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"], repo);
+  if (branch?.code !== 0) return "HEAD";
+  const base = await git.probe(["merge-base", "HEAD", branch.stdout.trim()], repo);
+  return base?.code === 0 ? base.stdout.trim() : "HEAD";
+}
+
+async function untrackedPatches(git: Git, repo: string, files: string[], budget: number) {
+  let remaining = budget;
+  const kept: string[] = [];
   const omitted: string[] = [];
   const limit = Math.min(files.length, untrackedLimit);
   let next = 0;
@@ -58,7 +52,30 @@ export async function saveParentDiff(
     }
     next += batch.length;
   }
+  return { kept, omitted: omitted.concat(files.slice(next)) };
+}
+
+export async function saveParentDiff(
+  pi: ExtensionAPI,
+  cwd: string,
+  dir: string,
+  signal?: AbortSignal,
+): Promise<ParentDiff | undefined> {
+  const git = gitIn(pi, cwd, signal, diffBytes);
+  const top = await git.probe(["rev-parse", "--show-toplevel"]);
+  if (top?.code !== 0) return undefined;
+  const repo = top.stdout.replace(/\r?\n$/, "");
+  const base = await diffBase(git, repo);
+  const [tracked, listed] = await Promise.all([
+    git.probe(["diff", "--no-relative", base], repo),
+    git.probe(["ls-files", "--others", "--exclude-standard", "-z"], repo),
+  ]);
+  if (tracked?.code !== 0 || listed?.code !== 0) return undefined;
+  const remaining = diffBytes - Buffer.byteLength(tracked.stdout);
+  if (remaining < 0) return undefined;
+  const files = listed.stdout.split("\0").filter(Boolean);
+  const { kept, omitted } = await untrackedPatches(git, repo, files, remaining);
   const path = join(dir, "parent.diff");
-  await writeFile(path, kept.join(""), { mode: 0o600 });
-  return { path, omitted: omitted.concat(files.slice(next)) };
+  await writeFile(path, [tracked.stdout, ...kept].join(""), { mode: 0o600 });
+  return { path, base, omitted };
 }

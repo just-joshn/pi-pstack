@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 
-import type { PoolResult } from "../lib/pool.ts";
+import type { PoolResult } from "../src/lib/pool.ts";
 import { readResult, sandbox, type ToolResponse } from "./host.ts";
 import { shaped, spawned } from "./support.ts";
 
@@ -37,6 +37,7 @@ export interface Audited {
   merged: boolean | null;
   dirty: boolean | null;
   ignored: number | null;
+  activeWorker: boolean;
 }
 export const created = (response: ToolResponse) =>
   shaped<{ path: string; base: string }>(readResult(response));

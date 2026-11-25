@@ -89,7 +89,7 @@ Every original ID is mapped. Status is implementation classification, not behavi
 | `cli-mode`                                           | extension      | /poteto-mode on or off and before_agent_start                                           |
 | `cli-goal`                                           | extension      | /pstack-goal and pstack_plan                                                            |
 | `cli-loop`                                           | extension      | /pstack-loop and pstack_wake                                                            |
-| `cli-automate`                                       | conditional    | /pstack-automation drafts and scripts/run-job.mjs; external scheduler required          |
+| `cli-automate`                                       | conditional    | /pstack-automation drafts and src/jobs/run-job.mjs; external scheduler required         |
 | `cli-cloud`                                          | gap            | Local isolated Pi workers; no managed remote worker service                             |
 | `cli-subagents`                                      | extension      | pstack_delegate                                                                         |
 | `cli-worktree`                                       | extension      | pstack_worktree and git worktree                                                        |

@@ -916,7 +916,7 @@
       "id": "cli-automate",
       "kind": "external",
       "status": "conditional",
-      "implementation": "/pstack-automation drafts and scripts/run-job.mjs; external scheduler required",
+      "implementation": "/pstack-automation drafts and src/jobs/run-job.mjs; external scheduler required",
       "invocation": null,
       "source": [
         "https://cursor.com/docs/cloud-agent/automations#getting-started",

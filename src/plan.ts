@@ -1,9 +1,11 @@
 import { join } from "node:path";
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
+import { type Static, Type } from "typebox";
 
-import { nativeNode, routes } from "../lib/catalog.ts";
+import { sendWorkflow } from "./catalog-ui.ts";
+import { mergeRoutes } from "./forge.ts";
+import { nativeNode, routes } from "./lib/catalog.ts";
 import {
   isTaskStatus,
   planComplete,
@@ -13,9 +15,7 @@ import {
   taskStatuses,
   updateTask,
   wakeConfig,
-} from "../lib/state.ts";
-import { sendWorkflow } from "./catalog-ui.ts";
-import { mergeRoutes } from "./forge.ts";
+} from "./lib/state.ts";
 import type { Session } from "./session.ts";
 import {
   artifacts,
@@ -49,7 +49,7 @@ async function approveMergeRoute(ctx: ExtensionContext, route: string, goal: str
     fail(`Starting ${route} requires operator approval; use /pstack-run ${route} <goal>`);
 }
 
-export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify) {
+function registerModeCommands(pi: ExtensionAPI, session: Session, notify: Notify) {
   pi.registerCommand("poteto-mode", {
     description: "Run a task with poteto-mode, or persist it with on/off",
     handler: async (args, ctx) => {
@@ -72,6 +72,9 @@ export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify)
       sendWorkflow(pi, "pb-" + route, goal);
     },
   });
+}
+
+function registerStateCommands(pi: ExtensionAPI, session: Session, notify: Notify) {
   pi.registerCommand("pstack-status", {
     description: "Show current goal, route, tasks and loop",
     handler: async (_args, ctx) => notify(ctx, text(summary(session.state()))),
@@ -88,6 +91,9 @@ export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify)
       session.commit(ctx, { goal: goal === "clear" ? "" : goal });
     },
   });
+}
+
+function registerWakeCommands(pi: ExtensionAPI, session: Session, notify: Notify) {
   pi.registerCommand("pstack-loop", {
     description: "Start a bounded interactive wake loop: <seconds> <max> <predicate>, or stop",
     handler: async (args, ctx) => {
@@ -115,7 +121,46 @@ export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify)
       notify(ctx, `Paused. Resume note: ${path}`);
     },
   });
+}
 
+async function runPlanAction(
+  session: Session,
+  ctx: ExtensionContext,
+  p: Static<typeof planParameters>,
+) {
+  const { plan, wake } = session.state();
+  let instructions: string | undefined;
+  switch (p.action) {
+    case "show":
+      return summary(session.state());
+    case "start": {
+      const route = p.route;
+      const goal = p.goal ?? "";
+      if (!route || !routes.includes(route)) fail("Choose a known playbook or use action custom");
+      await approveMergeRoute(ctx, route, goal);
+      instructions = nativeNode("pb-" + route).instructions;
+      session.commit(ctx, { plan: startPlan(route, goal) });
+      break;
+    }
+    case "custom":
+      session.commit(ctx, { plan: startPlan("figure-it-out", p.goal ?? "", p.steps) });
+      break;
+    case "update":
+      if (p.task === undefined || !isTaskStatus(p.status)) fail("Specify task and status");
+      session.commit(ctx, { plan: updateTask(plan, p.task, p.status, p.evidence) });
+      break;
+    case "finish":
+      if (!plan || !planComplete(plan) || !p.evidence?.trim())
+        fail("Incomplete plan or missing final evidence");
+      session.commit(ctx, { plan: { ...plan, finishedEvidence: p.evidence }, wake: stopped(wake) });
+      break;
+    default:
+      unreachable(p.action);
+  }
+  return { state: summary(session.state()), instructions };
+}
+
+function registerPlanTools(pi: ExtensionAPI, session: Session) {
   pi.registerTool({
     name: "pstack_plan",
     label: "Pstack plan",
@@ -124,40 +169,7 @@ export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify)
     executionMode: "sequential",
     parameters: planParameters,
     async execute(_id, p, _signal, _update, ctx) {
-      const { plan, wake } = session.state();
-      let instructions: string | undefined;
-      switch (p.action) {
-        case "show":
-          return result(summary(session.state()));
-        case "start": {
-          const route = p.route;
-          const goal = p.goal ?? "";
-          if (!route || !routes.includes(route))
-            fail("Choose a known playbook or use action custom");
-          await approveMergeRoute(ctx, route, goal);
-          instructions = nativeNode("pb-" + route).instructions;
-          session.commit(ctx, { plan: startPlan(route, goal) });
-          break;
-        }
-        case "custom":
-          session.commit(ctx, { plan: startPlan("figure-it-out", p.goal ?? "", p.steps) });
-          break;
-        case "update":
-          if (p.task === undefined || !isTaskStatus(p.status)) fail("Specify task and status");
-          session.commit(ctx, { plan: updateTask(plan, p.task, p.status, p.evidence) });
-          break;
-        case "finish":
-          if (!plan || !planComplete(plan) || !p.evidence?.trim())
-            fail("Incomplete plan or missing final evidence");
-          session.commit(ctx, {
-            plan: { ...plan, finishedEvidence: p.evidence },
-            wake: stopped(wake),
-          });
-          break;
-        default:
-          unreachable(p.action);
-      }
-      return result({ state: summary(session.state()), instructions });
+      return result(await runPlanAction(session, ctx, p));
     },
   });
   pi.registerTool({
@@ -178,4 +190,11 @@ export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify)
       return result(session.state().wake);
     },
   });
+}
+
+export function registerPlan(pi: ExtensionAPI, session: Session, notify: Notify) {
+  registerModeCommands(pi, session, notify);
+  registerStateCommands(pi, session, notify);
+  registerWakeCommands(pi, session, notify);
+  registerPlanTools(pi, session);
 }

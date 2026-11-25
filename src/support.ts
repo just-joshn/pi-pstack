@@ -7,7 +7,7 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { isRecord } from "../lib/validation.ts";
+import { isRecord } from "./lib/validation.ts";
 
 export const agentDir = () => process.env["PI_CODING_AGENT_DIR"] ?? join(homedir(), ".pi", "agent");
 export const piBin = process.env["PSTACK_PI_BIN"] ?? "pi";

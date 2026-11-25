@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { errorMessage, isRecord, parseJson } from "../lib/validation.ts";
+import { errorMessage, isRecord, parseJson } from "./lib/validation.ts";
 import { fail, result, text } from "./support.ts";
 
 const checksFields =
@@ -139,6 +139,32 @@ async function previewPrefix(
   return { prefix, lookupFailure };
 }
 
+type MergeOutcome =
+  | { confirmed: true; receipt: { number: number; head: string; url: string } }
+  | { confirmed: false; error?: string };
+
+async function mergeOne(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  proof: Approved,
+  signal?: AbortSignal,
+): Promise<MergeOutcome> {
+  try {
+    const r = await pi.exec(
+      "gh",
+      ["pr", "merge", proof.url, "--merge", "--match-head-commit", proof.head],
+      { cwd: ctx.cwd, timeout: 60000, maxBuffer: 1024 * 1024, ...(signal && { signal }) },
+    );
+    if (r.code !== 0 || r.killed || r.truncated) return { confirmed: false, error: r.stderr };
+    const after = await fetchPr(pi, ctx, proof.url, signal);
+    if (after.state !== "MERGED" || after.headRefOid !== proof.head) return { confirmed: false };
+    const receipt = { number: proof.number, head: after.headRefOid, url: after.url };
+    return { confirmed: true, receipt };
+  } catch (error) {
+    return { confirmed: false, error: errorMessage(error) };
+  }
+}
+
 async function mergePrefix(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
@@ -166,29 +192,48 @@ async function mergePrefix(
       return { ...stopped, reason: "Head or readiness changed" };
     }
 
-    const uncertain = {
-      ...stopped,
-      unconfirmed: proof.number,
-      reason: "Merge not confirmed; inspect forge state",
-    };
-    try {
-      // oxlint-disable-next-line eslint/no-await-in-loop -- Stack merges must run in order.
-      const r = await pi.exec(
-        "gh",
-        ["pr", "merge", proof.url, "--merge", "--match-head-commit", proof.head],
-        { cwd: ctx.cwd, timeout: 60000, maxBuffer: 1024 * 1024, ...(signal && { signal }) },
-      );
-      if (r.code !== 0 || r.killed || r.truncated) return { ...uncertain, error: r.stderr };
-
-      // oxlint-disable-next-line eslint/no-await-in-loop -- Confirm the merge before advancing.
-      const after = await fetchPr(pi, ctx, proof.url, signal);
-      if (after.state !== "MERGED" || after.headRefOid !== proof.head) return uncertain;
-      merged.push({ number: proof.number, head: after.headRefOid, url: after.url });
-    } catch (error) {
-      return { ...uncertain, error: errorMessage(error) };
-    }
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Stack merges must run in order, each confirmed before the next.
+    const outcome = await mergeOne(pi, ctx, proof, signal);
+    if (!outcome.confirmed)
+      return {
+        ...stopped,
+        unconfirmed: proof.number,
+        reason: "Merge not confirmed; inspect forge state",
+        error: outcome.error,
+      };
+    merged.push(outcome.receipt);
   }
   return { merged, ceiling: prefix.at(-1)?.number };
+}
+
+async function ship(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  proofs: Proof[],
+  currentRoute: () => string | undefined,
+  signal?: AbortSignal,
+) {
+  const requireActivePlan = () => {
+    if (!ctx.hasUI || !mergeRoutes.includes(currentRoute() ?? ""))
+      fail("Merging requires a shipping or autopilot-full plan and interactive approval");
+  };
+  requireActivePlan();
+  if (new Set(proofs.map((proof) => proof.number)).size !== proofs.length) fail("Duplicate PR");
+  const { prefix, lookupFailure } = await previewPrefix(pi, ctx, proofs, signal);
+  requireActivePlan();
+  if (!(await ctx.ui.confirm("Merge these exact PR heads bottom-up?", text(prefix))))
+    fail("Merge not authorized");
+  signal?.throwIfAborted();
+  const outcome = await mergePrefix(pi, ctx, prefix, requireActivePlan, signal);
+  const unconfirmed = "unconfirmed" in outcome ? outcome.unconfirmed : undefined;
+  return {
+    ...outcome,
+    lookupFailure,
+    unmerged: proofs
+      .slice(outcome.merged.length)
+      .map((proof) => proof.number)
+      .filter((number) => number !== unconfirmed),
+  };
 }
 
 export function registerForge(pi: ExtensionAPI, currentRoute: () => string | undefined) {
@@ -219,28 +264,7 @@ export function registerForge(pi: ExtensionAPI, currentRoute: () => string | und
       ),
     }),
     async execute(_id, p, signal, _update, ctx) {
-      const requireActivePlan = () => {
-        if (!ctx.hasUI || !mergeRoutes.includes(currentRoute() ?? ""))
-          fail("Merging requires a shipping or autopilot-full plan and interactive approval");
-      };
-      requireActivePlan();
-      if (new Set(p.proofs.map((proof) => proof.number)).size !== p.proofs.length)
-        fail("Duplicate PR");
-      const { prefix, lookupFailure } = await previewPrefix(pi, ctx, p.proofs, signal);
-      requireActivePlan();
-      if (!(await ctx.ui.confirm("Merge these exact PR heads bottom-up?", text(prefix))))
-        fail("Merge not authorized");
-      signal?.throwIfAborted();
-      const outcome = await mergePrefix(pi, ctx, prefix, requireActivePlan, signal);
-      const unconfirmed = "unconfirmed" in outcome ? outcome.unconfirmed : undefined;
-      return result({
-        ...outcome,
-        lookupFailure,
-        unmerged: p.proofs
-          .slice(outcome.merged.length)
-          .map((proof) => proof.number)
-          .filter((number) => number !== unconfirmed),
-      });
+      return result(await ship(pi, ctx, p.proofs, currentRoute, signal));
     },
   });
 }

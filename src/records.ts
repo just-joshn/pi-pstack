@@ -4,12 +4,12 @@ import { dirname, join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { nativeNode, packageFile } from "../lib/catalog.ts";
-import { isJobKind } from "../lib/jobs.ts";
-import { parseJson } from "../lib/validation.ts";
+import { nativeNode, packageFile } from "./lib/catalog.ts";
+import { isJobKind } from "./lib/jobs.ts";
+import { parseJson } from "./lib/validation.ts";
 import { artifacts, hasErrorCode, type Notify, result, tsvRow } from "./support.ts";
 
-export function registerRecords(pi: ExtensionAPI, notify: Notify) {
+function registerAutomationDraft(pi: ExtensionAPI, notify: Notify) {
   pi.registerCommand("pstack-automation", {
     description: "Draft a headless Pi automation (disabled)",
     handler: async (args, ctx) => {
@@ -32,6 +32,9 @@ export function registerRecords(pi: ExtensionAPI, notify: Notify) {
       notify(ctx, `Disabled draft: ${path}. No scheduler or service was enabled.`);
     },
   });
+}
+
+function registerDecisionLog(pi: ExtensionAPI) {
   pi.registerTool({
     name: "pstack_log",
     label: "Pstack decision log",
@@ -64,6 +67,9 @@ export function registerRecords(pi: ExtensionAPI, notify: Notify) {
       return result(path);
     },
   });
+}
+
+function registerHistory(pi: ExtensionAPI) {
   pi.registerTool({
     name: "pstack_history",
     label: "Pstack session history",
@@ -82,4 +88,10 @@ export function registerRecords(pi: ExtensionAPI, notify: Notify) {
       });
     },
   });
+}
+
+export function registerRecords(pi: ExtensionAPI, notify: Notify) {
+  registerAutomationDraft(pi, notify);
+  registerDecisionLog(pi);
+  registerHistory(pi);
 }

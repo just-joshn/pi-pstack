@@ -434,7 +434,7 @@
     "cli-loop": ["extension", "/pstack-loop and pstack_wake"],
     "cli-automate": [
       "conditional",
-      "/pstack-automation drafts and scripts/run-job.mjs; external scheduler required"
+      "/pstack-automation drafts and src/jobs/run-job.mjs; external scheduler required"
     ],
     "cli-cloud": ["gap", "Local isolated Pi workers; no managed remote worker service"],
     "cli-subagents": ["extension", "pstack_delegate"],

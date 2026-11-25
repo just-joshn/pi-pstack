@@ -4,8 +4,8 @@ import { dirname, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { pool } from "../lib/pool.ts";
 import { type Git, gitIn } from "./git.ts";
+import { pool } from "./lib/pool.ts";
 import { artifacts, fail, hasErrorCode, result, stringEnum } from "./support.ts";
 
 export interface Worktree {
@@ -48,6 +48,23 @@ function ancestry(exitCode: number | undefined) {
   return null;
 }
 
+/** Paths of worktrees that a running write worker is using; removal refuses them. */
+export function activeWorktrees() {
+  const paths = new Set<string>();
+  return {
+    has: (path: string) => paths.has(path),
+    async hold<T>(path: string, work: () => Promise<T>) {
+      paths.add(path);
+      try {
+        return await work();
+      } finally {
+        paths.delete(path);
+      }
+    },
+  };
+}
+export type ActiveWorktrees = ReturnType<typeof activeWorktrees>;
+
 const validName = (name: string) => /^[a-z0-9][a-z0-9-]{0,48}$/.test(name);
 
 async function commit(git: Git, ref: string) {
@@ -79,7 +96,7 @@ export async function createWorktree(git: Git, ctx: ExtensionContext, name: stri
   return { path, base };
 }
 
-async function audit(git: Git, ref: string, active: ReadonlySet<string>) {
+async function audit(git: Git, ref: string, active: ActiveWorktrees) {
   const trees = await list(git);
   const base = await commit(git, ref);
   return pool(trees, 4, async (tree) => {
@@ -104,7 +121,7 @@ async function audit(git: Git, ref: string, active: ReadonlySet<string>) {
 function assertRemovable(
   tree: Worktree | undefined,
   path: string,
-  active: ReadonlySet<string>,
+  active: ActiveWorktrees,
 ): asserts tree is Worktree & { head: string } {
   if (!tree?.head || tree.branch || tree.locked || tree.prunable || tree.bare || active.has(path)) {
     fail("Not a removable inactive package-owned detached tree");
@@ -126,7 +143,7 @@ async function removeWorktree(
   ctx: ExtensionContext,
   name: string,
   ref: string | undefined,
-  active: ReadonlySet<string>,
+  active: ActiveWorktrees,
 ) {
   if (!validName(name)) fail("Invalid name");
   if (!ctx.hasUI) fail("Removal not authorized without an interactive Pi UI");
@@ -165,7 +182,7 @@ async function removeWorktree(
   return { removed: path };
 }
 
-export function registerWorktrees(pi: ExtensionAPI, active: ReadonlySet<string>) {
+export function registerWorktrees(pi: ExtensionAPI, active: ActiveWorktrees) {
   pi.registerTool({
     name: "pstack_worktree",
     label: "Pstack worktree",

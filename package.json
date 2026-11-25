@@ -1,11 +1,11 @@
 {
   "name": "pi-pstack-workflow-kit",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Map-driven pstack and Team Kit workflows for Pi",
   "keywords": [
     "pi-package"
   ],
-  "homepage": "https://github.com/just-joshn/pi-pstack/tree/feature/pi-native-workflow-kit#readme",
+  "homepage": "https://github.com/just-joshn/pi-pstack#readme",
   "bugs": {
     "url": "https://github.com/just-joshn/pi-pstack/issues"
   },
@@ -15,12 +15,6 @@
     "url": "git+https://github.com/just-joshn/pi-pstack.git"
   },
   "files": [
-    "agents",
-    "lib",
-    "reference",
-    "scripts/job-input.ts",
-    "scripts/run-job.mjs",
-    "skills",
     "src"
   ],
   "type": "module",
@@ -61,7 +55,7 @@
       "src/index.ts"
     ],
     "skills": [
-      "skills"
+      "src/skills"
     ]
   }
 }
