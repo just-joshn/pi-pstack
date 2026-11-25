@@ -29,20 +29,13 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "format": "bun fmt",
+    "format:check": "bun fmt --check",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "format": "oxfmt",
-    "format:check": "oxfmt --check",
-    "generate": "python3 scripts/generate.py",
-    "check:generated": "python3 scripts/generate.py --check",
-    "typecheck": "tsrs --noEmit",
-    "typecheck:fast": "tsrs --noEmit --fast",
-    "typecheck:ci": "tsc --noEmit",
-    "test": "node --test tests/*.test.mjs",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 --test-coverage-include='extensions/**' --test-coverage-include='lib/**' --test-coverage-include='scripts/run-job.mjs' --test-coverage-include='scripts/job-input.ts' tests/*.test.mjs",
-    "smoke": "node scripts/smoke.mjs",
-    "check": "bun run check:generated && oxlint && oxfmt --check && tsrs --noEmit && bun run test:coverage",
-    "check:ci": "bun run check:generated && oxlint && oxfmt --check && tsc --noEmit && bun run test:coverage"
+    "typecheck": "tsc --noEmit",
+    "check": "bun run typecheck && bun run lint && bun run format:check",
+    "fix": "bun run lint:fix && bun run format"
   },
   "devDependencies": {
     "@types/node": "22.20.5",

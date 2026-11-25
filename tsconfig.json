@@ -1,15 +1,28 @@
 {
   "compilerOptions": {
-    "target": "ES2024",
+    "target": "ES2022",
+    "lib": ["ES2022"],
     "module": "NodeNext",
-    "strict": true,
-    "allowJs": true,
-    "checkJs": true,
-    "erasableSyntaxOnly": true,
-    "allowImportingTsExtensions": true,
+    "moduleResolution": "NodeNext",
+    "moduleDetection": "force",
+    "types": ["node"],
     "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "isolatedModules": true,
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.cache/pi-extension.tsbuildinfo"
   },
-  "include": ["extensions/**/*.ts", "lib/**/*.ts", "scripts/**/*.ts", "scripts/**/*.mjs"]
+  "include": ["**/*.ts", "**/*.mts"],
+  "exclude": ["node_modules", "dist", "coverage"]
 }
