@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { delimiter, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 
 import { root } from "../lib/catalog.ts";
@@ -16,18 +16,11 @@ void test("generated checks are read-only, detect drift, and regenerate only own
       "scripts/generate.py",
       "scripts/catalog-source.json",
       "reference/source-map.json",
-      ".oxfmtrc.json",
+      "bunfig.toml",
     ].map((p) => copyFile(join(root, p), join(dir, p))),
   );
   const run = (...args) =>
-    spawnSync("python3", ["scripts/generate.py", ...args], {
-      cwd: dir,
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        PATH: join(root, "node_modules", ".bin") + delimiter + process.env.PATH,
-      },
-    });
+    spawnSync("python3", ["scripts/generate.py", ...args], { cwd: dir, encoding: "utf8" });
   const success = (...args) => {
     const r = run(...args);
     assert.equal(r.status, 0, r.stderr + r.stdout);

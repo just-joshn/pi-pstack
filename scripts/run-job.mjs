@@ -1,14 +1,14 @@
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { writeFile, mkdir, open, realpath } from "node:fs/promises";
-import { resolve, dirname, join } from "node:path";
+import { mkdir, open, realpath, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { finished } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 
 import { aliases } from "../lib/models.ts";
 import { isRecord } from "../lib/validation.ts";
-import { configuredModel, readJob, readEvent } from "./job-input.ts";
+import { configuredModel, readEvent, readJob } from "./job-input.ts";
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 
 const [flag, jobFile, eventFile] = process.argv.slice(2);

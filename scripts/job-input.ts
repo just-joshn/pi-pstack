@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
-import { isJobKind, type BennyKind } from "../lib/jobs.ts";
+import { type BennyKind, isJobKind } from "../lib/jobs.ts";
 import { isRecord, parseJson } from "../lib/validation.ts";
 
 interface BennyConfig {
@@ -19,8 +19,7 @@ interface JobBase {
   thinking?: string;
 }
 export type Job =
-  | (JobBase & { kind: "custom" })
-  | (JobBase & { kind: BennyKind; config: BennyConfig });
+  (JobBase & { kind: "custom" }) | (JobBase & { kind: BennyKind; config: BennyConfig });
 export interface JobEvent {
   channel: string;
   thread: string;

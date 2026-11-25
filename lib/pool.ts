@@ -1,8 +1,7 @@
 import { errorMessage } from "./validation.ts";
 
 export type PoolResult<T> =
-  | { status: "fulfilled"; value: T }
-  | { status: "rejected"; reason: string };
+  { status: "fulfilled"; value: T } | { status: "rejected"; reason: string };
 
 export async function pool<T, U>(
   items: readonly T[],

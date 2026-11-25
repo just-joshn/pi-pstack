@@ -1,42 +1,42 @@
 import assert from "node:assert/strict";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-import { workerArgs, workerRoles } from "../src/delegate.ts";
-import { verifiedPrefix } from "../src/forge.ts";
-import { tsvRow } from "../src/support.ts";
-import { parseWorktrees } from "../src/worktrees.ts";
 import {
-  map,
-  root,
   catalog,
-  nodes,
-  views,
-  routes,
-  nativeNode,
-  view,
   lookup,
+  map,
+  nativeNode,
+  nodes,
+  root,
+  routes,
+  view,
+  views,
 } from "../lib/catalog.ts";
 import {
-  defaultConfig,
-  validateConfig,
-  modelFor,
-  vendor,
   crossJudge,
+  defaultConfig,
   effort,
+  modelFor,
   selectPanel,
+  validateConfig,
+  vendor,
 } from "../lib/models.ts";
 import { pool } from "../lib/pool.ts";
 import {
   initialState,
+  planComplete,
   restore,
   startPlan,
   updateTask,
-  planComplete,
   wakeConfig,
 } from "../lib/state.ts";
 import { blindTranscript, readPaths } from "../lib/transcript.ts";
+import { workerArgs, workerRoles } from "../src/delegate.ts";
+import { verifiedPrefix } from "../src/forge.ts";
+import { tsvRow } from "../src/support.ts";
+import { parseWorktrees } from "../src/worktrees.ts";
 
 const parity = JSON.parse(readFileSync(join(root, "reference/parity.json"), "utf8"));
 void test("all original nodes, edges and views are preserved and mapped", () => {

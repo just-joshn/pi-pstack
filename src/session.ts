@@ -5,9 +5,9 @@ import {
   activePlan,
   initialState,
   restore,
+  type State,
   stateType,
   stopped,
-  type State,
   type TaskStatus,
   type Wake,
 } from "../lib/state.ts";

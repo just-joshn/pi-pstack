@@ -21,11 +21,11 @@ import {
   artifacts,
   atomicWrite,
   fail,
+  type Notify,
   result,
+  stringEnum,
   text,
   unreachable,
-  type Notify,
-  stringEnum,
 } from "./support.ts";
 
 const planParameters = Type.Object({

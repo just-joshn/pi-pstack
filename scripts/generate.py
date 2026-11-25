@@ -11,7 +11,6 @@ import argparse
 import json
 import subprocess
 from pathlib import Path
-from shutil import which
 from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -120,9 +119,9 @@ def reconcile(outputs, check):
             target = stage / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
-        formatter = which("oxfmt", path=str(ROOT / "node_modules/.bin")) or "oxfmt"
+        config = f"--config={ROOT / 'bunfig.toml'}"
         subprocess.run(
-            [formatter, "--config", ROOT / ".oxfmtrc.json", *outputs], cwd=stage, check=True
+            ["bun", config, "fmt", "--log-level=warn", *outputs], cwd=stage, check=True
         )
 
         for path in outputs:

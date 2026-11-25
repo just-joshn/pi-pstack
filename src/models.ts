@@ -12,13 +12,13 @@ import {
   judgeRole,
   panelRoles,
   parseModelConfig,
-  roles,
-  validateConfig,
   type Role,
   type RoleConfig,
+  roles,
+  validateConfig,
 } from "../lib/models.ts";
 import { parseJson } from "../lib/validation.ts";
-import { agentDir, atomicWrite, fail, hasErrorCode, piBin, text, type Notify } from "./support.ts";
+import { agentDir, atomicWrite, fail, hasErrorCode, type Notify, piBin, text } from "./support.ts";
 
 const modelConfigPath = () => join(agentDir(), "pstack-models.json");
 export async function readConfig(configPath = modelConfigPath()): Promise<RoleConfig> {

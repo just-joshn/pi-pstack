@@ -1,29 +1,29 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
 
 import { root } from "../lib/catalog.ts";
 import {
+  type Budget,
   crossJudge,
+  type Effort,
   effort,
   isRole,
   judgeRole,
   modelFor,
-  selectPanel,
-  type Budget,
-  type Effort,
   type Role,
   type RoleConfig,
+  selectPanel,
 } from "../lib/models.ts";
 import { pool, type PoolResult } from "../lib/pool.ts";
 import { blindTranscript, readPaths } from "../lib/transcript.ts";
 import { errorMessage } from "../lib/validation.ts";
 import { gitIn } from "./git.ts";
 import { availableWorkerModels, readConfig, workerExtensions, workerIsolation } from "./models.ts";
-import { saveParentDiff, type ParentDiff } from "./parent-diff.ts";
+import { type ParentDiff, saveParentDiff } from "./parent-diff.ts";
 import { artifacts, fail, piBin, result, stringEnum } from "./support.ts";
 import { createWorktree } from "./worktrees.ts";
 

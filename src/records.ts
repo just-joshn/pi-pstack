@@ -6,7 +6,7 @@ import { Type } from "typebox";
 
 import { catalog, packageFile } from "../lib/catalog.ts";
 import { isJobKind } from "../lib/jobs.ts";
-import { artifacts, hasErrorCode, result, tsvRow, type Notify } from "./support.ts";
+import { artifacts, hasErrorCode, type Notify, result, tsvRow } from "./support.ts";
 
 export function registerRecords(pi: ExtensionAPI, notify: Notify) {
   pi.registerCommand("pstack-automation", {
