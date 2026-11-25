@@ -19,6 +19,7 @@ import type { PoolResult } from "../lib/pool.ts";
 import type { State } from "../lib/state.ts";
 import { double, shaped, spawned } from "./support.ts";
 
+// Vitest loads this module once per test file, so each file gets a sandbox and removes its own.
 export const sandbox = await mkdtemp(join(tmpdir(), "pi-pstack-test-"));
 process.env["PI_CODING_AGENT_DIR"] = sandbox;
 const { default: extension } = await import("../src/index.ts");

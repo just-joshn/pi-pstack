@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { describe, onTestFinished, test, vi } from "vitest";
 
 import { root, slashSkills } from "../lib/catalog.ts";
 import type { RoleConfig } from "../lib/models.ts";
-import type { PoolResult } from "../lib/pool.ts";
 import type { Wake } from "../lib/state.ts";
 import { isRecord } from "../lib/validation.ts";
 import {
@@ -26,7 +25,8 @@ import {
   type Summary,
   type ToolResponse,
 } from "./host.ts";
-import { flag, nth, shaped, spawned } from "./support.ts";
+import { audited, commit, created, git, removed, repo } from "./repo.ts";
+import { flag, nth, shaped } from "./support.ts";
 
 const swarm = { mode: "swarm", tasks: ["review"] };
 const notARepository = { code: 128, stdout: "", stderr: "not a repo" };
@@ -48,46 +48,6 @@ async function finishedPlan() {
   const done = planned(await h.call("pstack_plan", { action: "finish", evidence: "green" }));
   return { h, done };
 }
-
-async function git(cwd: string, ...args: string[]) {
-  const run = await spawned("git", args, { cwd });
-  assert.equal(run.status, 0, run.stderr);
-  return run.stdout;
-}
-const commit = (cwd: string, message: string) =>
-  git(
-    cwd,
-    "-c",
-    "user.name=Test",
-    "-c",
-    "user.email=test@example.com",
-    "commit",
-    "--allow-empty",
-    "-qm",
-    message,
-  );
-async function repo() {
-  const cwd = await mkdtemp(join(sandbox, "repo-"));
-  await git(cwd, "init", "-q");
-  await commit(cwd, "initial");
-  return cwd;
-}
-
-interface Audited {
-  path: string;
-  merged: boolean | null;
-  dirty: boolean;
-  ignored: number;
-}
-const created = (response: ToolResponse) =>
-  shaped<{ path: string; base: string }>(readResult(response));
-const removed = (response: ToolResponse) =>
-  shaped<{ removed: string }>(readResult(response)).removed;
-/** The audit entry of one worktree. */
-const audited = (response: ToolResponse, path: string) =>
-  shaped<PoolResult<Audited>[]>(readResult(response))
-    .flatMap((entry) => (entry.status === "fulfilled" ? [entry.value] : []))
-    .find((entry) => entry.path === path);
 
 /** `pi --list-models` output for the given `provider/id` models. */
 function modelTable(...models: string[]): Run {
