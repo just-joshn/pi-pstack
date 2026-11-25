@@ -5,8 +5,7 @@ Inputs:  src/reference/source-map.json (upstream graph, never edited)
 Outputs: src/skills/**, src/lib/catalog-data.json, src/reference/parity.json,
          src/reference/PARITY.md
 
-Output paths, and the paths recorded in the catalog, are relative to src/, the directory
-the installed extension reads its files from.
+Catalog paths are relative to src/, which contains the installed extension's files.
 
 Run `python3 scripts/generate.py` to refresh owned outputs, or add `--check` to check them.
 """

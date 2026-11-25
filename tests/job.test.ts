@@ -31,7 +31,6 @@ const outcome = (stdout: string) =>
 const child = async (log: string) => shaped<Child>(JSON.parse(await readFile(log, "utf8")));
 const receipt = (saved: string) => shaped<Receipt>(JSON.parse(saved));
 
-/** A Pi stand-in that prints the arguments, prompt and secret it received. */
 const fakePi = `#!/usr/bin/env node
 const prompt = require("node:fs").readFileSync(0, "utf8");
 console.log(JSON.stringify({args:process.argv.slice(2),prompt,secret:process.env.PSTACK_EVENT_SECRET??null}));

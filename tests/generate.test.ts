@@ -10,7 +10,6 @@ import { shaped, spawned } from "./support.ts";
 
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 
-/** The generator and its inputs, copied into a temporary directory. */
 async function generatorCopy() {
   const dir = await mkdtemp(join(tmpdir(), "catalog-generate-"));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));

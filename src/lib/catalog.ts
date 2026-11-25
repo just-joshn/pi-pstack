@@ -78,7 +78,7 @@ const isCatalog = (value: unknown): value is Catalog =>
   isRecordOf(value["steps"], isTexts) &&
   isRecordOf(value["implementations"], isMapping);
 
-/** The `src` directory, which holds every file the installed extension reads. */
+/** Holds every file the installed extension reads. */
 export const srcDir = fileURLToPath(new URL("../", import.meta.url));
 export const packageFile = (path: string) => readFileSync(join(srcDir, path), "utf8");
 function packageData<T>(path: string, isValid: (value: unknown) => value is T): T {
