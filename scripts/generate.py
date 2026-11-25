@@ -53,9 +53,9 @@ def ported(path):
 
 
 def first_sentence(line):
-    text = re.sub(r"^\d+\.\s+", "", line).strip()
+    text = re.sub(r"^\d+\.\s+", "", line).replace("**", "").strip()
     match = re.match(r"(.+?[.!?])(\s|$)", text)
-    return (match.group(1) if match else text).replace("**", "")
+    return match.group(1) if match else text
 
 
 def playbook_steps(route):
@@ -64,7 +64,9 @@ def playbook_steps(route):
     if not ported(path):
         return source["steps"][route]
     lines = (PACKAGED / path).read_text().splitlines()
-    return [first_sentence(line) for line in lines if re.match(r"\d+\.\s", line)]
+    numbered = [first_sentence(line) for line in lines if re.match(r"\d+\.\s", line)]
+    # A playbook written as prose, such as opening-a-pr, is one task: its title.
+    return numbered or [lines[0].lstrip("# ").strip()]
 
 
 steps = {route: playbook_steps(route) for route in source["steps"]}

@@ -50,13 +50,17 @@ async function runArena(judges: string[], judgeCode: number) {
 }
 
 /** A fake Pi worker; the judge reads the first candidate and fails to read the second. */
-function judgingWorkers(judged: string[]): NonNullable<HostOptions["execute"]> {
+function judgingWorkers(
+  judged: string[],
+  prompts: string[] = [],
+): NonNullable<HostOptions["execute"]> {
   return async (bin, args) => {
     if (bin === "git") return { code: 1, stdout: "", stderr: "not a repo" };
     const worker = flag(args, "--model") ?? "";
     const session = join(flag(args, "--session-dir") ?? "", "session.jsonl");
     const prompt = args.at(-1) ?? "";
     judged.push(worker);
+    prompts.push(prompt);
     const content: object[] = [{ type: "text", text: `Compared work for ${worker}` }];
     const results: object[] = [];
     if (worker === "openai/gpt") {
@@ -178,7 +182,8 @@ test("arena rejects a judge whose provider appears in the candidate panel", asyn
 test("arena sends anonymous transcript files to the independent judge and reports missing reads", async () => {
   onTestFinished(() => rm(configFile, { force: true }));
   const judged: string[] = [];
-  const h = host({ confirm: true, execute: judgingWorkers(judged) });
+  const prompts: string[] = [];
+  const h = host({ confirm: true, execute: judgingWorkers(judged, prompts) });
   await h.cmd(
     "setup-pstack",
     JSON.stringify({
@@ -192,9 +197,15 @@ test("arena sends anonymous transcript files to the independent judge and report
     await h.call("pstack_delegate", {
       mode: "arena",
       tasks: ["shared task"],
-      rubric: "quality",
+      rubric: "secret rubric",
     }),
   );
+  const [first = "", second = "", judge = ""] = prompts;
+  for (const candidate of [first, second]) {
+    assert(candidate.includes("shared task"));
+    assert(!candidate.includes("secret rubric"), "candidates see only the task");
+  }
+  assert(judge.includes("secret rubric"), "the judge grades against the rubric");
   assert.equal(judged.at(-1), "openai/gpt");
   assert.deepEqual(
     output.outputs.map((_, i) => fulfilled(output.outputs, i).model),

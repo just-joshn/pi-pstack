@@ -159,7 +159,7 @@ test("command activation, explicit plan, native tool update and restore", async 
   assert.match(prompt, /Relative paths in it resolve from \/.+\/skills\/poteto-mode\./);
   assert(prompt.includes("## Subagents"));
   await h.cmd("pstack-run", "bug-fix repair");
-  assert(h.messages.at(-1)?.includes("Ordered steps"));
+  assert(h.messages.at(-1)?.includes("### Bug fix"));
   assert.equal(h.state().plan?.route, "bug-fix");
   await h.call("pstack_plan", {
     action: "update",
@@ -312,4 +312,45 @@ test("stopping a wake loop records why it stopped", async () => {
   assert.equal(h.state().wake?.running, true);
   assert.equal(h.state().wake?.stopEvidence, undefined);
   h.emit("session_shutdown");
+});
+
+test("the agent arms the wake loop itself, as upstream arms /loop, and only in an open session", async () => {
+  const h = host();
+  await h.call("pstack_wake", { action: "start", seconds: 3600, max: 24, predicate: "CI green" });
+  assert.deepEqual(h.state().wake, {
+    seconds: 3600,
+    max: 24,
+    predicate: "CI green",
+    count: 0,
+    running: true,
+  });
+  await assert.rejects(
+    () => h.call("pstack_wake", { action: "start", seconds: 1, max: 1, predicate: "x" }),
+    /5–86400 seconds/,
+  );
+  await h.call("pstack_wake", { action: "stop", evidence: "CI green at abc123" });
+  assert.equal(h.state().wake?.running, false);
+  const headless = host({ mode: "print" });
+  await assert.rejects(
+    () => headless.call("pstack_wake", { action: "start", seconds: 60, max: 1, predicate: "x" }),
+    /open interactive Pi session/,
+  );
+});
+
+test("a playbook step adds tasks to the open plan, as upstream adds todo items", async () => {
+  const h = host();
+  await h.call("pstack_plan", { action: "start", route: "feature", goal: "ship it" });
+  const before = h.state().plan?.tasks.length ?? 0;
+  const checkpoint = ["Blocking first steps", "Independent workstreams"];
+  await h.call("pstack_plan", { action: "add", steps: checkpoint });
+  const tasks = h.state().plan?.tasks ?? [];
+  assert.deepEqual(
+    tasks.slice(before).map(({ id, text, status }) => ({ id, text, status })),
+    checkpoint.map((text, i) => ({ id: before + i + 1, text, status: "pending" })),
+  );
+  await assert.rejects(() => h.call("pstack_plan", { action: "add", steps: [] }), /Supply/);
+  await assert.rejects(
+    () => host().call("pstack_plan", { action: "add", steps: ["x"] }),
+    /No active plan/,
+  );
 });

@@ -446,7 +446,8 @@ async function delegate(
     budget: config.budget,
     extensions,
     base: p.base,
-    rubric: p.rubric,
+    // Arena candidates see only the task; the rubric is the judge's (upstream arena, Phase A).
+    rubric: p.mode === "arena" ? undefined : p.rubric,
     progress,
   });
   const outputs = await pool(workers, p.concurrency ?? 3, ({ task, model }, index) =>
