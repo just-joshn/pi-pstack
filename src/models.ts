@@ -53,11 +53,11 @@ async function listedModels(
   const run = await pi.exec(
     piBin,
     [...workerIsolation, ...(extension ? ["-e", extension] : []), "--list-models"],
-    { cwd, signal, timeout: 30_000 },
+    { cwd, timeout: 30_000, ...(signal && { signal }) },
   );
   if (run.code !== 0 || run.killed) return undefined;
   // Pi pads each row to the header's columns; ids can contain spaces, so split by position.
-  const [header, ...rows] = run.stdout.split("\n");
+  const [header = "", ...rows] = run.stdout.split("\n");
   const [model, context] = [header.indexOf("model"), header.indexOf("context")];
   return rows
     .map((row) => ({ provider: row.slice(0, model).trim(), id: row.slice(model, context).trim() }))
@@ -110,10 +110,12 @@ export function availableWorkerModels(
   extensions: ReadonlyMap<string, string>,
 ) {
   const registered = new Set(ctx.modelRegistry.getRegisteredProviderIds());
-  const ids = modelsInScope(ctx)
+  const available = modelsInScope(ctx)
     .filter((m) => !registered.has(m.provider) || extensions.has(modelName(m)))
     .map(modelName);
-  return [...new Set(ids)].toSorted();
+  const ids = [...new Set(available)];
+  ids.sort();
+  return ids;
 }
 
 async function chooseRole(ctx: ExtensionContext, role: Role, available: string[]) {

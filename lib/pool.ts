@@ -11,13 +11,13 @@ export async function pool<T, U>(
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8)
     throw Error("Concurrency must be 1 to 8");
   const results: PoolResult<U>[] = [];
-  let cursor = 0;
+  // Workers share one iterator, so each item is taken once.
+  const queue = items.entries();
   async function worker() {
-    while (cursor < items.length) {
-      const i = cursor++;
+    for (const [i, item] of queue) {
       try {
         // oxlint-disable-next-line eslint/no-await-in-loop -- One item at a time per worker.
-        results[i] = { status: "fulfilled", value: await fn(items[i], i) };
+        results[i] = { status: "fulfilled", value: await fn(item, i) };
       } catch (error) {
         results[i] = { status: "rejected", reason: errorMessage(error) };
       }

@@ -29,7 +29,7 @@ async function browse(pi: ExtensionAPI, ctx: ExtensionContext, start: string) {
     const chosen = await ctx.ui.select(`${v.title}\n${v.caption}`, choices);
     if (!chosen || chosen === "Exit") return;
     if (chosen.startsWith("view:")) {
-      current = chosen.slice(5).split(" ")[0];
+      current = chosen.slice(5).split(" ")[0] ?? current;
       continue;
     }
     const n = nativeNode(chosen.slice(5));

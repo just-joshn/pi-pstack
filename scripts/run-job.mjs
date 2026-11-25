@@ -114,6 +114,6 @@ await writeFile(
   JSON.stringify({ ...outcome, eventId: event?.eventId, log, errorLog }, null, 2),
   { flag: "wx", mode: 0o600 },
 );
-if (outcome.error) console.error(outcome.error);
-console.log(JSON.stringify({ code: outcome.code, runDir, log }));
+if (outcome.error) process.stderr.write(`${outcome.error}\n`);
+process.stdout.write(`${JSON.stringify({ code: outcome.code, runDir, log })}\n`);
 process.exitCode = outcome.code;

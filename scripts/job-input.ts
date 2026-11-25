@@ -15,8 +15,8 @@ interface JobBase {
   cwd: string;
   instructions: string;
   tools: string[];
-  model?: string;
-  thinking?: string;
+  model?: string | undefined;
+  thinking?: string | undefined;
 }
 export type Job =
   (JobBase & { kind: "custom" }) | (JobBase & { kind: BennyKind; config: BennyConfig });

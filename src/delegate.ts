@@ -86,7 +86,7 @@ function resolveWorkers(
   const choices = config.roles[modelRole];
   const panel = p.mode === "arena" || p.mode === "interrogate";
   if (panel && choices.length < 2) fail("Configure at least two panel seats in /setup-pstack");
-  const tasks = panel ? choices.map(() => p.tasks[0]) : p.tasks;
+  const tasks = panel ? choices.flatMap(() => p.tasks) : p.tasks;
   const models = selectPanel(config, modelRole, tasks.length).map((m) => modelFor(m, parent));
   assertReachable(available, models);
   const judge = p.mode === "arena" ? crossJudge(config, parent, models, available) : undefined;
@@ -94,14 +94,17 @@ function resolveWorkers(
     fail(
       `Configure an available judge from another provider than the parent and all candidates in /setup-pstack. Configured pool: ${config.roles[judgeRole].join(", ") || "(empty)"}.`,
     );
-  return { role, modelRole, readOnly, tasks, models, judge };
+  const workers = tasks.flatMap((task, i) =>
+    models.slice(i, i + 1).map((model) => ({ task, model })),
+  );
+  return { role, modelRole, readOnly, workers, judge };
 }
 
 export function workerArgs(options: {
   model: string;
   thinking: Effort;
   readOnly: boolean;
-  extension?: string;
+  extension?: string | undefined;
   sessionDir: string;
   sessionId: string;
   prompt: string;
@@ -137,10 +140,10 @@ interface RunnerOptions {
   dir: string;
   budget: Budget;
   extensions: ReadonlyMap<string, string>;
-  rubric?: string;
-  base?: string;
-  diff?: ParentDiff;
-  signal?: AbortSignal;
+  rubric: string | undefined;
+  base: string | undefined;
+  diff: ParentDiff | undefined;
+  signal: AbortSignal | undefined;
   progress: (message: string) => void;
 }
 
@@ -207,9 +210,9 @@ function createRunner(
       options.progress(`Running ${id}`);
       const run = await pi.exec(piBin, args, {
         cwd: tree.path,
-        signal,
         timeout: 30 * 60 * 1000,
         maxBuffer: 4 * 1024 * 1024,
+        ...(signal && { signal }),
       });
       const report = join(dir, `${id}.txt`);
       await Promise.all([
@@ -221,7 +224,8 @@ function createRunner(
       const sessions = (await readdir(sessionDir, { recursive: true })).filter((path) =>
         path.endsWith(".jsonl"),
       );
-      const transcript = sessions.length === 1 ? join(sessionDir, sessions[0]) : null;
+      const [session, ...others] = sessions;
+      const transcript = session !== undefined && !others.length ? join(sessionDir, session) : null;
       return {
         id,
         model,
@@ -308,7 +312,7 @@ export function registerDelegation(pi: ExtensionAPI, active: Set<string>) {
       const parent = `${ctx.model.provider}/${ctx.model.id}`;
       const extensions = await workerExtensions(pi, ctx, signal);
       const available = new Set(availableWorkerModels(ctx, extensions));
-      const { role, modelRole, readOnly, tasks, models, judge } = resolveWorkers(
+      const { role, modelRole, readOnly, workers, judge } = resolveWorkers(
         p,
         config,
         parent,
@@ -319,7 +323,7 @@ export function registerDelegation(pi: ExtensionAPI, active: Set<string>) {
         (!ctx.hasUI ||
           !(await ctx.ui.confirm(
             "Authorize isolated write workers?",
-            `${tasks.length} worker(s), detached worktrees from ${p.base ?? "HEAD"}. Workers can execute shell commands; worktrees are not a security sandbox.`,
+            `${workers.length} worker(s), detached worktrees from ${p.base ?? "HEAD"}. Workers can execute shell commands; worktrees are not a security sandbox.`,
           )))
       )
         fail("Write delegation not authorized");
@@ -335,8 +339,8 @@ export function registerDelegation(pi: ExtensionAPI, active: Set<string>) {
         rubric: p.rubric,
         progress: (message) => onUpdate?.(result(message)),
       });
-      const outputs = await pool(tasks, p.concurrency ?? 3, (task, index) =>
-        run({ task, index, model: models[index], readOnly, role, modelRole }),
+      const outputs = await pool(workers, p.concurrency ?? 3, ({ task, model }, index) =>
+        run({ task, index, model, readOnly, role, modelRole }),
       );
       const judgment =
         judge &&

@@ -10,8 +10,8 @@ import { artifacts, fail, hasErrorCode, result, stringEnum } from "./support.ts"
 
 export interface Worktree {
   path: string;
-  head?: string;
-  branch?: string;
+  head?: string | undefined;
+  branch?: string | undefined;
   locked: boolean;
   prunable: boolean;
   bare: boolean;

@@ -39,7 +39,7 @@ const baseEffort = (role: Role): Effort =>
   panelRoles.has(role) || role === "swarm workers" ? "high" : "xhigh";
 export function effort(role: Role, budget: Budget, model = ""): Effort {
   const target = panelRoles.has(role) && /gemini/i.test(model) ? "xhigh" : baseEffort(role);
-  return levels[Math.max(0, levels.indexOf(target) - budgets.indexOf(budget))];
+  return levels[Math.max(0, levels.indexOf(target) - budgets.indexOf(budget))] ?? target;
 }
 
 function assertSelections(
@@ -56,7 +56,7 @@ function assertSelections(
       values.some((v) => typeof v !== "string" || !v.trim())
     )
       throw Error(`Invalid selection for ${r}`);
-    if (r === judgeRole && values.some((v) => aliases.includes(v)))
+    if (r === judgeRole && values.some((v) => typeof v === "string" && aliases.includes(v)))
       throw Error("Judge pool requires explicit models");
   }
 }
@@ -120,5 +120,6 @@ export function selectPanel(config: RoleConfig, role: Role, count: number) {
     throw Error("Worker count must be 1 to 8");
   const choices = config.roles[role];
   if (!choices.length) throw Error(`No models configured for ${role}`);
-  return Array.from({ length: count }, (_, i) => choices[i % choices.length]);
+  const rounds = Array.from({ length: Math.ceil(count / choices.length) }, () => choices);
+  return rounds.flat().slice(0, count);
 }

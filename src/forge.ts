@@ -95,9 +95,9 @@ async function fetchPr(
 ) {
   const r = await pi.exec("gh", ["pr", "view", String(id), "--json", checksFields], {
     cwd: ctx.cwd,
-    signal,
     timeout: 30000,
     maxBuffer: 4 * 1024 * 1024,
+    ...(signal && { signal }),
   });
   if (r.truncated || r.killed) fail("gh pr view failed: output truncated or process stopped");
   if (r.code !== 0) fail(`gh pr view failed: ${r.stderr}`);
@@ -125,9 +125,10 @@ async function previewPrefix(
   const statuses = reads.flatMap((read) => (read.status === "fulfilled" ? [read.value] : []));
   const prefix = verifiedPrefix(proofs, statuses);
   const next = reads[prefix.length];
+  const unread = proofs[prefix.length];
   const lookupFailure =
-    next?.status === "rejected"
-      ? { number: proofs[prefix.length].number, error: errorMessage(next.reason) }
+    unread && next?.status === "rejected"
+      ? { number: unread.number, error: errorMessage(next.reason) }
       : undefined;
   if (!prefix.length)
     fail(
@@ -175,7 +176,7 @@ async function mergePrefix(
       const r = await pi.exec(
         "gh",
         ["pr", "merge", proof.url, "--merge", "--match-head-commit", proof.head],
-        { cwd: ctx.cwd, signal, timeout: 60000, maxBuffer: 1024 * 1024 },
+        { cwd: ctx.cwd, timeout: 60000, maxBuffer: 1024 * 1024, ...(signal && { signal }) },
       );
       if (r.code !== 0 || r.killed || r.truncated) return { ...uncertain, error: r.stderr };
 
