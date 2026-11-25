@@ -420,16 +420,6 @@ function assertReachable(available: ReadonlySet<string>, models: string[]) {
     );
 }
 
-async function authorizeWrites(ctx: ExtensionContext, workers: number, base?: string) {
-  const approved =
-    ctx.hasUI &&
-    (await ctx.ui.confirm(
-      "Authorize isolated write workers?",
-      `${workers} worker(s), detached worktrees from ${base ?? "HEAD"}. Workers can execute shell commands; worktrees are not a security sandbox.`,
-    ));
-  if (!approved) fail("Write delegation not authorized");
-}
-
 async function prepareBatch(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
@@ -444,7 +434,6 @@ async function prepareBatch(
   const listed = availableWorkerModels(ctx, extensions);
   const config = await readConfig(listed);
   const resolved = resolveWorkers(p, config, modelName(ctx.model), new Set(listed));
-  if (!resolved.readOnly) await authorizeWrites(ctx, resolved.workers.length, p.base);
   const dir = join(artifacts(ctx), "workers", randomUUID());
   await mkdir(dir, { recursive: true, mode: 0o700 });
   const options: RunnerOptions = {

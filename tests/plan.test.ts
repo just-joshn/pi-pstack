@@ -190,13 +190,9 @@ test("timer does not start without confirmation, is cancelled on shutdown and de
 });
 
 for (const mode of ["print", "json"] as const)
-  test(`${mode} mode rejects writes, merges, and worktree removal before executing shell`, async () => {
+  test(`${mode} mode rejects merges and worktree removal before executing shell`, async () => {
     const h = host({ mode, confirm: true });
     await h.cmd("pstack-run", "shipping Merge reviewed PR");
-    await assert.rejects(
-      () => h.call("pstack_delegate", { mode: "single", tasks: ["write"], readOnly: false }),
-      /Write delegation not authorized/,
-    );
     await assert.rejects(
       () =>
         h.call("pstack_ship", {

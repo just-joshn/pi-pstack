@@ -70,18 +70,14 @@ test("a worker that leaves several session files reports no single transcript", 
   assert.equal(fulfilled(output.outputs).transcript, null);
 });
 
-test("RPC write delegation runs in a real detached worktree only after confirmation", async () => {
+test("a write worker starts in a real detached worktree without asking, as upstream's do", async () => {
   const cwd = await repo();
-  let approved = false;
   const launchedIn: (string | undefined)[] = [];
   const h: Host = host({
-    mode: "rpc",
+    mode: "print",
     cwd,
     realGit: true,
-    confirm: () => {
-      assert.equal(h.executions.length, 0, "No process runs before approval");
-      return approved;
-    },
+    confirm: () => assert.fail("reversible work proceeds without asking"),
     execute: async (_, args, options) => {
       launchedIn.push(options?.cwd);
       assert.equal(flag(args, "--tools"), "read,grep,find,ls,bash,edit,write");
@@ -89,9 +85,6 @@ test("RPC write delegation runs in a real detached worktree only after confirmat
     },
   });
   const task = { mode: "single", tasks: ["write"], readOnly: false };
-  await assert.rejects(() => h.call("pstack_delegate", task), /Write delegation not authorized/);
-  assert.equal(h.executions.length, 0);
-  approved = true;
   const worker = fulfilled(delegated(await h.call("pstack_delegate", task)).outputs);
   assert.notEqual(worker.path, cwd);
   assert.deepEqual(launchedIn, [worker.path]);
