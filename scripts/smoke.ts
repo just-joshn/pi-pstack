@@ -14,7 +14,7 @@ const isText = (value: unknown): value is string => typeof value === "string";
 
 const cwd = await mkdtemp(join(tmpdir(), "pstack-smoke-"));
 const child = spawn(
-  process.env.PSTACK_PI_BIN ?? "pi",
+  process.env["PSTACK_PI_BIN"] ?? "pi",
   [
     "--mode",
     "rpc",
@@ -44,9 +44,14 @@ const responses = new Map<string, (response: Rpc) => void>();
 const notices: string[] = [];
 createInterface({ input: child.stdout, crlfDelay: Infinity }).on("line", (line) => {
   const item = record(line);
-  if (item?.type === "response" && typeof item.id === "string") responses.get(item.id)?.(item);
-  if (item?.type === "extension_ui_request" && item.method === "notify" && isText(item.message))
-    notices.push(item.message);
+  if (item?.["type"] === "response" && typeof item["id"] === "string")
+    responses.get(item["id"])?.(item);
+  if (
+    item?.["type"] === "extension_ui_request" &&
+    item["method"] === "notify" &&
+    isText(item["message"])
+  )
+    notices.push(item["message"]);
 });
 const exited = new Promise<string>((resolve, reject) => {
   child.once("error", reject);
@@ -80,8 +85,8 @@ async function rpc(id: string, type: string, fields: Rpc = {}) {
       timer = setTimeout(() => reject(Error(`RPC timeout: ${type}\n${stderr}`)), 20000);
     });
     const response = await Promise.race([request, failed, timeout]);
-    assert(response.success, JSON.stringify(response));
-    return response.data;
+    assert(response["success"], JSON.stringify(response));
+    return response["data"];
   } finally {
     clearTimeout(timer);
     responses.delete(id);
@@ -90,7 +95,7 @@ async function rpc(id: string, type: string, fields: Rpc = {}) {
 child.stdin.on("error", () => {});
 try {
   const commands = list(await rpc("1", "get_commands"), "commands");
-  const found = new Set(commands.map((command) => command.name));
+  const found = new Set(commands.map((command) => command["name"]));
   for (const node of slashSkills) assert(found.has(node.label.slice(1)), node.id);
   for (const path of Object.values(catalog.paths).filter((p) => p.endsWith("SKILL.md")))
     assert(found.has(`skill:${path.split("/")[1]}`), path);
@@ -99,17 +104,17 @@ try {
   assert(
     entries.some(
       (entry) =>
-        entry.type === "custom" &&
-        entry.customType === "pstack-state" &&
-        isRecord(entry.data) &&
-        entry.data.mode === true,
+        entry["type"] === "custom" &&
+        entry["customType"] === "pstack-state" &&
+        isRecord(entry["data"]) &&
+        entry["data"]["mode"] === true,
     ),
   );
   await rpc("4", "prompt", { message: "/poteto-mode off" });
   await rpc("5", "prompt", { message: "/setup-pstack show" });
   const shown = record(notices.at(-1) ?? "{}");
   assert(
-    Array.isArray(shown?.available) && shown.available.includes("smoke/model"),
+    Array.isArray(shown?.["available"]) && shown["available"].includes("smoke/model"),
     notices.at(-1),
   );
   process.stdout.write(

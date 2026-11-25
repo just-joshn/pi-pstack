@@ -37,7 +37,7 @@ const firstText = (line: string) =>
 /** The system prompt the extension would hand to the next agent run, if it changes it. */
 function startedPrompt(h: Host) {
   const started = h.emit("before_agent_start", { systemPrompt: "base" });
-  return isRecord(started) ? started.systemPrompt : started;
+  return isRecord(started) ? started["systemPrompt"] : started;
 }
 
 async function finishedPlan() {

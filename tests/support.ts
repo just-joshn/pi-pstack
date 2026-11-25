@@ -30,9 +30,9 @@ export async function spawned(file: string, args: string[], options: ExecFileOpt
   } catch (error) {
     const failure = isRecord(error) ? error : {};
     return {
-      status: typeof failure.code === "number" ? failure.code : 1,
-      stdout: output(failure.stdout),
-      stderr: output(failure.stderr),
+      status: typeof failure["code"] === "number" ? failure["code"] : 1,
+      stdout: output(failure["stdout"]),
+      stderr: output(failure["stderr"]),
     };
   }
 }

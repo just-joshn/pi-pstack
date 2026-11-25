@@ -34,7 +34,7 @@ await describe("generator", async () => {
     const source = shaped<{ skills: Record<string, string> }>(
       JSON.parse(await readFile(input, "utf8")),
     );
-    source.skills.bro = "Changed source instructions.";
+    source.skills["bro"] = "Changed source instructions.";
     await writeFile(input, JSON.stringify(source));
     assert.notEqual((await run("--check")).status, 0);
     assert.equal(await readFile(old, "utf8"), original);

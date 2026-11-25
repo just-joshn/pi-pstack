@@ -64,13 +64,13 @@ function assertSelections(
 export function parseModelConfig(config: unknown): RoleConfig {
   if (
     !isRecord(config) ||
-    config.defaults !== 3 ||
-    !isBudget(config.budget) ||
-    !isRecord(config.roles)
+    config["defaults"] !== 3 ||
+    !isBudget(config["budget"]) ||
+    !isRecord(config["roles"])
   )
     throw Error("Invalid model configuration");
-  assertSelections(config.roles);
-  return { defaults: config.defaults, budget: config.budget, roles: config.roles };
+  assertSelections(config["roles"]);
+  return { defaults: config["defaults"], budget: config["budget"], roles: config["roles"] };
 }
 export function defaultConfig(): RoleConfig {
   return parseModelConfig({
@@ -80,7 +80,7 @@ export function defaultConfig(): RoleConfig {
   });
 }
 export function applyConfigPatch(config: RoleConfig, patch: unknown): RoleConfig {
-  const selections = isRecord(patch) && "roles" in patch ? patch.roles : {};
+  const selections = isRecord(patch) && "roles" in patch ? patch["roles"] : {};
   if (!isRecord(patch) || !isRecord(selections)) throw Error("Invalid model configuration patch");
   return parseModelConfig({ ...config, ...patch, roles: { ...config.roles, ...selections } });
 }

@@ -20,7 +20,7 @@ import type { State } from "../lib/state.ts";
 import { double, shaped, spawned } from "./support.ts";
 
 export const sandbox = await mkdtemp(join(tmpdir(), "pi-pstack-test-"));
-process.env.PI_CODING_AGENT_DIR = sandbox;
+process.env["PI_CODING_AGENT_DIR"] = sandbox;
 const { default: extension } = await import("../src/index.ts");
 export const configFile = join(sandbox, "pstack-models.json");
 

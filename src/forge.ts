@@ -67,20 +67,20 @@ function prUrl(value: unknown, number: number): value is string {
 function isStatus(value: unknown, number: number): value is PullRequestStatus {
   return (
     isRecord(value) &&
-    value.number === number &&
-    prUrl(value.url, number) &&
-    typeof value.headRefOid === "string" &&
-    /^[0-9a-f]{40}$/i.test(value.headRefOid) &&
-    typeof value.state === "string" &&
-    typeof value.isDraft === "boolean" &&
-    typeof value.mergeable === "string" &&
-    typeof value.mergeStateStatus === "string" &&
-    (value.statusCheckRollup === null ||
-      (Array.isArray(value.statusCheckRollup) &&
-        value.statusCheckRollup.every(
+    value["number"] === number &&
+    prUrl(value["url"], number) &&
+    typeof value["headRefOid"] === "string" &&
+    /^[0-9a-f]{40}$/i.test(value["headRefOid"]) &&
+    typeof value["state"] === "string" &&
+    typeof value["isDraft"] === "boolean" &&
+    typeof value["mergeable"] === "string" &&
+    typeof value["mergeStateStatus"] === "string" &&
+    (value["statusCheckRollup"] === null ||
+      (Array.isArray(value["statusCheckRollup"]) &&
+        value["statusCheckRollup"].every(
           (check: unknown) =>
             isRecord(check) &&
-            [check.status, check.conclusion, check.state].every(
+            [check["status"], check["conclusion"], check["state"]].every(
               (field) => field === undefined || typeof field === "string",
             ),
         )))

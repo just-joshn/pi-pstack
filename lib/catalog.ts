@@ -54,32 +54,31 @@ const isEdge = (value: unknown): value is Edge =>
   hasText(value, "id", "from", "to", "label", "when", "kind");
 const isNode = (value: unknown): value is NodeRecord =>
   hasText(value, "id", "label", "kind", "what", "when", "how") &&
-  isTexts(value.source) &&
-  (value.opensView === undefined || isText(value.opensView));
+  isTexts(value["source"]) &&
+  (value["opensView"] === undefined || isText(value["opensView"]));
 const isView = (value: unknown): value is MapView =>
   hasText(value, "id", "title", "caption") &&
-  (value.parent === null || isText(value.parent)) &&
-  isTexts(value.nodeIds) &&
-  Array.isArray(value.edges) &&
-  value.edges.every((edge) => isText(edge) || isEdge(edge));
+  (value["parent"] === null || isText(value["parent"])) &&
+  isTexts(value["nodeIds"]) &&
+  Array.isArray(value["edges"]) &&
+  value["edges"].every((edge) => isText(edge) || isEdge(edge));
 const isSourceMap = (value: unknown): value is SourceMap =>
   isRecord(value) &&
-  Array.isArray(value.nodes) &&
-  value.nodes.every(isNode) &&
-  Array.isArray(value.edges) &&
-  value.edges.every(isEdge) &&
-  Array.isArray(value.views) &&
-  value.views.every(isView);
+  Array.isArray(value["nodes"]) &&
+  value["nodes"].every(isNode) &&
+  Array.isArray(value["edges"]) &&
+  value["edges"].every(isEdge) &&
+  Array.isArray(value["views"]) &&
+  value["views"].every(isView);
 const isMapping = (value: unknown): value is Catalog["implementations"][string] =>
   isTexts(value) && value.length === 2;
 const isCatalog = (value: unknown): value is Catalog =>
   isRecord(value) &&
-  isRecordOf(value.paths, isText) &&
-  isRecordOf(value.steps, isTexts) &&
-  isRecordOf(value.implementations, isMapping);
+  isRecordOf(value["paths"], isText) &&
+  isRecordOf(value["steps"], isTexts) &&
+  isRecordOf(value["implementations"], isMapping);
 
 export const root = fileURLToPath(new URL("../", import.meta.url));
-// oxlint-disable-next-line node/no-sync -- The catalog loads with the module; later reads are small package files.
 export const packageFile = (path: string) => readFileSync(join(root, path), "utf8");
 function packageData<T>(path: string, isValid: (value: unknown) => value is T): T {
   const value = parseJson(packageFile(path), path);
