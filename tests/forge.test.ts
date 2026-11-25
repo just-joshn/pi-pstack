@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
+
+import { describe, test } from "vitest";
 
 import { type Host, host, type Run, shipped } from "./host.ts";
 import { shaped } from "./support.ts";
@@ -75,8 +76,8 @@ async function completeTasks(h: Host) {
   }
 }
 
-await describe("shipping gate", async () => {
-  await test("a finished shipping plan cannot preview a new stack, including after restore", async () => {
+describe("shipping gate", () => {
+  test("a finished shipping plan cannot preview a new stack, including after restore", async () => {
     const h = host();
     await h.cmd("pstack-run", "shipping Close this stack");
     await completeTasks(h);
@@ -87,7 +88,7 @@ await describe("shipping gate", async () => {
     await assert.rejects(ship, /requires a shipping or autopilot-full plan/);
     assert.equal(h.executions.length, 0);
   });
-  await test("finishing a plan while approval is pending stops the approved stack", async () => {
+  test("finishing a plan while approval is pending stops the approved stack", async () => {
     const stack = await shipping(() => undefined);
     await completeTasks(stack.host);
     stack.host.ctx.ui.confirm = async () => {
@@ -102,7 +103,7 @@ await describe("shipping gate", async () => {
     );
     assert.equal(result.stopped, 1);
   });
-  await test("an initial lookup failure ends the approval prefix at the last verified PR", async () => {
+  test("an initial lookup failure ends the approval prefix at the last verified PR", async () => {
     const h = await shipping((n, phase) =>
       n === 2 && phase === "preview" ? unavailable : undefined,
     );
@@ -114,13 +115,13 @@ await describe("shipping gate", async () => {
     assert.equal(result.lookupFailure?.number, 2);
     assert.match(result.lookupFailure?.error ?? "", /gh pr view failed/);
   });
-  await test("a lookup failure at the first PR never offers later PRs", async () => {
+  test("a lookup failure at the first PR never offers later PRs", async () => {
     const h = await shipping((n) => (n === 1 ? unavailable : undefined));
     await assert.rejects(() => h.ship(), /gh pr view failed/);
     assert.deepEqual(h.offers, []);
     assert.deepEqual(h.attempts, []);
   });
-  await test("cancelling preview does not offer an already verified prefix", async () => {
+  test("cancelling preview does not offer an already verified prefix", async () => {
     const controller = new AbortController();
     const h = await shipping((n) => {
       if (n !== 2) return undefined;
@@ -131,31 +132,28 @@ await describe("shipping gate", async () => {
     assert.deepEqual(h.offers, []);
     assert.deepEqual(h.attempts, []);
   });
-  await Promise.all(
-    (["recheck", "receipt"] as const).map((phase) =>
-      test(`a failed ${phase} for an approved PR preserves confirmed progress`, async () => {
-        const h = await shipping((n, stage) =>
-          n === 2 && phase === stage ? unavailable : undefined,
-        );
-        const result = await h.ship();
-        assert.deepEqual(result.merged, [{ number: 1, head, url: `${baseUrl}1` }]);
-        assert.equal(result.stopped, 2);
-        assert.match(result.error ?? "", /gh pr view failed/);
-        if (phase === "receipt") {
-          assert.equal(result.unconfirmed, 2);
-          assert.match(result.reason ?? "", /inspect forge state/);
-          assert.deepEqual(result.unmerged, [3]);
-          assert.deepEqual(h.attempts, [1, 2]);
-        } else {
-          assert.equal(result.unconfirmed, undefined);
-          assert.match(result.reason ?? "", /readiness/);
-          assert.deepEqual(result.unmerged, [2, 3]);
-          assert.deepEqual(h.attempts, [1]);
-        }
-      }),
-    ),
-  );
-  await test("a MERGED receipt for a different head stops the stack as unconfirmed", async () => {
+  for (const phase of ["recheck", "receipt"] as const)
+    test(`a failed ${phase} for an approved PR preserves confirmed progress`, async () => {
+      const h = await shipping((n, stage) =>
+        n === 2 && phase === stage ? unavailable : undefined,
+      );
+      const result = await h.ship();
+      assert.deepEqual(result.merged, [{ number: 1, head, url: `${baseUrl}1` }]);
+      assert.equal(result.stopped, 2);
+      assert.match(result.error ?? "", /gh pr view failed/);
+      if (phase === "receipt") {
+        assert.equal(result.unconfirmed, 2);
+        assert.match(result.reason ?? "", /inspect forge state/);
+        assert.deepEqual(result.unmerged, [3]);
+        assert.deepEqual(h.attempts, [1, 2]);
+      } else {
+        assert.equal(result.unconfirmed, undefined);
+        assert.match(result.reason ?? "", /readiness/);
+        assert.deepEqual(result.unmerged, [2, 3]);
+        assert.deepEqual(h.attempts, [1]);
+      }
+    });
+  test("a MERGED receipt for a different head stops the stack as unconfirmed", async () => {
     const h = await shipping((n, phase, status) => {
       if (n !== 2 || phase !== "receipt") return undefined;
       return {

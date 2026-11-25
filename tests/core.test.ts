@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { describe, test } from "node:test";
+
+import { describe, test } from "vitest";
 
 import {
   catalog,
@@ -71,8 +72,8 @@ const pr = (n: number) => ({
   statusCheckRollup: [{ status: "COMPLETED", conclusion: "SUCCESS" }],
 });
 
-await describe("core", async () => {
-  await test("all original nodes, edges and views are preserved and mapped", () => {
+describe("core", () => {
+  test("all original nodes, edges and views are preserved and mapped", () => {
     assert.equal(nodes.size, 161);
     assert.equal(map.edges.length, 163);
     assert.equal(views.size, 65);
@@ -97,7 +98,7 @@ await describe("core", async () => {
     }
     assert.equal(view("all-dependencies").edges.length, 163);
   });
-  await test("76 native skills, 22 ordered playbooks and all conditional links", async () => {
+  test("76 native skills, 22 ordered playbooks and all conditional links", async () => {
     const skills = Object.entries(catalog.paths).filter(([, p]) => p.endsWith("SKILL.md"));
     assert.equal(skills.length, 76);
     assert.equal(skills.filter(([id]) => id.startsWith("principle-")).length, 24);
@@ -124,7 +125,7 @@ await describe("core", async () => {
     }
     await Promise.all(Object.values(catalog.paths).map((p) => access(join(root, p))));
   });
-  await test("catalog nodes return their declared instruction files, not display labels", async () => {
+  test("catalog nodes return their declared instruction files, not display labels", async () => {
     const declared = {
       "benny-setup": "reference/benny/setup.md",
       "benny-triage": "reference/benny/triage.md",
@@ -139,12 +140,12 @@ await describe("core", async () => {
     );
     assert.equal(nativeNode("benny-config").instructions, undefined);
   });
-  await test("search and catalog reject missing references", () => {
+  test("search and catalog reject missing references", () => {
     assert(lookup("runtime diagnosis").some((n) => n.id === "pb-runtime-forensics"));
     assert.throws(() => view("unknown"));
     assert.throws(() => nativeNode("unknown"));
   });
-  await test("roles, budget, alias and cross-vendor judge validation", () => {
+  test("roles, budget, alias and cross-vendor judge validation", () => {
     const cfg = defaultConfig();
     assert.equal(cfg.defaults, 3);
     assert.equal(cfg.budget, "large");
@@ -170,13 +171,13 @@ await describe("core", async () => {
     assert.throws(() => validateConfig(cfg, [a, b, c]));
     assert.throws(() => modelFor("auto", ""));
   });
-  await test("a plan needs a goal and known or custom steps", () => {
+  test("a plan needs a goal and known or custom steps", () => {
     assert.throws(() => startPlan("unknown", "goal"));
     assert.throws(() => startPlan("bug-fix", " "));
     assert.throws(() => startPlan("figure-it-out", "goal", []));
     assert.equal(startPlan("figure-it-out", "goal", ["custom"]).tasks.length, 1);
   });
-  await test("closing a task requires evidence and a known task", () => {
+  test("closing a task requires evidence and a known task", () => {
     const plan = startPlan("bug-fix", "repair");
     assert(!planComplete(plan));
     assert.throws(() => updateTask(plan, 1, "done"));
@@ -184,7 +185,7 @@ await describe("core", async () => {
     assert.throws(() => updateTask(null, 1, "done", "proof"));
     assert(planComplete(completedPlan()));
   });
-  await test("final evidence survives re-recording a task but not a changed status", () => {
+  test("final evidence survives re-recording a task but not a changed status", () => {
     const finished = { ...completedPlan(), finishedEvidence: "green" };
     assert.equal(updateTask(finished, 1, "done", "rerun").finishedEvidence, "green");
     assert.equal(updateTask(finished, 1, "skipped", "never ran").finishedEvidence, undefined);
@@ -192,7 +193,7 @@ await describe("core", async () => {
     assert(!planComplete(reopened));
     assert.equal(reopened.finishedEvidence, undefined);
   });
-  await test("restore takes the latest saved state and pauses its wake loop", () => {
+  test("restore takes the latest saved state and pauses its wake loop", () => {
     const state = {
       ...initialState(),
       mode: true,
@@ -207,27 +208,27 @@ await describe("core", async () => {
     const unrelated = { type: "custom", customType: "other", data: { version: 1 } };
     assert.equal(restore([saved, null, unrelated]).plan?.goal, "repair");
   });
-  await test("restore keeps recorded stop evidence and rejects a malformed one", () => {
+  test("restore keeps recorded stop evidence and rejects a malformed one", () => {
     const state = { ...initialState(), plan: completedPlan(), wake: wakeConfig(5, 3, "green") };
     const withEvidence = (stopEvidence: unknown) =>
       savedState({ ...state, wake: { ...state.wake, stopEvidence } });
     assert.equal(restore([withEvidence("green")]).wake?.stopEvidence, "green");
     assert.equal(restore([withEvidence(1)]).plan, null);
   });
-  await test("an invalid latest state cannot resurrect an earlier shipping plan", () => {
+  test("an invalid latest state cannot resurrect an earlier shipping plan", () => {
     const data = { ...initialState(), plan: startPlan("shipping", "previous plan") };
     const saved = { type: "custom", customType: "pstack-state", data };
     for (const invalid of [{ ...data, plan: {} }, { ...data, version: 2 }, null]) {
       assert.deepEqual(restore([saved, { ...saved, data: invalid }]), initialState());
     }
   });
-  await test("bounded wakes and TSV escaping", () => {
+  test("bounded wakes and TSV escaping", () => {
     assert.equal(wakeConfig(5, 1, "done").count, 0);
     for (const v of [0, 4, 86401, NaN]) assert.throws(() => wakeConfig(v, 1, "done"));
     assert.throws(() => wakeConfig(5, 101, "done"));
     assert.equal(tsvRow(["a\tb", "c\nd", "e\rf"]), "a b\tc d\te f\n");
   });
-  await test("parallel pool limits concurrency, keeps input order and isolates failures", async () => {
+  test("parallel pool limits concurrency, keeps input order and isolates failures", async () => {
     let active = 0,
       peak = 0,
       calls = 0;
@@ -247,7 +248,7 @@ await describe("core", async () => {
       [2, 4, "bad", 8, 10],
     );
   });
-  await test("worker flags disable nested extensions and MCP, and reviewers cannot write", () => {
+  test("worker flags disable nested extensions and MCP, and reviewers cannot write", () => {
     const base = {
       model: "anthropic/claude",
       thinking: "high" as const,
@@ -268,12 +269,12 @@ await describe("core", async () => {
     assert(provided.includes("--no-extensions"));
     assert(provided.indexOf("-e") < provided.indexOf("--"));
   });
-  await test("every worker role with a contract has its file in agents/", async () => {
+  test("every worker role with a contract has its file in agents/", async () => {
     const contracts = [...workerRoles.values()].flatMap((role) => role.contract ?? []);
     assert.equal(contracts.length, 4);
     await Promise.all(contracts.map((contract) => access(join(root, "agents", contract))));
   });
-  await test("worktree porcelain preserves spaces and locked status", () => {
+  test("worktree porcelain preserves spaces and locked status", () => {
     assert.deepEqual(
       parseWorktrees(
         "worktree /a b\nHEAD abc\nbranch refs/heads/main\n\nworktree /c\nHEAD def\ndetached\nlocked reason\n",
@@ -291,17 +292,17 @@ await describe("core", async () => {
       ],
     );
   });
-  await test("NUL-delimited worktree output preserves newline and trailing space in paths", () => {
+  test("NUL-delimited worktree output preserves newline and trailing space in paths", () => {
     const [tree] = parseWorktrees("worktree /a\nb \0HEAD abc\0detached\0\0");
     assert.equal(tree?.path, "/a\nb ");
     assert.equal(tree?.head, "abc");
   });
-  await test("bare Git worktree entries have no HEAD", () => {
+  test("bare Git worktree entries have no HEAD", () => {
     const [tree] = parseWorktrees("worktree /bare.git\0bare\0\0");
     assert.equal(tree?.bare, true);
     assert.equal(tree?.head, undefined);
   });
-  await test("shipping stops at stale head, missing proof, failing checks or noncontiguous prefix", () => {
+  test("shipping stops at stale head, missing proof, failing checks or noncontiguous prefix", () => {
     const proofs = [proof(1), proof(2), proof(3)],
       statuses = [pr(1), pr(2), pr(3)];
     assert.equal(verifiedPrefix(proofs, statuses).length, 3);
@@ -316,7 +317,7 @@ await describe("core", async () => {
     assert.equal(verifiedPrefix([{ ...proof(1), independent: false }], statuses).length, 0);
     assert.equal(verifiedPrefix([{ ...proof(1), evidence: "" }], statuses).length, 0);
   });
-  await test("blinded transcript removes model metadata and read audit finds actual read call paths", () => {
+  test("blinded transcript removes model metadata and read audit finds actual read call paths", () => {
     const raw = [
       { type: "session", id: "worker" },
       {

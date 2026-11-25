@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
 
 import type {
   ExecOptions,
@@ -13,6 +12,7 @@ import type {
   ExtensionToolContext,
   RegisteredCommand,
 } from "@earendil-works/pi-coding-agent";
+import { afterAll } from "vitest";
 
 import type { RoleConfig } from "../lib/models.ts";
 import type { PoolResult } from "../lib/pool.ts";
@@ -246,4 +246,4 @@ export function fulfilled<T>(results: readonly PoolResult<T>[], index = 0): T {
   return result.value;
 }
 
-test.after(() => rm(sandbox, { recursive: true, force: true }));
+afterAll(() => rm(sandbox, { recursive: true, force: true }));

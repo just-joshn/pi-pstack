@@ -3,8 +3,9 @@ import { createHmac } from "node:crypto";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, test, type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { describe, onTestFinished, test } from "vitest";
 
 import { readJob } from "../scripts/job-input.ts";
 import { flag, shaped, spawned } from "./support.ts";
@@ -29,9 +30,9 @@ const outcome = (stdout: string) =>
 const child = async (log: string) => shaped<Child>(JSON.parse(await readFile(log, "utf8")));
 const receipt = (saved: string) => shaped<Receipt>(JSON.parse(saved));
 
-async function fixture(t: TestContext, kind = "benny-triage") {
+async function fixture(kind = "benny-triage") {
   const dir = await mkdtemp(join(tmpdir(), "pstack-job-"));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  onTestFinished(() => rm(dir, { recursive: true, force: true }));
   const fake = join(dir, "fake-pi");
   await writeFile(
     fake,
@@ -95,9 +96,9 @@ process.exitCode = Number(process.env.PSTACK_TEST_EXIT_CODE ?? 0);
   };
 }
 
-await describe("job runner", async () => {
-  await test("unsupported job shapes fail before claiming a run", async (t) => {
-    const { job, enabled, run, refused, runs } = await fixture(t);
+describe("job runner", () => {
+  test("unsupported job shapes fail before claiming a run", async () => {
+    const { job, enabled, run, refused, runs } = await fixture();
     for (const invalid of [
       null,
       { ...enabled, enabled: false },
@@ -114,8 +115,8 @@ await describe("job runner", async () => {
     assert.doesNotMatch(result.stderr, /not-for-stderr/);
     await assert.rejects(() => readdir(runs), { code: "ENOENT" });
   });
-  await test("Benny refuses disabled config or broad tools before dispatch", async (t) => {
-    const { enabled, config, refused } = await fixture(t);
+  test("Benny refuses disabled config or broad tools before dispatch", async () => {
+    const { enabled, config, refused } = await fixture();
     const cases = [
       { override: { config: { ...config, enabled: false } }, message: /incomplete or disabled/ },
       { override: { tools: ["read"] }, message: /requires explicit scoped MCP/ },
@@ -153,8 +154,8 @@ await describe("job runner", async () => {
       assert.match(await refused({ ...enabled, ...override }), message);
     }
   });
-  await test("Benny accepts read and comment tools, and draft PR tools only when authorized", async (t) => {
-    const { job, enabled, config } = await fixture(t, "benny-repro");
+  test("Benny accepts read and comment tools, and draft PR tools only when authorized", async () => {
+    const { job, enabled, config } = await fixture("benny-repro");
     const tools = [
       "read",
       "edit",
@@ -173,8 +174,8 @@ await describe("job runner", async () => {
     );
     assert.deepEqual((await readJob(job)).tools, pr);
   });
-  await test("triage authenticates and claims one report per thread without leaking the signing secret", async (t) => {
-    const { event, run, writeSigned, runs } = await fixture(t);
+  test("triage authenticates and claims one report per thread without leaking the signing secret", async () => {
+    const { event, run, writeSigned, runs } = await fixture();
     await writeFile(
       event,
       JSON.stringify({ payload: JSON.stringify(report), signature: "0".repeat(64) }),
@@ -199,8 +200,8 @@ await describe("job runner", async () => {
     assert.notEqual((await run()).status, 0, "duplicate same thread must fail closed");
     assert.equal((await readdir(runs)).length, 1);
   });
-  await test("reproduction requires a confirmed marker and preserves child failure status", async (t) => {
-    const { job, enabled, config, run, writeSigned } = await fixture(t, "benny-repro");
+  test("reproduction requires a confirmed marker and preserves child failure status", async () => {
+    const { job, enabled, config, run, writeSigned } = await fixture("benny-repro");
     await writeFile(
       job,
       JSON.stringify({
@@ -231,8 +232,8 @@ await describe("job runner", async () => {
     assert.match(output.prompt, /BUG-1/);
     assert(output.args.every((arg) => !arg.includes("BUG-1")));
   });
-  await test("a child startup failure does not print the event or the child argument list", async (t) => {
-    const { run, writeSigned, runs } = await fixture(t);
+  test("a child startup failure does not print the event or the child argument list", async () => {
+    const { run, writeSigned, runs } = await fixture();
     await writeSigned({ ...report, text: "private-report-text" });
     const failed = await run(0, join(tmpdir(), "nonexistent-pstack-pi"));
     assert.notEqual(failed.status, 0);
@@ -251,8 +252,8 @@ await describe("job runner", async () => {
     assert.match((await run()).stderr, /EEXIST/);
     assert.equal(await readFile(join(dir, "result.json"), "utf8"), saved);
   });
-  await test("custom jobs pass Pi's max thinking level through to the child", async (t) => {
-    const { job, enabled, run } = await fixture(t, "custom");
+  test("custom jobs pass Pi's max thinking level through to the child", async () => {
+    const { job, enabled, run } = await fixture("custom");
     await writeFile(job, JSON.stringify({ ...enabled, tools: ["read"], thinking: "max" }));
     const result = await run();
     assert.equal(result.status, 0, result.stderr);
@@ -260,8 +261,8 @@ await describe("job runner", async () => {
     assert(args.includes("--thinking"));
     assert.equal(flag(args, "--thinking"), "max");
   });
-  await test("custom jobs need no event and preserve their explicit native tool allowlist", async (t) => {
-    const { job, enabled, run, runs } = await fixture(t, "custom");
+  test("custom jobs need no event and preserve their explicit native tool allowlist", async () => {
+    const { job, enabled, run, runs } = await fixture("custom");
     await writeFile(job, JSON.stringify({ ...enabled, tools: ["read"], model: "inherit-parent" }));
     const first = await run();
     assert.equal(first.status, 0, first.stderr);

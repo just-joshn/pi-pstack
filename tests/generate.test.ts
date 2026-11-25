@@ -2,15 +2,16 @@ import assert from "node:assert/strict";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { describe, test } from "node:test";
+
+import { describe, onTestFinished, test } from "vitest";
 
 import { root } from "../lib/catalog.ts";
 import { shaped, spawned } from "./support.ts";
 
-await describe("generator", async () => {
-  await test("generated checks are read-only, detect drift, and regenerate only owned files", async (t) => {
+describe("generator", () => {
+  test("generated checks are read-only, detect drift, and regenerate only owned files", async () => {
     const dir = await mkdtemp(join(tmpdir(), "catalog-generate-"));
-    t.after(() => rm(dir, { recursive: true, force: true }));
+    onTestFinished(() => rm(dir, { recursive: true, force: true }));
     await Promise.all(["scripts", "lib", "reference"].map((p) => mkdir(join(dir, p))));
     await Promise.all(
       [

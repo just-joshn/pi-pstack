@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { describe, test, type TestContext } from "node:test";
+
+import { describe, onTestFinished, test } from "vitest";
 
 import { configFile, delegated, fulfilled, host, model } from "./host.ts";
 import { flag } from "./support.ts";
 
-async function runArena(t: TestContext, judges: string[], judgeCode: number) {
-  t.after(() => rm(configFile, { force: true }));
+async function runArena(judges: string[], judgeCode: number) {
+  onTestFinished(() => rm(configFile, { force: true }));
   const judge = "google/gemini";
   const h = host({
     confirm: true,
@@ -44,9 +45,9 @@ async function runArena(t: TestContext, judges: string[], judgeCode: number) {
   );
 }
 
-await describe("arena", async () => {
-  await test("a failed arena judge returns the completed candidate reports", async (t) => {
-    const { outputs, dir, judgment } = await runArena(t, ["google/gemini"], 7);
+describe("arena", () => {
+  test("a failed arena judge returns the completed candidate reports", async () => {
+    const { outputs, dir, judgment } = await runArena(["google/gemini"], 7);
     assert.equal(outputs.length, 2);
     await Promise.all(
       outputs.map(async (_, i) => {
@@ -58,8 +59,8 @@ await describe("arena", async () => {
     assert.match(judgment?.status ?? "", /inconclusive/i);
     assert.match(judgment?.error ?? "", /failed \(7\)/);
   });
-  await test("judge selection skips both unavailable and same-vendor pool entries", async (t) => {
-    const result = await runArena(t, ["openai/gpt", "anthropic/claude", "google/gemini"], 0);
+  test("judge selection skips both unavailable and same-vendor pool entries", async () => {
+    const result = await runArena(["openai/gpt", "anthropic/claude", "google/gemini"], 0);
     assert.equal(result.judgment?.model, "google/gemini");
   });
 });

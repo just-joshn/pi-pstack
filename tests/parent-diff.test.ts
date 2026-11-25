@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, test, type TestContext } from "node:test";
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { describe, onTestFinished, test } from "vitest";
 
 import { saveParentDiff } from "../src/parent-diff.ts";
 import { double } from "./support.ts";
@@ -17,9 +17,9 @@ const ran = (code: number, stdout: string) => ({
   truncated: false,
 });
 
-async function capture(t: TestContext, tracked: string, patches: Record<string, string>) {
+async function capture(tracked: string, patches: Record<string, string>) {
   const dir = await mkdtemp(join(tmpdir(), "parent-diff-"));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  onTestFinished(() => rm(dir, { recursive: true, force: true }));
   const visited: string[] = [];
   const pi = double<ExtensionAPI>({
     exec: async (_command, args) => {
@@ -36,10 +36,10 @@ async function capture(t: TestContext, tracked: string, patches: Record<string, 
   return { bytes: await readFile(diff.path), omitted: diff.omitted, visited };
 }
 
-await describe("parent diff", async () => {
-  await test("the diff budget counts UTF-8 bytes and keeps later whole patches that fit", async (t) => {
+describe("parent diff", () => {
+  test("the diff budget counts UTF-8 bytes and keeps later whole patches that fit", async () => {
     const text = "界".repeat(350000);
-    const { bytes, omitted } = await capture(t, text, {
+    const { bytes, omitted } = await capture(text, {
       small: "+ok\n",
       oversized: text,
       later: "+end\n",
@@ -47,11 +47,10 @@ await describe("parent diff", async () => {
     assert.deepEqual(omitted, ["oversized"]);
     assert(bytes.equals(Buffer.from(text + "+ok\n+end\n")));
   });
-  await test("a full artifact omits the remaining files without reading every patch", async (t) => {
+  test("a full artifact omits the remaining files without reading every patch", async () => {
     const patch = "x".repeat(256 * 1024);
     const files = Array.from({ length: 32 }, (_, i) => `file${i}`);
     const { bytes, omitted, visited } = await capture(
-      t,
       "",
       Object.fromEntries(files.map((file) => [file, patch])),
     );
