@@ -89,7 +89,7 @@ python3 scripts/generate.py --check
 node scripts/smoke.ts
 ```
 
-`bun run check` runs the `bun fmt` format check, type-aware oxlint, the TypeScript compiler against the installed Pi SDK, and the tests with the coverage gate. `bun run format` and `bun run lint:fix` apply the fixes. `python3 scripts/generate.py --check` reports generated files that no longer match their sources.
+`bun run check` runs the `bun fmt` format check, type-aware oxlint, the TypeScript compiler against the installed Pi SDK, and the tests with the coverage gate. `bun run format` and `bun run lint:fix` apply the fixes. The formatter skips the three configuration files listed in `.prettierignore`, which are kept exactly as written. `python3 scripts/generate.py --check` reports generated files that no longer match their sources.
 
 The tests are TypeScript on Vitest and run without a build step. `bun run test` runs them once and `bun run test:watch` reruns them as files change. They use a mock Pi host and forge, a fake child CLI for job dispatch, and temporary real Git repositories. `bun run test:coverage` also applies the gate in `vitest.config.ts`: each file in `src/` needs 80% statement, branch, function and line coverage.
 
