@@ -1,6 +1,19 @@
 # Changelog
 
-## 0.2.0 (Unreleased)
+## 0.3.0 (Unreleased)
+
+NEW FEATURES:
+
+- `/reframe` and `/skill:reframe` from upstream pstack 0.15.48. It gives the expert terms for what you are building, with checked sources and terms from neighboring fields, and rewrites your description with them. It does not do the task.
+- The two Team Kit rules, `no-inline-imports` and `typescript-exhaustive-switch`, are appended to the system prompt of every session. Upstream marks them `alwaysApply`. Before, the package only kept them as reference files that nothing loaded.
+
+CHANGED:
+
+- The source map follows upstream `cursor/plugins` at `41e4009` (pstack 0.15.48) instead of `7a58391` (pstack 0.15.46). Team Kit has no changes between the two. The map has 162 nodes, and the package has 77 skills and 53 slash commands.
+- `/poteto-help` suggests `/sharpen` to deepen a prompt and `/reframe` when you cannot yet name the problem.
+- The rule texts follow the upstream wording: inline imports are allowed only for a documented circular dependency or dynamic-loading boundary, and every switch over a union or enum needs a `never` check in its default case.
+
+## 0.2.0 (2026-11-25)
 
 BREAKING CHANGES:
 
