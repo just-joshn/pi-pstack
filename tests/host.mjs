@@ -19,6 +19,7 @@ export function host({
   realGit = false,
   execute,
   extensionProviders = [],
+  loadedExtensions = [],
 } = {}) {
   const sessionId = randomUUID();
   const commands = new Map(),
@@ -38,6 +39,14 @@ export function host({
       tools.set(t.name, t);
     },
     on: (name, handler) => events.set(name, handler),
+    getCommands: () => [
+      { name: "skill:how", source: "skill", sourceInfo: { path: join(sandbox, "SKILL.md") } },
+      ...loadedExtensions.map((path) => ({
+        name: "command",
+        source: "extension",
+        sourceInfo: { path },
+      })),
+    ],
     appendEntry: (customType, data) => entries.push({ type: "custom", customType, data }),
     sendMessage: (m) => messages.push(m),
     sendUserMessage: (m) => messages.push(m),

@@ -22,9 +22,9 @@ import { pool, type PoolResult } from "../lib/pool.ts";
 import { blindTranscript, readPaths } from "../lib/transcript.ts";
 import { errorMessage } from "../lib/validation.ts";
 import { gitIn } from "./git.ts";
-import { availableWorkerModels, readConfig } from "./models.ts";
+import { availableWorkerModels, readConfig, workerExtensions, workerIsolation } from "./models.ts";
 import { saveParentDiff, type ParentDiff } from "./parent-diff.ts";
-import { artifacts, fail, result, stringEnum } from "./support.ts";
+import { artifacts, fail, piBin, result, stringEnum } from "./support.ts";
 import { createWorktree } from "./worktrees.ts";
 
 const modes = ["single", "swarm", "arena", "interrogate"] as const;
@@ -56,7 +56,6 @@ const panelModelRoles: Partial<Record<Mode, Role>> = {
   swarm: "swarm workers",
 };
 
-const piBin = process.env.PSTACK_PI_BIN ?? "pi";
 const parameters = Type.Object({
   mode: stringEnum(modes),
   tasks: Type.Array(Type.String({ minLength: 1 }), { minItems: 1, maxItems: 8 }),
@@ -102,18 +101,15 @@ export function workerArgs(options: {
   model: string;
   thinking: Effort;
   readOnly: boolean;
+  extension?: string;
   sessionDir: string;
   sessionId: string;
   prompt: string;
 }) {
   return [
     "--print",
-    "--no-approve",
-    "--no-extensions",
-    "--no-skills",
-    "--no-prompt-templates",
-    "--no-themes",
-    "--no-mcp",
+    ...workerIsolation,
+    ...(options.extension ? ["-e", options.extension] : []),
     "--tools",
     options.readOnly ? "read,grep,find,ls" : "read,grep,find,ls,bash,edit,write",
     "--session-dir",
@@ -140,6 +136,7 @@ interface WorkerRequest {
 interface RunnerOptions {
   dir: string;
   budget: Budget;
+  extensions: ReadonlyMap<string, string>;
   rubric?: string;
   base?: string;
   diff?: ParentDiff;
@@ -202,6 +199,7 @@ function createRunner(
         model,
         thinking: effort(modelRole, options.budget, model),
         readOnly,
+        extension: options.extensions.get(model),
         sessionDir,
         sessionId: id,
         prompt: await workerPrompt(request, options),
@@ -293,7 +291,7 @@ function assertReachable(available: ReadonlySet<string>, models: string[]) {
   const unreachable = [...new Set(models)].filter((model) => !available.has(model));
   if (unreachable.length)
     fail(
-      `Workers run without extensions. Unavailable in the current worker scope: ${unreachable.join(", ")}. Choose an available model in /setup-pstack.`,
+      `Workers load no extension except the one that provides their model. Unavailable in the current worker scope: ${unreachable.join(", ")}. Choose an available model in /setup-pstack.`,
     );
 }
 
@@ -308,7 +306,8 @@ export function registerDelegation(pi: ExtensionAPI, active: Set<string>) {
       const config = await readConfig();
       if (!ctx.model) fail("Select a parent model first");
       const parent = `${ctx.model.provider}/${ctx.model.id}`;
-      const available = new Set(availableWorkerModels(ctx));
+      const extensions = await workerExtensions(pi, ctx, signal);
+      const available = new Set(availableWorkerModels(ctx, extensions));
       const { role, modelRole, readOnly, tasks, models, judge } = resolveWorkers(
         p,
         config,
@@ -331,6 +330,7 @@ export function registerDelegation(pi: ExtensionAPI, active: Set<string>) {
         signal,
         diff: await saveParentDiff(pi, ctx.cwd, dir, signal),
         budget: config.budget,
+        extensions,
         base: p.base,
         rubric: p.rubric,
         progress: (message) => onUpdate?.(result(message)),

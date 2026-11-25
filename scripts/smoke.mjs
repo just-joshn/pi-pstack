@@ -23,6 +23,8 @@ const child = spawn(
     "--no-mcp",
     "-e",
     join(root, "extensions/index.ts"),
+    "-e",
+    join(root, "scripts/smoke-provider.ts"),
     "--skill",
     join(root, "skills"),
   ],
@@ -35,6 +37,8 @@ const child = spawn(
 let stderr = "";
 child.stderr.setEncoding("utf8").on("data", (s) => (stderr += s));
 const responses = new Map();
+/** @type {string[]} */
+const notices = [];
 createInterface({ input: child.stdout, crlfDelay: Infinity }).on("line", (line) => {
   let item;
   try {
@@ -43,6 +47,7 @@ createInterface({ input: child.stdout, crlfDelay: Infinity }).on("line", (line) 
     return;
   }
   if (item.type === "response") responses.get(item.id)?.(item);
+  if (item.type === "extension_ui_request" && item.method === "notify") notices.push(item.message);
 });
 const exited = once(child, "exit");
 const failed = exited.then(([code, signal]) => {
@@ -87,7 +92,11 @@ try {
     ),
   );
   await rpc("4", "prompt", { message: "/poteto-mode off" });
-  console.log("Real Pi RPC discovery and mode-state smoke passed (no model calls).");
+  await rpc("5", "prompt", { message: "/setup-pstack show" });
+  assert(JSON.parse(notices.at(-1) ?? "{}").available?.includes("smoke/model"), notices.at(-1));
+  console.log(
+    "Real Pi RPC discovery, mode-state and extension-provider smoke passed (no model calls).",
+  );
 } catch (e) {
   console.error(e instanceof Error ? e.message : e);
   process.exitCode = 1;

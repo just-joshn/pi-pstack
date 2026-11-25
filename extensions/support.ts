@@ -10,6 +10,7 @@ import { Type } from "typebox";
 import { isRecord } from "../lib/validation.ts";
 
 export const agentDir = () => process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
+export const piBin = process.env.PSTACK_PI_BIN ?? "pi";
 export const artifacts = (ctx: ExtensionContext) =>
   join(agentDir(), "pstack", "sessions", ctx.sessionManager.getSessionId());
 export const text = (value: unknown) =>

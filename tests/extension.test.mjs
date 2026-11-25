@@ -65,7 +65,7 @@ void test("interactive setup saves the selected budget and panel without changin
     if (choices.includes("Keep current")) {
       return label.startsWith("arena runners:") ? "Choose model(s)" : "Keep current";
     }
-    assert(!choices.includes("openai/gpt"), "workers cannot load extension providers");
+    assert(!choices.includes("openai/gpt"), "no loaded extension lists this model");
     return ["anthropic/claude", "google/gemini", "Done"][panelSeats++];
   };
   await h.cmd("setup-pstack");
@@ -726,17 +726,145 @@ void test("delegation checks the selected workers and judge, not unused roles", 
   assert.equal(h.executions.length, runs, "do not start an arena without a usable judge");
 });
 
-void test("delegation refuses models from extension-registered providers before spawning", async () => {
-  const h = host({ extensionProviders: ["anthropic"] });
+const modelTable = (...models) => {
+  const rows = models.map((model) => {
+    const [provider, ...id] = model.split("/");
+    return [provider, id.join("/"), "1K"];
+  });
+  rows.unshift(["provider", "model", "context"]);
+  const width = (column) => Math.max(...rows.map((row) => row[column].length));
+  const stdout = rows
+    .map(([provider, id, size]) => `${provider.padEnd(width(0))}  ${id.padEnd(width(1))}  ${size}`)
+    .join("\n");
+  return { code: 0, stderr: "", stdout };
+};
+const listsModels = (args) => args.includes("--list-models");
+const loadedBy = (args) => args.filter((_, i) => args[i - 1] === "-e");
+const swarm = { mode: "swarm", tasks: ["review"] };
+
+void test("a worker loads only the extension that lists its model", async () => {
+  const provider = "/extensions/provider.ts";
+  const others = ["/extensions/before.ts", "/extensions/after.ts"];
+  const workers = [];
+  const h = host({
+    extensionProviders: ["anthropic"],
+    loadedExtensions: [others[0], provider, others[1]],
+    execute: async (bin, args) => {
+      if (bin === "git") return { code: 128, stdout: "", stderr: "not a repo" };
+      if (!listsModels(args)) {
+        workers.push(args);
+        return { code: 0, stdout: "worker report", stderr: "" };
+      }
+      assert(args.includes("--no-extensions") && !args.includes("--print"));
+      const [extension, ...more] = loadedBy(args);
+      assert.deepEqual(more, [], "a listing loads at most one extension");
+      if (extension === provider) return modelTable("anthropic/claude", "google/gemini");
+      if (others.includes(extension)) return modelTable("anthropic/other");
+      assert.equal(extension, undefined, "only loaded extensions are listed");
+      return modelTable("openai/gpt");
+    },
+  });
   await h.cmd("setup-pstack", "show");
   const shown = JSON.parse(h.notifications.at(-1));
-  assert(!shown.available.includes("anthropic/claude"));
-  assert.match(shown.warning, /inherit-parent.*anthropic\/claude/);
-  await assert.rejects(
-    () => h.call("pstack_delegate", { mode: "swarm", tasks: ["review"] }),
-    /without extensions.*anthropic\/claude/,
-  );
-  assert.equal(h.executions.length, 0);
+  assert.deepEqual(shown.available, ["anthropic/claude", "google/gemini", "openai/gpt"]);
+  assert.equal(shown.warning, undefined);
+
+  const provided = readResult(await h.call("pstack_delegate", swarm));
+  assert.equal(provided.outputs[0].value.model, "anthropic/claude");
+  assert.deepEqual(loadedBy(workers[0]), [provider]);
+  assert(workers[0].includes("--no-extensions"));
+  assert.equal(workers[0][workers[0].indexOf("--tools") + 1], "read,grep,find,ls");
+
+  h.ctx.model = { provider: "google", id: "gemini" };
+  const builtIn = readResult(await h.call("pstack_delegate", swarm));
+  assert.equal(builtIn.outputs[0].value.model, "google/gemini");
+  assert.deepEqual(loadedBy(workers[1]), []);
+});
+
+const unlisted = {
+  "no loaded extension registers a command": { loadedExtensions: [] },
+  "Pi lists the provider without the extension": {
+    execute: async () => modelTable("anthropic/claude"),
+  },
+  "the extension lists only a longer model id": {
+    execute: async (_, args) =>
+      args.includes("-e") ? modelTable("anthropic/claude extra") : modelTable("google/gemini"),
+  },
+  "the extension's listing fails": {
+    execute: async (_, args) =>
+      args.includes("-e") ? { ...modelTable("anthropic/claude"), code: 1 } : modelTable(),
+  },
+};
+for (const [reason, options] of Object.entries(unlisted)) {
+  void test(`delegation refuses an extension model before spawning when ${reason}`, async () => {
+    const h = host({
+      extensionProviders: ["anthropic"],
+      loadedExtensions: ["/extensions/provider.ts"],
+      ...options,
+    });
+    await h.cmd("setup-pstack", "show");
+    const shown = JSON.parse(h.notifications.at(-1));
+    assert.deepEqual(shown.available, ["google/gemini", "openai/gpt"]);
+    assert.match(shown.warning, /inherit-parent.*anthropic\/claude/);
+    await assert.rejects(
+      () => h.call("pstack_delegate", swarm),
+      /Unavailable in the current worker scope: anthropic\/claude/,
+    );
+    assert(h.executions.every(([, args]) => listsModels(args)));
+  });
+}
+
+const unknownScope = {
+  "exits with an error": { code: 1, stdout: "", stderr: "spawn pi ENOENT" },
+  "is stopped before it answers": { code: 0, killed: true, stdout: "", stderr: "" },
+};
+for (const [failure, listing] of Object.entries(unknownScope)) {
+  void test(`nothing is offered or spawned when the listing without extensions ${failure}`, async () => {
+    const h = host({
+      extensionProviders: ["anthropic"],
+      loadedExtensions: ["/extensions/provider.ts"],
+      execute: async (_, args) =>
+        args.includes("-e") ? modelTable("anthropic/claude", "google/gemini") : listing,
+    });
+    h.ctx.model = { provider: "google", id: "gemini" };
+    await assert.rejects(() => h.cmd("setup-pstack", "show"), /could not list worker models/i);
+    await assert.rejects(() => h.call("pstack_delegate", swarm), /could not list worker models/i);
+    assert(h.executions.every(([, args]) => listsModels(args)));
+  });
+}
+
+void test("a model id with spaces and slashes keeps its extension", async () => {
+  const model = { provider: "local ai", id: "org/big model" };
+  const workers = [];
+  const h = host({
+    extensionProviders: [model.provider],
+    loadedExtensions: ["/extensions/provider.ts"],
+    execute: async (bin, args) => {
+      if (bin === "git") return { code: 128, stdout: "", stderr: "not a repo" };
+      if (listsModels(args))
+        return args.includes("-e") ? modelTable("local ai/org/big model") : modelTable();
+      workers.push(args);
+      return { code: 0, stdout: "worker report", stderr: "" };
+    },
+  });
+  h.ctx.model = model;
+  h.ctx.scopedModels = [{ model }];
+  const output = readResult(await h.call("pstack_delegate", swarm));
+  assert.equal(output.outputs[0].value.model, "local ai/org/big model");
+  assert.deepEqual(loadedBy(workers[0]), ["/extensions/provider.ts"]);
+});
+
+void test("cancelling while worker models are listed reports the cancellation", async () => {
+  const cancel = new AbortController();
+  const h = host({
+    extensionProviders: ["anthropic"],
+    loadedExtensions: ["/extensions/provider.ts"],
+    execute: async () => {
+      cancel.abort();
+      return { code: 143, killed: true, stdout: "", stderr: "" };
+    },
+  });
+  await assert.rejects(() => h.call("pstack_delegate", swarm, cancel.signal), /Cancelled/);
 });
 
 void test("the agent cannot select a merge-capable route without operator approval", async () => {

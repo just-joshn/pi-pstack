@@ -228,6 +228,11 @@ void test("worker flags disable nested extensions and MCP, and reviewers cannot 
   assert.equal(read[read.indexOf("--tools") + 1], "read,grep,find,ls");
   assert.equal(write[write.indexOf("--tools") + 1], "read,grep,find,ls,bash,edit,write");
   assert.deepEqual(read.slice(-2), ["--", "--not-a-flag"]);
+  assert(!read.includes("-e"));
+  const provided = workerArgs({ ...base, readOnly: true, extension: "/provider.ts" });
+  assert.equal(provided[provided.indexOf("-e") + 1], "/provider.ts");
+  assert(provided.includes("--no-extensions"));
+  assert(provided.indexOf("-e") < provided.indexOf("--"));
 });
 void test("every worker role with a contract has its file in agents/", () => {
   const contracts = [...workerRoles.values()].flatMap((role) => role.contract ?? []);
