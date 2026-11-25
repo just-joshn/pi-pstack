@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { describe, onTestFinished, test } from "vitest";
+import { onTestFinished, test } from "vitest";
 
 import { readJob } from "../scripts/job-input.ts";
 import { flag, shaped, spawned } from "./support.ts";
@@ -96,65 +96,69 @@ async function fixture(kind = "benny-triage") {
 }
 
 // Some tests start many child processes, so the default 5 seconds is too short on a slow machine.
-describe("job runner", { timeout: 30_000 }, () => {
-  test("unsupported job shapes fail before claiming a run", async () => {
-    const { job, enabled, run, refused, runs } = await fixture();
-    for (const invalid of [
-      null,
-      { ...enabled, enabled: false },
-      { ...enabled, cwd: 123 },
-      { ...enabled, model: [] },
-      { ...enabled, tools: ["-read"] },
-    ]) {
-      // oxlint-disable-next-line eslint/no-await-in-loop -- Each case rewrites this fixture before dispatch.
-      assert.match(await refused(invalid), /Job must be reviewed/);
-    }
-    await writeFile(job, '{"password":"not-for-stderr"');
-    const result = await run();
-    assert.match(result.stderr, /Invalid JSON in job file/);
-    assert.doesNotMatch(result.stderr, /not-for-stderr/);
-    await assert.rejects(() => readdir(runs), { code: "ENOENT" });
-  });
-  test("Benny refuses disabled config or broad tools before dispatch", async () => {
-    const { enabled, config, refused } = await fixture();
-    const cases = [
-      { override: { config: { ...config, enabled: false } }, message: /incomplete or disabled/ },
-      { override: { tools: ["read"] }, message: /requires explicit scoped MCP/ },
-      { override: { tools: ["bash", "mcp__slack__read_thread"] }, message: /narrow native file/ },
-      ...[
-        "mcp__slack__delete_thread",
-        "mcp__gh__pr_squash",
-        "mcp__github__push_files",
-        "mcp__github__create_or_update_file",
-        "mcp__github__update_pull_request_branch",
-        "mcp__github__create_branch",
-        "mcp__github__mergePullRequest",
-        "mcp__github__PRMerge",
-        "mcp__codemode__run",
-        "mcp__pi__tool_search",
-        "mcp__pi__searchTools",
-        "mcp__x__run_command",
-        "mcp__x__runScript",
-        "mcp__x__bash",
-      ].map((tool) => ({
-        override: { tools: ["read", tool] },
-        message: /disallows general command execution/,
-      })),
-      ...["write", "edit"].map((tool) => ({
-        override: { tools: [tool, "mcp__slack__read_thread"] },
-        message: /triage is read-only/,
-      })),
-      ...["mcp__github__create_pull_request", "mcp__gh__createPullRequest"].map((tool) => ({
-        override: { tools: ["read", tool] },
-        message: /require benny-repro with allowDraftPr/,
-      })),
-    ];
-    for (const { override, message } of cases) {
-      // oxlint-disable-next-line eslint/no-await-in-loop -- Each case rewrites this fixture before dispatch.
-      assert.match(await refused({ ...enabled, ...override }), message);
-    }
-  });
-  test("Benny accepts read and comment tools, and draft PR tools only when authorized", async () => {
+const slow = { timeout: 30_000 };
+
+test("unsupported job shapes fail before claiming a run", slow, async () => {
+  const { job, enabled, run, refused, runs } = await fixture();
+  for (const invalid of [
+    null,
+    { ...enabled, enabled: false },
+    { ...enabled, cwd: 123 },
+    { ...enabled, model: [] },
+    { ...enabled, tools: ["-read"] },
+  ]) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each case rewrites this fixture before dispatch.
+    assert.match(await refused(invalid), /Job must be reviewed/);
+  }
+  await writeFile(job, '{"password":"not-for-stderr"');
+  const result = await run();
+  assert.match(result.stderr, /Invalid JSON in job file/);
+  assert.doesNotMatch(result.stderr, /not-for-stderr/);
+  await assert.rejects(() => readdir(runs), { code: "ENOENT" });
+});
+test("Benny refuses disabled config or broad tools before dispatch", slow, async () => {
+  const { enabled, config, refused } = await fixture();
+  const cases = [
+    { override: { config: { ...config, enabled: false } }, message: /incomplete or disabled/ },
+    { override: { tools: ["read"] }, message: /requires explicit scoped MCP/ },
+    { override: { tools: ["bash", "mcp__slack__read_thread"] }, message: /narrow native file/ },
+    ...[
+      "mcp__slack__delete_thread",
+      "mcp__gh__pr_squash",
+      "mcp__github__push_files",
+      "mcp__github__create_or_update_file",
+      "mcp__github__update_pull_request_branch",
+      "mcp__github__create_branch",
+      "mcp__github__mergePullRequest",
+      "mcp__github__PRMerge",
+      "mcp__codemode__run",
+      "mcp__pi__tool_search",
+      "mcp__pi__searchTools",
+      "mcp__x__run_command",
+      "mcp__x__runScript",
+      "mcp__x__bash",
+    ].map((tool) => ({
+      override: { tools: ["read", tool] },
+      message: /disallows general command execution/,
+    })),
+    ...["write", "edit"].map((tool) => ({
+      override: { tools: [tool, "mcp__slack__read_thread"] },
+      message: /triage is read-only/,
+    })),
+    ...["mcp__github__create_pull_request", "mcp__gh__createPullRequest"].map((tool) => ({
+      override: { tools: ["read", tool] },
+      message: /require benny-repro with allowDraftPr/,
+    })),
+  ];
+  for (const { override, message } of cases) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each case rewrites this fixture before dispatch.
+    assert.match(await refused({ ...enabled, ...override }), message);
+  }
+});
+test(
+  "Benny accepts read and comment tools, and draft PR tools only when authorized",
+  slow,
+  async () => {
     const { job, enabled, config } = await fixture("benny-repro");
     const tools = [
       "read",
@@ -173,8 +177,12 @@ describe("job runner", { timeout: 30_000 }, () => {
       JSON.stringify({ ...enabled, tools: pr, config: { ...config, allowDraftPr: true } }),
     );
     assert.deepEqual((await readJob(job)).tools, pr);
-  });
-  test("triage authenticates and claims one report per thread without leaking the signing secret", async () => {
+  },
+);
+test(
+  "triage authenticates and claims one report per thread without leaking the signing secret",
+  slow,
+  async () => {
     const { event, run, writeSigned, runs } = await fixture();
     await writeFile(
       event,
@@ -199,8 +207,12 @@ describe("job runner", { timeout: 30_000 }, () => {
     await writeSigned({ ...report, eventId: "E2" });
     assert.notEqual((await run()).status, 0, "duplicate same thread must fail closed");
     assert.equal((await readdir(runs)).length, 1);
-  });
-  test("reproduction requires a confirmed marker and preserves child failure status", async () => {
+  },
+);
+test(
+  "reproduction requires a confirmed marker and preserves child failure status",
+  slow,
+  async () => {
     const { job, enabled, config, run, writeSigned } = await fixture("benny-repro");
     await writeFile(
       job,
@@ -231,8 +243,12 @@ describe("job runner", { timeout: 30_000 }, () => {
     assert.equal(flag(output.args, "--thinking"), "low");
     assert.match(output.prompt, /BUG-1/);
     assert(output.args.every((arg) => !arg.includes("BUG-1")));
-  });
-  test("a child startup failure does not print the event or the child argument list", async () => {
+  },
+);
+test(
+  "a child startup failure does not print the event or the child argument list",
+  slow,
+  async () => {
     const { run, writeSigned, runs } = await fixture();
     await writeSigned({ ...report, text: "private-report-text" });
     const failed = await run(0, join(tmpdir(), "nonexistent-pstack-pi"));
@@ -251,17 +267,21 @@ describe("job runner", { timeout: 30_000 }, () => {
     assert.doesNotMatch(saved + failed.stdout, /private-report-text|spawnargs|test-secret/);
     assert.match((await run()).stderr, /EEXIST/);
     assert.equal(await readFile(join(dir, "result.json"), "utf8"), saved);
-  });
-  test("custom jobs pass Pi's max thinking level through to the child", async () => {
-    const { job, enabled, run } = await fixture("custom");
-    await writeFile(job, JSON.stringify({ ...enabled, tools: ["read"], thinking: "max" }));
-    const result = await run();
-    assert.equal(result.status, 0, result.stderr);
-    const { args } = await child(outcome(result.stdout).log);
-    assert(args.includes("--thinking"));
-    assert.equal(flag(args, "--thinking"), "max");
-  });
-  test("custom jobs need no event and preserve their explicit native tool allowlist", async () => {
+  },
+);
+test("custom jobs pass Pi's max thinking level through to the child", slow, async () => {
+  const { job, enabled, run } = await fixture("custom");
+  await writeFile(job, JSON.stringify({ ...enabled, tools: ["read"], thinking: "max" }));
+  const result = await run();
+  assert.equal(result.status, 0, result.stderr);
+  const { args } = await child(outcome(result.stdout).log);
+  assert(args.includes("--thinking"));
+  assert.equal(flag(args, "--thinking"), "max");
+});
+test(
+  "custom jobs need no event and preserve their explicit native tool allowlist",
+  slow,
+  async () => {
     const { job, enabled, run, runs } = await fixture("custom");
     await writeFile(job, JSON.stringify({ ...enabled, tools: ["read"], model: "inherit-parent" }));
     const first = await run();
@@ -275,5 +295,5 @@ describe("job runner", { timeout: 30_000 }, () => {
     assert(!output.args.includes(enabled.instructions));
     assert.equal((await run()).status, 0);
     assert.equal((await readdir(runs)).length, 2);
-  });
-});
+  },
+);

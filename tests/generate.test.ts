@@ -3,7 +3,7 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promi
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import { describe, onTestFinished, test } from "vitest";
+import { onTestFinished, test } from "vitest";
 
 import { root } from "../lib/catalog.ts";
 import { shaped, spawned } from "./support.ts";
@@ -31,8 +31,12 @@ async function generatorCopy() {
 }
 
 // The test runs the generator several times, so the default 5 seconds is too short on a slow machine.
-describe("generator", { timeout: 30_000 }, () => {
-  test("generated checks are read-only, detect drift, and regenerate only owned files", async () => {
+const slow = { timeout: 30_000 };
+
+test(
+  "generated checks are read-only, detect drift, and regenerate only owned files",
+  slow,
+  async () => {
     const { dir, run, success } = await generatorCopy();
     await success();
     await success("--check");
@@ -71,5 +75,5 @@ describe("generator", { timeout: 30_000 }, () => {
     await assert.rejects(() => readFile(old), { code: "ENOENT" });
     assert.match(await readFile(renamed, "utf8"), /Changed source instructions/);
     assert.equal(await readFile(manual, "utf8"), "Keep my skill.\n");
-  });
-});
+  },
+);

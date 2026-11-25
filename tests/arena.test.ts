@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import { describe, onTestFinished, test } from "vitest";
+import { onTestFinished, test } from "vitest";
 
 import { blindTranscript, readPaths } from "../lib/transcript.ts";
 import { configFile, delegated, fulfilled, host, type HostOptions, model } from "./host.ts";
@@ -137,82 +137,80 @@ const workerTranscript = [
   .map((x) => JSON.stringify(x))
   .join("\n");
 
-describe("arena", () => {
-  test("a failed arena judge returns the completed candidate reports", async () => {
-    const { outputs, dir, judgment } = await runArena(["google/gemini"], 7);
-    assert.equal(outputs.length, 2);
-    await Promise.all(
-      outputs.map(async (_, i) => {
-        const report = fulfilled(outputs, i).report;
-        assert.equal(dirname(report), dir);
-        assert.equal(await readFile(report, "utf8"), "fixture report");
-      }),
-    );
-    assert.match(judgment?.status ?? "", /inconclusive/i);
-    assert.match(judgment?.error ?? "", /failed \(7\)/);
-  });
-  test("judge selection skips both unavailable and same-vendor pool entries", async () => {
-    const result = await runArena(["openai/gpt", "anthropic/claude", "google/gemini"], 0);
-    assert.equal(result.judgment?.model, "google/gemini");
-  });
+test("a failed arena judge returns the completed candidate reports", async () => {
+  const { outputs, dir, judgment } = await runArena(["google/gemini"], 7);
+  assert.equal(outputs.length, 2);
+  await Promise.all(
+    outputs.map(async (_, i) => {
+      const report = fulfilled(outputs, i).report;
+      assert.equal(dirname(report), dir);
+      assert.equal(await readFile(report, "utf8"), "fixture report");
+    }),
+  );
+  assert.match(judgment?.status ?? "", /inconclusive/i);
+  assert.match(judgment?.error ?? "", /failed \(7\)/);
+});
+test("judge selection skips both unavailable and same-vendor pool entries", async () => {
+  const result = await runArena(["openai/gpt", "anthropic/claude", "google/gemini"], 0);
+  assert.equal(result.judgment?.model, "google/gemini");
+});
 
-  test("arena rejects a judge whose provider appears in the candidate panel", async () => {
-    onTestFinished(() => rm(configFile, { force: true }));
-    const h = host({ confirm: true });
-    await h.cmd(
-      "setup-pstack",
-      JSON.stringify({
-        roles: {
-          "arena runners": ["anthropic/claude", "google/gemini"],
-          "arena cross-judge pool": ["google/gemini"],
-        },
-      }),
-    );
-    await assert.rejects(
-      () => h.call("pstack_delegate", { mode: "arena", tasks: ["compare"], rubric: "quality" }),
-      /judge from another provider/,
-    );
-    assert.equal(h.executions.length, 0);
-  });
+test("arena rejects a judge whose provider appears in the candidate panel", async () => {
+  onTestFinished(() => rm(configFile, { force: true }));
+  const h = host({ confirm: true });
+  await h.cmd(
+    "setup-pstack",
+    JSON.stringify({
+      roles: {
+        "arena runners": ["anthropic/claude", "google/gemini"],
+        "arena cross-judge pool": ["google/gemini"],
+      },
+    }),
+  );
+  await assert.rejects(
+    () => h.call("pstack_delegate", { mode: "arena", tasks: ["compare"], rubric: "quality" }),
+    /judge from another provider/,
+  );
+  assert.equal(h.executions.length, 0);
+});
 
-  test("arena sends anonymous transcript files to the independent judge and reports missing reads", async () => {
-    onTestFinished(() => rm(configFile, { force: true }));
-    const judged: string[] = [];
-    const h = host({ confirm: true, execute: judgingWorkers(judged) });
-    await h.cmd(
-      "setup-pstack",
-      JSON.stringify({
-        roles: {
-          "arena runners": ["anthropic/claude", "google/gemini"],
-          "arena cross-judge pool": ["google/gemini", "openai/gpt"],
-        },
-      }),
-    );
-    const output = delegated(
-      await h.call("pstack_delegate", {
-        mode: "arena",
-        tasks: ["shared task"],
-        rubric: "quality",
-      }),
-    );
-    assert.equal(judged.at(-1), "openai/gpt");
-    assert.deepEqual(
-      output.outputs.map((_, i) => fulfilled(output.outputs, i).model),
-      ["anthropic/claude", "google/gemini"],
-    );
-    assert.deepEqual(
-      output.judgment?.readAudit?.map((entry) => entry.read),
-      [true, false],
-    );
-    assert.match(output.judgment.status, /INCONCLUSIVE/);
-  });
+test("arena sends anonymous transcript files to the independent judge and reports missing reads", async () => {
+  onTestFinished(() => rm(configFile, { force: true }));
+  const judged: string[] = [];
+  const h = host({ confirm: true, execute: judgingWorkers(judged) });
+  await h.cmd(
+    "setup-pstack",
+    JSON.stringify({
+      roles: {
+        "arena runners": ["anthropic/claude", "google/gemini"],
+        "arena cross-judge pool": ["google/gemini", "openai/gpt"],
+      },
+    }),
+  );
+  const output = delegated(
+    await h.call("pstack_delegate", {
+      mode: "arena",
+      tasks: ["shared task"],
+      rubric: "quality",
+    }),
+  );
+  assert.equal(judged.at(-1), "openai/gpt");
+  assert.deepEqual(
+    output.outputs.map((_, i) => fulfilled(output.outputs, i).model),
+    ["anthropic/claude", "google/gemini"],
+  );
+  assert.deepEqual(
+    output.judgment?.readAudit?.map((entry) => entry.read),
+    [true, false],
+  );
+  assert.match(output.judgment.status, /INCONCLUSIVE/);
+});
 
-  test("blinded transcript removes model metadata and read audit finds actual read call paths", () => {
-    const raw = workerTranscript;
-    const blind = blindTranscript(raw, "anthropic/claude");
-    assert(!blind.includes("anthropic"));
-    assert(!blind.includes("claude"));
-    assert(blind.includes("actual artifact"));
-    assert.deepEqual(readPaths(raw), ["/tmp/candidate.jsonl"]);
-  });
+test("blinded transcript removes model metadata and read audit finds actual read call paths", () => {
+  const raw = workerTranscript;
+  const blind = blindTranscript(raw, "anthropic/claude");
+  assert(!blind.includes("anthropic"));
+  assert(!blind.includes("claude"));
+  assert(blind.includes("actual artifact"));
+  assert.deepEqual(readPaths(raw), ["/tmp/candidate.jsonl"]);
 });

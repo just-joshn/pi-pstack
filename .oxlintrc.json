@@ -40,7 +40,13 @@
 
     "eslint/eqeqeq": "error",
     "eslint/prefer-const": "error",
-    "eslint/no-console": "warn",
+    "eslint/no-console": "error",
+    "eslint/max-lines": ["error", { "max": 799, "skipBlankLines": false, "skipComments": false }],
+    "eslint/max-lines-per-function": [
+      "error",
+      { "max": 49, "skipBlankLines": false, "skipComments": false, "IIFEs": true }
+    ],
+    "eslint/max-depth": ["error", { "max": 4 }],
     "eslint/no-debugger": "error",
     "eslint/no-eval": "error",
 
