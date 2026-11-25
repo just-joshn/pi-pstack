@@ -6,7 +6,6 @@ import type { PoolResult } from "../lib/pool.ts";
 import { readResult, sandbox, type ToolResponse } from "./host.ts";
 import { shaped, spawned } from "./support.ts";
 
-/** Runs Git in a directory and returns its output; fails the test when Git fails. */
 export async function git(cwd: string, ...args: string[]) {
   const run = await spawned("git", args, { cwd });
   assert.equal(run.status, 0, run.stderr);
@@ -24,7 +23,6 @@ export const commit = (cwd: string, message: string) =>
     "-qm",
     message,
   );
-/** A new repository with one commit, inside the test sandbox. */
 export async function repo() {
   const cwd = await mkdtemp(join(sandbox, "repo-"));
   await git(cwd, "init", "-q");
@@ -44,7 +42,6 @@ export const created = (response: ToolResponse) =>
   shaped<{ path: string; base: string }>(readResult(response));
 export const removed = (response: ToolResponse) =>
   shaped<{ removed: string }>(readResult(response)).removed;
-/** The entries of a worktree audit, leaving out any whose audit failed. */
 export const audits = (response: ToolResponse) =>
   shaped<PoolResult<Audited>[]>(readResult(response)).flatMap((entry) =>
     entry.status === "fulfilled" ? [entry.value] : [],

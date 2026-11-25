@@ -85,7 +85,6 @@ process.exitCode = Number(process.env.PSTACK_TEST_EXIT_CODE ?? 0);
     enabled,
     config,
     run,
-    /** Rewrites the job file, dispatches it and returns what the runner printed on stderr. */
     refused: async (value: unknown) => {
       await writeFile(job, JSON.stringify(value));
       return (await run()).stderr;

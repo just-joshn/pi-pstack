@@ -18,13 +18,11 @@ const ran = (code: number, stdout: string) => ({
 });
 
 type Answer = ReturnType<typeof ran>;
-/** What Git answers about a parent checkout. */
 interface Checkout {
   /** The diff of the tracked files against HEAD. */
   tracked: Answer;
   /** The NUL-separated untracked files. */
   listed: Answer;
-  /** The diff of one untracked file against nothing. */
   untracked: (file: string) => Answer;
 }
 const readable: Checkout = {
@@ -33,7 +31,6 @@ const readable: Checkout = {
   untracked: () => ran(1, "+new\n"),
 };
 
-/** Saves the parent diff of a checkout into an empty directory and lists what was written. */
 async function save(checkout: Checkout) {
   const dir = await mkdtemp(join(tmpdir(), "parent-diff-"));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));

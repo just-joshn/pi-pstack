@@ -170,9 +170,7 @@ export function host({
     notifications,
     executions,
     ctx,
-    /** Where the extension keeps the files of this session. */
     artifacts: join(sandbox, "pstack", "sessions", sessionId),
-    /** The state the extension saved last. */
     state: () => shaped<State>(entries.at(-1)?.data),
     /** What `/setup-pstack show` reported last. */
     shown: () => shaped<Setup>(JSON.parse(notifications.at(-1) ?? "null")),
@@ -242,7 +240,6 @@ export const delegated = (response: ToolResponse) => shaped<Delegated>(readResul
 export const planned = (response: ToolResponse) =>
   shaped<{ state: Summary }>(readResult(response)).state;
 export const shipped = (response: ToolResponse) => shaped<Shipped>(readResult(response));
-/** The value of a fulfilled pool result; fails the test for a rejected or missing one. */
 export function fulfilled<T>(results: readonly PoolResult<T>[], index = 0): T {
   const result = results[index];
   assert(result?.status === "fulfilled", JSON.stringify(result));

@@ -11,7 +11,6 @@ export async function pool<T, U>(
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8)
     throw Error("Concurrency must be 1 to 8");
   const results: PoolResult<U>[] = [];
-  // Workers share one iterator, so each item is taken once.
   const queue = items.entries();
   async function worker() {
     for (const [i, item] of queue) {

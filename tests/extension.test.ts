@@ -32,7 +32,6 @@ const swarm = { mode: "swarm", tasks: ["review"] };
 const notARepository = { code: 128, stdout: "", stderr: "not a repo" };
 const savedConfig = async () => shaped<RoleConfig>(JSON.parse(await readFile(configFile, "utf8")));
 const woke = (response: ToolResponse) => shaped<Wake>(readResult(response));
-/** The text of the first content block of one projected transcript line. */
 const firstText = (line: string) =>
   shaped<{ content: { text: string }[] }>(JSON.parse(line)).content[0]?.text;
 
@@ -913,7 +912,7 @@ describe("extension", () => {
   test("the agent cannot select a merge-capable route without operator approval", async () => {
     const start = { action: "start", route: "shipping", goal: "Merge reviewed PR" };
     for (const h of [host({ confirm: false }), host({ mode: "print", confirm: true })]) {
-      // oxlint-disable-next-line eslint/no-await-in-loop -- Each host is checked in turn.
+      // oxlint-disable-next-line eslint/no-await-in-loop -- The hosts are independent; a plain loop is simpler than Promise.all.
       await assert.rejects(() => h.call("pstack_plan", start), /operator approval/);
       assert.equal(h.entries.length, 0);
     }

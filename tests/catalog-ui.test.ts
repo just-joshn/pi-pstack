@@ -10,7 +10,7 @@ interface Screen {
   title: string;
   choices: string[];
 }
-/** Answers the map browser's menus in order, then closes the menu; records every screen shown. */
+/** Once the answers run out, the menu is closed. */
 function browsing(h: Host, answers: string[]) {
   const screens: Screen[] = [];
   h.ctx.ui.select = async (title, choices) => {

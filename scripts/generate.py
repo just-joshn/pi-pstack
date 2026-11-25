@@ -49,7 +49,6 @@ def is_skill(node):
 
 
 def classify(node):
-    """Return (status, implementation, generated path, invocation) for one upstream node."""
     node_id = node["id"]
     if is_skill(node):
         name = node["label"].lstrip("/")
