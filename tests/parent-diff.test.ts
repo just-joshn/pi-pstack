@@ -39,6 +39,7 @@ async function save(checkout: Checkout) {
   const pi = double<ExtensionAPI>({
     exec: async (_command, args) => {
       if (args[0] === "rev-parse") return ran(0, dir + "\n");
+      if (args[0] === "symbolic-ref") return ran(1, "");
       if (args[0] === "ls-files") return checkout.listed;
       if (!args.includes("--no-index")) return checkout.tracked;
       return checkout.untracked(args.at(-1) ?? "");
@@ -91,7 +92,9 @@ test("nothing is saved when Git cannot diff the tracked files or list the untrac
     written: [],
   });
   assert.deepEqual(await save({ ...readable, listed: failed }), { diff: undefined, written: [] });
-  assert.deepEqual((await save(readable)).written, ["parent.diff"]);
+  const saved = await save(readable);
+  assert.deepEqual(saved.written, ["parent.diff"]);
+  assert.equal(saved.diff?.base, "HEAD");
 });
 
 test("a tracked diff larger than the budget is not saved in part", async () => {
@@ -142,4 +145,28 @@ test("the parent diff includes root-relative tracked and untracked paths from a 
   assert.match(diff, /\+brand new/);
   assert.match(nth(prompts, 0), /tracked changes and untracked files/);
   assert.doesNotMatch(nth(prompts, 0), /omitted/);
+});
+
+test("committed branch work since the default branch reaches reviewers in the parent diff", async () => {
+  const cwd = await repo();
+  const base = (await git(cwd, "rev-parse", "HEAD")).trim();
+  await git(cwd, "update-ref", "refs/remotes/origin/main", base);
+  await git(cwd, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main");
+  await git(cwd, "switch", "-qc", "feature");
+  await writeFile(join(cwd, "feature.txt"), "committed work\n");
+  await git(cwd, "add", ".");
+  await commit(cwd, "feature");
+  const prompts: string[] = [];
+  const h = host({
+    cwd,
+    realGit: true,
+    execute: async (_, args) => {
+      prompts.push(args.at(-1) ?? "");
+      return { code: 0, stdout: "ok", stderr: "" };
+    },
+  });
+  const output = delegated(await h.call("pstack_delegate", swarm));
+  const diff = await readFile(join(output.dir, "parent.diff"), "utf8");
+  assert.match(diff, /\+committed work/);
+  assert.match(nth(prompts, 0), new RegExp(`changes since ${base}`));
 });

@@ -160,7 +160,7 @@ function diffNotes(diff: ParentDiff | undefined) {
     ];
   const more = diff.omitted.length > 50 ? ` and ${diff.omitted.length - 50} more` : "";
   return [
-    `Parent diff artifact (tracked changes and untracked files): ${diff.path}. Write worktrees start at the selected committed base and do not include uncommitted changes.`,
+    `Parent diff artifact (changes since ${diff.base}, including commits, tracked changes and untracked files): ${diff.path}. Write worktrees start at the selected committed base and do not include uncommitted changes.`,
     diff.omitted.length &&
       `Untracked files omitted from the artifact (too large, too many or unreadable): ${diff.omitted.slice(0, 50).join(", ")}${more}.`,
   ];
