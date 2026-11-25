@@ -51,6 +51,25 @@ test("hand-ported files keep upstream's name, sections and numbered steps", () =
   }
 });
 
+test("hand-ported files match upstream line for line, so no formatter reflows them", () => {
+  for (const { path, original } of ported) {
+    if (!original) continue;
+    const pi = readFileSync(path, "utf8").split("\n");
+    const cursor = readFileSync(original, "utf8").split("\n");
+    const label = relative(srcDir, path);
+    assert.equal(pi.length, cursor.length, `${label}: line count`);
+    pi.forEach((line, i) => {
+      const upstreamLine = cursor[i] ?? "";
+      if (line !== upstreamLine)
+        assert.notEqual(
+          line.trim(),
+          upstreamLine.trim(),
+          `${label}:${i + 1} changes only whitespace`,
+        );
+    });
+  }
+});
+
 const cursorOnly = [
   /\.cursor\b/,
   /\.mdc\b/,
