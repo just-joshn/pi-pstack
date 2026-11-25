@@ -95,6 +95,26 @@ The tests are TypeScript on Vitest and run without a build step. `bun run test` 
 
 `node scripts/smoke.ts` launches real Pi in an isolated RPC session without model requests. It checks discovery of all 76 native skills and 52 original slash names, writes and reads mode state, and checks that `/setup-pstack` lists the model of a provider registered by a fixture extension. Set `PSTACK_PI_BIN` to point to a different Pi executable. This smoke does not exercise live models, GitHub, Slack, or MCP services. Test those integrations with disposable resources before relying on them.
 
+## Continuous integration and releases
+
+Three workflows in `.github/workflows` run on GitHub-hosted runners:
+
+- `ci.yml` runs on every pull request. The `Lint` job runs the format check, oxlint, the TypeScript compiler and the generator check. The `Test` jobs run the tests with the coverage gate and the smoke test on Node 22.19.0, 24 and 26. The smoke test uses the Pi that `bun install` puts in `node_modules`.
+- `release.yml` runs on every push to `main`. It runs the same checks, then compares `version` in `package.json` with npm. If npm does not have that version, the workflow publishes the package with provenance, then creates the tag `v<version>` and its GitHub release, with generated notes, at the published commit. Runs of this workflow do not overlap: up to 100 wait in a queue.
+- `verify-lockfile.yml` runs on pull requests and on pushes to `main`. It fails when `.github/workflows/actions.lock` no longer matches the workflows or the commits it pins.
+
+To release, change `version` in `package.json` in a pull request and merge it. Do not create the tag or the release by hand. The workflow never touches an existing tag, and it stops before publishing when the tag exists and npm does not have the version. npm refuses a prerelease version such as `1.0.0-beta.1` without a dist-tag, so the workflow cannot publish one.
+
+If a run fails after npm accepted the version, use **Re-run all jobs**. While `package.json` still names that version, a run finds it on npm, skips publishing and creates the missing tag and release at the commit npm recorded for it. It creates neither when the tag already exists, or when npm recorded no commit, which is the case for a version published outside a Git checkout.
+
+Publishing needs an npm [trusted publisher](https://docs.npmjs.com/trusted-publishers) for this repository, with the workflow `release.yml`, the environment `npm`, and `npm publish` allowed. No secret is involved. The workflow also accepts an npm access token in a [secret](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) named `NPM_TOKEN`, which is the method in GitHub's documentation, but npm removes direct publishing with a token in January 2027.
+
+The first release run creates the `npm` [environment](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments) without rules. Add a deployment branch rule for `main` so that no other branch can publish.
+
+`actions.lock` pins every action the workflows use to a commit. After you add or change a `uses:` line, run `gh actions-lock` and commit the result. The command comes from the [`gh-actions-lock`](https://github.com/github/gh-actions-lock) extension of the GitHub CLI. Dependabot proposes new releases of the actions each week and updates the lockfile in the same pull request.
+
+CI installs Bun 1.4.5, the release the files were formatted with. Change `BUN_VERSION` in `ci.yml` when you format with a newer Bun.
+
 ## Files
 
 - `src/`: the extension, one file per feature: `session.ts` (branch state and wake timer), `plan.ts`, `catalog-ui.ts`, `records.ts`, `models.ts`, `delegate.ts`, `parent-diff.ts`, `worktrees.ts`, `forge.ts`, with `git.ts` and `support.ts` shared.
@@ -108,6 +128,7 @@ The tests are TypeScript on Vitest and run without a build step. `bun run test` 
 - `reference/PARITY.md`, `reference/GAPS.md`: audit matrix and residual gaps.
 - `reference/benny/`: dormant configuration and workflow instructions.
 - `scripts/run-job.mjs`, `scripts/job-input.ts`, `scripts/smoke.ts`, `scripts/smoke-provider.ts`, `tests/`: runner, job validation and verification.
+- `.github/`: the CI, release and lockfile workflows, the action lockfile and the Dependabot configuration.
 
 ## Official references
 
