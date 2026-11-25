@@ -19,6 +19,7 @@ ignorePatterns = [
   "build/",
   "coverage/",
   "upstream/",
+  "src/skills/*/scripts/",
 ]
 
 [fmt.sortImports]

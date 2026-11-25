@@ -5,6 +5,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
+import type { BackgroundWorkers } from "./background.ts";
 import { gitIn } from "./git.ts";
 import { srcDir } from "./lib/catalog.ts";
 import {
@@ -75,6 +76,12 @@ const parameters = Type.Object({
     }),
   ),
   thinking: Type.Optional(stringEnum(thinkingLevels)),
+  background: Type.Optional(
+    Type.Boolean({
+      description:
+        "Return at once with each worker's id and sessionDir and let it run, with no time limit, until it exits. Check it with pstack_workers. Single and swarm only.",
+    }),
+  ),
   resume: Type.Optional(
     Type.String({
       description:
@@ -161,6 +168,7 @@ interface WorkerRequest {
   role: string;
   modelRole: Role;
   thinking?: Thinking | undefined;
+  id?: string;
 }
 interface RunnerOptions {
   dir: string;
@@ -168,6 +176,7 @@ interface RunnerOptions {
   extensions: ReadonlyMap<string, string>;
   rubric: string | undefined;
   base: string | undefined;
+  timeoutMs?: number;
   diff: ParentDiff | undefined;
   signal: AbortSignal | undefined;
   progress: (message: string) => void;
@@ -232,7 +241,7 @@ const isWorkerRecord = (value: unknown): value is WorkerRecord =>
 
 async function execWorker(
   pi: ExtensionAPI,
-  options: Pick<RunnerOptions, "signal" | "progress">,
+  options: Pick<RunnerOptions, "signal" | "progress" | "timeoutMs">,
   worker: WorkerRecord,
   run: { thinking: Thinking; prompt: string; report: string },
 ) {
@@ -248,7 +257,7 @@ async function execWorker(
   options.progress(`Running ${worker.id}`);
   const exec = await pi.exec(piBin, args, {
     cwd: worker.cwd,
-    timeout: 30 * 60 * 1000,
+    timeout: options.timeoutMs ?? 30 * 60 * 1000,
     maxBuffer: 4 * 1024 * 1024,
     ...(options.signal && { signal: options.signal }),
   });
@@ -320,6 +329,10 @@ async function resumeWorker(
   return { outputs: [{ status: "fulfilled", value }], dir: dirname(sessionDir) };
 }
 
+const workerId = (index: number) => `worker-${index + 1}-${randomUUID().slice(0, 8)}`;
+/** A background worker runs until its process exits, as upstream's background subagents do. */
+const backgroundTimeoutMs = 7 * 24 * 60 * 60 * 1000;
+
 function createRunner(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
@@ -328,7 +341,7 @@ function createRunner(
 ) {
   return async (request: WorkerRequest) => {
     if (options.signal?.aborted) fail("Cancelled");
-    const id = `worker-${request.index + 1}-${randomUUID().slice(0, 8)}`;
+    const id = request.id ?? workerId(request.index);
     const tree = request.readOnly
       ? { path: ctx.cwd, base: null }
       : await createWorktree(gitIn(pi, ctx.cwd, options.signal), ctx, id, options.base);
@@ -417,29 +430,24 @@ async function authorizeWrites(ctx: ExtensionContext, workers: number, base?: st
   if (!approved) fail("Write delegation not authorized");
 }
 
-async function delegate(
+async function prepareBatch(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
-  active: ActiveWorktrees,
   p: DelegateParams,
   signal: AbortSignal | undefined,
   progress: (message: string) => void,
 ) {
   if (!ctx.model) fail("Select a parent model first");
+  if (p.background && p.mode !== "single" && p.mode !== "swarm")
+    fail("Background workers take mode single or swarm");
   const extensions = await workerExtensions(pi, ctx, signal);
   const listed = availableWorkerModels(ctx, extensions);
   const config = await readConfig(listed);
-  const available = new Set(listed);
-  const { role, modelRole, readOnly, workers, judge, thinking } = resolveWorkers(
-    p,
-    config,
-    modelName(ctx.model),
-    available,
-  );
-  if (!readOnly) await authorizeWrites(ctx, workers.length, p.base);
+  const resolved = resolveWorkers(p, config, modelName(ctx.model), new Set(listed));
+  if (!resolved.readOnly) await authorizeWrites(ctx, resolved.workers.length, p.base);
   const dir = join(artifacts(ctx), "workers", randomUUID());
   await mkdir(dir, { recursive: true, mode: 0o700 });
-  const run = createRunner(pi, ctx, active, {
+  const options: RunnerOptions = {
     dir,
     signal,
     diff: await saveParentDiff(pi, ctx.cwd, dir, signal),
@@ -449,10 +457,40 @@ async function delegate(
     // Arena candidates see only the task; the rubric is the judge's (upstream arena, Phase A).
     rubric: p.mode === "arena" ? undefined : p.rubric,
     progress,
+  };
+  const { role, modelRole, readOnly, thinking } = resolved;
+  const requests = resolved.workers.map(({ task, model }, index) => {
+    const id = workerId(index);
+    return { task, index, model, readOnly, role, modelRole, thinking, id };
   });
-  const outputs = await pool(workers, p.concurrency ?? 3, ({ task, model }, index) =>
-    run({ task, index, model, readOnly, role, modelRole, thinking }),
-  );
+  return { dir, options, requests, judge: resolved.judge };
+}
+
+async function delegate(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  workers: { active: ActiveWorktrees; background: BackgroundWorkers },
+  p: DelegateParams,
+  signal: AbortSignal | undefined,
+  progress: (message: string) => void,
+) {
+  const { dir, options, requests, judge } = await prepareBatch(pi, ctx, p, signal, progress);
+  if (p.background) {
+    const jobs = requests.map((request) => ({
+      id: request.id,
+      run: (stop: AbortSignal) =>
+        createRunner(pi, ctx, workers.active, {
+          ...options,
+          signal: stop,
+          timeoutMs: backgroundTimeoutMs,
+        })(request),
+    }));
+    const started = workers.background.start(dir, jobs);
+    const ids = started.map(({ id }) => ({ id, sessionDir: join(dir, id) }));
+    return { background: ids, dir, next: "Check them with pstack_workers action list." };
+  }
+  const run = createRunner(pi, ctx, workers.active, options);
+  const outputs = await pool(requests, p.concurrency ?? 3, run);
   const judgment = judge && (await judgeOrInconclusive(dir, outputs, p.rubric, judge, run));
   return {
     outputs,
@@ -463,7 +501,11 @@ async function delegate(
   };
 }
 
-export function registerDelegation(pi: ExtensionAPI, active: ActiveWorktrees) {
+export function registerDelegation(
+  pi: ExtensionAPI,
+  active: ActiveWorktrees,
+  background: BackgroundWorkers,
+) {
   pi.registerTool({
     name: "pstack_delegate",
     label: "Pstack Pi workers",
@@ -475,7 +517,7 @@ export function registerDelegation(pi: ExtensionAPI, active: ActiveWorktrees) {
       const { resume } = p;
       return result(
         resume === undefined
-          ? await delegate(pi, ctx, active, p, signal, progress)
+          ? await delegate(pi, ctx, { active, background }, p, signal, progress)
           : await resumeWorker(pi, ctx, active, { ...p, resume }, { signal, progress }),
       );
     },

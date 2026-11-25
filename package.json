@@ -15,7 +15,8 @@
     "url": "git+https://github.com/just-joshn/pi-pstack.git"
   },
   "files": [
-    "src"
+    "src",
+    "!src/**/node_modules"
   ],
   "type": "module",
   "publishConfig": {
@@ -31,7 +32,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test:coverage"
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test:coverage && bun run test:scripts",
+    "test:scripts": "cd src/skills/poteto-mode/scripts && bun install --frozen-lockfile && bun test watch-pr"
   },
   "devDependencies": {
     "@types/node": "22",

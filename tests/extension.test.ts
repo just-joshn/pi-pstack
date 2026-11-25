@@ -12,11 +12,11 @@ interface Manifest {
   pi: { extensions: string[]; skills: string[] };
 }
 
-test("mock host registers all 53 slash skills and 9 native tools", () => {
+test("mock host registers all 53 slash skills and 10 native tools", () => {
   const h = host();
   assert.equal(slashSkills.length, 53);
   for (const skill of slashSkills) assert(h.commands.has(skill.label.slice(1)), skill.id);
-  assert.equal(h.tools.size, 9);
+  assert.equal(h.tools.size, 10);
   assert(h.events.has("before_agent_start"));
   assert(h.events.has("session_shutdown"));
 });
@@ -25,7 +25,7 @@ test("the package publishes only src, and Pi loads the extension and skills from
   const manifest = shaped<Manifest>(
     JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")),
   );
-  assert.deepEqual(manifest.files, ["src"]);
+  assert.deepEqual(manifest.files, ["src", "!src/**/node_modules"]);
   for (const path of [...manifest.pi.extensions, ...manifest.pi.skills])
     assert.match(path, /^src\//);
 });

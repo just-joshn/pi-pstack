@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: false,
+    // Upstream's Bun scripts run their own tests with `bun test` (see test:scripts).
+    exclude: ["**/node_modules/**", "src/skills/*/scripts/**"],
 
     coverage: {
       provider: "v8",
@@ -11,6 +13,7 @@ export default defineConfig({
       exclude: [
         "**/*.d.{ts,mts}",
         "**/*.{test,spec}.{ts,mts}",
+        "src/skills/*/scripts/**",
       ],
       reporter: ["text", "html", "lcov"],
       reportsDirectory: "./coverage",

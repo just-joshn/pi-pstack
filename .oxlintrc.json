@@ -91,6 +91,7 @@
     "**/node_modules/**",
     "**/dist/**",
     "**/build/**",
-    "**/coverage/**"
+    "**/coverage/**",
+    "src/skills/*/scripts/**"
   ]
 }

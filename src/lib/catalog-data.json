@@ -209,19 +209,14 @@
       "Verify the chain from transcripts, not self-report.",
       "Read every candidate output yourself end to end."
     ],
-    "babysit": [
-      "Identify forge, PR number, current head and merge base.",
-      "Read current PR checks, conflicts and review comments.",
-      "Investigate failures; reproduce each bot finding before fixing or dismissing.",
-      "Run checks again after each patch; never equate old-head green with current green.",
-      "Report merge readiness and blockers; do not merge."
-    ],
+    "babysit": ["Babysit"],
     "shipping": [
-      "Require explicit authorization for the ordered PR stack; identify forge and target heads.",
-      "Independently verify each patch on its actual behavior; record head identity and evidence.",
-      "Compute contiguous verified prefix; stop at first missing, stale or failed proof.",
-      "Check fresh CI and current head before each authorized merge; land bottom-up.",
-      "Stop at ceiling or any changed head, failed check, conflict or missing permission; report actual merge results."
+      "Resolve the forge, then verify each PR independently before it lands.",
+      "Land only the contiguous verified run rooted at the bottom.",
+      "Re-check that the verdicts still describe the code.",
+      "Land bottom-up, one PR at a time.",
+      "Leave the stack alone while it lands.",
+      "Stop at the ceiling."
     ],
     "autonomous-run": [
       "State the exit condition as a checkable predicate before the first iteration (tests green, repro fixed, all N PRs merged, pixel-diff zero).",
@@ -232,11 +227,13 @@
       "Stop when the predicate is met."
     ],
     "autopilot-full": [
-      "Require explicit queue scope and merge authorization; identify independent PRs and dependencies.",
-      "Assign one isolated owner per PR off trunk; keep verified checkpoints.",
-      "Run deslop and no-comments before code-ready; obtain independent verification.",
-      "Audit current-head CI and exact patch identity; use shipping policy for authorized merges only.",
-      "Use bounded loop to reconcile state, stop at blockers and report actual merges."
+      "The operator's gates come first.",
+      "Spawn one owner per PR, and keep its work where a replacement can find it.",
+      "Run owners in parallel off trunk, never stacked, so each PR lands on its own.",
+      "Swarm-verify once.",
+      "The owner merges only what you verified, tested on the trunk it lands on.",
+      "Run the root layer.",
+      "Stand down at once on the operator's stop."
     ],
     "autopilot-stack": [
       "In place of step 5, stop at verified.",

@@ -1,5 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
+import { backgroundWorkers, registerBackground } from "./background.ts";
 import { registerCatalog } from "./catalog-ui.ts";
 import { registerDelegation } from "./delegate.ts";
 import { registerForge } from "./forge.ts";
@@ -20,6 +21,8 @@ export default function pstack(pi: ExtensionAPI) {
   registerCatalog(pi, notify);
   registerRecords(pi, notify);
   registerWorktrees(pi, active);
-  registerDelegation(pi, active);
+  const background = backgroundWorkers();
+  registerDelegation(pi, active, background);
+  registerBackground(pi, background);
   registerForge(pi, () => activePlan(session.state())?.route);
 }
