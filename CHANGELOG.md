@@ -21,6 +21,9 @@ CHANGED:
 - Tests are organized with one file per feature and no `describe` wrappers.
 - Extension functions longer than 50 lines are split into smaller functions.
 - The worktrees module owns the record of which worktrees write workers are using. Delegation no longer edits a set shared through `src/index.ts`.
+- The parent diff that `pstack_delegate` gives workers starts at the merge base with the remote's default branch (`origin/HEAD`), so it includes committed branch work. Before, it held only uncommitted changes, and reviewers of committed work got an empty file. Without `origin/HEAD`, it still starts at `HEAD`.
+- The branch state that extension commands read is a frozen copy, so it changes only through a commit that saves it and refreshes the status bar.
+- The package `homepage` links to the repository README instead of a deleted branch.
 
 ## 0.1.1 (2026-11-25)
 
