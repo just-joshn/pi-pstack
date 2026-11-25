@@ -18,6 +18,7 @@ ignorePatterns = [
   "dist/",
   "build/",
   "coverage/",
+  "upstream/",
 ]
 
 [fmt.sortImports]

@@ -166,7 +166,7 @@ test("delegation checks the selected workers and judge, not unused roles", async
   assert.equal(h.executions.length, runs, "do not start an arena without a usable judge");
 });
 
-test("worker flags disable nested extensions and MCP, and reviewers cannot write", () => {
+test("worker flags disable nested extensions, MCP for readers, and writes for reviewers", () => {
   const base = {
     model: "anthropic/claude",
     thinking: "high" as const,
@@ -177,6 +177,11 @@ test("worker flags disable nested extensions and MCP, and reviewers cannot write
   const read = workerArgs({ ...base, readOnly: true }),
     write = workerArgs({ ...base, readOnly: false });
   assert(read.includes("--no-mcp"));
+  assert(
+    !write.includes("--no-mcp"),
+    "a writing worker keeps MCP tools, as upstream's agent mode does",
+  );
+  assert(write.includes("--no-extensions"));
   assert(read.includes("--no-extensions"));
   assert.equal(flag(read, "--tools"), "read,grep,find,ls");
   assert.equal(flag(write, "--tools"), "read,grep,find,ls,bash,edit,write");
@@ -192,4 +197,98 @@ test("every worker role with a contract has its file in agents/", async () => {
   const contracts = [...workerRoles.values()].flatMap((role) => role.contract ?? []);
   assert.equal(contracts.length, 4);
   await Promise.all(contracts.map((contract) => access(join(srcDir, "agents", contract))));
+});
+
+function recordingHost() {
+  const runs: { args: string[]; cwd: string | undefined }[] = [];
+  const h = host({
+    execute: async (bin, args, options) => {
+      if (bin === "git") return notARepository;
+      runs.push({ args, cwd: options?.cwd });
+      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+      return { code: 0, stdout: `report ${runs.length}`, stderr: "" };
+    },
+  });
+  return { h, runs };
+}
+
+test("the kickoff starts with worker.md and adds no rule that overrides it", async () => {
+  const { h, runs } = recordingHost();
+  await h.call("pstack_delegate", { mode: "single", tasks: ["open the PR"] });
+  const prompt = nth(runs, 0).args.at(-1) ?? "";
+  const worker = join(srcDir, "skills", "poteto-mode", "worker.md");
+  assert(prompt.startsWith(`Read ${worker} before anything else.\n`));
+  assert(prompt.includes(await readFile(worker, "utf8")));
+  assert(
+    prompt.includes(await readFile(join(srcDir, "skills", "poteto-mode", "SKILL.md"), "utf8")),
+  );
+  assert.doesNotMatch(prompt, /external side effects/);
+});
+
+test("a worker runs on the model and thinking level its caller passes; panels keep theirs", async () => {
+  const { h, runs } = recordingHost();
+  await h.call("pstack_delegate", {
+    mode: "swarm",
+    tasks: ["a", "b"],
+    model: "inherit-parent",
+    thinking: "low",
+  });
+  for (const { args } of runs) {
+    assert.equal(flag(args, "--model"), "anthropic/claude");
+    assert.equal(flag(args, "--thinking"), "low");
+  }
+  await Promise.all(
+    [{ model: "openai/gpt" }, { thinking: "high" }].map((extra) =>
+      assert.rejects(
+        () => h.call("pstack_delegate", { mode: "interrogate", tasks: ["review"], ...extra }),
+        /Panel seats use their configured models/,
+      ),
+    ),
+  );
+  assert.equal(runs.length, 2);
+});
+
+test("resume continues a worker's own session in its own checkout with the follow-up only", async () => {
+  const { h, runs } = recordingHost();
+  const first = fulfilled(
+    delegated(
+      await h.call("pstack_delegate", { mode: "single", tasks: ["start"], thinking: "medium" }),
+    ).outputs,
+  );
+  const resumed = fulfilled(
+    delegated(
+      await h.call("pstack_delegate", {
+        mode: "single",
+        tasks: ["now fix the failing test"],
+        resume: first.sessionDir,
+      }),
+    ).outputs,
+  );
+  const [start, follow] = [nth(runs, 0), nth(runs, 1)];
+  for (const name of ["--session-dir", "--session-id", "--model", "--thinking", "--tools"])
+    assert.equal(flag(follow.args, name), flag(start.args, name), name);
+  assert.equal(follow.cwd, start.cwd);
+  assert.equal(follow.args.at(-1), "now fix the failing test");
+  assert.equal(await readFile(resumed.report, "utf8"), "report 2");
+  assert.equal(resumed.sessionDir, first.sessionDir);
+
+  await assert.rejects(
+    () => h.call("pstack_delegate", { mode: "single", tasks: ["x"], resume: "/tmp" }),
+    /Resume a worker session under/,
+  );
+  await Promise.all(
+    [{ mode: "swarm" }, { model: "openai/gpt" }].map((bad) =>
+      assert.rejects(
+        () =>
+          h.call("pstack_delegate", {
+            mode: "single",
+            tasks: ["x"],
+            resume: first.sessionDir,
+            ...bad,
+          }),
+        /Resume takes mode single/,
+      ),
+    ),
+  );
+  assert.equal(runs.length, 2);
 });

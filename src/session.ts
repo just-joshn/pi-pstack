@@ -1,6 +1,8 @@
+import { dirname, join } from "node:path";
+
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-import { packageFile, routeTriggers } from "./lib/catalog.ts";
+import { packageFile, srcDir } from "./lib/catalog.ts";
 import {
   activePlan,
   initialState,
@@ -27,6 +29,8 @@ function statusLine({ mode, plan, wake }: State) {
   return `pstack ${mode ? "on" : "off"}${progress}${wake?.running ? " | loop" : ""}`;
 }
 
+const routerPath = "skills/poteto-mode/SKILL.md";
+
 /** Team Kit's always-applied rules; loaded with poteto-mode so non-TypeScript sessions skip them. */
 const teamKitRules = [
   "Team Kit rules:",
@@ -40,10 +44,7 @@ function systemPromptAdditions(state: State) {
     ...(state.mode
       ? [
           teamKitRules,
-          packageFile("skills/poteto-mode/SKILL.md"),
-          `Native playbook triggers:\n${routeTriggers()
-            .map((r) => `${r.id}: ${r.when}`)
-            .join("\n")}`,
+          `Persistent poteto-mode. File: ${join(srcDir, routerPath)}\nRelative paths in it resolve from ${join(srcDir, dirname(routerPath))}.\n\n${packageFile(routerPath)}`,
         ]
       : []),
     ...(state.goal ? [`Persistent operator goal: ${state.goal}`] : []),

@@ -155,7 +155,9 @@ test("command activation, explicit plan, native tool update and restore", async 
   await h.cmd("poteto-mode", "on");
   assert.equal(h.state().mode, true);
   const prompt = systemPrompt(h.emit("before_agent_start", { systemPrompt: "base" }));
-  assert(prompt.includes("Native playbook triggers"));
+  assert.match(prompt, /Persistent poteto-mode\. File: \/.+\/skills\/poteto-mode\/SKILL\.md\n/);
+  assert.match(prompt, /Relative paths in it resolve from \/.+\/skills\/poteto-mode\./);
+  assert(prompt.includes("## Subagents"));
   await h.cmd("pstack-run", "bug-fix repair");
   assert(h.messages.at(-1)?.includes("Ordered steps"));
   assert.equal(h.state().plan?.route, "bug-fix");

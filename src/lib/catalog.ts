@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { isRecord, parseJson } from "./validation.ts";
@@ -125,6 +125,7 @@ export function nativeNode(id: string) {
     classification,
     implementation,
     sources: n.source,
+    location: path ? join(srcDir, path) : undefined,
     instructions: path ? packageFile(path) : undefined,
     outgoing: outgoing.get(id) ?? [],
     incoming: incoming.get(id) ?? [],
@@ -132,7 +133,10 @@ export function nativeNode(id: string) {
 }
 export function workflowPrompt(id: string, request: string) {
   const node = nativeNode(id);
-  return `Execute the Pi-native workflow ${id} for the operator's request.\n\n${node.instructions ?? node.implementation}\n\nOperator request:\n${request || "(Use the current conversation context.)"}`;
+  const where = node.location
+    ? `\n\nFile: ${node.location}\nRelative paths in it resolve from ${dirname(node.location)}.`
+    : "";
+  return `Execute the Pi-native workflow ${id} for the operator's request.${where}\n\n${node.instructions ?? node.implementation}\n\nOperator request:\n${request || "(Use the current conversation context.)"}`;
 }
 export function view(id: string) {
   const v = views.get(id);

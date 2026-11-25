@@ -21,12 +21,15 @@ import { parseJson } from "./lib/validation.ts";
 import { agentDir, atomicWrite, fail, hasErrorCode, type Notify, piBin, text } from "./support.ts";
 
 const modelConfigPath = () => join(agentDir(), "pstack-models.json");
-export async function readConfig(configPath = modelConfigPath()): Promise<RoleConfig> {
+export async function readConfig(
+  available: readonly string[],
+  configPath = modelConfigPath(),
+): Promise<RoleConfig> {
   let source: string;
   try {
     source = await readFile(configPath, "utf8");
   } catch (e) {
-    if (hasErrorCode(e, "ENOENT")) return defaultConfig();
+    if (hasErrorCode(e, "ENOENT")) return defaultConfig(available);
     throw e;
   }
   return parseModelConfig(parseJson(source, "pstack model configuration"));
@@ -168,7 +171,7 @@ export function registerModelSetup(pi: ExtensionAPI, notify: Notify) {
           ? `auto and inherit-parent resolve to ${parent}, which is unavailable to workers in this session. Select an available model explicitly.`
           : undefined;
       const configPath = modelConfigPath();
-      const current = await readConfig(configPath);
+      const current = await readConfig(available, configPath);
       const input = args.trim();
       if (input === "show" || (!input && !ctx.hasUI)) {
         notify(ctx, text({ config: current, available, path: configPath, warning }));

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +24,8 @@ async function generatorCopy() {
       "bunfig.toml",
     ].map((p) => copyFile(join(packageRoot, p), join(dir, p))),
   );
+  // Files ported by hand from upstream are inputs that the generator never writes.
+  await cp(join(packageRoot, "src/skills"), join(dir, "src/skills"), { recursive: true });
   const run = (...args: string[]) =>
     spawned("python3", ["scripts/generate.py", ...args], { cwd: dir });
   const success = async (...args: string[]) => {

@@ -14,6 +14,7 @@ import {
   srcDir,
   view,
   views,
+  workflowPrompt,
 } from "../src/lib/catalog.ts";
 import { startPlan } from "../src/lib/state.ts";
 import { shaped } from "./support.ts";
@@ -97,4 +98,15 @@ test("search and catalog reject missing references", () => {
   assert(lookup("runtime diagnosis").some((n) => n.id === "pb-runtime-forensics"));
   assert.throws(() => view("unknown"));
   assert.throws(() => nativeNode("unknown"));
+});
+
+test("a workflow prompt names its file, so the paths inside it resolve", () => {
+  const prompt = workflowPrompt("poteto-mode", "fix it");
+  const file = join(srcDir, "skills/poteto-mode/SKILL.md");
+  assert(
+    prompt.includes(
+      `File: ${file}\nRelative paths in it resolve from ${join(srcDir, "skills/poteto-mode")}.`,
+    ),
+  );
+  assert(prompt.endsWith("Operator request:\nfix it"));
 });

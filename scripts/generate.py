@@ -2,7 +2,7 @@
 
 Inputs:  src/reference/source-map.json (upstream graph; change it only to follow upstream)
          scripts/catalog-source.json (the instructions written for Pi)
-Outputs: src/skills/**, src/lib/catalog-data.json, src/reference/parity.json,
+Outputs: src/skills/** files not yet ported by hand from upstream/, src/lib/catalog-data.json, src/reference/parity.json,
          src/reference/PARITY.md
 
 Catalog paths are relative to src/, which contains the installed extension's files.
@@ -12,6 +12,7 @@ Run `python3 scripts/generate.py` to refresh owned outputs, or add `--check` to 
 
 import argparse
 import json
+import re
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -43,7 +44,30 @@ STATUS_DEFINITIONS = {
 
 upstream = json.loads((PACKAGED / "reference/source-map.json").read_text())
 source = json.loads((ROOT / "scripts/catalog-source.json").read_text())
-steps = source["steps"]
+
+
+def ported(path):
+    """A file ported by hand from upstream; the generator never writes it."""
+    target = PACKAGED / path
+    return target.is_file() and not target.read_text().rstrip().endswith(MARKER)
+
+
+def first_sentence(line):
+    text = re.sub(r"^\d+\.\s+", "", line).strip()
+    match = re.match(r"(.+?[.!?])(\s|$)", text)
+    return (match.group(1) if match else text).replace("**", "")
+
+
+def playbook_steps(route):
+    """A ported playbook's top-level numbered steps, which pstack_plan copies into its task list."""
+    path = f"skills/poteto-mode/playbooks/{route}.md"
+    if not ported(path):
+        return source["steps"][route]
+    lines = (PACKAGED / path).read_text().splitlines()
+    return [first_sentence(line) for line in lines if re.match(r"\d+\.\s", line)]
+
+
+steps = {route: playbook_steps(route) for route in source["steps"]}
 
 
 def is_skill(node):
@@ -172,6 +196,8 @@ for node in upstream["nodes"]:
     )
     if path:
         paths[node["id"]] = path
+        if ported(path):
+            continue
         sections = [body(node), relationships(node["id"]), MARKER]
         outputs[path] = "\n\n".join(filter(None, sections)) + "\n"
 

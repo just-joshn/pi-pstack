@@ -8,6 +8,7 @@ import {
   crossJudge,
   defaultConfig,
   effort,
+  family,
   modelFor,
   selectPanel,
   validateConfig,
@@ -154,6 +155,7 @@ test("a worker loads only the extension that lists its model", async () => {
   assert.deepEqual(shown.available, ["anthropic/claude", "google/gemini", "openai/gpt"]);
   assert.equal(shown.warning, undefined);
 
+  // With no saved configuration, swarm workers default to the Claude family, as upstream does.
   const provided = delegated(await h.call("pstack_delegate", swarm));
   assert.equal(fulfilled(provided.outputs).model, "anthropic/claude");
   assert.deepEqual(loadedBy(nth(workers, 0)), [provider]);
@@ -161,7 +163,7 @@ test("a worker loads only the extension that lists its model", async () => {
   assert.equal(flag(nth(workers, 0), "--tools"), "read,grep,find,ls");
 
   h.ctx.model = model("google", "gemini");
-  const builtIn = delegated(await h.call("pstack_delegate", swarm));
+  const builtIn = delegated(await h.call("pstack_delegate", { ...swarm, model: "inherit-parent" }));
   assert.equal(fulfilled(builtIn.outputs).model, "google/gemini");
   assert.deepEqual(loadedBy(nth(workers, 1)), []);
 });
@@ -257,4 +259,49 @@ test("roles, budget, alias and cross-vendor judge validation", () => {
   cfg.roles["arena cross-judge pool"] = ["auto"];
   assert.throws(() => validateConfig(cfg, [a, b, c]));
   assert.throws(() => modelFor("auto", ""));
+});
+
+test("with no saved configuration, each role takes upstream's default from the models workers can use", () => {
+  const exact = defaultConfig([
+    "anthropic/claude-opus-5-5",
+    "claude/claude-fable-5-2",
+    "openai/gpt-6",
+  ]);
+  assert.deepEqual(exact.roles["feature, refactoring"], ["anthropic/claude-opus-5-5"]);
+  assert.deepEqual(exact.roles["swarm workers"], ["anthropic/claude-opus-5-5"]);
+  assert.deepEqual(exact.roles["arena runners"], [
+    "claude/claude-fable-5-2",
+    "anthropic/claude-opus-5-5",
+    "inherit-parent",
+  ]);
+  assert.deepEqual(exact.roles["arena cross-judge pool"], ["anthropic/claude-opus-5-5"]);
+
+  const sameFamily = defaultConfig(["a/claude-sonnet-5-5", "a/claude-opus-4-8", "g/gemini-3-pro"]);
+  assert.deepEqual(sameFamily.roles["bug-fix"], ["a/claude-opus-4-8"]);
+  assert.deepEqual(sameFamily.roles["interrogate reviewers"], [
+    "inherit-parent",
+    "a/claude-opus-4-8",
+    "g/gemini-3-pro",
+  ]);
+  assert.deepEqual(sameFamily.roles["arena cross-judge pool"], [
+    "a/claude-opus-4-8",
+    "g/gemini-3-pro",
+  ]);
+
+  const none = defaultConfig(["openai/gpt-6"]);
+  assert.deepEqual(none.roles["hillclimb"], ["inherit-parent"]);
+  assert.deepEqual(none.roles["arena runners"], [
+    "inherit-parent",
+    "inherit-parent",
+    "inherit-parent",
+  ]);
+  assert.deepEqual(none.roles["arena cross-judge pool"], []);
+});
+
+test("model families follow arena's prefixes", () => {
+  assert.equal(family("claude/claude-fable-5-2"), "claude-fable");
+  assert.equal(family("anthropic/claude-opus-5-5"), "claude");
+  assert.equal(family("google/gemini-4-neon"), "gemini");
+  assert.equal(family("openai-codex/gpt-6.1-terra"), "gpt");
+  assert.equal(family("cursor-gemini-4"), "gemini");
 });

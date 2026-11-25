@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
@@ -10,7 +10,6 @@ import { srcDir } from "./lib/catalog.ts";
 import {
   type Budget,
   crossJudge,
-  type Effort,
   effort,
   isRole,
   judgeRole,
@@ -21,7 +20,7 @@ import {
 } from "./lib/models.ts";
 import { pool, type PoolResult } from "./lib/pool.ts";
 import { blindTranscript, readPaths } from "./lib/transcript.ts";
-import { errorMessage } from "./lib/validation.ts";
+import { errorMessage, isRecord, parseJson } from "./lib/validation.ts";
 import {
   availableWorkerModels,
   modelName,
@@ -62,11 +61,26 @@ const panelModelRoles: Partial<Record<Mode, Role>> = {
   swarm: "swarm workers",
 };
 
+const thinkingLevels = ["off", "minimal", "low", "medium", "high", "xhigh"] as const;
+type Thinking = (typeof thinkingLevels)[number];
 const parameters = Type.Object({
   mode: stringEnum(modes),
   tasks: Type.Array(Type.String({ minLength: 1 }), { minItems: 1, maxItems: 8 }),
   role: Type.Optional(Type.String()),
   modelRole: Type.Optional(Type.String()),
+  model: Type.Optional(
+    Type.String({
+      description:
+        "Exact provider/model ID, or auto or inherit-parent, for single and swarm workers. Panels use their configured seats.",
+    }),
+  ),
+  thinking: Type.Optional(stringEnum(thinkingLevels)),
+  resume: Type.Optional(
+    Type.String({
+      description:
+        "A prior worker's sessionDir. Continues that worker's session in its checkout with the task as the next message. Mode single only.",
+    }),
+  ),
   readOnly: Type.Optional(Type.Boolean()),
   rubric: Type.Optional(Type.String()),
   base: Type.Optional(Type.String()),
@@ -91,9 +105,13 @@ function resolveWorkers(
   if (p.mode === "arena" && !p.rubric?.trim()) fail("Arena requires a common evaluation rubric");
   const choices = config.roles[modelRole];
   const panel = p.mode === "arena" || p.mode === "interrogate";
+  if (panel && (p.model || p.thinking))
+    fail("Panel seats use their configured models and levels; omit model and thinking");
   if (panel && choices.length < 2) fail("Configure at least two panel seats in /setup-pstack");
   const tasks = panel ? choices.flatMap(() => p.tasks) : p.tasks;
-  const models = selectPanel(config, modelRole, tasks.length).map((m) => modelFor(m, parent));
+  const models = (
+    p.model ? tasks.map(() => p.model ?? "") : selectPanel(config, modelRole, tasks.length)
+  ).map((m) => modelFor(m, parent));
   assertReachable(available, models);
   const judge = p.mode === "arena" ? crossJudge(config, parent, models, available) : undefined;
   if (p.mode === "arena" && !judge)
@@ -103,12 +121,12 @@ function resolveWorkers(
   const workers = tasks.flatMap((task, i) =>
     models.slice(i, i + 1).map((model) => ({ task, model })),
   );
-  return { role, modelRole, readOnly, workers, judge };
+  return { role, modelRole, readOnly, workers, judge, thinking: p.thinking };
 }
 
 export function workerArgs(options: {
   model: string;
-  thinking: Effort;
+  thinking: Thinking;
   readOnly: boolean;
   extension?: string | undefined;
   sessionDir: string;
@@ -117,7 +135,8 @@ export function workerArgs(options: {
 }) {
   return [
     "--print",
-    ...workerIsolation,
+    // A read-only worker has no MCP tools; a writing worker keeps the parent's, as in upstream.
+    ...workerIsolation.filter((flag) => options.readOnly || flag !== "--no-mcp"),
     ...(options.extension ? ["-e", options.extension] : []),
     "--tools",
     options.readOnly ? "read,grep,find,ls" : "read,grep,find,ls,bash,edit,write",
@@ -141,6 +160,7 @@ interface WorkerRequest {
   readOnly: boolean;
   role: string;
   modelRole: Role;
+  thinking?: Thinking | undefined;
 }
 interface RunnerOptions {
   dir: string;
@@ -167,7 +187,7 @@ function diffNotes(diff: ParentDiff | undefined) {
 }
 
 async function workerPrompt(request: WorkerRequest, options: RunnerOptions) {
-  const kickoffPath = join(srcDir, "agents", "worker.md");
+  const kickoffPath = join(srcDir, "skills", "poteto-mode", "worker.md");
   const contract = workerRoles.get(request.role)?.contract;
   return [
     `Read ${kickoffPath} before anything else.`,
@@ -180,7 +200,6 @@ async function workerPrompt(request: WorkerRequest, options: RunnerOptions) {
     `Assigned task: ${request.task}`,
     options.rubric && `Finish predicate / rubric: ${options.rubric}`,
     ...diffNotes(options.diff),
-    "Return evidence and artifact paths; do not perform external side effects.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -194,6 +213,56 @@ async function singleTranscript(sessionDir: string) {
   return session !== undefined && !others.length ? join(sessionDir, session) : null;
 }
 
+interface WorkerRecord {
+  id: string;
+  sessionDir: string;
+  cwd: string;
+  model: string;
+  readOnly: boolean;
+  thinking: Thinking;
+  extension?: string | undefined;
+}
+const isThinking = (value: unknown): value is Thinking =>
+  thinkingLevels.some((level) => level === value);
+const isWorkerRecord = (value: unknown): value is WorkerRecord =>
+  isRecord(value) &&
+  ["id", "sessionDir", "cwd", "model"].every((key) => typeof value[key] === "string") &&
+  typeof value["readOnly"] === "boolean" &&
+  isThinking(value["thinking"]);
+
+async function execWorker(
+  pi: ExtensionAPI,
+  options: Pick<RunnerOptions, "signal" | "progress">,
+  worker: WorkerRecord,
+  run: { thinking: Thinking; prompt: string; report: string },
+) {
+  const args = workerArgs({
+    model: worker.model,
+    readOnly: worker.readOnly,
+    extension: worker.extension,
+    sessionDir: worker.sessionDir,
+    sessionId: worker.id,
+    thinking: run.thinking,
+    prompt: run.prompt,
+  });
+  options.progress(`Running ${worker.id}`);
+  const exec = await pi.exec(piBin, args, {
+    cwd: worker.cwd,
+    timeout: 30 * 60 * 1000,
+    maxBuffer: 4 * 1024 * 1024,
+    ...(options.signal && { signal: options.signal }),
+  });
+  await Promise.all([
+    writeFile(run.report, exec.stdout, { mode: 0o600 }),
+    writeFile(run.report.replace(/\.txt$/, ".stderr.txt"), exec.stderr, { mode: 0o600 }),
+  ]);
+  if (exec.code !== 0 || exec.truncated || exec.killed)
+    fail(`Worker ${worker.id} failed (${exec.code}); inspect ${run.report}`);
+  const transcript = await singleTranscript(worker.sessionDir);
+  const { sessionDir } = worker;
+  return { report: run.report, transcript, sessionDir, summary: exec.stdout.slice(-6000) };
+}
+
 async function launchWorker(
   pi: ExtensionAPI,
   request: WorkerRequest,
@@ -201,34 +270,54 @@ async function launchWorker(
   id: string,
   cwd: string,
 ) {
-  const { dir, signal } = options;
-  const sessionDir = join(dir, id);
+  const sessionDir = join(options.dir, id);
   await mkdir(sessionDir, { mode: 0o700 });
-  const args = workerArgs({
-    model: request.model,
-    thinking: effort(request.modelRole, options.budget, request.model),
-    readOnly: request.readOnly,
-    extension: options.extensions.get(request.model),
+  const worker: WorkerRecord = {
+    id,
     sessionDir,
-    sessionId: id,
-    prompt: await workerPrompt(request, options),
-  });
-  options.progress(`Running ${id}`);
-  const run = await pi.exec(piBin, args, {
     cwd,
-    timeout: 30 * 60 * 1000,
-    maxBuffer: 4 * 1024 * 1024,
-    ...(signal && { signal }),
+    model: request.model,
+    readOnly: request.readOnly,
+    thinking: request.thinking ?? effort(request.modelRole, options.budget, request.model),
+    extension: options.extensions.get(request.model),
+  };
+  await writeFile(join(sessionDir, "worker.json"), JSON.stringify(worker, null, 2), {
+    mode: 0o600,
   });
-  const report = join(dir, `${id}.txt`);
-  await Promise.all([
-    writeFile(report, run.stdout, { mode: 0o600 }),
-    writeFile(join(dir, `${id}.stderr.txt`), run.stderr, { mode: 0o600 }),
-  ]);
-  if (run.code !== 0 || run.truncated || run.killed)
-    fail(`Worker ${id} failed (${run.code}); inspect ${report}`);
-  const transcript = await singleTranscript(sessionDir);
-  return { report, transcript, sessionDir, summary: run.stdout.slice(-6000) };
+  return execWorker(pi, options, worker, {
+    thinking: worker.thinking,
+    prompt: await workerPrompt(request, options),
+    report: join(options.dir, `${id}.txt`),
+  });
+}
+
+/** Continues a prior worker's own Pi session in its own checkout with a follow-up message. */
+async function resumeWorker(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  active: ActiveWorktrees,
+  p: DelegateParams & { resume: string },
+  options: Pick<RunnerOptions, "signal" | "progress">,
+) {
+  if (p.mode !== "single" || p.tasks.length !== 1 || p.model)
+    fail("Resume takes mode single, one follow-up task, and no model");
+  const workers = join(artifacts(ctx), "workers");
+  const sessionDir = resolve(p.resume);
+  if (!sessionDir.startsWith(workers + sep)) fail(`Resume a worker session under ${workers}`);
+  const worker: unknown = parseJson(
+    await readFile(join(sessionDir, "worker.json"), "utf8"),
+    "worker record",
+  );
+  if (!isWorkerRecord(worker) || worker.sessionDir !== sessionDir) fail("Invalid worker record");
+  const run = () =>
+    execWorker(pi, options, worker, {
+      thinking: p.thinking ?? worker.thinking,
+      prompt: p.tasks.join("\n"),
+      report: join(sessionDir, `resume-${randomUUID().slice(0, 8)}.txt`),
+    });
+  const output = worker.readOnly ? await run() : await active.hold(worker.cwd, run);
+  const value = { id: worker.id, model: worker.model, path: worker.cwd, base: null, ...output };
+  return { outputs: [{ status: "fulfilled", value }], dir: dirname(sessionDir) };
 }
 
 function createRunner(
@@ -303,6 +392,13 @@ async function judgeArena(
   };
 }
 
+const judgeOrInconclusive = (...args: Parameters<typeof judgeArena>) =>
+  judgeArena(...args).catch((error: unknown) => ({
+    status: "INCONCLUSIVE: could not complete arena judgment",
+    model: args[3],
+    error: errorMessage(error),
+  }));
+
 function assertReachable(available: ReadonlySet<string>, models: string[]) {
   const unreachable = [...new Set(models)].filter((model) => !available.has(model));
   if (unreachable.length)
@@ -329,11 +425,12 @@ async function delegate(
   signal: AbortSignal | undefined,
   progress: (message: string) => void,
 ) {
-  const config = await readConfig();
   if (!ctx.model) fail("Select a parent model first");
   const extensions = await workerExtensions(pi, ctx, signal);
-  const available = new Set(availableWorkerModels(ctx, extensions));
-  const { role, modelRole, readOnly, workers, judge } = resolveWorkers(
+  const listed = availableWorkerModels(ctx, extensions);
+  const config = await readConfig(listed);
+  const available = new Set(listed);
+  const { role, modelRole, readOnly, workers, judge, thinking } = resolveWorkers(
     p,
     config,
     modelName(ctx.model),
@@ -353,15 +450,9 @@ async function delegate(
     progress,
   });
   const outputs = await pool(workers, p.concurrency ?? 3, ({ task, model }, index) =>
-    run({ task, index, model, readOnly, role, modelRole }),
+    run({ task, index, model, readOnly, role, modelRole, thinking }),
   );
-  const judgment =
-    judge &&
-    (await judgeArena(dir, outputs, p.rubric, judge, run).catch((error: unknown) => ({
-      status: "INCONCLUSIVE: could not complete arena judgment",
-      model: judge,
-      error: errorMessage(error),
-    })));
+  const judgment = judge && (await judgeOrInconclusive(dir, outputs, p.rubric, judge, run));
   return {
     outputs,
     judgment,
@@ -380,7 +471,12 @@ export function registerDelegation(pi: ExtensionAPI, active: ActiveWorktrees) {
     parameters,
     async execute(_id, p, signal, onUpdate, ctx) {
       const progress = (message: string) => onUpdate?.(result(message));
-      return result(await delegate(pi, ctx, active, p, signal, progress));
+      const { resume } = p;
+      return result(
+        resume === undefined
+          ? await delegate(pi, ctx, active, p, signal, progress)
+          : await resumeWorker(pi, ctx, active, { ...p, resume }, { signal, progress }),
+      );
     },
   });
 }
