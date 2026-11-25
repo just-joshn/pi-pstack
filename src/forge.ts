@@ -190,14 +190,13 @@ async function mergePrefix(
 
     // oxlint-disable-next-line eslint/no-await-in-loop -- Stack merges must run in order, each confirmed before the next.
     const { receipt, error } = await mergeOne(pi, ctx, proof, signal);
-    if (!receipt) {
-      const uncertain = {
+    if (!receipt)
+      return {
         ...stopped,
         unconfirmed: proof.number,
         reason: "Merge not confirmed; inspect forge state",
+        error,
       };
-      return error === undefined ? uncertain : { ...uncertain, error };
-    }
     merged.push(receipt);
   }
   return { merged, ceiling: prefix.at(-1)?.number };

@@ -18,7 +18,7 @@ import {
   swarm,
 } from "./host.ts";
 import { audited, git, repo } from "./repo.ts";
-import { flag, nth, shaped } from "./support.ts";
+import { flag, nth } from "./support.ts";
 
 test("swarm preserves reports, errors, order and read-only tool restrictions", async () => {
   const cwd = sandbox;
@@ -109,7 +109,7 @@ test("a running write worker's worktree is reported active and cannot be removed
     execute: async (_, _args, options) => {
       const path = options?.cwd ?? "";
       const audit = await h.call("pstack_worktree", { action: "audit" });
-      seen.push(shaped<{ activeWorker: boolean }>(audited(audit, path)).activeWorker);
+      seen.push(audited(audit, path)?.activeWorker);
       const name = path.split("/").at(-1);
       await assert.rejects(
         () => h.call("pstack_worktree", { action: "remove", name, base: "HEAD" }),
@@ -122,7 +122,7 @@ test("a running write worker's worktree is reported active and cannot be removed
   const worker = fulfilled(delegated(await h.call("pstack_delegate", task)).outputs);
   assert.deepEqual(seen, [true]);
   const after = audited(await h.call("pstack_worktree", { action: "audit" }), worker.path);
-  assert.equal(shaped<{ activeWorker: boolean }>(after).activeWorker, false);
+  assert.equal(after?.activeWorker, false);
 });
 
 test("a worker is told when the parent diff could not be captured", async () => {

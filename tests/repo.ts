@@ -37,6 +37,7 @@ export interface Audited {
   merged: boolean | null;
   dirty: boolean | null;
   ignored: number | null;
+  activeWorker: boolean;
 }
 export const created = (response: ToolResponse) =>
   shaped<{ path: string; base: string }>(readResult(response));
