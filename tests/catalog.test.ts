@@ -24,10 +24,10 @@ const parity = shaped<{ nodes: { id: string }[]; edges: unknown; views: unknown 
 );
 
 test("all original nodes, edges and views are preserved and mapped", () => {
-  assert.equal(nodes.size, 161);
+  assert.equal(nodes.size, 162);
   assert.equal(map.edges.length, 163);
   assert.equal(views.size, 65);
-  assert.equal(new Set(parity.nodes.map((n) => n.id)).size, 161);
+  assert.equal(new Set(parity.nodes.map((n) => n.id)).size, 162);
   assert.deepEqual(parity.edges, map.edges);
   assert.deepEqual(
     parity.views,
@@ -49,12 +49,12 @@ test("all original nodes, edges and views are preserved and mapped", () => {
   assert.equal(view("all-dependencies").edges.length, 163);
 });
 
-test("76 native skills, 22 ordered playbooks and all conditional links", async () => {
+test("77 native skills, 22 ordered playbooks and all conditional links", async () => {
   const skills = Object.entries(catalog.paths).filter(([, p]) => p.endsWith("SKILL.md"));
-  assert.equal(skills.length, 76);
+  assert.equal(skills.length, 77);
   assert.equal(skills.filter(([id]) => id.startsWith("principle-")).length, 24);
   assert.equal(routes.length, 22);
-  assert.equal(new Set(skills.map(([, p]) => p)).size, 76);
+  assert.equal(new Set(skills.map(([, p]) => p)).size, 77);
   await Promise.all(
     skills.map(async ([id, p]) => {
       const f = await packaged(p);

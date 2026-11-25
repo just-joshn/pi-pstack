@@ -1,6 +1,6 @@
 """Generate the skills, playbooks and catalog from the upstream map.
 
-Inputs:  src/reference/source-map.json (upstream graph, never edited)
+Inputs:  src/reference/source-map.json (upstream graph; change it only to follow upstream)
          scripts/catalog-source.json (the instructions written for Pi)
 Outputs: src/skills/**, src/lib/catalog-data.json, src/reference/parity.json,
          src/reference/PARITY.md

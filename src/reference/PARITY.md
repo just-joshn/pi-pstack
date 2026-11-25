@@ -9,6 +9,7 @@ Every original ID is mapped. Status is implementation classification, not behavi
 | `poteto-help`                                        | instruction    | skills/poteto-help/SKILL.md; /poteto-help                                               |
 | `in-your-own-words`                                  | instruction    | skills/in-your-own-words/SKILL.md; /in-your-own-words                                   |
 | `sharpen`                                            | instruction    | skills/sharpen/SKILL.md; /sharpen                                                       |
+| `reframe`                                            | instruction    | skills/reframe/SKILL.md; /reframe                                                       |
 | `how`                                                | instruction    | skills/how/SKILL.md; /how                                                               |
 | `why`                                                | instruction    | skills/why/SKILL.md; /why                                                               |
 | `teach`                                              | instruction    | skills/teach/SKILL.md; /teach                                                           |

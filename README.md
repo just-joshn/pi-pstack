@@ -1,8 +1,8 @@
 # Pi pstack workflow kit
 
-An installable Pi package that reimplements the workflows described by the supplied pstack 0.15.46, Team Kit 1.2.0 and Cursor CLI skill map. It uses the current `@earendil-works/pi-coding-agent` extension API, Pi Agent Skills, native Pi child processes, native session entries and native terminal UI. It does not require a Cursor installation, a Cursor account, another coding agent, or an npm runtime dependency beyond the Pi host. It does not ship Cursor's proprietary cloud services.
+An installable Pi package that reimplements the workflows described by the supplied pstack 0.15.48, Team Kit 1.2.0 and Cursor CLI skill map. It uses the current `@earendil-works/pi-coding-agent` extension API, Pi Agent Skills, native Pi child processes, native session entries and native terminal UI. It does not require a Cursor installation, a Cursor account, another coding agent, or an npm runtime dependency beyond the Pi host. It does not ship Cursor's proprietary cloud services.
 
-**Status: source-map-complete implementation candidate, not certified behavioral parity.** All 161 node IDs, 163 dependency edges, and 65 views are retained and mapped. The skills and playbooks are independently written from the JSON descriptions, with selected official upstream source cross-checks. They are not a complete copy of the upstream pinned repository's leaf files, scripts, templates, or full playbook contracts. Some nodes are model-mediated skills or require a project's own tools. The managed service gaps and test limits are explicit in `src/reference/PARITY.md` and `src/reference/GAPS.md`.
+**Status: source-map-complete implementation candidate, not certified behavioral parity.** All 162 node IDs, 163 dependency edges, and 65 views are retained and mapped. The skills and playbooks are independently written from the JSON descriptions, with selected official upstream source cross-checks. They are not a complete copy of the upstream pinned repository's leaf files, scripts, templates, or full playbook contracts. Some nodes are model-mediated skills or require a project's own tools. The managed service gaps and test limits are explicit in `src/reference/PARITY.md` and `src/reference/GAPS.md`.
 
 ## Install
 
@@ -44,7 +44,7 @@ Use `pi -e npm:pi-pstack-workflow-kit` to try it for one session. Add `--local` 
 
 `/poteto-mode <goal>` attaches the workflow to one request. `/poteto-mode on` persists the router for the selected session branch. The receiving session selects and owns the playbook. `/pstack-run <route> <goal>` selects an explicit playbook. The native task tool initializes ordered steps, records evidence and requires each step to be completed or explicitly skipped before finishing. The router chooses `figure-it-out` for broad/unmatched work. Use `/skill:principle-...` to read a specific principle; the principles are conditional rather than a fixed sequence.
 
-The package registers 52 original slash-skill names (34 ordinary pstack and 18 Team Kit) and nine model-callable tools. All 76 skills, including 24 principle leaves, use the standard `/skill:<name>` interface. Playbooks remain supporting files, not 22 extra ordinary skills. Use Pi's standard `/model`, `/resume`, `/tree`, `/compact`, `/mcp`, `/reload`, `pi install`, and headless JSON/RPC interfaces for host capabilities.
+The package registers 53 original slash-skill names (35 ordinary pstack and 18 Team Kit) and nine model-callable tools. All 77 skills, including 24 principle leaves, use the standard `/skill:<name>` interface. Playbooks remain supporting files, not 22 extra ordinary skills. Use Pi's standard `/model`, `/resume`, `/tree`, `/compact`, `/mcp`, `/reload`, `pi install`, and headless JSON/RPC interfaces for host capabilities.
 
 | Tool              | Behavior                                                                                                               |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -93,7 +93,7 @@ node scripts/smoke.ts
 
 The tests are TypeScript on Vitest and run without a build step. `bun run test` runs them once and `bun run test:watch` reruns them as files change. They use a mock Pi host and forge, a fake child CLI for job dispatch, and temporary real Git repositories. `bun run test:coverage` also applies the gate in `vitest.config.ts`: each TypeScript file in `src/`, which holds everything the installed extension loads, needs 80% statement, branch, function and line coverage.
 
-`node scripts/smoke.ts` launches real Pi in an isolated RPC session without model requests. It checks discovery of all 76 native skills and 52 original slash names, writes and reads mode state, and checks that `/setup-pstack` lists the model of a provider registered by a fixture extension. Set `PSTACK_PI_BIN` to point to a different Pi executable. This smoke does not exercise live models, GitHub, Slack, or MCP services. Test those integrations with disposable resources before relying on them.
+`node scripts/smoke.ts` launches real Pi in an isolated RPC session without model requests. It checks discovery of all 77 native skills and 53 original slash names, writes and reads mode state, and checks that `/setup-pstack` lists the model of a provider registered by a fixture extension. Set `PSTACK_PI_BIN` to point to a different Pi executable. This smoke does not exercise live models, GitHub, Slack, or MCP services. Test those integrations with disposable resources before relying on them.
 
 ## Continuous integration and releases
 
@@ -121,7 +121,7 @@ Everything the installed package needs lives in `src/`, and the package publishe
 
 - `src/`: the extension, one file per feature: `session.ts` (branch state and wake timer), `plan.ts`, `catalog-ui.ts`, `records.ts`, `models.ts`, `delegate.ts`, `parent-diff.ts`, `worktrees.ts`, `forge.ts`, with `git.ts` and `support.ts` shared.
 - `src/lib/`: type-checked TypeScript with no Pi dependency: `catalog.ts`, `models.ts`, `state.ts`, `pool.ts`, `transcript.ts`, `jobs.ts`, `validation.ts`, and the generated `catalog-data.json`.
-- `src/skills/`: 76 native skill directories and 22 nested ordered playbooks (generated).
+- `src/skills/`: 77 native skill directories and 22 nested ordered playbooks (generated).
 - `src/agents/`: worker and reviewer contracts.
 - `src/jobs/`: `run-job.mjs`, the headless job runner, and `job-input.ts`, its job and event validation.
 - `src/reference/source-map.json`: original attachment, unchanged byte-for-byte.
@@ -144,7 +144,7 @@ The extension targets the `@earendil-works` Pi SDK, not the older `@mariozechner
 - [RPC commands](https://docs.pi.dev/latest/rpc-commands)
 - [Configuration](https://docs.pi.dev/latest/configuration)
 - [Environment variables](https://docs.pi.dev/latest/environment-variables)
-- [Pinned original router](https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md)
-- [Pinned original setup](https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/setup-pstack/SKILL.md)
+- [Pinned original router](https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md)
+- [Pinned original setup](https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/setup-pstack/SKILL.md)
 
 Every upstream source URL from the map remains in `src/reference/source-map.json` and `src/reference/parity.json`. No claim is made that the independently authored instructions reproduce every detail in those upstream files.

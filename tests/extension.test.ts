@@ -12,9 +12,9 @@ interface Manifest {
   pi: { extensions: string[]; skills: string[] };
 }
 
-test("mock host registers all 52 slash skills and 9 native tools", () => {
+test("mock host registers all 53 slash skills and 9 native tools", () => {
   const h = host();
-  assert.equal(slashSkills.length, 52);
+  assert.equal(slashSkills.length, 53);
   for (const skill of slashSkills) assert(h.commands.has(skill.label.slice(1)), skill.id);
   assert.equal(h.tools.size, 9);
   assert(h.events.has("before_agent_start"));
