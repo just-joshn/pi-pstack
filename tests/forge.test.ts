@@ -113,7 +113,7 @@ describe("shipping gate", () => {
     assert.deepEqual(result.merged, [{ number: 1, head, url: `${baseUrl}1` }]);
     assert.deepEqual(result.unmerged, [2, 3]);
     assert.equal(result.lookupFailure?.number, 2);
-    assert.match(result.lookupFailure?.error ?? "", /gh pr view failed/);
+    assert.match(result.lookupFailure.error, /gh pr view failed/);
   });
   test("a lookup failure at the first PR never offers later PRs", async () => {
     const h = await shipping((n) => (n === 1 ? unavailable : undefined));

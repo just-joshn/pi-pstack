@@ -108,6 +108,6 @@ describe("parent diff", () => {
       },
     });
     assert.deepEqual(diff?.omitted, ["unstarted", "unreadable"]);
-    assert.equal(await readFile(diff?.path ?? "", "utf8"), "+fine\n");
+    assert.equal(await readFile(diff.path, "utf8"), "+fine\n");
   });
 });

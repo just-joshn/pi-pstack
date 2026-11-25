@@ -4,12 +4,8 @@ import { join } from "node:path";
 
 import { describe, test } from "vitest";
 
-import { type Host, host, resultText, sandbox } from "./host.ts";
-import { shaped } from "./support.ts";
+import { host, resultText, sandbox } from "./host.ts";
 
-/** Where the extension keeps the files of one host's session. */
-const artifacts = (h: Host) =>
-  join(sandbox, "pstack", "sessions", h.ctx.sessionManager.getSessionId());
 const decision = {
   phase: "plan",
   decision: "first",
@@ -27,14 +23,15 @@ describe("records", () => {
       h.notifications,
       Array(2).fill("Choose benny-triage, benny-repro, or custom."),
     );
-    await assert.rejects(() => readdir(artifacts(h)), { code: "ENOENT" });
+    await assert.rejects(() => readdir(h.artifacts), { code: "ENOENT" });
   });
 
   test("a custom automation draft asks for explicit instructions and carries no Benny configuration", async () => {
     const h = host();
     await h.cmd("pstack-automation", " custom ");
-    const path = join(artifacts(h), "custom.job.json");
-    assert.deepEqual(shaped<unknown>(JSON.parse(await readFile(path, "utf8"))), {
+    const path = join(h.artifacts, "custom.job.json");
+    const draft: unknown = JSON.parse(await readFile(path, "utf8"));
+    assert.deepEqual(draft, {
       version: 1,
       enabled: false,
       kind: "custom",
@@ -51,7 +48,7 @@ describe("records", () => {
   test("a second draft of the same kind does not overwrite the first", async () => {
     const h = host();
     await h.cmd("pstack-automation", "custom");
-    const path = join(artifacts(h), "custom.job.json");
+    const path = join(h.artifacts, "custom.job.json");
     const first = await readFile(path, "utf8");
     h.ctx.cwd = join(sandbox, "elsewhere");
     await assert.rejects(() => h.cmd("pstack-automation", "custom"), { code: "EEXIST" });
@@ -63,7 +60,7 @@ describe("records", () => {
     const path = resultText(await h.call("pstack_log", decision));
     const again = resultText(await h.call("pstack_log", { ...decision, decision: "second" }));
     assert.equal(again, path);
-    assert.equal(path, join(artifacts(h), "decisions.tsv"));
+    assert.equal(path, join(h.artifacts, "decisions.tsv"));
     const [header, ...rows] = (await readFile(path, "utf8")).trimEnd().split("\n");
     assert.equal(header, "time\tphase\tdecision\treason\tevidence\tresult");
     assert.deepEqual(

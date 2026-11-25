@@ -57,9 +57,9 @@ describe("worktrees", () => {
     assert.equal(audited(audit, ahead.path)?.merged, false);
     const missing = audited(audit, gone.path);
     assert.equal(missing?.prunable, true);
-    assert.equal(missing?.merged, true);
-    assert.equal(missing?.dirty, null);
-    assert.equal(missing?.ignored, null);
+    assert.equal(missing.merged, true);
+    assert.equal(missing.dirty, null);
+    assert.equal(missing.ignored, null);
   });
 
   test("a bare repository is listed in an audit without being inspected", async () => {

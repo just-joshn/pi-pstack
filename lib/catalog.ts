@@ -90,17 +90,8 @@ export const catalog = packageData("lib/catalog-data.json", isCatalog);
 export const nodes = new Map(map.nodes.map((n) => [n.id, n]));
 export const views = new Map(map.views.map((v) => [v.id, v]));
 const edges = new Map(map.edges.map((e) => [e.id, e]));
-function edgesBy(end: "from" | "to") {
-  const groups = new Map<string, Edge[]>();
-  for (const edge of map.edges) {
-    const group = groups.get(edge[end]);
-    if (group) group.push(edge);
-    else groups.set(edge[end], [edge]);
-  }
-  return groups;
-}
-const outgoing = edgesBy("from");
-const incoming = edgesBy("to");
+const outgoing = Map.groupBy(map.edges, (e) => e.from);
+const incoming = Map.groupBy(map.edges, (e) => e.to);
 export const routes = Object.keys(catalog.steps);
 export const slashSkills = map.nodes.filter(
   (n) =>

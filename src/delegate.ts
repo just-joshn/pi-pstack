@@ -22,7 +22,13 @@ import { pool, type PoolResult } from "../lib/pool.ts";
 import { blindTranscript, readPaths } from "../lib/transcript.ts";
 import { errorMessage } from "../lib/validation.ts";
 import { gitIn } from "./git.ts";
-import { availableWorkerModels, readConfig, workerExtensions, workerIsolation } from "./models.ts";
+import {
+  availableWorkerModels,
+  modelName,
+  readConfig,
+  workerExtensions,
+  workerIsolation,
+} from "./models.ts";
 import { type ParentDiff, saveParentDiff } from "./parent-diff.ts";
 import { artifacts, fail, piBin, result, stringEnum } from "./support.ts";
 import { createWorktree } from "./worktrees.ts";
@@ -309,7 +315,7 @@ export function registerDelegation(pi: ExtensionAPI, active: Set<string>) {
     async execute(_id, p, signal, onUpdate, ctx) {
       const config = await readConfig();
       if (!ctx.model) fail("Select a parent model first");
-      const parent = `${ctx.model.provider}/${ctx.model.id}`;
+      const parent = modelName(ctx.model);
       const extensions = await workerExtensions(pi, ctx, signal);
       const available = new Set(availableWorkerModels(ctx, extensions));
       const { role, modelRole, readOnly, workers, judge } = resolveWorkers(

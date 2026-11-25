@@ -79,15 +79,12 @@ export const stateType = "pstack-state";
 export const stopped = (wake: Wake | null, stopEvidence?: string): Wake | null =>
   wake && { ...wake, running: false, ...(stopEvidence === undefined ? {} : { stopEvidence }) };
 export function restore(entries: readonly unknown[]): State {
-  for (let i = entries.length - 1; i >= 0; i--) {
-    const entry = entries[i];
-    if (!isRecord(entry) || entry["type"] !== "custom" || entry["customType"] !== stateType)
-      continue;
-    if (!isState(entry["data"])) break;
-    const state = structuredClone(entry["data"]);
-    return { ...state, wake: stopped(state.wake) };
-  }
-  return initialState();
+  const saved = entries.findLast(
+    (entry) => isRecord(entry) && entry["type"] === "custom" && entry["customType"] === stateType,
+  );
+  if (!isRecord(saved) || !isState(saved["data"])) return initialState();
+  const state = structuredClone(saved["data"]);
+  return { ...state, wake: stopped(state.wake) };
 }
 
 export function startPlan(route: string, goal: string, customSteps?: string[]): Plan {

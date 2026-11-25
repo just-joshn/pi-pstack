@@ -38,7 +38,7 @@ import { workerArgs, workerRoles } from "../src/delegate.ts";
 import { verifiedPrefix } from "../src/forge.ts";
 import { tsvRow } from "../src/support.ts";
 import { parseWorktrees } from "../src/worktrees.ts";
-import { shaped } from "./support.ts";
+import { flag, shaped } from "./support.ts";
 
 const packaged = (path: string) => readFile(join(root, path), "utf8");
 const parity = shaped<{ nodes: { id: string }[]; edges: unknown; views: unknown }>(
@@ -217,9 +217,8 @@ describe("core", () => {
   });
   test("an invalid latest state cannot resurrect an earlier shipping plan", () => {
     const data = { ...initialState(), plan: startPlan("shipping", "previous plan") };
-    const saved = { type: "custom", customType: "pstack-state", data };
     for (const invalid of [{ ...data, plan: {} }, { ...data, version: 2 }, null]) {
-      assert.deepEqual(restore([saved, { ...saved, data: invalid }]), initialState());
+      assert.deepEqual(restore([savedState(data), savedState(invalid)]), initialState());
     }
   });
   test("bounded wakes and TSV escaping", () => {
@@ -260,12 +259,12 @@ describe("core", () => {
       write = workerArgs({ ...base, readOnly: false });
     assert(read.includes("--no-mcp"));
     assert(read.includes("--no-extensions"));
-    assert.equal(read[read.indexOf("--tools") + 1], "read,grep,find,ls");
-    assert.equal(write[write.indexOf("--tools") + 1], "read,grep,find,ls,bash,edit,write");
+    assert.equal(flag(read, "--tools"), "read,grep,find,ls");
+    assert.equal(flag(write, "--tools"), "read,grep,find,ls,bash,edit,write");
     assert.deepEqual(read.slice(-2), ["--", "--not-a-flag"]);
     assert(!read.includes("-e"));
     const provided = workerArgs({ ...base, readOnly: true, extension: "/provider.ts" });
-    assert.equal(provided[provided.indexOf("-e") + 1], "/provider.ts");
+    assert.equal(flag(provided, "-e"), "/provider.ts");
     assert(provided.includes("--no-extensions"));
     assert(provided.indexOf("-e") < provided.indexOf("--"));
   });
@@ -295,12 +294,12 @@ describe("core", () => {
   test("NUL-delimited worktree output preserves newline and trailing space in paths", () => {
     const [tree] = parseWorktrees("worktree /a\nb \0HEAD abc\0detached\0\0");
     assert.equal(tree?.path, "/a\nb ");
-    assert.equal(tree?.head, "abc");
+    assert.equal(tree.head, "abc");
   });
   test("bare Git worktree entries have no HEAD", () => {
     const [tree] = parseWorktrees("worktree /bare.git\0bare\0\0");
     assert.equal(tree?.bare, true);
-    assert.equal(tree?.head, undefined);
+    assert.equal(tree.head, undefined);
   });
   test("shipping stops at stale head, missing proof, failing checks or noncontiguous prefix", () => {
     const proofs = [proof(1), proof(2), proof(3)],

@@ -35,11 +35,6 @@ const woke = (response: ToolResponse) => shaped<Wake>(readResult(response));
 /** The text of the first content block of one projected transcript line. */
 const firstText = (line: string) =>
   shaped<{ content: { text: string }[] }>(JSON.parse(line)).content[0]?.text;
-/** The system prompt the extension would hand to the next agent run, if it changes it. */
-function startedPrompt(h: Host) {
-  const started = h.emit("before_agent_start", { systemPrompt: "base" });
-  return isRecord(started) ? started["systemPrompt"] : started;
-}
 
 async function finishedPlan() {
   const h = host();
@@ -96,7 +91,8 @@ describe("extension", () => {
     const h = host();
     await h.cmd("poteto-mode", "on");
     assert.equal(h.state().mode, true);
-    const prompt = startedPrompt(h);
+    const started = h.emit("before_agent_start", { systemPrompt: "base" });
+    const prompt = isRecord(started) ? started["systemPrompt"] : undefined;
     assert(typeof prompt === "string" && prompt.includes("Native playbook triggers"));
     await h.cmd("pstack-run", "bug-fix repair");
     assert(h.messages.at(-1)?.includes("Ordered steps"));
@@ -453,7 +449,7 @@ describe("extension", () => {
       output.judgment?.readAudit?.map((entry) => entry.read),
       [true, false],
     );
-    assert.match(output.judgment?.status ?? "", /INCONCLUSIVE/);
+    assert.match(output.judgment.status, /INCONCLUSIVE/);
   });
 
   test("swarm preserves reports, errors, order and read-only tool restrictions", async () => {
@@ -587,18 +583,7 @@ describe("extension", () => {
     const h = host();
     await h.cmd("pstack-automation", "benny-triage");
     const draft = shaped<{ enabled: boolean; instructions: string; config: { enabled: boolean } }>(
-      JSON.parse(
-        await readFile(
-          join(
-            sandbox,
-            "pstack",
-            "sessions",
-            h.ctx.sessionManager.getSessionId(),
-            "benny-triage.job.json",
-          ),
-          "utf8",
-        ),
-      ),
+      JSON.parse(await readFile(join(h.artifacts, "benny-triage.job.json"), "utf8")),
     );
     assert.equal(draft.enabled, false);
     assert.equal(draft.config.enabled, false);
@@ -615,7 +600,7 @@ describe("extension", () => {
     const made = created(await h.call("pstack_worktree", { action: "create", name: "fixture" }));
     const clean = audited(await h.call("pstack_worktree", { action: "audit" }), made.path);
     assert.equal(clean?.merged, true);
-    assert.equal(clean?.dirty, false);
+    assert.equal(clean.dirty, false);
     const dirty = join(made.path, "dirty.txt");
     await writeFile(dirty, "keep");
     await git(cwd, "config", "status.showUntrackedFiles", "no");
@@ -727,7 +712,7 @@ describe("extension", () => {
     await writeFile(secret, "SECRET");
     const entry = audited(await h.call("pstack_worktree", { action: "audit" }), tree.path);
     assert.equal(entry?.dirty, false);
-    assert.equal(entry?.ignored, 2);
+    assert.equal(entry.ignored, 2);
     const remove = () =>
       h.call("pstack_worktree", { action: "remove", name: "fixture", base: "HEAD" });
     await assert.rejects(remove, /Removal not authorized/);

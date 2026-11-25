@@ -37,7 +37,7 @@ const isToolList = (value: unknown): value is string[] =>
   Array.isArray(value) &&
   value.length > 0 &&
   value.every((t) => typeof t === "string" && /^[a-zA-Z0-9_][a-zA-Z0-9_-]*$/.test(t));
-const isMcp = (name: string) => name.startsWith("mcp__");
+export const isMcp = (name: string) => name.startsWith("mcp__");
 
 const words = (name: string) =>
   name

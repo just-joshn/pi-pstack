@@ -10,7 +10,6 @@ import { catalog, root, slashSkills } from "../lib/catalog.ts";
 import { errorMessage, isRecord } from "../lib/validation.ts";
 
 type Rpc = Record<string, unknown>;
-const isText = (value: unknown): value is string => typeof value === "string";
 
 const cwd = await mkdtemp(join(tmpdir(), "pstack-smoke-"));
 const child = spawn(
@@ -49,7 +48,7 @@ createInterface({ input: child.stdout, crlfDelay: Infinity }).on("line", (line) 
   if (
     item?.["type"] === "extension_ui_request" &&
     item["method"] === "notify" &&
-    isText(item["message"])
+    typeof item["message"] === "string"
   )
     notices.push(item["message"]);
 });

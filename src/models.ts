@@ -42,7 +42,7 @@ export const workerIsolation = [
 ];
 const modelsInScope = (ctx: ExtensionContext) =>
   ctx.scopedModels.length ? ctx.scopedModels.map((m) => m.model) : ctx.modelRegistry.getAvailable();
-const modelName = (m: { provider: string; id: string }) => `${m.provider}/${m.id}`;
+export const modelName = (m: { provider: string; id: string }) => `${m.provider}/${m.id}`;
 
 async function listedModels(
   pi: ExtensionAPI,
@@ -110,12 +110,10 @@ export function availableWorkerModels(
   extensions: ReadonlyMap<string, string>,
 ) {
   const registered = new Set(ctx.modelRegistry.getRegisteredProviderIds());
-  const available = modelsInScope(ctx)
+  const ids = modelsInScope(ctx)
     .filter((m) => !registered.has(m.provider) || extensions.has(modelName(m)))
     .map(modelName);
-  const ids = [...new Set(available)];
-  ids.sort();
-  return ids;
+  return [...new Set(ids)].toSorted();
 }
 
 async function chooseRole(ctx: ExtensionContext, role: Role, available: string[]) {
@@ -164,7 +162,7 @@ export function registerModelSetup(pi: ExtensionAPI, notify: Notify) {
     description: "Configure pstack role models and reasoning budget",
     handler: async (args, ctx) => {
       const available = availableWorkerModels(ctx, await workerExtensions(pi, ctx));
-      const parent = ctx.model && `${ctx.model.provider}/${ctx.model.id}`;
+      const parent = ctx.model && modelName(ctx.model);
       const warning =
         parent && !available.includes(parent)
           ? `auto and inherit-parent resolve to ${parent}, which is unavailable to workers in this session. Select an available model explicitly.`

@@ -33,7 +33,7 @@ const checksPass = (pr: PullRequestStatus) =>
       : check.state === "SUCCESS",
   );
 const mergeReady = (proof: Proof, pr: PullRequestStatus) =>
-  !!proof.evidence?.trim() &&
+  !!proof.evidence.trim() &&
   proof.independent &&
   proof.head === pr.headRefOid &&
   pr.state === "OPEN" &&

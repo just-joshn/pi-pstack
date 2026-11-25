@@ -170,6 +170,8 @@ export function host({
     notifications,
     executions,
     ctx,
+    /** Where the extension keeps the files of this session. */
+    artifacts: join(sandbox, "pstack", "sessions", sessionId),
     /** The state the extension saved last. */
     state: () => shaped<State>(entries.at(-1)?.data),
     /** What `/setup-pstack show` reported last. */

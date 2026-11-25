@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 import { aliases } from "../lib/models.ts";
 import { isRecord } from "../lib/validation.ts";
-import { configuredModel, readEvent, readJob } from "./job-input.ts";
+import { configuredModel, isMcp, readEvent, readJob } from "./job-input.ts";
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 
 const [flag, jobFile, eventFile] = process.argv.slice(2);
@@ -43,7 +43,7 @@ const prompt = [
 ]
   .filter(Boolean)
   .join("\n\n");
-const mcp = job.tools.some((t) => t.startsWith("mcp__"));
+const mcp = job.tools.some(isMcp);
 const args = [
   "--print",
   "--approve",

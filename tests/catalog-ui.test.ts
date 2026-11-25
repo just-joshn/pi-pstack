@@ -65,10 +65,10 @@ describe("catalog commands", () => {
       shaped<{ id: string; parent: string | null; children: string[] }>(JSON.parse(message)),
     );
     assert.equal(root?.id, "root");
-    assert.equal(root?.parent, null);
-    assert(root?.children.includes("setup"));
+    assert.equal(root.parent, null);
+    assert(root.children.includes("setup"));
     assert.equal(setup?.id, "setup");
-    assert.equal(setup?.parent, "root");
+    assert.equal(setup.parent, "root");
   });
 
   test("the map browser opens a child view, returns to its parent and exits", async () => {
@@ -81,7 +81,7 @@ describe("catalog commands", () => {
     assert(!root?.choices.some((choice) => choice.endsWith("(back)")));
     assert.equal(root?.choices.at(-1), "Exit");
     assert.equal(setup?.choices[0], "view:root (back)");
-    assert.notEqual(setup?.title, root?.title);
+    assert.notEqual(setup.title, root.title);
     assert.deepEqual(back, root);
     assert.equal(h.messages.length, 0);
   });

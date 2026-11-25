@@ -7,8 +7,6 @@ import type { Wake } from "../lib/state.ts";
 import { host, type Summary } from "./host.ts";
 import { nth, shaped } from "./support.ts";
 
-const custom = { action: "custom", goal: "verify", steps: ["check"] };
-
 describe("plan commands", () => {
   test("/poteto-mode with a goal runs the router once without saving the mode", async () => {
     const h = host();
@@ -72,7 +70,7 @@ describe("plan commands", () => {
     const status = shaped<Summary>(JSON.parse(nth(h.notifications, 0)));
     assert.equal(status.goal, "ship 0.2");
     assert.equal(status.plan?.route, "bug-fix");
-    assert.equal(status.plan?.goal, "repair the pool");
+    assert.equal(status.plan.goal, "repair the pool");
     assert.equal(status.wake, null);
     assert.equal(status.complete, false);
   });
@@ -115,7 +113,7 @@ describe("plan commands", () => {
 
   test("a plan update names both a task and a known status", async () => {
     const h = host();
-    await h.call("pstack_plan", custom);
+    await h.call("pstack_plan", { action: "custom", goal: "verify", steps: ["check"] });
     const update = (change: object) => h.call("pstack_plan", { action: "update", ...change });
     await assert.rejects(() => update({ status: "done", evidence: "x" }), /task and status/);
     await assert.rejects(() => update({ task: 1 }), /task and status/);
