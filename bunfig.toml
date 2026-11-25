@@ -8,7 +8,28 @@ trailingComma = "all"
 bracketSpacing = true
 arrowParens = "always"
 endOfLine = "lf"
+quoteProps = "as-needed"
 proseWrap = "preserve"
-sortImports = true
+
 sortPackageJson = true
-ignorePatterns = ["dist/", "coverage/"]
+sortTailwindcss = false
+
+ignorePatterns = [
+  "dist/",
+  "build/",
+  "coverage/",
+]
+
+[fmt.sortImports]
+groups = [
+  "builtin",
+  "external",
+  ["internal", "subpath"],
+  ["parent", "sibling", "index"],
+  "style",
+  "unknown",
+]
+order = "asc"
+ignoreCase = true
+newlinesBetween = true
+sortSideEffects = false

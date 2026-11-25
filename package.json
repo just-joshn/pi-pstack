@@ -34,14 +34,19 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "typecheck": "tsc --noEmit",
-    "check": "bun run typecheck && bun run lint && bun run format:check",
-    "fix": "bun run lint:fix && bun run format"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test:coverage"
   },
   "devDependencies": {
-    "@types/node": "22.20.5",
-    "oxlint": "1.95.0",
+    "@types/node": "22",
+    "@vitest/coverage-v8": "^5.1.1",
+    "oxlint": "^1.95.0",
+    "oxlint-tsgolint": "^7.0.2008",
     "tsrs": "7.1.0-beta.tsrs5",
-    "typescript": "7.0.2"
+    "typescript": "6",
+    "vitest": "^5.1.1"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

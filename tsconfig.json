@@ -1,28 +1,36 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022"],
+    "target": "ES2024",
+    "lib": ["ES2024"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "moduleDetection": "force",
     "types": ["node"],
+
     "noEmit": true,
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "erasableSyntaxOnly": true,
     "isolatedModules": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+
     "strict": true,
     "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
+    "noUncheckedSideEffectImports": true,
+    "noPropertyAccessFromIndexSignature": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "incremental": true,
-    "tsBuildInfoFile": "./node_modules/.cache/pi-extension.tsbuildinfo"
+    "tsBuildInfoFile": "./node_modules/.cache/typescript/tsconfig.tsbuildinfo"
   },
   "include": ["**/*.ts", "**/*.mts"],
-  "exclude": ["node_modules", "dist", "coverage"]
+  "exclude": ["node_modules", "dist", "build", "coverage"]
 }
