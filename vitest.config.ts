@@ -7,7 +7,7 @@ export default defineConfig({
 
     coverage: {
       provider: "v8",
-      include: ["src/**/*.{ts,mts}"],
+      include: ["src/**/*.{ts,mts}", "lib/**/*.{ts,mts}", "scripts/job-input.ts"],
       exclude: [
         "**/*.d.{ts,mts}",
         "**/*.{test,spec}.{ts,mts}",
