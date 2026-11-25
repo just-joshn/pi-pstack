@@ -84,27 +84,39 @@ Run the development checks from a source checkout:
 
 ```sh
 bun install --frozen-lockfile
-bun run check:ci
-bun run smoke
+bun run check
+python3 scripts/generate.py --check
+node --test tests/*.test.ts
+node scripts/smoke.ts
 ```
 
-`check:ci` checks that generated files match their sources, then runs lint, format checks, the TypeScript compiler against the installed Pi SDK, and the Node test suite with an 80% gate for line, branch, and function coverage. Use `bun run check` to run the same checks with the local TSRS compiler, or `bun run test` to run only the tests. The suite uses a mock Pi host and forge, a fake child CLI for job dispatch, and temporary real Git repositories.
+`bun run check` runs the TypeScript compiler against the installed Pi SDK, type-aware oxlint and the `bun fmt` format check. `bun run fix` applies lint fixes and formats the code. `python3 scripts/generate.py --check` reports generated files that no longer match their sources. The tests are TypeScript on Node's test runner and run without a build step. They use a mock Pi host and forge, a fake child CLI for job dispatch, and temporary real Git repositories.
 
-`smoke` launches real Pi in an isolated RPC session without model requests. It checks discovery of all 76 native skills and 52 original slash names, writes and reads mode state, and checks that `/setup-pstack` lists the model of a provider registered by a fixture extension. Set `PSTACK_PI_BIN` to point to a different Pi executable. This smoke does not exercise live models, GitHub, Slack, or MCP services. Test those integrations with disposable resources before relying on them.
+To apply the 80% gate for line, branch, and function coverage:
+
+```sh
+node --test --experimental-test-coverage \
+  --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 \
+  --test-coverage-include='src/**' --test-coverage-include='lib/**' \
+  --test-coverage-include='scripts/run-job.mjs' --test-coverage-include='scripts/job-input.ts' \
+  tests/*.test.ts
+```
+
+`node scripts/smoke.ts` launches real Pi in an isolated RPC session without model requests. It checks discovery of all 76 native skills and 52 original slash names, writes and reads mode state, and checks that `/setup-pstack` lists the model of a provider registered by a fixture extension. Set `PSTACK_PI_BIN` to point to a different Pi executable. This smoke does not exercise live models, GitHub, Slack, or MCP services. Test those integrations with disposable resources before relying on them.
 
 ## Files
 
 - `src/`: the extension, one file per feature: `session.ts` (branch state and wake timer), `plan.ts`, `catalog-ui.ts`, `records.ts`, `models.ts`, `delegate.ts`, `parent-diff.ts`, `worktrees.ts`, `forge.ts`, with `git.ts` and `support.ts` shared.
 - `lib/`: type-checked TypeScript with no Pi dependency: `catalog.ts`, `models.ts`, `state.ts`, `pool.ts`, `transcript.ts`, `jobs.ts`, `validation.ts`.
 - `scripts/catalog-source.json`: the instructions written for Pi: playbook steps, principle rules, skill bodies and implementation classifications. Edit this, not the generated files.
-- `scripts/generate.py`: `bun run generate` rebuilds `skills/`, `lib/catalog-data.json`, `reference/parity.json` and `reference/PARITY.md` from the source map and `catalog-source.json`. Regeneration removes obsolete generator-marked skill and playbook files, not hand-authored files. `bun run check:generated` reports drift without writing.
+- `scripts/generate.py`: `python3 scripts/generate.py` rebuilds `skills/`, `lib/catalog-data.json`, `reference/parity.json` and `reference/PARITY.md` from the source map and `catalog-source.json`, and formats them with `bun fmt`. Regeneration removes obsolete generator-marked skill and playbook files, not hand-authored files. With `--check` it reports drift without writing.
 - `skills/`: 76 native skill directories and 22 nested ordered playbooks (generated).
 - `agents/`: worker and reviewer contracts.
 - `reference/source-map.json`: original attachment, unchanged byte-for-byte.
 - `reference/parity.json` (generated): machine-readable original IDs, edges and views with implementation classifications.
 - `reference/PARITY.md`, `reference/GAPS.md`: audit matrix and residual gaps.
 - `reference/benny/`: dormant configuration and workflow instructions.
-- `scripts/run-job.mjs`, `scripts/job-input.ts`, `scripts/smoke.mjs`, `scripts/smoke-provider.ts`, `tests/`: runner, job validation and verification.
+- `scripts/run-job.mjs`, `scripts/job-input.ts`, `scripts/smoke.ts`, `scripts/smoke-provider.ts`, `tests/`: runner, job validation and verification.
 
 ## Official references
 
