@@ -86,21 +86,12 @@ Run the development checks from a source checkout:
 bun install --frozen-lockfile
 bun run check
 python3 scripts/generate.py --check
-node --test tests/*.test.ts
 node scripts/smoke.ts
 ```
 
-`bun run check` runs the TypeScript compiler against the installed Pi SDK, type-aware oxlint and the `bun fmt` format check. `bun run fix` applies lint fixes and formats the code. `python3 scripts/generate.py --check` reports generated files that no longer match their sources. The tests are TypeScript on Node's test runner and run without a build step. They use a mock Pi host and forge, a fake child CLI for job dispatch, and temporary real Git repositories.
+`bun run check` runs the `bun fmt` format check, type-aware oxlint, the TypeScript compiler against the installed Pi SDK, and the tests with the coverage gate. `bun run format` and `bun run lint:fix` apply the fixes. `python3 scripts/generate.py --check` reports generated files that no longer match their sources.
 
-To apply the 80% gate for line, branch, and function coverage:
-
-```sh
-node --test --experimental-test-coverage \
-  --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 \
-  --test-coverage-include='src/**' --test-coverage-include='lib/**' \
-  --test-coverage-include='scripts/run-job.mjs' --test-coverage-include='scripts/job-input.ts' \
-  tests/*.test.ts
-```
+The tests are TypeScript on Vitest and run without a build step. `bun run test` runs them once and `bun run test:watch` reruns them as files change. They use a mock Pi host and forge, a fake child CLI for job dispatch, and temporary real Git repositories. `bun run test:coverage` also applies the gate in `vitest.config.ts`: each file in `src/` needs 80% statement, branch, function and line coverage.
 
 `node scripts/smoke.ts` launches real Pi in an isolated RPC session without model requests. It checks discovery of all 76 native skills and 52 original slash names, writes and reads mode state, and checks that `/setup-pstack` lists the model of a provider registered by a fixture extension. Set `PSTACK_PI_BIN` to point to a different Pi executable. This smoke does not exercise live models, GitHub, Slack, or MCP services. Test those integrations with disposable resources before relying on them.
 
