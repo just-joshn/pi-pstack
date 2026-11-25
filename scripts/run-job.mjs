@@ -1,3 +1,5 @@
+// tsconfig.json covers TypeScript only, so this script names its types for the linter.
+/// <reference types="node" />
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
