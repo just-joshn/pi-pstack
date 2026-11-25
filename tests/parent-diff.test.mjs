@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { saveParentDiff } from "../extensions/parent-diff.ts";
+import { saveParentDiff } from "../src/parent-diff.ts";
 
 async function capture(t, tracked, patches) {
   const dir = await mkdtemp(join(tmpdir(), "parent-diff-"));

@@ -3,10 +3,10 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-import { workerArgs, workerRoles } from "../extensions/delegate.ts";
-import { verifiedPrefix } from "../extensions/forge.ts";
-import { tsvRow } from "../extensions/support.ts";
-import { parseWorktrees } from "../extensions/worktrees.ts";
+import { workerArgs, workerRoles } from "../src/delegate.ts";
+import { verifiedPrefix } from "../src/forge.ts";
+import { tsvRow } from "../src/support.ts";
+import { parseWorktrees } from "../src/worktrees.ts";
 import {
   map,
   root,

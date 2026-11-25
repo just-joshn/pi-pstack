@@ -55,7 +55,7 @@ const args = [
   runDir,
 ];
 if (job.kind === "custom" && job.tools.some((t) => t.startsWith("pstack_")))
-  args.push("-e", join(packageRoot, "extensions/index.ts"));
+  args.push("-e", join(packageRoot, "src/index.ts"));
 const model = configuredModel(job);
 if (model && !aliases.includes(model)) args.push("--model", model);
 if (job.thinking) args.push("--thinking", job.thinking);

@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 export const exec = promisify(execFile);
 export const sandbox = await mkdtemp(join(tmpdir(), "pi-pstack-test-"));
 process.env.PI_CODING_AGENT_DIR = sandbox;
-const { default: extension } = await import("../extensions/index.ts");
+const { default: extension } = await import("../src/index.ts");
 export const configFile = join(sandbox, "pstack-models.json");
 export function host({
   confirm = false,

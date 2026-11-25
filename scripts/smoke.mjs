@@ -22,7 +22,7 @@ const child = spawn(
     "--no-prompt-templates",
     "--no-mcp",
     "-e",
-    join(root, "extensions/index.ts"),
+    join(root, "src/index.ts"),
     "-e",
     join(root, "scripts/smoke-provider.ts"),
     "--skill",

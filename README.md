@@ -94,7 +94,7 @@ bun run smoke
 
 ## Files
 
-- `extensions/`: one file per feature: `session.ts` (branch state and wake timer), `plan.ts`, `catalog-ui.ts`, `records.ts`, `models.ts`, `delegate.ts`, `parent-diff.ts`, `worktrees.ts`, `forge.ts`, with `git.ts` and `support.ts` shared.
+- `src/`: the extension, one file per feature: `session.ts` (branch state and wake timer), `plan.ts`, `catalog-ui.ts`, `records.ts`, `models.ts`, `delegate.ts`, `parent-diff.ts`, `worktrees.ts`, `forge.ts`, with `git.ts` and `support.ts` shared.
 - `lib/`: type-checked TypeScript with no Pi dependency: `catalog.ts`, `models.ts`, `state.ts`, `pool.ts`, `transcript.ts`, `jobs.ts`, `validation.ts`.
 - `scripts/catalog-source.json`: the instructions written for Pi: playbook steps, principle rules, skill bodies and implementation classifications. Edit this, not the generated files.
 - `scripts/generate.py`: `bun run generate` rebuilds `skills/`, `lib/catalog-data.json`, `reference/parity.json` and `reference/PARITY.md` from the source map and `catalog-source.json`. Regeneration removes obsolete generator-marked skill and playbook files, not hand-authored files. `bun run check:generated` reports drift without writing.

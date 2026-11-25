@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import test from "node:test";
 
-import "../extensions/index.ts";
+import "../src/index.ts";
 import { configFile, host, readResult, sandbox } from "./host.mjs";
 
 void test("an extension imported before the test host still uses only the sandbox", async () => {

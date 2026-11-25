@@ -16,12 +16,12 @@
   },
   "files": [
     "agents",
-    "extensions",
     "lib",
     "reference",
     "scripts/job-input.ts",
     "scripts/run-job.mjs",
-    "skills"
+    "skills",
+    "src"
   ],
   "type": "module",
   "publishConfig": {
@@ -54,7 +54,7 @@
   },
   "pi": {
     "extensions": [
-      "extensions/index.ts"
+      "src/index.ts"
     ],
     "skills": [
       "skills"
