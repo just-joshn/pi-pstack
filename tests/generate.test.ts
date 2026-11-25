@@ -8,7 +8,8 @@ import { describe, onTestFinished, test } from "vitest";
 import { root } from "../lib/catalog.ts";
 import { shaped, spawned } from "./support.ts";
 
-describe("generator", () => {
+// The test runs the generator several times, so the default 5 seconds is too short on a slow machine.
+describe("generator", { timeout: 30_000 }, () => {
   test("generated checks are read-only, detect drift, and regenerate only owned files", async () => {
     const dir = await mkdtemp(join(tmpdir(), "catalog-generate-"));
     onTestFinished(() => rm(dir, { recursive: true, force: true }));

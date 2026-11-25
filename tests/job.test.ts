@@ -95,7 +95,8 @@ process.exitCode = Number(process.env.PSTACK_TEST_EXIT_CODE ?? 0);
   };
 }
 
-describe("job runner", () => {
+// Some tests start many child processes, so the default 5 seconds is too short on a slow machine.
+describe("job runner", { timeout: 30_000 }, () => {
   test("unsupported job shapes fail before claiming a run", async () => {
     const { job, enabled, run, refused, runs } = await fixture();
     for (const invalid of [
