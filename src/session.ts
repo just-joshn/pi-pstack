@@ -53,9 +53,21 @@ function wakeMessage(count: number, wake: Wake) {
   };
 }
 
+/** A deep copy that nothing can change, so state changes only through commit. */
+function frozen(state: State): State {
+  const copy = structuredClone(state);
+  const freeze = (value: unknown) => {
+    if (typeof value !== "object" || value === null) return;
+    Object.values(value).forEach(freeze);
+    Object.freeze(value);
+  };
+  freeze(copy);
+  return copy;
+}
+
 /** Branch state persisted as session entries and mirrored in the status bar and widget. */
 function createStore(pi: ExtensionAPI) {
-  let state = initialState();
+  let state = frozen(initialState());
   function refresh(ctx: ExtensionContext) {
     if (!ctx.hasUI) return;
     ctx.ui.setStatus("pstack", statusLine(state));
@@ -67,16 +79,16 @@ function createStore(pi: ExtensionAPI) {
   return {
     state: () => state,
     commit(ctx: ExtensionContext, change: Partial<State>) {
-      state = { ...state, ...change };
+      state = frozen({ ...state, ...change });
       pi.appendEntry(stateType, structuredClone(state));
       refresh(ctx);
     },
     restore(ctx: ExtensionContext) {
-      state = restore(ctx.sessionManager.getBranch());
+      state = frozen(restore(ctx.sessionManager.getBranch()));
       refresh(ctx);
     },
     halt() {
-      state = { ...state, wake: stopped(state.wake) };
+      state = frozen({ ...state, wake: stopped(state.wake) });
     },
   };
 }
