@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { test } from "vitest";
 
-import { lookup, nodes } from "../lib/catalog.ts";
+import { lookup, nodes } from "../src/lib/catalog.ts";
 import { type Host, host, readResult } from "./host.ts";
 import { nth, shaped } from "./support.ts";
 

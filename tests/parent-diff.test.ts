@@ -71,6 +71,7 @@ test("the diff budget counts UTF-8 bytes and keeps later whole patches that fit"
   assert.deepEqual(omitted, ["oversized"]);
   assert(bytes.equals(Buffer.from(text + "+ok\n+end\n")));
 });
+
 test("a full artifact omits the remaining files without reading every patch", async () => {
   const patch = "x".repeat(256 * 1024);
   const files = Array.from({ length: 32 }, (_, i) => `file${i}`);
@@ -82,6 +83,7 @@ test("a full artifact omits the remaining files without reading every patch", as
   assert.deepEqual(omitted, files.slice(8));
   assert(visited.length < files.length);
 });
+
 test("nothing is saved when Git cannot diff the tracked files or list the untracked ones", async () => {
   const failed = ran(128, "");
   assert.deepEqual(await save({ ...readable, tracked: failed }), {
@@ -91,11 +93,13 @@ test("nothing is saved when Git cannot diff the tracked files or list the untrac
   assert.deepEqual(await save({ ...readable, listed: failed }), { diff: undefined, written: [] });
   assert.deepEqual((await save(readable)).written, ["parent.diff"]);
 });
+
 test("a tracked diff larger than the budget is not saved in part", async () => {
   const oversized = ran(0, "x".repeat(2 * 1024 * 1024 + 1));
   const saved = await save({ ...readable, tracked: oversized });
   assert.deepEqual(saved, { diff: undefined, written: [] });
 });
+
 test("an untracked file that Git cannot diff is omitted and the others are kept", async () => {
   const { diff } = await save({
     tracked: ran(0, ""),

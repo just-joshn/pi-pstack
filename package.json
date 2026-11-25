@@ -15,12 +15,6 @@
     "url": "git+https://github.com/just-joshn/pi-pstack.git"
   },
   "files": [
-    "agents",
-    "lib",
-    "reference",
-    "scripts/job-input.ts",
-    "scripts/run-job.mjs",
-    "skills",
     "src"
   ],
   "type": "module",
@@ -61,7 +55,7 @@
       "src/index.ts"
     ],
     "skills": [
-      "skills"
+      "src/skills"
     ]
   }
 }

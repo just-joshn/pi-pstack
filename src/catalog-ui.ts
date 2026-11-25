@@ -10,7 +10,7 @@ import {
   view,
   views,
   workflowPrompt,
-} from "../lib/catalog.ts";
+} from "./lib/catalog.ts";
 import { type Notify, result, stringEnum, text } from "./support.ts";
 
 const ownCommands = new Set(["setup-pstack", "poteto-mode"]);

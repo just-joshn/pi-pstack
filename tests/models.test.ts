@@ -3,7 +3,7 @@ import { readFile, rm } from "node:fs/promises";
 
 import { onTestFinished, test } from "vitest";
 
-import type { RoleConfig } from "../lib/models.ts";
+import type { RoleConfig } from "../src/lib/models.ts";
 import {
   crossJudge,
   defaultConfig,
@@ -12,7 +12,7 @@ import {
   selectPanel,
   validateConfig,
   vendor,
-} from "../lib/models.ts";
+} from "../src/lib/models.ts";
 import {
   configFile,
   delegated,

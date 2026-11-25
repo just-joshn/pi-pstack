@@ -4,9 +4,9 @@ import { join } from "node:path";
 
 import { onTestFinished, test, vi } from "vitest";
 
-import { routes } from "../lib/catalog.ts";
-import type { Wake } from "../lib/state.ts";
-import { isRecord } from "../lib/validation.ts";
+import { routes } from "../src/lib/catalog.ts";
+import type { Wake } from "../src/lib/state.ts";
+import { isRecord } from "../src/lib/validation.ts";
 import { host, planned, readResult, type Summary, type ToolResponse } from "./host.ts";
 import { nth, shaped } from "./support.ts";
 

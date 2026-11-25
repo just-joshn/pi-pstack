@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-import { packageFile, routeTriggers } from "../lib/catalog.ts";
+import { packageFile, routeTriggers } from "./lib/catalog.ts";
 import {
   activePlan,
   initialState,
@@ -10,7 +10,7 @@ import {
   stopped,
   type TaskStatus,
   type Wake,
-} from "../lib/state.ts";
+} from "./lib/state.ts";
 
 const markers: Record<TaskStatus, string> = {
   pending: "[ ]",

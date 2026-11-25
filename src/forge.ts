@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { errorMessage, isRecord, parseJson } from "../lib/validation.ts";
+import { errorMessage, isRecord, parseJson } from "./lib/validation.ts";
 import { fail, result, text } from "./support.ts";
 
 const checksFields =

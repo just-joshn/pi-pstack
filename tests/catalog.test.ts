@@ -14,8 +14,8 @@ import {
   routes,
   view,
   views,
-} from "../lib/catalog.ts";
-import { startPlan } from "../lib/state.ts";
+} from "../src/lib/catalog.ts";
+import { startPlan } from "../src/lib/state.ts";
 import { shaped } from "./support.ts";
 
 const packaged = (path: string) => readFile(join(root, path), "utf8");

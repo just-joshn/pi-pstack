@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { test } from "vitest";
 
-import { root } from "../lib/catalog.ts";
+import { root } from "../src/lib/catalog.ts";
 import { host, resultText, sandbox } from "./host.ts";
 import { shaped } from "./support.ts";
 

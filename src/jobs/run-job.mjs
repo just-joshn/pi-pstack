@@ -11,12 +11,12 @@ import { fileURLToPath } from "node:url";
 import { aliases } from "../lib/models.ts";
 import { isRecord } from "../lib/validation.ts";
 import { configuredModel, isMcp, readEvent, readJob } from "./job-input.ts";
-const packageRoot = fileURLToPath(new URL("../", import.meta.url));
+const packaged = fileURLToPath(new URL("../", import.meta.url));
 
 const [flag, jobFile, eventFile] = process.argv.slice(2);
 if (flag !== "--run" || !jobFile)
   throw Error(
-    "Usage: node scripts/run-job.mjs --run <reviewed enabled job.json> [signed-event.json]",
+    "Usage: node src/jobs/run-job.mjs --run <reviewed enabled job.json> [signed-event.json]",
   );
 const job = await readJob(jobFile);
 const event = await readEvent(job, eventFile, process.env.PSTACK_EVENT_SECRET);
@@ -50,14 +50,14 @@ const args = [
   "--no-extensions",
   ...(mcp ? ["-e", "builtin:mcp"] : ["--no-mcp"]),
   "--skill",
-  join(packageRoot, "skills"),
+  join(packaged, "skills"),
   "--tools",
   job.tools.join(","),
   "--session-dir",
   runDir,
 ];
 if (job.kind === "custom" && job.tools.some((t) => t.startsWith("pstack_")))
-  args.push("-e", join(packageRoot, "src/index.ts"));
+  args.push("-e", join(packaged, "index.ts"));
 const model = configuredModel(job);
 if (model && !aliases.includes(model)) args.push("--model", model);
 if (job.thinking) args.push("--thinking", job.thinking);

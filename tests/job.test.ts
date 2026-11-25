@@ -1,16 +1,17 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { onTestFinished, test } from "vitest";
 
-import { readJob } from "../scripts/job-input.ts";
+import { readJob } from "../src/jobs/job-input.ts";
+import { root } from "../src/lib/catalog.ts";
 import { flag, shaped, spawned } from "./support.ts";
 
-const runner = fileURLToPath(new URL("../scripts/run-job.mjs", import.meta.url));
+const runner = fileURLToPath(new URL("../src/jobs/run-job.mjs", import.meta.url));
 const report = { channel: "C1", thread: "T1", eventId: "E1", type: "report", topLevel: true };
 interface Child {
   args: string[];
@@ -116,6 +117,7 @@ test("unsupported job shapes fail before claiming a run", slow, async () => {
   assert.doesNotMatch(result.stderr, /not-for-stderr/);
   await assert.rejects(() => readdir(runs), { code: "ENOENT" });
 });
+
 test("Benny refuses disabled config or broad tools before dispatch", slow, async () => {
   const { enabled, config, refused } = await fixture();
   const cases = [
@@ -155,6 +157,7 @@ test("Benny refuses disabled config or broad tools before dispatch", slow, async
     assert.match(await refused({ ...enabled, ...override }), message);
   }
 });
+
 test(
   "Benny accepts read and comment tools, and draft PR tools only when authorized",
   slow,
@@ -179,6 +182,7 @@ test(
     assert.deepEqual((await readJob(job)).tools, pr);
   },
 );
+
 test(
   "triage authenticates and claims one report per thread without leaking the signing secret",
   slow,
@@ -209,6 +213,7 @@ test(
     assert.equal((await readdir(runs)).length, 1);
   },
 );
+
 test(
   "reproduction requires a confirmed marker and preserves child failure status",
   slow,
@@ -245,6 +250,7 @@ test(
     assert(output.args.every((arg) => !arg.includes("BUG-1")));
   },
 );
+
 test(
   "a child startup failure does not print the event or the child argument list",
   slow,
@@ -269,6 +275,7 @@ test(
     assert.equal(await readFile(join(dir, "result.json"), "utf8"), saved);
   },
 );
+
 test("custom jobs pass Pi's max thinking level through to the child", slow, async () => {
   const { job, enabled, run } = await fixture("custom");
   await writeFile(job, JSON.stringify({ ...enabled, tools: ["read"], thinking: "max" }));
@@ -278,6 +285,7 @@ test("custom jobs pass Pi's max thinking level through to the child", slow, asyn
   assert(args.includes("--thinking"));
   assert.equal(flag(args, "--thinking"), "max");
 });
+
 test(
   "custom jobs need no event and preserve their explicit native tool allowlist",
   slow,
@@ -295,5 +303,22 @@ test(
     assert(!output.args.includes(enabled.instructions));
     assert.equal((await run()).status, 0);
     assert.equal((await readdir(runs)).length, 2);
+  },
+);
+
+test(
+  "a custom job that uses pstack tools loads this package's skills and extension",
+  slow,
+  async () => {
+    const { job, enabled, run } = await fixture("custom");
+    await writeFile(job, JSON.stringify({ ...enabled, tools: ["read", "pstack_plan"] }));
+    const result = await run();
+    assert.equal(result.status, 0, result.stderr);
+    const { args } = await child(outcome(result.stdout).log);
+    const skills = flag(args, "--skill") ?? "";
+    const extension = flag(args, "-e") ?? "";
+    await access(join(skills, "poteto-mode", "SKILL.md"));
+    assert.equal(extension, join(root, "index.ts"));
+    await access(extension);
   },
 );

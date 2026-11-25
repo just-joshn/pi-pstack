@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { test } from "vitest";
 
-import { configuredModel, type Job, readEvent, readJob } from "../scripts/job-input.ts";
+import { configuredModel, type Job, readEvent, readJob } from "../src/jobs/job-input.ts";
 import { sandbox } from "./host.ts";
 
 const secret = "test-secret";

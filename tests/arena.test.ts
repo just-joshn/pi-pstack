@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 
 import { onTestFinished, test } from "vitest";
 
-import { blindTranscript, readPaths } from "../lib/transcript.ts";
+import { blindTranscript, readPaths } from "../src/lib/transcript.ts";
 import { configFile, delegated, fulfilled, host, type HostOptions, model } from "./host.ts";
 import { flag, shaped } from "./support.ts";
 
@@ -150,6 +150,7 @@ test("a failed arena judge returns the completed candidate reports", async () =>
   assert.match(judgment?.status ?? "", /inconclusive/i);
   assert.match(judgment?.error ?? "", /failed \(7\)/);
 });
+
 test("judge selection skips both unavailable and same-vendor pool entries", async () => {
   const result = await runArena(["openai/gpt", "anthropic/claude", "google/gemini"], 0);
   assert.equal(result.judgment?.model, "google/gemini");

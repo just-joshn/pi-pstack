@@ -14,9 +14,9 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { afterAll } from "vitest";
 
-import type { RoleConfig } from "../lib/models.ts";
-import type { PoolResult } from "../lib/pool.ts";
-import type { State } from "../lib/state.ts";
+import type { RoleConfig } from "../src/lib/models.ts";
+import type { PoolResult } from "../src/lib/pool.ts";
+import type { State } from "../src/lib/state.ts";
 import { double, shaped, spawned } from "./support.ts";
 
 // Vitest loads this module once per test file, so each file gets a sandbox and removes its own.

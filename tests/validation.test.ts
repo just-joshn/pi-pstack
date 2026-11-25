@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { test } from "vitest";
 
-import { errorMessage, isRecord, parseJson } from "../lib/validation.ts";
+import { errorMessage, isRecord, parseJson } from "../src/lib/validation.ts";
 
 test("only plain non-null objects count as records", () => {
   assert.equal(isRecord({}), true);

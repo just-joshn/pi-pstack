@@ -4,8 +4,8 @@ import { dirname, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { pool } from "../lib/pool.ts";
 import { type Git, gitIn } from "./git.ts";
+import { pool } from "./lib/pool.ts";
 import { artifacts, fail, hasErrorCode, result, stringEnum } from "./support.ts";
 
 export interface Worktree {

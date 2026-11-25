@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFile, type ExecFileOptions } from "node:child_process";
 import { promisify } from "node:util";
 
-import { isRecord } from "../lib/validation.ts";
+import { isRecord } from "../src/lib/validation.ts";
 
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion, typescript/no-unnecessary-type-parameters -- The one place where tests assert a shape instead of proving it.
 export const shaped = <T>(value: unknown): T => value as T;

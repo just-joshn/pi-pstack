@@ -9,7 +9,7 @@ import {
   startPlan,
   updateTask,
   wakeConfig,
-} from "../lib/state.ts";
+} from "../src/lib/state.ts";
 import { tsvRow } from "../src/support.ts";
 
 function completedPlan() {

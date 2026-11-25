@@ -144,6 +144,7 @@ test("a finished shipping plan cannot preview a new stack, including after resto
   await assert.rejects(ship, /requires a shipping or autopilot-full plan/);
   assert.equal(h.executions.length, 0);
 });
+
 test("finishing a plan while approval is pending stops the approved stack", async () => {
   const stack = await shipping(() => undefined);
   await completeTasks(stack.host);
@@ -159,6 +160,7 @@ test("finishing a plan while approval is pending stops the approved stack", asyn
   );
   assert.equal(result.stopped, 1);
 });
+
 test("an initial lookup failure ends the approval prefix at the last verified PR", async () => {
   const h = await shipping((n, phase) =>
     n === 2 && phase === "preview" ? unavailable : undefined,
@@ -171,12 +173,14 @@ test("an initial lookup failure ends the approval prefix at the last verified PR
   assert.equal(result.lookupFailure?.number, 2);
   assert.match(result.lookupFailure.error, /gh pr view failed/);
 });
+
 test("a lookup failure at the first PR never offers later PRs", async () => {
   const h = await shipping((n) => (n === 1 ? unavailable : undefined));
   await assert.rejects(() => h.ship(), /gh pr view failed/);
   assert.deepEqual(h.offers, []);
   assert.deepEqual(h.attempts, []);
 });
+
 test("cancelling preview does not offer an already verified prefix", async () => {
   const controller = new AbortController();
   const h = await shipping((n) => {

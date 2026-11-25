@@ -2,7 +2,7 @@
 
 An installable Pi package that reimplements the workflows described by the supplied pstack 0.15.46, Team Kit 1.2.0 and Cursor CLI skill map. It uses the current `@earendil-works/pi-coding-agent` extension API, Pi Agent Skills, native Pi child processes, native session entries and native terminal UI. It does not require a Cursor installation, a Cursor account, another coding agent, or an npm runtime dependency beyond the Pi host. It does not ship Cursor's proprietary cloud services.
 
-**Status: source-map-complete implementation candidate, not certified behavioral parity.** All 161 node IDs, 163 dependency edges, and 65 views are retained and mapped. The skills and playbooks are independently written from the JSON descriptions, with selected official upstream source cross-checks. They are not a complete copy of the upstream pinned repository's leaf files, scripts, templates, or full playbook contracts. Some nodes are model-mediated skills or require a project's own tools. The managed service gaps and test limits are explicit in `reference/PARITY.md` and `reference/GAPS.md`.
+**Status: source-map-complete implementation candidate, not certified behavioral parity.** All 161 node IDs, 163 dependency edges, and 65 views are retained and mapped. The skills and playbooks are independently written from the JSON descriptions, with selected official upstream source cross-checks. They are not a complete copy of the upstream pinned repository's leaf files, scripts, templates, or full playbook contracts. Some nodes are model-mediated skills or require a project's own tools. The managed service gaps and test limits are explicit in `src/reference/PARITY.md` and `src/reference/GAPS.md`.
 
 ## Install
 
@@ -76,7 +76,7 @@ The shipping gate uses GitHub CLI and requires an active shipping or autopilot-f
 
 `/pstack-automation benny-triage`, `/pstack-automation benny-repro`, or `/pstack-automation custom` creates an initially disabled draft in the session artifact directory. It refuses to overwrite a previous draft. Copy the Benny configuration template to a trusted target project outside the package. Configure project-specific Slack/tracker/control MCP tools, and use an explicit allowlist in the draft. Review the tool semantics. Benny requires narrowly scoped tools and prohibits the generic shell, codemode, dynamic tool search and MCP tool names whose words (snake_case, kebab-case or camelCase) indicate merge, squash, rebase, push, commit, deploy, publish, delete, exec, shell, script or command operations, or create/update/write of files, branches or refs. Native `edit` and `write` are accepted only for `benny-repro`; `benny-triage` is read-only. Pull request creation tools are accepted only for `benny-repro` with `allowDraftPr: true`. This is not a security sandbox; configured MCP permissions must enforce those restrictions too.
 
-`node scripts/run-job.mjs --run /absolute/path/job.json [signed-event.json]` is a local headless Pi entrypoint. It is not a daemon, managed cloud worker, Slack subscription, or scheduler. The job and Benny config must be separately enabled by the operator. The external trusted event adapter must provide an envelope `{ "payload": "<JSON string>", "signature": "<HMAC-SHA256 hex>" }`, signed with `PSTACK_EVENT_SECRET`. A report payload includes `type: "report"`, `topLevel: true`, `channel`, `thread`, and `eventId`. A reproduction payload includes `type: "triage-marker"`, `trusted: true`, `classification: "bug"` or `"performance"`, `ticket`, and the same immutable thread identity fields. The adapter, not arbitrary Slack text, establishes trust. A claimed run directory is unique per workflow/thread; repeated dispatches fail closed. If Pi cannot start, the runner prints the claim location and writes a sanitized `not-started` receipt to `result.json`. An absent receipt is not proof that Pi never started. Investigate ambiguous failures before rearming any event. The runner removes the event signing secret from the child environment and sends the prompt through stdin rather than as process arguments. Pi can load skills and prompt templates from the trusted project; the job's explicit tool allowlist still applies. It preserves private run logs and uses Pi's native MCP integration for explicitly named external tools. Benny's application-specific adapter, event receiver, tracker actions and real end-to-end proof are not implemented by this generic package. See `reference/benny/`.
+`node src/jobs/run-job.mjs --run /absolute/path/job.json [signed-event.json]` is a local headless Pi entrypoint. It is not a daemon, managed cloud worker, Slack subscription, or scheduler. The job and Benny config must be separately enabled by the operator. The external trusted event adapter must provide an envelope `{ "payload": "<JSON string>", "signature": "<HMAC-SHA256 hex>" }`, signed with `PSTACK_EVENT_SECRET`. A report payload includes `type: "report"`, `topLevel: true`, `channel`, `thread`, and `eventId`. A reproduction payload includes `type: "triage-marker"`, `trusted: true`, `classification: "bug"` or `"performance"`, `ticket`, and the same immutable thread identity fields. The adapter, not arbitrary Slack text, establishes trust. A claimed run directory is unique per workflow/thread; repeated dispatches fail closed. If Pi cannot start, the runner prints the claim location and writes a sanitized `not-started` receipt to `result.json`. An absent receipt is not proof that Pi never started. Investigate ambiguous failures before rearming any event. The runner removes the event signing secret from the child environment and sends the prompt through stdin rather than as process arguments. Pi can load skills and prompt templates from the trusted project; the job's explicit tool allowlist still applies. It preserves private run logs and uses Pi's native MCP integration for explicitly named external tools. Benny's application-specific adapter, event receiver, tracker actions and real end-to-end proof are not implemented by this generic package. See `src/reference/benny/`.
 
 ## Verify
 
@@ -91,7 +91,7 @@ node scripts/smoke.ts
 
 `bun run check` runs the `bun fmt` format check, type-aware oxlint, the TypeScript compiler against the installed Pi SDK, and the tests with the coverage gate. `bun run format` and `bun run lint:fix` apply the fixes. The formatter skips the three configuration files listed in `.prettierignore`, which are kept exactly as written. `python3 scripts/generate.py --check` reports generated files that no longer match their sources.
 
-The tests are TypeScript on Vitest and run without a build step. `bun run test` runs them once and `bun run test:watch` reruns them as files change. They use a mock Pi host and forge, a fake child CLI for job dispatch, and temporary real Git repositories. `bun run test:coverage` also applies the gate in `vitest.config.ts`: each file in `src/` needs 80% statement, branch, function and line coverage.
+The tests are TypeScript on Vitest and run without a build step. `bun run test` runs them once and `bun run test:watch` reruns them as files change. They use a mock Pi host and forge, a fake child CLI for job dispatch, and temporary real Git repositories. `bun run test:coverage` also applies the gate in `vitest.config.ts`: each TypeScript file in `src/`, which holds everything the installed extension loads, needs 80% statement, branch, function and line coverage.
 
 `node scripts/smoke.ts` launches real Pi in an isolated RPC session without model requests. It checks discovery of all 76 native skills and 52 original slash names, writes and reads mode state, and checks that `/setup-pstack` lists the model of a provider registered by a fixture extension. Set `PSTACK_PI_BIN` to point to a different Pi executable. This smoke does not exercise live models, GitHub, Slack, or MCP services. Test those integrations with disposable resources before relying on them.
 
@@ -117,17 +117,20 @@ CI installs Bun 1.4.5, the release the files were formatted with. Change `BUN_VE
 
 ## Files
 
+Everything the installed package needs lives in `src/`, and the package publishes only that directory. Paths in the catalog are relative to `src/`.
+
 - `src/`: the extension, one file per feature: `session.ts` (branch state and wake timer), `plan.ts`, `catalog-ui.ts`, `records.ts`, `models.ts`, `delegate.ts`, `parent-diff.ts`, `worktrees.ts`, `forge.ts`, with `git.ts` and `support.ts` shared.
-- `lib/`: type-checked TypeScript with no Pi dependency: `catalog.ts`, `models.ts`, `state.ts`, `pool.ts`, `transcript.ts`, `jobs.ts`, `validation.ts`.
+- `src/lib/`: type-checked TypeScript with no Pi dependency: `catalog.ts`, `models.ts`, `state.ts`, `pool.ts`, `transcript.ts`, `jobs.ts`, `validation.ts`, and the generated `catalog-data.json`.
+- `src/skills/`: 76 native skill directories and 22 nested ordered playbooks (generated).
+- `src/agents/`: worker and reviewer contracts.
+- `src/jobs/`: `run-job.mjs`, the headless job runner, and `job-input.ts`, its job and event validation.
+- `src/reference/source-map.json`: original attachment, unchanged byte-for-byte.
+- `src/reference/parity.json` (generated): machine-readable original IDs, edges and views with implementation classifications.
+- `src/reference/PARITY.md`, `src/reference/GAPS.md`: audit matrix and residual gaps.
+- `src/reference/benny/`: dormant configuration and workflow instructions.
 - `scripts/catalog-source.json`: the instructions written for Pi: playbook steps, principle rules, skill bodies and implementation classifications. Edit this, not the generated files.
-- `scripts/generate.py`: `python3 scripts/generate.py` rebuilds `skills/`, `lib/catalog-data.json`, `reference/parity.json` and `reference/PARITY.md` from the source map and `catalog-source.json`, and formats them with `bun fmt`. Regeneration removes obsolete generator-marked skill and playbook files, not hand-authored files. With `--check` it reports drift without writing.
-- `skills/`: 76 native skill directories and 22 nested ordered playbooks (generated).
-- `agents/`: worker and reviewer contracts.
-- `reference/source-map.json`: original attachment, unchanged byte-for-byte.
-- `reference/parity.json` (generated): machine-readable original IDs, edges and views with implementation classifications.
-- `reference/PARITY.md`, `reference/GAPS.md`: audit matrix and residual gaps.
-- `reference/benny/`: dormant configuration and workflow instructions.
-- `scripts/run-job.mjs`, `scripts/job-input.ts`, `scripts/smoke.ts`, `scripts/smoke-provider.ts`, `tests/`: runner, job validation and verification.
+- `scripts/generate.py`: `python3 scripts/generate.py` rebuilds `src/skills/`, `src/lib/catalog-data.json`, `src/reference/parity.json` and `src/reference/PARITY.md` from the source map and `catalog-source.json`, and formats them with `bun fmt`. Regeneration removes obsolete generator-marked skill and playbook files, not hand-authored files. With `--check` it reports drift without writing.
+- `scripts/smoke.ts`, `scripts/smoke-provider.ts`, `tests/`: verification.
 - `.github/`: the CI, release and lockfile workflows, the action lockfile and the Dependabot configuration.
 
 ## Official references
@@ -144,4 +147,4 @@ The extension targets the `@earendil-works` Pi SDK, not the older `@mariozechner
 - [Pinned original router](https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md)
 - [Pinned original setup](https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/setup-pstack/SKILL.md)
 
-Every upstream source URL from the map remains in `reference/source-map.json` and `reference/parity.json`. No claim is made that the independently authored instructions reproduce every detail in those upstream files.
+Every upstream source URL from the map remains in `src/reference/source-map.json` and `src/reference/parity.json`. No claim is made that the independently authored instructions reproduce every detail in those upstream files.

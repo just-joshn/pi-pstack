@@ -1,9 +1,9 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-import { activePlan } from "../lib/state.ts";
 import { registerCatalog } from "./catalog-ui.ts";
 import { registerDelegation } from "./delegate.ts";
 import { registerForge } from "./forge.ts";
+import { activePlan } from "./lib/state.ts";
 import { registerModelSetup } from "./models.ts";
 import { registerPlan } from "./plan.ts";
 import { registerRecords } from "./records.ts";

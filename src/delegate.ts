@@ -5,7 +5,8 @@ import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
-import { root } from "../lib/catalog.ts";
+import { gitIn } from "./git.ts";
+import { root } from "./lib/catalog.ts";
 import {
   type Budget,
   crossJudge,
@@ -17,11 +18,10 @@ import {
   type Role,
   type RoleConfig,
   selectPanel,
-} from "../lib/models.ts";
-import { pool, type PoolResult } from "../lib/pool.ts";
-import { blindTranscript, readPaths } from "../lib/transcript.ts";
-import { errorMessage } from "../lib/validation.ts";
-import { gitIn } from "./git.ts";
+} from "./lib/models.ts";
+import { pool, type PoolResult } from "./lib/pool.ts";
+import { blindTranscript, readPaths } from "./lib/transcript.ts";
+import { errorMessage } from "./lib/validation.ts";
 import {
   availableWorkerModels,
   modelName,

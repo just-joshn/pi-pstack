@@ -4,8 +4,8 @@ import { join } from "node:path";
 
 import { onTestFinished, test } from "vitest";
 
-import { root } from "../lib/catalog.ts";
 import { workerArgs, workerRoles } from "../src/delegate.ts";
+import { root } from "../src/lib/catalog.ts";
 import {
   configFile,
   delegated,

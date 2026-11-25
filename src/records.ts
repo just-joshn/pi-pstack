@@ -4,9 +4,9 @@ import { dirname, join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { nativeNode, packageFile } from "../lib/catalog.ts";
-import { isJobKind } from "../lib/jobs.ts";
-import { parseJson } from "../lib/validation.ts";
+import { nativeNode, packageFile } from "./lib/catalog.ts";
+import { isJobKind } from "./lib/jobs.ts";
+import { parseJson } from "./lib/validation.ts";
 import { artifacts, hasErrorCode, type Notify, result, tsvRow } from "./support.ts";
 
 function registerAutomationDraft(pi: ExtensionAPI, notify: Notify) {

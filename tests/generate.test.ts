@@ -2,24 +2,28 @@ import assert from "node:assert/strict";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { onTestFinished, test } from "vitest";
 
-import { root } from "../lib/catalog.ts";
 import { shaped, spawned } from "./support.ts";
+
+const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 
 /** The generator and its inputs, copied into a temporary directory. */
 async function generatorCopy() {
   const dir = await mkdtemp(join(tmpdir(), "catalog-generate-"));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));
-  await Promise.all(["scripts", "lib", "reference"].map((p) => mkdir(join(dir, p))));
+  await Promise.all(
+    ["scripts", "src/lib", "src/reference"].map((p) => mkdir(join(dir, p), { recursive: true })),
+  );
   await Promise.all(
     [
       "scripts/generate.py",
       "scripts/catalog-source.json",
-      "reference/source-map.json",
+      "src/reference/source-map.json",
       "bunfig.toml",
-    ].map((p) => copyFile(join(root, p), join(dir, p))),
+    ].map((p) => copyFile(join(packageRoot, p), join(dir, p))),
   );
   const run = (...args: string[]) =>
     spawned("python3", ["scripts/generate.py", ...args], { cwd: dir });
@@ -40,7 +44,7 @@ test(
     const { dir, run, success } = await generatorCopy();
     await success();
     await success("--check");
-    const old = join(dir, "skills/bro/SKILL.md");
+    const old = join(dir, "src/skills/bro/SKILL.md");
     const original = await readFile(old, "utf8");
     const input = join(dir, "scripts/catalog-source.json");
     const source = shaped<{ skills: Record<string, string> }>(
@@ -53,7 +57,7 @@ test(
     await success();
     assert.match(await readFile(old, "utf8"), /Changed source instructions/);
 
-    const mapFile = join(dir, "reference/source-map.json");
+    const mapFile = join(dir, "src/reference/source-map.json");
     const map = shaped<{ nodes: { id: string; label: string }[] }>(
       JSON.parse(await readFile(mapFile, "utf8")),
     );
@@ -61,14 +65,14 @@ test(
     assert(bro);
     bro.label = "/renamed-bro";
     await writeFile(mapFile, JSON.stringify(map));
-    const manual = join(dir, "skills/hand-authored/SKILL.md");
+    const manual = join(dir, "src/skills/hand-authored/SKILL.md");
     await mkdir(dirname(manual));
     await writeFile(manual, "Keep my skill.\n");
     const check = await run("--check");
     assert.notEqual(check.status, 0);
-    assert.match(check.stdout + check.stderr, /skills\/bro\/SKILL\.md/);
-    assert.match(check.stdout + check.stderr, /skills\/renamed-bro\/SKILL\.md/);
-    const renamed = join(dir, "skills/renamed-bro/SKILL.md");
+    assert.match(check.stdout + check.stderr, /src\/skills\/bro\/SKILL\.md/);
+    assert.match(check.stdout + check.stderr, /src\/skills\/renamed-bro\/SKILL\.md/);
+    const renamed = join(dir, "src/skills/renamed-bro/SKILL.md");
     await assert.rejects(() => readFile(renamed), { code: "ENOENT" });
     await success();
     await success("--check");

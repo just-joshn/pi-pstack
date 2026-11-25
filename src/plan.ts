@@ -3,7 +3,9 @@ import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
-import { nativeNode, routes } from "../lib/catalog.ts";
+import { sendWorkflow } from "./catalog-ui.ts";
+import { mergeRoutes } from "./forge.ts";
+import { nativeNode, routes } from "./lib/catalog.ts";
 import {
   isTaskStatus,
   planComplete,
@@ -13,9 +15,7 @@ import {
   taskStatuses,
   updateTask,
   wakeConfig,
-} from "../lib/state.ts";
-import { sendWorkflow } from "./catalog-ui.ts";
-import { mergeRoutes } from "./forge.ts";
+} from "./lib/state.ts";
 import type { Session } from "./session.ts";
 import {
   artifacts,

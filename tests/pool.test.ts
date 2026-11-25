@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { test } from "vitest";
 
-import { pool } from "../lib/pool.ts";
+import { pool } from "../src/lib/pool.ts";
 
 test("parallel pool limits concurrency, keeps input order and isolates failures", async () => {
   let active = 0,
