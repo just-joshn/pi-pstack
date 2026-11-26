@@ -34,6 +34,7 @@ function longRunningWorkers() {
         release.set(flag(args, "--session-id") ?? "", resolve);
         options?.signal?.addEventListener("abort", () => reject(Error("killed")));
       });
+      released.catch(() => {});
       await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
       await released;
       return { code: 0, stdout: "owner report", stderr: "" };
