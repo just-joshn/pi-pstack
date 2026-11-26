@@ -96,7 +96,7 @@ try {
   const commands = list(await rpc("1", "get_commands"), "commands");
   const found = new Set(commands.map((command) => command["name"]));
   for (const node of slashSkills) assert(found.has(node.label.slice(1)), node.id);
-  for (const path of Object.values(catalog.paths).filter((p) => p.endsWith("SKILL.md")))
+  for (const path of Object.values(catalog.paths).filter((p) => /^skills\/.*SKILL\.md$/.test(p)))
     assert(found.has(`skill:${path.split("/")[1]}`), path);
   await rpc("2", "prompt", { message: "/poteto-mode on" });
   const entries = list(await rpc("3", "get_entries"), "entries");

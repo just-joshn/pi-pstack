@@ -925,8 +925,8 @@
     {
       "id": "cli-automate",
       "kind": "external",
-      "status": "conditional",
-      "implementation": "/pstack-automation drafts and src/jobs/run-job.mjs; external scheduler required",
+      "status": "extension",
+      "implementation": "/pstack-automation writes a disabled draft job; src/jobs/check-benny.mjs checks it",
       "invocation": null,
       "source": [
         "https://cursor.com/docs/cloud-agent/automations#getting-started",
@@ -1061,8 +1061,8 @@
     {
       "id": "cli-automations",
       "kind": "external",
-      "status": "gap",
-      "implementation": "Local headless event/schedule entrypoint; no managed cloud scheduler",
+      "status": "extension",
+      "implementation": "Job files run headless by src/jobs/run-job.mjs in a fresh checkout; src/jobs/watch-slack.mjs starts them for new Slack reports",
       "invocation": null,
       "source": [
         "https://cursor.com/docs/cloud-agent/automations#getting-started",
@@ -1404,7 +1404,7 @@
       "id": "benny-setup",
       "kind": "step",
       "status": "conditional",
-      "implementation": "reference/benny/setup.md / pstack-automation",
+      "implementation": "automations/benny/FOR_AGENTS.md and skills/setup-benny / pstack-automation",
       "invocation": null,
       "source": [
         "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md",
@@ -1415,7 +1415,7 @@
       "id": "benny-triage",
       "kind": "step",
       "status": "conditional",
-      "implementation": "reference/benny/triage.md / headless job",
+      "implementation": "automations/benny/skills/triage-issue-reports / Benny job",
       "invocation": null,
       "source": [
         "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/triage-issue-reports/SKILL.md",
@@ -1426,7 +1426,7 @@
       "id": "benny-repro",
       "kind": "step",
       "status": "conditional",
-      "implementation": "reference/benny/repro.md / headless job",
+      "implementation": "automations/benny/skills/reproduce-and-fix-issues / Benny job",
       "invocation": null,
       "source": [
         "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/reproduce-and-fix-issues/SKILL.md",
@@ -1437,7 +1437,7 @@
       "id": "benny-config",
       "kind": "board",
       "status": "conditional",
-      "implementation": "reference/benny/config.example.json",
+      "implementation": "automations/benny/templates/configuration.example.yaml and feature-map.example.md",
       "invocation": null,
       "source": [
         "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/templates/configuration.example.yaml",
@@ -1448,7 +1448,7 @@
       "id": "benny-adapter",
       "kind": "external",
       "status": "conditional",
-      "implementation": "project-specific real app adapter",
+      "implementation": "project control skill; references/control-adapter.md",
       "invocation": null,
       "source": [
         "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md",
@@ -1459,7 +1459,7 @@
       "id": "benny-slack",
       "kind": "board",
       "status": "conditional",
-      "implementation": "configured Slack/tracker MCP; no service supplied",
+      "implementation": "configured Slack and tracker MCP tools; watch-slack.mjs trigger",
       "invocation": null,
       "source": [
         "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"

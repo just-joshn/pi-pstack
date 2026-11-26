@@ -7,6 +7,7 @@ BREAKING CHANGES:
 - Every skill, playbook, principle, agent and reference is now upstream's file, ported by hand, in place of a summary written from the source map. Skills follow upstream's steps, so their behavior changes wherever the summaries differed.
 - With no `pstack-models.json`, roles take upstream's default models (Opus 5.5, and a Fable 5.2, Opus 5.5 and Gemini 4 Neon panel), matched to the models workers can use, instead of the parent model.
 - `pstack_delegate` starts writing workers without asking, as upstream's Autonomy rule lets reversible work proceed.
+- Benny jobs follow upstream's design: both start on a new top-level report (`source_channel_id`, `message_ts`, `thread_ts`), and repro waits for the triage marker itself. A Benny job's `config` holds only `sourceChannel` and `defaultBranch`; the rest of the configuration is upstream's YAML, which the agent reads. The tool policy that refused `bash`, commits and PR tools is gone, since upstream's repro runs tests, commits and opens a draft PR. The configuration example is now `src/automations/benny/templates/configuration.example.yaml`.
 - The `quality-agent` worker role is now `thermo-nuclear-code-quality-review`, its upstream name.
 
 NEW FEATURES:
@@ -20,6 +21,7 @@ NEW FEATURES:
 - The guide (`src/docs/guide`) and upstream's scripts ship with the package: `watch-pr`, `worktree-audit.sh`, `log.sh`, the statechart tools and the PR review canvas.
 - A custom job takes an optional HMAC-signed event, which `/make-bot-ui` uses to wake a bot from a button.
 - After saving, `/setup-pstack` offers each verification skill the project lacks.
+- Benny is upstream's automation pack, ported by hand, in `src/automations/benny/`, with the runtime it needs in Pi: `/pstack-automation` drafts each job from upstream's prompt template, `check-benny.mjs` checks the target repository the way upstream's setup does, `watch-slack.mjs` starts both jobs for each new top-level Slack report, and the runner gives each run a fresh checkout of the default branch, upstream's trigger in its placeholders and pstack's project-scoped skills.
 
 FIXED:
 

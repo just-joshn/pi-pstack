@@ -5,18 +5,11 @@ import { join } from "node:path";
 
 import { test } from "vitest";
 
-import { configuredModel, type Job, readEvent, readJob } from "../src/jobs/job-input.ts";
+import { type Job, planRun, readEvent, readJob } from "../src/jobs/job-input.ts";
 import { sandbox } from "./host.ts";
 
 const secret = "test-secret";
-const config = {
-  enabled: true,
-  slackChannel: "C1",
-  tracker: "tracker",
-  repository: "repo",
-  featureMap: "map",
-  controlAdapter: "adapter",
-};
+const config = { sourceChannel: "C1", defaultBranch: "main" };
 const custom = {
   version: 1,
   enabled: true,
@@ -25,17 +18,9 @@ const custom = {
   tools: ["read"],
   instructions: "check",
 };
-const triage = { ...custom, kind: "benny-triage", tools: ["read", "mcp__slack__read"], config };
-const repro = { ...triage, kind: "benny-repro" };
-const coordinates = { channel: "C1", thread: "T1", eventId: "E1" };
-const report = { ...coordinates, type: "report", topLevel: true };
-const marker = {
-  ...coordinates,
-  type: "triage-marker",
-  classification: "bug",
-  trusted: true,
-  ticket: "BUG-1",
-};
+const triage = { ...custom, kind: "benny-triage", tools: ["read", "mcp__slack__*"], config };
+const report = { source_channel_id: "C1", message_ts: "1700000000.000100", thread_ts: "" };
+const trigger = { ...report, ts: report.message_ts };
 
 async function saved(value: unknown) {
   const dir = await mkdtemp(join(sandbox, "job-input-"));
@@ -56,7 +41,7 @@ test("a reviewed custom job is read with its explicit tools and model options", 
   assert.equal(read.kind, "custom");
   assert.deepEqual(read.tools, ["read"]);
   assert.equal(read.thinking, "max");
-  assert.equal(configuredModel(read), "openai/gpt");
+  assert.equal(read.model, "openai/gpt");
 });
 
 test("a job without review, absolute cwd, instructions, tools or valid options is refused", async () => {
@@ -83,57 +68,33 @@ test("a job without review, absolute cwd, instructions, tools or valid options i
     ),
   );
   await assert.rejects(job("{"), /Invalid JSON in job file/);
+  assert.equal(
+    (await readJob(await saved({ ...custom, enabled: false }), { draft: true })).kind,
+    "custom",
+  );
 });
 
-test("Benny configuration must be enabled, complete and well typed", async () => {
+test("a Benny job names its source channel, default branch and Slack MCP tools", async () => {
   const incomplete = [
     undefined,
-    { ...config, enabled: false },
-    { ...config, slackChannel: "" },
-    { ...config, tracker: undefined },
-    { ...config, triageModel: "-x" },
-    { ...config, reproModel: 1 },
-    { ...config, allowDraftPr: "yes" },
+    { ...config, sourceChannel: "" },
+    { ...config, defaultBranch: "" },
+    { ...config, defaultBranch: "-x" },
+    { ...config, defaultBranch: "a..b" },
+    { ...config, defaultBranch: 1 },
   ];
   await Promise.all(
     incomplete.map((value) =>
-      assert.rejects(job({ ...triage, config: value }), /incomplete or disabled/),
+      assert.rejects(job({ ...triage, config: value }), /source Slack channel and the repository/),
     ),
   );
-});
-
-test("Benny tool lists stay narrow, scoped and free of command or write tools", async () => {
-  const refused: [string[], RegExp][] = [
-    [["read"], /explicit scoped MCP/],
-    [["bash", "mcp__slack__read"], /narrow native file/],
-    [["edit", "mcp__slack__read"], /triage is read-only/],
-    [["mcp__github__merge_pr"], /disallows general command/],
-    [["mcp__db__run_query"], /disallows general command/],
-    [["mcp__hub__searchTools"], /disallows general command/],
-    [["mcp__github__create_file"], /disallows general command/],
-    [["mcp__github__create_pull_request"], /require benny-repro with allowDraftPr/],
-  ];
-  await Promise.all(
-    refused.map(([tools, reason]) =>
-      assert.rejects(job({ ...triage, tools }), reason, tools.join()),
-    ),
-  );
-  const draft = ["edit", "mcp__github__create_pull_request"];
-  await assert.rejects(job({ ...repro, tools: draft }), /allowDraftPr/);
-  const allowed = await job({
-    ...repro,
-    tools: draft,
-    config: { ...config, allowDraftPr: true },
+  await assert.rejects(job({ ...triage, tools: ["read", "bash"] }), /Slack MCP tools/);
+  const read = await job({
+    ...triage,
+    kind: "benny-repro",
+    tools: ["bash", "edit", "mcp__slack__*"],
   });
-  assert.equal(allowed.kind, "benny-repro");
-});
-
-test("a Benny job uses its own model or the configured model for its kind", async () => {
-  const models = { ...config, triageModel: "a/triage", reproModel: "b/repro" };
-  assert.equal(configuredModel(await job({ ...triage, config: models })), "a/triage");
-  assert.equal(configuredModel(await job({ ...repro, config: models })), "b/repro");
-  assert.equal(configuredModel(await job({ ...repro, model: "c/own", config: models })), "c/own");
-  assert.equal(configuredModel(await job(custom)), undefined);
+  assert.deepEqual(read.kind === "custom" ? null : read.config, config);
 });
 
 test("a custom job needs no event, and a Benny job needs a path and a secret", async () => {
@@ -161,28 +122,55 @@ test("an event must be a well-formed envelope signed with the shared secret", as
   await assert.rejects(event(benny, { payload: "{", signature }), /Invalid JSON in signed event/);
 });
 
-test("a signed event must match the configured channel and the job's event kind", async () => {
+test("a Benny event is upstream's trigger for a new top-level report in the source channel", async () => {
   const benny = await job(triage);
-  const mismatched = [[], { ...report, channel: "C2" }, { ...report, thread: "" }];
-  await Promise.all(
-    mismatched.map((payload) =>
-      assert.rejects(event(benny, signed(payload)), /immutable thread coordinates/),
-    ),
-  );
-  await assert.rejects(event(benny, signed({ ...report, topLevel: false })), /top-level report/);
-  assert.deepEqual(await event(benny, signed(report)), report);
-  const reproJob = await job(repro);
-  const unconfirmed = [
-    report,
-    { ...marker, classification: "feature" },
-    { ...marker, trusted: false },
-    { ...marker, ticket: "" },
+  const refused = [
+    [],
+    { ...report, source_channel_id: "C2" },
+    { ...report, message_ts: "" },
+    { ...report, thread_ts: "1699999999.000001" },
   ];
   await Promise.all(
-    unconfirmed.map((payload) =>
-      assert.rejects(event(reproJob, signed(payload)), /confirmed triage marker/),
+    refused.map((payload) =>
+      assert.rejects(
+        event(benny, signed(payload)),
+        /new top-level report/,
+        JSON.stringify(payload),
+      ),
     ),
   );
-  const performance = { ...marker, classification: "performance" };
-  assert.deepEqual(await event(reproJob, signed(performance)), performance);
+  assert.deepEqual(await event(benny, signed(report)), trigger);
+  const { thread_ts: _, ...withoutThread } = report;
+  assert.deepEqual(await event(benny, signed(withoutThread)), trigger);
+  assert.deepEqual(
+    await event(benny, signed({ ...report, thread_ts: report.message_ts, text: "private" })),
+    { ...trigger, thread_ts: report.message_ts },
+  );
+});
+
+test("a custom event must be a signed JSON object", async () => {
+  const own = await job(custom);
+  await assert.rejects(readEvent(own, await saved(signed({})), undefined), /PSTACK_EVENT_SECRET/);
+  await assert.rejects(event(own, signed([])), /must be a JSON object/);
+  assert.deepEqual(await event(own, signed({ click: 1 })), { click: 1 });
+});
+
+test("a run's prompt and folder follow its job kind", async () => {
+  const benny = await job({
+    ...triage,
+    instructions: "channel {{SLACK_CHANNEL_ID}} at {{SLACK_MESSAGE_TS}}",
+  });
+  const first = planRun(benny, trigger);
+  assert.equal(first.prompt, "channel C1 at 1700000000.000100");
+  assert.equal(first.eventId, trigger.message_ts);
+  assert.equal(planRun(benny, trigger).key, first.key, "one run per report");
+  assert.notEqual(planRun(benny, { ...trigger, message_ts: "2" }).key, first.key);
+  const own = await job(custom);
+  const click = planRun(own, { eventId: "E1", note: "x" });
+  assert.match(click.prompt, /^check\n\nAuthenticated event .*"note":"x"/);
+  assert.equal(click.eventId, "E1");
+  assert.notEqual(planRun(own, { eventId: "E1" }).key, click.key, "each event gets its own run");
+  const plain = planRun(own, null);
+  assert.equal(plain.prompt, "check");
+  assert.equal(plain.eventId, undefined);
 });

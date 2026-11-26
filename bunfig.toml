@@ -22,6 +22,7 @@ ignorePatterns = [
   # Files ported by hand from upstream keep upstream's Markdown exactly.
   "src/skills/**/*.md",
   "src/docs/",
+  "src/automations/",
   # Upstream's PR review canvas assets ship byte for byte.
   "src/skills/pr-review-canvas/",
 ]

@@ -14,8 +14,10 @@ function markdown(dir: string): string[] {
   });
 }
 
-/** The skills, playbooks, agents, references and guide, ported by hand from upstream pstack and Team Kit. */
-const ported = ["skills", "agents", "docs"].flatMap((dir) => markdown(join(srcDir, dir)));
+/** The skills, playbooks, agents, references, guide and Benny pack, ported by hand from upstream pstack and Team Kit. */
+const ported = ["skills", "agents", "docs", "automations"].flatMap((dir) =>
+  markdown(join(srcDir, dir)),
+);
 
 const cursorOnly = [
   /\.cursor\b/,

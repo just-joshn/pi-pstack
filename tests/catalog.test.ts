@@ -51,7 +51,8 @@ test("all original nodes, edges and views are preserved and mapped", () => {
 });
 
 test("77 native skills, 22 ordered playbooks and all conditional links", async () => {
-  const skills = Object.entries(catalog.paths).filter(([, p]) => p.endsWith("SKILL.md"));
+  // Benny's SKILL.md files are automation instructions, not Pi skills (upstream benny README).
+  const skills = Object.entries(catalog.paths).filter(([, p]) => /^skills\/.*SKILL\.md$/.test(p));
   assert.equal(skills.length, 77);
   assert.equal(skills.filter(([id]) => id.startsWith("principle-")).length, 24);
   assert.equal(routes.length, 22);
@@ -90,9 +91,10 @@ test("77 native skills, 22 ordered playbooks and all conditional links", async (
 
 test("catalog nodes return their declared instruction files, not display labels", async () => {
   const declared = {
-    "benny-setup": "reference/benny/setup.md",
-    "benny-triage": "reference/benny/triage.md",
-    "benny-repro": "reference/benny/repro.md",
+    "benny-setup": "automations/benny/FOR_AGENTS.md",
+    "benny-triage": "automations/benny/skills/triage-issue-reports/SKILL.md",
+    "benny-repro": "automations/benny/skills/reproduce-and-fix-issues/SKILL.md",
+    "benny-config": "automations/benny/templates/configuration.example.yaml",
     "kit-quality-agent": "agents/thermo-nuclear-code-quality-review.md",
     "kit-no-inline-imports": "reference/rules/no-inline-imports.md",
   };
@@ -101,7 +103,7 @@ test("catalog nodes return their declared instruction files, not display labels"
       assert.equal(nativeNode(id).instructions, await packaged(path), id),
     ),
   );
-  assert.equal(nativeNode("benny-config").instructions, undefined);
+  assert.equal(nativeNode("benny-slack").instructions, undefined);
 });
 
 test("search and catalog reject missing references", () => {

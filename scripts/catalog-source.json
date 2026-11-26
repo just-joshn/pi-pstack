@@ -7,9 +7,11 @@
     "kit-exhaustive-switch": "reference/rules/typescript-exhaustive-switch.md",
     "kit-no-inline-imports": "reference/rules/no-inline-imports.md",
     "worker": "skills/poteto-mode/worker.md",
-    "benny-setup": "reference/benny/setup.md",
-    "benny-triage": "reference/benny/triage.md",
-    "benny-repro": "reference/benny/repro.md"
+    "benny-setup": "automations/benny/FOR_AGENTS.md",
+    "benny-triage": "automations/benny/skills/triage-issue-reports/SKILL.md",
+    "benny-repro": "automations/benny/skills/reproduce-and-fix-issues/SKILL.md",
+    "benny-config": "automations/benny/templates/configuration.example.yaml",
+    "benny-adapter": "automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md"
   },
   "implementations": {
     "cli": ["host", "pi interactive / --print / --mode json / --mode rpc"],
@@ -27,12 +29,12 @@
     "cli-worktree": ["extension", "pstack_worktree and git worktree"],
     "cli-cloud": ["gap", "Local isolated Pi workers; no managed remote worker service"],
     "cli-automate": [
-      "conditional",
-      "/pstack-automation drafts and src/jobs/run-job.mjs; external scheduler required"
+      "extension",
+      "/pstack-automation writes a disabled draft job; src/jobs/check-benny.mjs checks it"
     ],
     "cli-automations": [
-      "gap",
-      "Local headless event/schedule entrypoint; no managed cloud scheduler"
+      "extension",
+      "Job files run headless by src/jobs/run-job.mjs in a fresh checkout; src/jobs/watch-slack.mjs starts them for new Slack reports"
     ],
     "cli-create-skill": ["extension", "/pstack-create-skill and Pi skills authoring"],
     "cli-bugbot": [
@@ -62,12 +64,21 @@
     "watch-pr": ["conditional", "pstack_pr (GitHub CLI)"],
     "audit-worktree": ["extension", "pstack_worktree audit"],
     "forge": ["conditional", "GitHub CLI; Origin via project instructions only"],
-    "benny-setup": ["conditional", "reference/benny/setup.md / pstack-automation"],
-    "benny-triage": ["conditional", "reference/benny/triage.md / headless job"],
-    "benny-repro": ["conditional", "reference/benny/repro.md / headless job"],
-    "benny-config": ["conditional", "reference/benny/config.example.json"],
-    "benny-adapter": ["conditional", "project-specific real app adapter"],
-    "benny-slack": ["conditional", "configured Slack/tracker MCP; no service supplied"]
+    "benny-setup": [
+      "conditional",
+      "automations/benny/FOR_AGENTS.md and skills/setup-benny / pstack-automation"
+    ],
+    "benny-triage": ["conditional", "automations/benny/skills/triage-issue-reports / Benny job"],
+    "benny-repro": ["conditional", "automations/benny/skills/reproduce-and-fix-issues / Benny job"],
+    "benny-config": [
+      "conditional",
+      "automations/benny/templates/configuration.example.yaml and feature-map.example.md"
+    ],
+    "benny-adapter": ["conditional", "project control skill; references/control-adapter.md"],
+    "benny-slack": [
+      "conditional",
+      "configured Slack and tracker MCP tools; watch-slack.mjs trigger"
+    ]
   },
   "conditionalSkills": [
     "create-formal-verification-skill",

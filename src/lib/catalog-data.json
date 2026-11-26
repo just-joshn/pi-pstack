@@ -8,9 +8,11 @@
     "kit-exhaustive-switch": "reference/rules/typescript-exhaustive-switch.md",
     "kit-no-inline-imports": "reference/rules/no-inline-imports.md",
     "worker": "skills/poteto-mode/worker.md",
-    "benny-setup": "reference/benny/setup.md",
-    "benny-triage": "reference/benny/triage.md",
-    "benny-repro": "reference/benny/repro.md",
+    "benny-setup": "automations/benny/FOR_AGENTS.md",
+    "benny-triage": "automations/benny/skills/triage-issue-reports/SKILL.md",
+    "benny-repro": "automations/benny/skills/reproduce-and-fix-issues/SKILL.md",
+    "benny-config": "automations/benny/templates/configuration.example.yaml",
+    "benny-adapter": "automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md",
     "setup-pstack": "skills/setup-pstack/SKILL.md",
     "poteto-mode": "skills/poteto-mode/SKILL.md",
     "poteto-help": "skills/poteto-help/SKILL.md",
@@ -453,8 +455,8 @@
     "cli-goal": ["extension", "/pstack-goal and pstack_plan"],
     "cli-loop": ["extension", "/pstack-loop and pstack_wake"],
     "cli-automate": [
-      "conditional",
-      "/pstack-automation drafts and src/jobs/run-job.mjs; external scheduler required"
+      "extension",
+      "/pstack-automation writes a disabled draft job; src/jobs/check-benny.mjs checks it"
     ],
     "cli-cloud": ["gap", "Local isolated Pi workers; no managed remote worker service"],
     "cli-subagents": ["extension", "pstack_delegate"],
@@ -471,8 +473,8 @@
       "pstack_pr and evidence-based triage of configured forge bot comments; no hosted Bugbot"
     ],
     "cli-automations": [
-      "gap",
-      "Local headless event/schedule entrypoint; no managed cloud scheduler"
+      "extension",
+      "Job files run headless by src/jobs/run-job.mjs in a fresh checkout; src/jobs/watch-slack.mjs starts them for new Slack reports"
     ],
     "agent-poteto": ["extension", "agents/poteto-agent.md + pstack_delegate"],
     "agent-comment": ["extension", "agents/comment-sicko.md + read-only Pi tool allowlist"],
@@ -545,12 +547,21 @@
       "conditional",
       "skills/poteto-mode/playbooks/opening-a-pr.md + pstack_plan"
     ],
-    "benny-setup": ["conditional", "reference/benny/setup.md / pstack-automation"],
-    "benny-triage": ["conditional", "reference/benny/triage.md / headless job"],
-    "benny-repro": ["conditional", "reference/benny/repro.md / headless job"],
-    "benny-config": ["conditional", "reference/benny/config.example.json"],
-    "benny-adapter": ["conditional", "project-specific real app adapter"],
-    "benny-slack": ["conditional", "configured Slack/tracker MCP; no service supplied"],
+    "benny-setup": [
+      "conditional",
+      "automations/benny/FOR_AGENTS.md and skills/setup-benny / pstack-automation"
+    ],
+    "benny-triage": ["conditional", "automations/benny/skills/triage-issue-reports / Benny job"],
+    "benny-repro": ["conditional", "automations/benny/skills/reproduce-and-fix-issues / Benny job"],
+    "benny-config": [
+      "conditional",
+      "automations/benny/templates/configuration.example.yaml and feature-map.example.md"
+    ],
+    "benny-adapter": ["conditional", "project control skill; references/control-adapter.md"],
+    "benny-slack": [
+      "conditional",
+      "configured Slack and tracker MCP tools; watch-slack.mjs trigger"
+    ],
     "playbooks": ["navigation", "/pstack-map playbooks"],
     "skill-library": ["navigation", "/pstack-map skill-library"],
     "principles": ["navigation", "/pstack-map principles"],

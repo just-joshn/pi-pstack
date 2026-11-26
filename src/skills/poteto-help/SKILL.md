@@ -43,7 +43,7 @@ Installing changes nothing until the user invokes a skill. Only `/setup-pstack` 
 
 If cost is the worry, say where the tokens go and how to spend fewer. pstack spends extra tokens on subagents and review panels. Rerun `/setup-pstack` and pick a smaller budget or cheaper models. A role set to `auto` or `inherit-parent` runs on the chat's model, which saves tokens when the chat runs on a cheaper model. A shorter panel list runs fewer subagents, one for each entry. Save `/poteto-mode` for work that needs rigor.
 
-This is pstack for Pi, ported from the pstack plugin Lauren Tan wrote for another editor. Commands keep their names, such as `/poteto-mode`, and each skill also loads with `/skill:<name>`. Bugbot findings on a GitHub PR are ordinary review threads, and the Benny automations ship as dormant files that `/pstack-automation` drafts.
+This is pstack for Pi, ported from the pstack plugin Lauren Tan wrote for another editor. Commands keep their names, such as `/poteto-mode`, and each skill also loads with `/skill:<name>`. Bugbot findings on a GitHub PR are ordinary review threads, and Benny ships as a dormant automation pack in `src/automations/benny/`; point Pi at its `FOR_AGENTS.md` to set it up.
 
 Other tools can read the skills, because they use the Agent Skills format. But most workflow skills, including `/poteto-mode`, `/how`, and `/teach`, start workers with this package's `pstack_delegate`, some with per-role models, and `/poteto-mode on` and the wake loop come from its extension, so those parts work only in Pi with the package installed.
 
