@@ -41,7 +41,7 @@ FIXED:
 - The Benny skill check gives up after 60 seconds if Pi does not answer, instead of hanging the check or the run.
 - `check-benny.mjs` tells a job file from a repository by what is on disk, not by a `.json` suffix.
 - A second Slack watcher on the same state file refuses to start, instead of both overwriting each other's cursors. The claim is a localhost port derived from the state file's path, which the OS frees when the watcher exits, crash included, so there is no stale claim to recover.
-- The Slack watcher stops on a saved state file it cannot read whole, instead of dropping the bad cursor and skipping that channel's reports.
+- The Slack watcher stops on a saved state file it cannot read whole, including an empty or malformed cursor, instead of dropping it and skipping that channel's reports or replaying its history.
 - `check-benny.mjs` checks a referenced path with spaces whole when it is in backticks or on its own line.
 - A failed `pstack_plan` call shows its error in the conversation instead of "No plan".
 - A resumed worker is listed with the resume's outcome and report, not the run it continued.

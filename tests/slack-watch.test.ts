@@ -320,3 +320,19 @@ test("a watcher's claim covers the state file under every path that reaches it",
   await assert.rejects(claimState(join(alias, "watch-state.json")), /Another watcher uses/);
   await release();
 });
+
+test("an empty or malformed saved cursor stops the watcher instead of replaying history", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  for (const cursor of ["", "yesterday"]) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each case rewrites the same file.
+    await writeFile(state, JSON.stringify({ channels: { C1: cursor } }));
+    const { io, started } = fakeIo({ C1: [{ ts: "1.000001" }] });
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each case rewrites the same file.
+    await assert.rejects(
+      pollOnce([{ path: "a.json", channel: "C1" }], state, io),
+      /Invalid watcher state/,
+    );
+    assert.equal(started.length, 0);
+  }
+});

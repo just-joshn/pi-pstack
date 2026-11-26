@@ -69,7 +69,8 @@ const slackTimestamp = (milliseconds: number) => (milliseconds / 1000).toFixed(6
 
 type State = Record<string, string>;
 const isCursors = (value: unknown): value is State =>
-  isRecord(value) && Object.values(value).every((ts) => typeof ts === "string");
+  isRecord(value) &&
+  Object.values(value).every((ts) => typeof ts === "string" && /^\d+\.\d+$/.test(ts));
 async function readState(path: string): Promise<State> {
   try {
     const saved = parseJson(await readFile(path, "utf8"), path);
