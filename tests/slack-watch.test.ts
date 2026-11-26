@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { EventEmitter, once } from "node:events";
-import { mkdtemp, readdir, readFile, stat, symlink, writeFile } from "node:fs/promises";
+import { link, mkdtemp, readdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -204,11 +204,18 @@ test("a channel's first cursor is saved even when another channel's poll fails",
 test("the cursor file is replaced whole, never rewritten in place", async () => {
   const dir = await folder();
   const state = join(dir, "watch-state.json");
-  await writeFile(state, JSON.stringify({ channels: { C1: "1.0" } }));
-  const before = (await stat(state)).ino;
+  const original = JSON.stringify({ channels: { C1: "1.0" } });
+  await writeFile(state, original);
+  const kept = join(dir, "original-state.json");
+  await link(state, kept);
   await pollOnce([{ path: "a.json", channel: "C1" }], state, fakeIo({ C1: [{ ts: "2.0" }] }).io);
-  assert.notEqual((await stat(state)).ino, before);
-  assert.deepEqual(await readdir(dir), ["watch-state.json"], "no temporary file is left");
+  assert.equal(await readFile(kept, "utf8"), original, "the original file was never written to");
+  assert.deepEqual(JSON.parse(await readFile(state, "utf8")), { channels: { C1: "2.0" } });
+  assert.deepEqual(
+    (await readdir(dir)).toSorted(),
+    ["original-state.json", "watch-state.json"],
+    "no temporary file is left",
+  );
 });
 
 test("the cursor moves past messages that are not reports", async () => {
