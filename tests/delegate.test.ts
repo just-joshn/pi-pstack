@@ -306,3 +306,42 @@ test("interrogate adversaries run in their own writable worktrees to prove findi
   }
   assert.equal(new Set(launched.map((w) => w.cwd)).size, 3);
 });
+
+test("a caller picks a panel's seats or a race's per-arm models for one call", async () => {
+  const { h, runs } = recordingHost();
+  await h.call("pstack_delegate", {
+    mode: "swarm",
+    tasks: ["arm A", "arm B"],
+    models: ["openai/gpt", "google/gemini"],
+  });
+  assert.deepEqual(
+    runs.map(({ args }) => [
+      args.at(-1)?.split("Assigned task: ")[1]?.split("\n")[0],
+      flag(args, "--model"),
+    ]),
+    [
+      ["arm A", "openai/gpt"],
+      ["arm B", "google/gemini"],
+    ],
+  );
+  const panel = delegated(
+    await h.call("pstack_delegate", {
+      mode: "arena",
+      tasks: ["design"],
+      rubric: "quality",
+      models: ["openai/gpt", "openai/gpt", "inherit-parent"],
+    }),
+  );
+  assert.deepEqual(
+    panel.outputs.map((_, i) => fulfilled(panel.outputs, i).model),
+    ["openai/gpt", "openai/gpt", "anthropic/claude"],
+  );
+  await Promise.all(
+    [
+      { mode: "swarm", tasks: ["a"], models: ["x/y", "z/w"] },
+      { mode: "single", tasks: ["a"], models: ["openai/gpt"] },
+      { mode: "swarm", tasks: ["a"], models: ["openai/gpt"], model: "openai/gpt" },
+      { mode: "arena", tasks: ["a"], rubric: "r", models: ["openai/gpt"] },
+    ].map((bad) => assert.rejects(() => h.call("pstack_delegate", bad))),
+  );
+});

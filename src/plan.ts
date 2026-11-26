@@ -147,7 +147,7 @@ async function runPlanAction(
       session.commit(ctx, { plan: startPlan("figure-it-out", p.goal ?? "", p.steps) });
       break;
     case "add":
-      session.commit(ctx, { plan: addTasks(plan, p.steps) });
+      session.commit(ctx, { plan: addTasks(plan, p.steps, p.task) });
       break;
     case "update":
       if (p.task === undefined || !isTaskStatus(p.status)) fail("Specify task and status");
@@ -169,7 +169,7 @@ function registerPlanTools(pi: ExtensionAPI, session: Session) {
     name: "pstack_plan",
     label: "Pstack plan",
     description:
-      "Maintain branch-local plan. Start with a route and goal or custom steps for figure-it-out. Add tasks (steps) to the open plan. Mark tasks with real evidence. Finish only when all are done or justified skips.",
+      "Maintain branch-local plan. Start with a route and goal or custom steps for figure-it-out. Add tasks (steps) to the open plan, after task `task` or at the end. Mark tasks with real evidence. Finish only when all are done or justified skips.",
     executionMode: "sequential",
     parameters: planParameters,
     async execute(_id, p, _signal, _update, ctx) {

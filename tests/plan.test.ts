@@ -350,3 +350,26 @@ test("a playbook step adds tasks to the open plan, as upstream adds todo items",
     /No active plan/,
   );
 });
+
+test("added tasks go after the named task, as figure-it-out puts its steps between phases", async () => {
+  const h = host();
+  await h.call("pstack_plan", { action: "custom", goal: "g", steps: ["A", "B", "C", "D"] });
+  await h.call("pstack_plan", { action: "update", task: 1, status: "done", evidence: "ok" });
+  await h.call("pstack_plan", { action: "add", steps: ["step 1", "step 2"], task: 3 });
+  const tasks = h.state().plan?.tasks ?? [];
+  assert.deepEqual(
+    tasks.map(({ id, text, status }) => `${id}:${text}:${status}`),
+    [
+      "1:A:done",
+      "2:B:pending",
+      "3:C:pending",
+      "4:step 1:pending",
+      "5:step 2:pending",
+      "6:D:pending",
+    ],
+  );
+  await assert.rejects(
+    () => h.call("pstack_plan", { action: "add", steps: ["x"], task: 9 }),
+    /Unknown task/,
+  );
+});

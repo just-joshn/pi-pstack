@@ -110,17 +110,22 @@ export function updateTask(plan: Plan | null, id: number, status: TaskStatus, ev
     ? { ...open, tasks, finishedEvidence }
     : { ...open, tasks };
 }
-/** Appends tasks to an open plan, as a playbook step that writes todo items does. */
-export function addTasks(plan: Plan | null, steps: readonly string[] = []): Plan {
+/**
+ * Adds tasks to an open plan, as a step that writes todo items does: after task `after`, or at
+ * the end. Tasks are renumbered in order.
+ */
+export function addTasks(
+  plan: Plan | null,
+  steps: readonly string[] = [],
+  after = plan?.tasks.length ?? 0,
+): Plan {
   if (!plan || plan.finishedEvidence !== undefined) throw Error("No active plan");
   if (!steps.length || steps.some((s) => !s.trim())) throw Error("Supply the tasks to add");
-  const added = steps.map((text, i) => ({
-    id: plan.tasks.length + i + 1,
-    text,
-    status: "pending" as const,
-    evidence: "",
-  }));
-  return { ...plan, tasks: [...plan.tasks, ...added] };
+  if (!Number.isInteger(after) || after < 0 || after > plan.tasks.length)
+    throw Error("Unknown task");
+  const added = steps.map((text) => ({ text, status: "pending" as const, evidence: "" }));
+  const ordered = [...plan.tasks.slice(0, after), ...added, ...plan.tasks.slice(after)];
+  return { ...plan, tasks: ordered.map((t, i) => ({ ...t, id: i + 1 })) };
 }
 export function planComplete(plan: Plan | null) {
   return !!plan && plan.tasks.every((t) => t.status === "done" || t.status === "skipped");

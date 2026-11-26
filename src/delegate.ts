@@ -75,6 +75,14 @@ const parameters = Type.Object({
         "Exact provider/model ID, or auto or inherit-parent, for single and swarm workers. Panels use their configured seats.",
     }),
   ),
+  models: Type.Optional(
+    Type.Array(Type.String({ minLength: 1 }), {
+      minItems: 1,
+      maxItems: 8,
+      description:
+        "Exact provider/model IDs or aliases: one per seat for arena and interrogate, in place of the configured panel, or one per task for swarm, such as a model race.",
+    }),
+  ),
   thinking: Type.Optional(stringEnum(thinkingLevels)),
   background: Type.Optional(
     Type.Boolean({
@@ -111,21 +119,39 @@ function resolveWorkers(
   if (p.mode !== "swarm" && p.tasks.length !== 1)
     fail("Single, arena and interrogate require one shared task");
   if (p.mode === "arena" && !p.rubric?.trim()) fail("Arena requires a common evaluation rubric");
-  const choices = config.roles[modelRole];
   const panel = p.mode === "arena" || p.mode === "interrogate";
+  const choices = panel ? (p.models ?? config.roles[modelRole]) : config.roles[modelRole];
   if (panel && (p.model || p.thinking))
     fail("Panel seats use their configured models and levels; omit model and thinking");
-  if (panel && choices.length < 2) fail("Configure at least two panel seats in /setup-pstack");
+  if (panel && choices.length < 2) fail("A panel needs at least two seats");
   const tasks = panel ? choices.flatMap(() => p.tasks) : p.tasks;
-  const models = (
-    p.model ? tasks.map(() => p.model ?? "") : selectPanel(config, modelRole, tasks.length)
-  ).map((m) => modelFor(m, parent));
+  const models = workerModels(p, { panel, choices, count: tasks.length }, config, modelRole).map(
+    (m) => modelFor(m, parent),
+  );
   assertReachable(available, models);
   const judge = p.mode === "arena" ? crossJudge(config, parent, available) : undefined;
   const workers = tasks.flatMap((task, i) =>
     models.slice(i, i + 1).map((model) => ({ task, model })),
   );
   return { role, modelRole, readOnly, workers, judge, thinking: p.thinking };
+}
+
+/** Each worker's model: a panel's seats, a swarm's per-task models, one model, or the role's. */
+function workerModels(
+  p: DelegateParams,
+  batch: { panel: boolean; choices: string[]; count: number },
+  config: RoleConfig,
+  modelRole: Role,
+) {
+  if (batch.panel) return batch.choices;
+  if (p.models) {
+    if (p.mode !== "swarm" || p.models.length !== batch.count)
+      fail("Outside a panel, models takes one entry per swarm task");
+    if (p.model) fail("Pass model or models, not both");
+    return p.models;
+  }
+  if (p.model) return Array.from({ length: batch.count }, () => p.model ?? "");
+  return selectPanel(config, modelRole, batch.count);
 }
 
 export function workerArgs(options: {
@@ -381,7 +407,7 @@ async function judgeArena(
   const files = candidates.map((c) => c.path);
   const worktrees = candidates.map((c) => c.label).join("; ");
   const assessment = await run({
-    task: `Judge these ${files.length} anonymous candidate message transcripts: ${files.join(", ")}. Read every file in full, including tool results; rubric: ${rubric}. Rank by actual evidence; note missing artifacts or unverifiable claims. For write candidates, inspect candidate worktrees if necessary: ${worktrees}. Do not infer provider identity.`,
+    task: `Judge these ${files.length} anonymous candidate message transcripts: ${files.join(", ")}. Read every file in full, including tool results; rubric: ${rubric}. Score each candidate on each rubric criterion from actual evidence, recommend a base, and note missing artifacts or unverifiable claims. For write candidates, inspect candidate worktrees if necessary: ${worktrees}. Do not infer provider identity.`,
     model: judge,
     index: outputs.length,
     readOnly: true,
