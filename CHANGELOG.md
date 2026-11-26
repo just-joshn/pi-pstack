@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 (Unreleased)
+## 0.4.0 (2026-11-25)
 
 BREAKING CHANGES:
 
@@ -11,6 +11,8 @@ BREAKING CHANGES:
 
 NEW FEATURES:
 
+- `/reframe` and `/skill:reframe` from upstream pstack 0.15.48. It gives the expert terms for what you are building, with checked sources and terms from neighboring fields, and rewrites your description with them. It does not do the task.
+- The two Team Kit rules, `no-inline-imports` and `typescript-exhaustive-switch`, in upstream's wording, are appended to the system prompt while poteto-mode is on. Upstream marks them `alwaysApply`; they are limited to poteto-mode so that sessions not using pstack, which may not be TypeScript projects, do not pay for them. Before, the package only kept them as reference files that nothing loaded.
 - `pstack_delegate` takes `model` and `thinking` per call, `models` for panel seats and swarm race arms, `resume` to continue a worker's own session, and `background` to return at once while workers keep running.
 - `pstack_workers` lists the session's workers with their state and last activity, and stops a background worker.
 - `pstack_wake` action `start` lets the agent arm the wake loop, as upstream's agent arms `/loop`.
@@ -30,21 +32,9 @@ FIXED:
 
 CHANGED:
 
+- The source map follows upstream `cursor/plugins` at `41e4009` (pstack 0.15.48) instead of `7a58391` (pstack 0.15.46). Team Kit has no changes between the two. The map has 162 nodes, and the package has 77 skills and 53 slash commands.
 - `scripts/generate.py` only builds the catalog, the plan steps from each playbook, and the parity listings.
 - A test checks that no ported file names a Cursor mechanism. During the port, each file was also checked against upstream's for its name, headings, numbered steps and line layout; the upstream copies are not kept in the repository.
-
-## 0.3.0 (Unreleased)
-
-NEW FEATURES:
-
-- `/reframe` and `/skill:reframe` from upstream pstack 0.15.48. It gives the expert terms for what you are building, with checked sources and terms from neighboring fields, and rewrites your description with them. It does not do the task.
-- The two Team Kit rules, `no-inline-imports` and `typescript-exhaustive-switch`, are appended to the system prompt while poteto-mode is on. Upstream marks them `alwaysApply`; they are limited to poteto-mode so that sessions not using pstack, which may not be TypeScript projects, do not pay for them. Before, the package only kept them as reference files that nothing loaded.
-
-CHANGED:
-
-- The source map follows upstream `cursor/plugins` at `41e4009` (pstack 0.15.48) instead of `7a58391` (pstack 0.15.46). Team Kit has no changes between the two. The map has 162 nodes, and the package has 77 skills and 53 slash commands.
-- `/poteto-help` suggests `/sharpen` to deepen a prompt and `/reframe` when you cannot yet name the problem.
-- The rule texts follow the upstream wording: inline imports are allowed only for a documented circular dependency or dynamic-loading boundary, and every switch over a union or enum needs a `never` check in its default case.
 
 ## 0.2.0 (2026-11-25)
 
