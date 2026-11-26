@@ -277,7 +277,7 @@ test("one watcher owns a state file at a time; a dead watcher's claim is taken o
   again();
   await writeFile(`${state}.lock`, "999999999");
   const taken = await claimState(state);
-  assert.equal(await readFile(`${state}.lock`, "utf8"), String(process.pid));
+  assert.match(await readFile(`${state}.lock`, "utf8"), new RegExp(`^${process.pid} \\S`));
   taken();
 });
 
@@ -310,4 +310,13 @@ test("releasing a claim that is already gone creates nothing", async () => {
   await rm(`${state}.lock`);
   release();
   assert.deepEqual(await readdir(dir), []);
+});
+
+test("a claim whose pid now belongs to another process is taken over", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  await writeFile(`${state}.lock`, `${process.pid} Mon Jan  1 00:00:00 2001`);
+  const release = await claimState(state);
+  assert.match(await readFile(`${state}.lock`, "utf8"), new RegExp(`^${process.pid} `));
+  release();
 });

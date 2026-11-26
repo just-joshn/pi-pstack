@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHmac, randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { existsSync, readFileSync, rmSync } from "node:fs";
@@ -163,15 +163,23 @@ export async function watchedJobs(paths: readonly string[]): Promise<Watched[]> 
   );
 }
 
-const isAlive = (pid: number) => {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
+const processStart = (pid: number) => {
+  if (!Number.isInteger(pid) || pid <= 0) return "";
   try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return hasErrorCode(error, "EPERM");
+    const args = ["-p", String(pid), "-o", "lstart="];
+    return execFileSync("ps", args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "";
   }
 };
+// A pid alone can be reused, so a claim names its process by pid and start time.
+const identity = (pid: number) => `${pid} ${processStart(pid)}`;
+const ownerPid = (claim: string) => Number(claim.split(" ")[0]);
+const isAlive = (claim: string) =>
+  !!processStart(ownerPid(claim)) && claim === identity(ownerPid(claim));
 
 async function takeOver(lock: string, deadOwner: string) {
   const aside = `${lock}.${process.pid}.${randomUUID()}`;
@@ -185,24 +193,35 @@ async function takeOver(lock: string, deadOwner: string) {
   await rm(aside, { force: true });
 }
 
+async function publish(lock: string, claim: string) {
+  const draft = `${lock}.${process.pid}.${randomUUID()}`;
+  await writeFile(draft, claim, { flag: "wx", mode: 0o600 });
+  try {
+    await link(draft, lock);
+    return true;
+  } catch (error) {
+    if (hasErrorCode(error, "EEXIST")) return false;
+    throw error;
+  } finally {
+    await rm(draft, { force: true });
+  }
+}
+
 export async function claimState(statePath: string) {
   const lock = `${statePath}.lock`;
-  const pid = String(process.pid);
+  const me = identity(process.pid);
   const release = () => {
-    if (existsSync(lock) && readFileSync(lock, "utf8") === pid) rmSync(lock, { force: true });
+    if (existsSync(lock) && readFileSync(lock, "utf8") === me) rmSync(lock, { force: true });
   };
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      // oxlint-disable-next-line eslint/no-await-in-loop -- Each attempt follows the last takeover.
-      await writeFile(lock, pid, { flag: "wx", mode: 0o600 });
-      return release;
-    } catch (error) {
-      if (!hasErrorCode(error, "EEXIST")) throw error;
-    }
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each attempt follows the last takeover.
+    if (await publish(lock, me)) return release;
     // oxlint-disable-next-line eslint/no-await-in-loop -- The owner is read after the failed claim.
     const owner = await readFile(lock, "utf8").catch(() => "");
-    if (isAlive(Number(owner)))
-      throw Error(`Another watcher (pid ${owner}) uses ${statePath}; run one watcher for its jobs`);
+    if (isAlive(owner)) {
+      const pid = ownerPid(owner);
+      throw Error(`Another watcher (pid ${pid}) uses ${statePath}; run one watcher for its jobs`);
+    }
     // oxlint-disable-next-line eslint/no-await-in-loop -- Take over before claiming again.
     await takeOver(lock, owner);
   }
