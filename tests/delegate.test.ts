@@ -350,3 +350,31 @@ test("a caller picks a panel's seats or a race's per-arm models for one call", a
     ].map((bad) => assert.rejects(() => h.call("pstack_delegate", bad))),
   );
 });
+
+test("two resumes of one read-only worker cannot run at once, and resume never runs in the background", async () => {
+  const gate = Promise.withResolvers<void>();
+  let calls = 0;
+  const h = host({
+    execute: async (bin, args) => {
+      if (bin === "git") return notARepository;
+      calls += 1;
+      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+      if (calls === 2) await gate.promise;
+      return { code: 0, stdout: "report", stderr: "" };
+    },
+  });
+  const first = fulfilled(
+    delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })).outputs,
+  );
+  const resume = { mode: "single", tasks: ["more"], resume: first.sessionDir };
+  const running = h.call("pstack_delegate", resume);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  await assert.rejects(() => h.call("pstack_delegate", resume), /is still running/);
+  gate.resolve();
+  await running;
+  await assert.rejects(
+    () => h.call("pstack_delegate", { ...resume, background: true }),
+    /Resume runs in the foreground/,
+  );
+  assert.equal(calls, 2);
+});

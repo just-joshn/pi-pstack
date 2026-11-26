@@ -161,7 +161,7 @@ test("a run's prompt and folder follow its job kind", async () => {
     instructions: "channel {{SLACK_CHANNEL_ID}} at {{SLACK_MESSAGE_TS}}",
   });
   const first = planRun("/jobs/a.json", benny, trigger);
-  assert.equal(first.prompt, "channel C1 at 1700000000.000100");
+  assert(first.prompt.startsWith("channel C1 at 1700000000.000100\n\nTrigger:"));
   assert.equal(first.eventId, trigger.message_ts);
   assert.equal(planRun("/jobs/a.json", benny, trigger).key, first.key, "one run per report");
   assert.notEqual(planRun("/jobs/b.json", benny, trigger).key, first.key, "and per job");
@@ -178,4 +178,11 @@ test("a run's prompt and folder follow its job kind", async () => {
   const plain = planRun("/jobs/a.json", own, null);
   assert.equal(plain.prompt, "check");
   assert.equal(plain.eventId, undefined);
+});
+
+test("instructions that use only some trigger placeholders still get the whole trigger", async () => {
+  const benny = await job({ ...triage, instructions: "Inspect reports in {{SLACK_CHANNEL_ID}}." });
+  const { prompt } = planRun("/jobs/a.json", benny, trigger);
+  assert(prompt.startsWith("Inspect reports in C1."));
+  assert(prompt.includes(`"message_ts": "${trigger.message_ts}"`));
 });

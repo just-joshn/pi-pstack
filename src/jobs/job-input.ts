@@ -142,10 +142,8 @@ export function planRun(
     (text, [field, value]) => text.replaceAll(field, value),
     job.instructions,
   );
-  const prompt =
-    filled === job.instructions
-      ? `${job.instructions}\n\nTrigger:\n\n${JSON.stringify(event, null, 2)}`
-      : filled;
+  const allFilled = Object.keys(fields).every((field) => job.instructions.includes(field));
+  const prompt = allFilled ? filled : `${filled}\n\nTrigger:\n\n${JSON.stringify(event, null, 2)}`;
   const key = createHash("sha256")
     .update(`${jobFile}\0${event.source_channel_id}\0${event.message_ts}`)
     .digest("hex");

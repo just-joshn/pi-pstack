@@ -354,6 +354,7 @@ async function resumeWorker(
 ) {
   if (p.mode !== "single" || p.tasks.length !== 1 || p.model)
     fail("Resume takes mode single, one follow-up task, and no model");
+  if (p.background) fail("Resume runs in the foreground; omit background");
   const workersDir = join(artifacts(ctx), "workers");
   const sessionDir = resolve(p.resume);
   if (!sessionDir.startsWith(workersDir + sep)) fail(`Resume a worker session under ${workersDir}`);
@@ -362,14 +363,16 @@ async function resumeWorker(
     "worker record",
   );
   if (!isWorkerRecord(worker) || worker.sessionDir !== sessionDir) fail("Invalid worker record");
-  if (workers.background.state(worker.id) || workers.active.has(worker.cwd))
+  if (workers.background.state(worker.id) || workers.active.has(worker.sessionDir))
     fail(`Worker ${worker.id} is still running; resume it after it exits`);
   const run = () =>
-    execWorker(pi, options, worker, {
-      thinking: p.thinking ?? worker.thinking,
-      prompt: p.tasks.join("\n"),
-      report: join(sessionDir, `resume-${randomUUID().slice(0, 8)}.txt`),
-    });
+    workers.active.hold(sessionDir, () =>
+      execWorker(pi, options, worker, {
+        thinking: p.thinking ?? worker.thinking,
+        prompt: p.tasks.join("\n"),
+        report: join(sessionDir, `resume-${randomUUID().slice(0, 8)}.txt`),
+      }),
+    );
   const output = worker.readOnly ? await run() : await workers.active.hold(worker.cwd, run);
   const value = { id: worker.id, model: worker.model, path: worker.cwd, base: null, ...output };
   return { outputs: [{ status: "fulfilled", value }], dir: dirname(sessionDir) };
@@ -394,7 +397,9 @@ function createRunner(
       id,
       model: request.model,
       ...tree,
-      ...(await launchWorker(pi, request, options, id, tree.path)),
+      ...(await active.hold(join(options.dir, id), () =>
+        launchWorker(pi, request, options, id, tree.path),
+      )),
     });
     return request.readOnly ? work() : active.hold(tree.path, work);
   };
