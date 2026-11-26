@@ -33,3 +33,13 @@ export function planCall(
   const title = theme.fg("toolTitle", `pstack_plan ${args.action}`);
   return new Text(change ? `${title} ${theme.fg("dim", change)}` : title, 0, 0);
 }
+
+export function planResult(
+  output: { content: { type: string; text?: string }[]; details: unknown },
+  isError: boolean,
+  theme: Theme,
+) {
+  if (!isError) return planChecklist(output.details, theme);
+  const message = output.content.map((block) => block.text ?? "").join("\n");
+  return new Text(theme.fg("error", message), 0, 0);
+}

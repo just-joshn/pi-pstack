@@ -35,6 +35,10 @@ const receipt = (saved: string) => shaped<Receipt>(JSON.parse(saved));
 
 const fakePi = `#!/usr/bin/env node
 if (process.argv.includes("rpc")) {
+  if (process.env.PSTACK_EVENT_SECRET || process.env.PSTACK_SLACK_TRIGGER_TOKEN) {
+    console.log(JSON.stringify({ id: "check", data: { commands: [] } }));
+    return;
+  }
   const scope = process.env.PSTACK_TEST_SCOPE ?? "project";
   const commands = ${JSON.stringify(sharedSkills)}.map((s) => ({ name: "skill:" + s, sourceInfo: { scope, path: "/pstack/" + s + "/SKILL.md" } }));
   console.log(JSON.stringify({ id: "check", data: { commands } }));

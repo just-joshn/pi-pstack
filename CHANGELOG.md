@@ -28,6 +28,9 @@ FIXED:
 - Write workers have MCP tools, as poteto-mode says. `--no-extensions` also turned off Pi's built-in MCP, so they had none.
 - `pstack_delegate` mode `interrogate` honors an explicit `readOnly: true`; only its default is writable.
 - Resuming a worker that is still running, or that another resume is running, is refused, instead of starting a second Pi process on the same session. A resume with `background: true` is refused, since resume runs in the foreground.
+- A resume refuses `readOnly`, `role`, `modelRole`, `models`, `base`, `rubric` and `concurrency` instead of silently ignoring them; it continues the worker as it was.
+- A Benny run's skill check no longer receives `PSTACK_EVENT_SECRET` or `PSTACK_SLACK_TRIGGER_TOKEN`; it gets the same cleaned environment as the run.
+- A failed `pstack_plan` call shows its error in the conversation instead of "No plan".
 - A resumed worker is listed with the resume's outcome and report, not the run it continued.
 - `check-benny.mjs` requires every file of the Benny pack, as upstream's setup does, not only its entry files.
 - The Slack watcher's cursor moves past messages that are not reports, and saves at once, so it no longer fetches them again on every poll, even while another channel's poll is failing.

@@ -17,7 +17,7 @@ import {
   updateTask,
   wakeConfig,
 } from "./lib/state.ts";
-import { planCall, planChecklist } from "./plan-view.ts";
+import { planCall, planResult } from "./plan-view.ts";
 import type { Session } from "./session.ts";
 import {
   artifacts,
@@ -178,7 +178,7 @@ function registerPlanTools(pi: ExtensionAPI, session: Session) {
       return { ...result(outcome), details: session.state().plan };
     },
     renderCall: (args, theme) => planCall(args, theme),
-    renderResult: (output, _options, theme) => planChecklist(output.details, theme),
+    renderResult: (output, _options, theme, context) => planResult(output, context.isError, theme),
   });
   pi.registerTool({
     name: "pstack_wake",

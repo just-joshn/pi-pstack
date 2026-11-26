@@ -4,7 +4,7 @@ import type { Theme } from "@earendil-works/pi-coding-agent";
 import { test } from "vitest";
 
 import { startPlan, updateTask } from "../src/lib/state.ts";
-import { planCall, planChecklist } from "../src/plan-view.ts";
+import { planCall, planChecklist, planResult } from "../src/plan-view.ts";
 import { host } from "./host.ts";
 import { shaped } from "./support.ts";
 
@@ -58,4 +58,15 @@ test("the call header names the change in one line", () => {
     "<toolTitle>pstack_plan start <dim>bug-fix: parser",
   );
   assert.equal(line({ action: "show" }), "<toolTitle>pstack_plan show");
+});
+
+test("a failed plan change shows its error, not an empty plan", () => {
+  const failed = { content: [{ type: "text" as const, text: "Unknown task" }], details: undefined };
+  const lines = planResult(failed, true, theme)
+    .render(200)
+    .map((l) => l.trimEnd());
+  assert.deepEqual(lines, ["<error>Unknown task"]);
+  const plan = startPlan("figure-it-out", "g", ["a"]);
+  const shown = planResult({ content: [], details: plan }, false, theme).render(200);
+  assert.equal(shown[0]?.trimEnd(), "<toolTitle>figure-it-out 0/1");
 });

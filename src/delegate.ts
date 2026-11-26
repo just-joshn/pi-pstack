@@ -355,6 +355,17 @@ async function resumeWorker(
   if (p.mode !== "single" || p.tasks.length !== 1 || p.model)
     fail("Resume takes mode single, one follow-up task, and no model");
   if (p.background) fail("Resume runs in the foreground; omit background");
+  const launchOptions = [
+    "readOnly",
+    "role",
+    "modelRole",
+    "models",
+    "base",
+    "rubric",
+    "concurrency",
+  ] as const;
+  if (launchOptions.some((option) => p[option] !== undefined))
+    fail(`Resume continues the worker as it was; omit ${launchOptions.join(", ")}`);
   const workersDir = join(artifacts(ctx), "workers");
   const sessionDir = resolve(p.resume);
   if (!sessionDir.startsWith(workersDir + sep)) fail(`Resume a worker session under ${workersDir}`);

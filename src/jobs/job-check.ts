@@ -61,9 +61,10 @@ function jsonLine(line: string): unknown {
   }
 }
 
-async function skillSources(piBin: string, cwd: string) {
+async function skillSources(piBin: string, cwd: string, env: NodeJS.ProcessEnv) {
   const child = spawn(piBin, ["--mode", "rpc", "--no-session", "--approve", "--no-extensions"], {
     cwd,
+    env,
     stdio: ["pipe", "pipe", "ignore"],
   });
   let failure: unknown;
@@ -93,8 +94,12 @@ async function skillSources(piBin: string, cwd: string) {
   }
 }
 
-export async function projectSkills(cwd: string, piBin = process.env["PSTACK_PI_BIN"] ?? "pi") {
-  const sources = await skillSources(piBin, cwd);
+export async function projectSkills(
+  cwd: string,
+  piBin = process.env["PSTACK_PI_BIN"] ?? "pi",
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  const sources = await skillSources(piBin, cwd, env);
   const files = new Map<string, string>();
   for (const skill of sharedSkills) {
     const source = sources.get(`skill:${skill}`);

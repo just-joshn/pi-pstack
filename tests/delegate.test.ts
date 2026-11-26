@@ -378,3 +378,24 @@ test("two resumes of one read-only worker cannot run at once, and resume never r
   );
   assert.equal(calls, 2);
 });
+
+test("a resume refuses options that would change the worker it continues", async () => {
+  const { h, runs } = recordingHost();
+  const first = fulfilled(
+    delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })).outputs,
+  );
+  for (const changed of [{ readOnly: true }, { role: "comment-sicko" }, { base: "main" }]) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each refusal is checked on its own.
+    await assert.rejects(
+      () =>
+        h.call("pstack_delegate", {
+          mode: "single",
+          tasks: ["more"],
+          resume: first.sessionDir,
+          ...changed,
+        }),
+      /Resume continues the worker as it was/,
+    );
+  }
+  assert.equal(runs.length, 1);
+});

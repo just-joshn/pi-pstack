@@ -31,6 +31,7 @@ await mkdir(runDir, { mode: 0o700 });
 const cwd = benny ? join(runDir, "checkout") : repository;
 const log = join(runDir, "stdout.txt");
 const errorLog = join(runDir, "stderr.txt");
+const piBin = process.env.PSTACK_PI_BIN ?? "pi";
 const env = { ...process.env };
 delete env.PSTACK_EVENT_SECRET;
 delete env.PSTACK_SLACK_TRIGGER_TOKEN;
@@ -83,7 +84,7 @@ function listSkillFilesInSystemPrompt(files) {
 
 async function sharedSkillFilesOrFailure() {
   try {
-    const { files, unresolved } = await projectSkills(cwd);
+    const { files, unresolved } = await projectSkills(cwd, piBin, env);
     return unresolved.length
       ? notStarted(`pstack skills not in the checkout's project scope: ${unresolved.join(", ")}`)
       : files;
@@ -113,7 +114,7 @@ async function runPi() {
   try {
     out = await open(log, "wx", 0o600);
     err = await open(errorLog, "wx", 0o600);
-    child = spawn(process.env.PSTACK_PI_BIN ?? "pi", args, {
+    child = spawn(piBin, args, {
       cwd,
       env,
       stdio: ["pipe", out.fd, err.fd],
