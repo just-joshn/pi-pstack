@@ -10,17 +10,8 @@ import {
   type State,
   stateType,
   stopped,
-  type TaskStatus,
   type Wake,
 } from "./lib/state.ts";
-
-const markers: Record<TaskStatus, string> = {
-  pending: "[ ]",
-  active: "[>]",
-  done: "[x]",
-  blocked: "[!]",
-  skipped: "[-]",
-};
 
 function statusLine({ mode, plan, wake }: State) {
   if (!mode && !plan && !wake?.running) return undefined;
@@ -79,10 +70,6 @@ function createStore(pi: ExtensionAPI) {
   function refresh(ctx: ExtensionContext) {
     if (!ctx.hasUI) return;
     ctx.ui.setStatus("pstack", statusLine(state));
-    ctx.ui.setWidget(
-      "pstack",
-      state.plan?.tasks.map((t) => `${markers[t.status]} ${t.id}. ${t.text}`),
-    );
   }
   return {
     state: () => state,

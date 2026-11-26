@@ -19,6 +19,8 @@ ignorePatterns = [
   "build/",
   "coverage/",
   "src/skills/*/scripts/",
+  # The rules are the operator's own text; the formatter would rewrite their code samples.
+  ".agents/",
   # Files ported by hand from upstream keep upstream's Markdown exactly.
   "src/skills/**/*.md",
   "src/docs/",

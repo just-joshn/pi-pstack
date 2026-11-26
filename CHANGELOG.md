@@ -37,6 +37,7 @@ FIXED:
 
 CHANGED:
 
+- The plan no longer sits in a widget above the editor. Each `pstack_plan` change draws the checklist in the conversation, with a one-line header such as `pstack_plan update 2 → done`, and scrolls away like any tool call; the status bar keeps its one-line progress.
 - The source map follows upstream `cursor/plugins` at `41e4009` (pstack 0.15.48) instead of `7a58391` (pstack 0.15.46). Team Kit has no changes between the two. The map has 162 nodes, and the package has 77 skills and 53 slash commands.
 - `scripts/generate.py` only builds the catalog, the plan steps from each playbook, and the parity listings.
 - A test checks that no ported file names a Cursor mechanism. During the port, each file was also checked against upstream's for its name, headings, numbered steps and line layout; the upstream copies are not kept in the repository.

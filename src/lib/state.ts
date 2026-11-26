@@ -49,7 +49,7 @@ const isTask = (task: unknown, i: number): task is Task =>
   typeof task["text"] === "string" &&
   isTaskStatus(task["status"]) &&
   typeof task["evidence"] === "string";
-const isPlan = (plan: unknown): plan is Plan =>
+export const isPlan = (plan: unknown): plan is Plan =>
   isRecord(plan) &&
   typeof plan["route"] === "string" &&
   typeof plan["goal"] === "string" &&

@@ -1,0 +1,38 @@
+import type { Theme } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
+
+import { isPlan, type TaskStatus } from "./lib/state.ts";
+
+const marks: Record<TaskStatus, [mark: string, color: Parameters<Theme["fg"]>[0]]> = {
+  pending: ["[ ]", "muted"],
+  active: ["[>]", "accent"],
+  done: ["[x]", "success"],
+  blocked: ["[!]", "error"],
+  skipped: ["[-]", "dim"],
+};
+
+/** The plan as a checklist in the conversation, drawn each time pstack_plan changes it. */
+export function planChecklist(plan: unknown, theme: Theme) {
+  if (!isPlan(plan)) return new Text(theme.fg("muted", "No plan"), 0, 0);
+  const closed = plan.tasks.filter((t) => t.status === "done" || t.status === "skipped").length;
+  const title = theme.fg("toolTitle", `${plan.route} ${closed}/${plan.tasks.length}`);
+  const lines = plan.tasks.map((t) => {
+    const [mark, color] = marks[t.status];
+    return theme.fg(color, `${mark} ${t.id}. ${t.text}`);
+  });
+  const finished = plan.finishedEvidence === undefined ? [] : [theme.fg("success", "Finished")];
+  return new Text([title, ...lines, ...finished].join("\n"), 0, 0);
+}
+
+/** The call's one-line header: what the plan change is, not its raw arguments. */
+export function planCall(
+  args: { action: string; route?: string; goal?: string; task?: number; status?: string },
+  theme: Theme,
+) {
+  const change =
+    args.action === "update"
+      ? `${args.task ?? "?"} → ${args.status ?? "?"}`
+      : [args.route, args.goal].filter(Boolean).join(": ");
+  const title = theme.fg("toolTitle", `pstack_plan ${args.action}`);
+  return new Text(change ? `${title} ${theme.fg("dim", change)}` : title, 0, 0);
+}
