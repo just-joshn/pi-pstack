@@ -509,15 +509,12 @@ const arenaJudgment = (
   run: RunWorker,
 ) =>
   judge
-    ? judgeOrInconclusive(dir, outputs, rubric, judge, run)
+    ? judgeArena(dir, outputs, rubric, judge, run).catch((error: unknown) => ({
+        status: "INCONCLUSIVE: could not complete arena judgment",
+        model: judge,
+        error: errorMessage(error),
+      }))
     : { status: "skipped: no available judge from a vendor other than the parent's" };
-
-const judgeOrInconclusive = (...args: Parameters<typeof judgeArena>) =>
-  judgeArena(...args).catch((error: unknown) => ({
-    status: "INCONCLUSIVE: could not complete arena judgment",
-    model: args[3],
-    error: errorMessage(error),
-  }));
 
 function assertReachable(available: ReadonlySet<string>, models: string[]) {
   const unreachable = [...new Set(models)].filter((model) => !available.has(model));
