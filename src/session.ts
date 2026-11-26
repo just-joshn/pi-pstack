@@ -5,6 +5,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { packageFile, srcDir } from "./lib/catalog.ts";
 import {
   activePlan,
+  closedTasks,
   initialState,
   restore,
   type State,
@@ -15,8 +16,7 @@ import {
 
 function statusLine({ mode, plan, wake }: State) {
   if (!mode && !plan && !wake?.running) return undefined;
-  const closed = plan?.tasks.filter((t) => t.status === "done" || t.status === "skipped").length;
-  const progress = plan ? ` | ${plan.route} ${closed}/${plan.tasks.length}` : "";
+  const progress = plan ? ` | ${plan.route} ${closedTasks(plan)}/${plan.tasks.length}` : "";
   return `pstack ${mode ? "on" : "off"}${progress}${wake?.running ? " | loop" : ""}`;
 }
 

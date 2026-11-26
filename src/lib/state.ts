@@ -129,8 +129,10 @@ export function addTasks(
   }));
   return { ...plan, tasks };
 }
+const isClosed = (t: Task) => t.status === "done" || t.status === "skipped";
+export const closedTasks = (plan: Plan) => plan.tasks.filter(isClosed).length;
 export function planComplete(plan: Plan | null) {
-  return !!plan && plan.tasks.every((t) => t.status === "done" || t.status === "skipped");
+  return !!plan && plan.tasks.every(isClosed);
 }
 export const summary = (state: State) => ({
   mode: state.mode,
