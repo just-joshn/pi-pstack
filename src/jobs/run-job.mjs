@@ -41,7 +41,6 @@ const args = [
   "--approve",
   "--no-extensions",
   ...(mcp ? ["-e", "builtin:mcp"] : ["--no-mcp"]),
-  // A Benny run gets pstack's skills from the target repository's project settings, as upstream's does.
   ...(benny ? [] : ["--skill", join(srcDir, "skills")]),
   "--tools",
   job.tools.join(","),
@@ -53,7 +52,6 @@ if (job.model && !aliases.includes(job.model)) args.push("--model", job.model);
 if (job.thinking) args.push("--thinking", job.thinking);
 
 const git = promisify(execFile);
-/** A Benny run works in a fresh checkout of the default branch, as an automation's agent does. */
 async function checkout(branch) {
   await git("git", ["-C", repository, "fetch", "--quiet", "origin", branch]);
   await git("git", ["-C", repository, "worktree", "add", "--quiet", "--detach", cwd, "FETCH_HEAD"]);
@@ -65,29 +63,9 @@ const errorCode = (error) =>
 /** @param {string} error */
 const notStarted = (error) => ({ status: "not-started", code: 1, error });
 
-/**
- * Readies a Benny run: a fresh checkout, and the files of pstack's shared skills from its project
- * scope. Pi lists no manual-only skill to the model, so the run's system prompt names each file.
- * A failure here is a run that never started.
- */
-async function prepare() {
-  if (!benny) return undefined;
-  try {
-    await checkout(benny.defaultBranch);
-  } catch {
-    return notStarted(`Could not check out origin/${benny.defaultBranch} in ${repository}`);
-  }
-  let skills;
-  try {
-    skills = await projectSkills(cwd);
-  } catch (error) {
-    return notStarted(`Unable to start Pi (${errorCode(error)}); check PSTACK_PI_BIN`);
-  }
-  const { files, unresolved } = skills;
-  if (unresolved.length)
-    return notStarted(
-      `pstack skills not in the checkout's project scope: ${unresolved.join(", ")}`,
-    );
+/** @param {Map<string, string>} files */
+function listSkillFilesInSystemPrompt(files) {
+  // Pi leaves skills marked disable-model-invocation out of the model's skill list.
   const listed = [...files].map(([skill, file]) => `- ${skill}: ${file}`).join("\n");
   args.splice(
     args.indexOf("--tools"),
@@ -95,6 +73,29 @@ async function prepare() {
     "--append-system-prompt",
     `Your instructions name these pstack skills. Pi does not list them for you; read each one from its file when the instructions call for it:\n${listed}`,
   );
+}
+
+async function sharedSkillFilesOrFailure() {
+  try {
+    const { files, unresolved } = await projectSkills(cwd);
+    return unresolved.length
+      ? notStarted(`pstack skills not in the checkout's project scope: ${unresolved.join(", ")}`)
+      : files;
+  } catch (error) {
+    return notStarted(`Unable to start Pi (${errorCode(error)}); check PSTACK_PI_BIN`);
+  }
+}
+
+async function prepareBennyRunOrFailure() {
+  if (!benny) return undefined;
+  try {
+    await checkout(benny.defaultBranch);
+  } catch {
+    return notStarted(`Could not check out origin/${benny.defaultBranch} in ${repository}`);
+  }
+  const files = await sharedSkillFilesOrFailure();
+  if (!(files instanceof Map)) return files;
+  listSkillFilesInSystemPrompt(files);
   return undefined;
 }
 
@@ -146,7 +147,7 @@ async function runPi() {
   }
 }
 
-const outcome = (await prepare()) ?? (await runPi());
+const outcome = (await prepareBennyRunOrFailure()) ?? (await runPi());
 await writeFile(
   join(runDir, "result.json"),
   JSON.stringify({ ...outcome, eventId, cwd, log, errorLog }, null, 2),

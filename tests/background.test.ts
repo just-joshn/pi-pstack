@@ -19,7 +19,6 @@ interface Started {
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-/** A host whose workers run until the test releases them by id, or until they are stopped. */
 function longRunningWorkers() {
   const release = new Map<string, () => void>();
   const timeouts: (number | undefined)[] = [];

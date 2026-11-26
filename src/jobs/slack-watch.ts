@@ -18,7 +18,6 @@ export interface Watched {
   channel: string;
 }
 export interface WatchIo {
-  /** Every message in the channel newer than `oldest`. */
   history: (channel: string, oldest: string) => Promise<SlackMessage[]>;
   dispatch: (job: string, trigger: SlackTrigger) => Promise<void>;
   now: () => number;
@@ -30,14 +29,13 @@ const isMessage = (value: unknown): value is SlackMessage =>
   ["thread_ts", "subtype"].every(
     (key) => value[key] === undefined || typeof value[key] === "string",
   );
-/** A new top-level report: not a reply, and a person's post or file share, not a join or edit notice. */
+// Slack gives a person's post no subtype and a file upload `file_share`; joins, edits and bot posts have others.
 const isReport = (m: SlackMessage) =>
   (m.thread_ts === undefined || m.thread_ts === m.ts) &&
   (m.subtype === undefined || m.subtype === "file_share");
-const byTs = (a: SlackMessage, b: SlackMessage) =>
+const oldestFirst = (a: SlackMessage, b: SlackMessage) =>
   a.ts.localeCompare(b.ts, undefined, { numeric: true });
 
-/** Slack's conversations.history, newest pages first, as one list. */
 export function slackHistory(token: string, fetcher: typeof fetch = fetch): WatchIo["history"] {
   return async (channel, oldest) => {
     const messages: SlackMessage[] = [];
@@ -65,6 +63,8 @@ export function slackHistory(token: string, fetcher: typeof fetch = fetch): Watc
   };
 }
 
+const slackTimestamp = (milliseconds: number) => (milliseconds / 1000).toFixed(6);
+
 type State = Record<string, string>;
 async function readState(path: string): Promise<State> {
   try {
@@ -82,25 +82,22 @@ async function readState(path: string): Promise<State> {
   }
 }
 
-/**
- * Starts every job that watches a channel once for each new top-level report since the last poll,
- * oldest first. A channel seen for the first time starts from now, so old reports are not replayed.
- */
 export async function pollOnce(jobs: readonly Watched[], statePath: string, io: WatchIo) {
   const state = await readState(statePath);
   const save = () => writeFile(statePath, JSON.stringify({ channels: state }, null, 2) + "\n");
   const started: { job: string; ts: string }[] = [];
   for (const channel of new Set(jobs.map((j) => j.channel))) {
     const oldest = state[channel];
-    if (oldest === undefined) {
-      state[channel] = (io.now() / 1000).toFixed(6);
+    const firstPoll = oldest === undefined;
+    if (firstPoll) {
+      state[channel] = slackTimestamp(io.now());
       continue;
     }
     // oxlint-disable-next-line eslint/no-await-in-loop -- Channels are polled one at a time to stay under Slack's rate limits.
     const history = await io.history(channel, oldest);
     const reports = history
-      .filter((m) => isReport(m) && byTs({ ts: oldest }, m) < 0)
-      .toSorted(byTs);
+      .filter((m) => isReport(m) && oldestFirst({ ts: oldest }, m) < 0)
+      .toSorted(oldestFirst);
     for (const message of reports) {
       const trigger = {
         source_channel_id: channel,
@@ -124,7 +121,6 @@ export async function pollOnce(jobs: readonly Watched[], statePath: string, io: 
 
 const runner = fileURLToPath(new URL("run-job.mjs", import.meta.url));
 
-/** Signs the trigger as an event and starts the job's runner in the background. */
 export function startRun(secret: string, launch: typeof spawn = spawn): WatchIo["dispatch"] {
   return async (job, trigger) => {
     const payload = JSON.stringify(trigger);
@@ -141,7 +137,6 @@ export function startRun(secret: string, launch: typeof spawn = spawn): WatchIo[
   };
 }
 
-/** The enabled Benny jobs to watch, each with its source channel. */
 export async function watchedJobs(paths: readonly string[]): Promise<Watched[]> {
   return Promise.all(
     paths.map(async (path) => {

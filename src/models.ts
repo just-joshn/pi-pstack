@@ -161,7 +161,6 @@ async function chooseConfig(ctx: ExtensionContext, config: RoleConfig, available
   return { ...config, budget: budget.split(" ")[0], roles: selections };
 }
 
-/** Upstream setup's steps 7 and 8: offer each verification skill the project lacks, once. */
 const verificationOffers = [
   {
     skill: "create-verification-skill",

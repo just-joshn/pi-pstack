@@ -20,7 +20,6 @@ const bennyDrafts: Record<BennyKind, { name: string; template: string; tools: st
     tools: ["read", "grep", "find", "ls", "bash", "edit", "write", "pstack_delegate"],
   },
 };
-/** Upstream's automation prompt template, without its title and its note to the setup agent. */
 const promptTemplate = (file: string) =>
   packageFile(`automations/benny/templates/${file}`)
     .split("\n")

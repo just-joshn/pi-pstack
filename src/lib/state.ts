@@ -110,10 +110,6 @@ export function updateTask(plan: Plan | null, id: number, status: TaskStatus, ev
     ? { ...open, tasks, finishedEvidence }
     : { ...open, tasks };
 }
-/**
- * Adds tasks to an open plan, as a step that writes todo items does: after task `after`, or at
- * the end. Tasks are renumbered in order.
- */
 export function addTasks(
   plan: Plan | null,
   steps: readonly string[] = [],

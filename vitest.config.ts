@@ -4,7 +4,6 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: false,
-    // Upstream's Bun scripts run their own tests with `bun test` (see test:scripts).
     exclude: ["**/node_modules/**", "src/skills/*/scripts/**"],
 
     coverage: {

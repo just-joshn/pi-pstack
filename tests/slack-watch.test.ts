@@ -29,7 +29,6 @@ const benny = (channel: string) => ({
   config: { sourceChannel: channel, defaultBranch: "main" },
 });
 
-/** A Slack channel history and a record of every run started. */
 function fakeIo(history: Record<string, SlackMessage[]>) {
   const asked: [string, string][] = [];
   const started: [string, SlackTrigger][] = [];

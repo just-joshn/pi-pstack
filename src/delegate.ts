@@ -40,7 +40,6 @@ interface WorkerRole {
   alwaysReadOnly: boolean;
   modelRole: Role;
   contract?: string;
-  /** Runs shell commands in the parent's checkout, without edit tools or a worktree. */
   shell?: boolean;
 }
 export const workerRoles = new Map<string, WorkerRole>([
@@ -48,12 +47,10 @@ export const workerRoles = new Map<string, WorkerRole>([
     "poteto-agent",
     { alwaysReadOnly: false, modelRole: "feature, refactoring", contract: "poteto-agent.md" },
   ],
-  // Comment Sicko deletes comments itself, in its own worktree; it never edits application code.
   [
     "comment-sicko",
     { alwaysReadOnly: false, modelRole: "judgment and prose", contract: "comment-sicko.md" },
   ],
-  // Upstream's CI watcher runs gh and git on the parent's branch, on the fast model.
   [
     "ci-watcher",
     { alwaysReadOnly: true, shell: true, modelRole: "swarm workers", contract: "ci-watcher.md" },
@@ -126,8 +123,8 @@ function resolveWorkers(
   if (!worker) fail("Unknown worker role");
   const modelRole = p.modelRole ?? panelModelRoles[p.mode] ?? worker.modelRole;
   if (!isRole(modelRole)) fail("Unknown model role");
-  // Interrogate adversaries prove each finding by running it in their own worktree.
-  const readOnly = worker.alwaysReadOnly || (p.mode !== "interrogate" && p.readOnly !== false);
+  const provesFindingsInOwnWorktree = p.mode === "interrogate";
+  const readOnly = worker.alwaysReadOnly || (!provesFindingsInOwnWorktree && p.readOnly !== false);
   if (p.mode !== "swarm" && p.tasks.length !== 1)
     fail("Single, arena and interrogate require one shared task");
   if (p.mode === "arena" && !p.rubric?.trim()) fail("Arena requires a common evaluation rubric");
@@ -149,7 +146,6 @@ function resolveWorkers(
   return { role, modelRole, readOnly, shell, workers, judge, thinking: p.thinking };
 }
 
-/** Each worker's model: a panel's seats, a swarm's per-task models, one model, or the role's. */
 function workerModels(
   p: DelegateParams,
   batch: { panel: boolean; choices: string[]; count: number },
@@ -181,7 +177,6 @@ export function workerArgs(options: {
 }) {
   return [
     "--print",
-    // A read-only worker has no MCP tools; a writing worker keeps the parent's, as in upstream.
     ...workerIsolation.filter((flag) => options.readOnly || flag !== "--no-mcp"),
     ...(options.extension ? ["-e", options.extension] : []),
     "--tools",
@@ -216,7 +211,7 @@ interface RunnerOptions {
   dir: string;
   budget: Budget;
   extensions: ReadonlyMap<string, string>;
-  rubric: string | undefined;
+  workerRubric: string | undefined;
   base: string | undefined;
   timeoutMs?: number;
   diff: ParentDiff | undefined;
@@ -249,7 +244,7 @@ async function workerPrompt(request: WorkerRequest, options: RunnerOptions) {
     request.role === "poteto-agent" &&
       (await readFile(join(srcDir, "skills", "poteto-mode", "SKILL.md"), "utf8")),
     `Assigned task: ${request.task}`,
-    options.rubric && `Finish predicate / rubric: ${options.rubric}`,
+    options.workerRubric && `Finish predicate / rubric: ${options.workerRubric}`,
     ...diffNotes(options.diff),
   ]
     .filter(Boolean)
@@ -348,7 +343,6 @@ async function launchWorker(
   });
 }
 
-/** Continues a prior worker's own Pi session in its own checkout with a follow-up message. */
 async function resumeWorker(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
@@ -378,7 +372,6 @@ async function resumeWorker(
 }
 
 const workerId = (index: number) => `worker-${index + 1}-${randomUUID().slice(0, 8)}`;
-/** A background worker runs until its process exits, as upstream's background subagents do. */
 const backgroundTimeoutMs = 7 * 24 * 60 * 60 * 1000;
 
 function createRunner(
@@ -425,7 +418,6 @@ async function judgeArena(
       return { path, label: `Candidate ${i + 1}: ${worktree}` };
     }),
   );
-  // A candidate with no output drops out, and the judge scores the rest (upstream arena, Phase B).
   const dropouts = projected.flatMap((entry, i) => (entry ? [] : [`candidate-${i + 1}`]));
   const candidates = projected.filter((entry) => entry !== null);
   if (!candidates.length) return { status: "INCONCLUSIVE: every candidate dropped out", dropouts };
@@ -491,8 +483,7 @@ async function prepareBatch(
     budget: config.budget,
     extensions,
     base: p.base,
-    // Arena candidates see only the task; the rubric is the judge's (upstream arena, Phase A).
-    rubric: p.mode === "arena" ? undefined : p.rubric,
+    workerRubric: p.mode === "arena" ? undefined : p.rubric,
     progress,
   };
   const { role, modelRole, readOnly, shell, thinking } = resolved;

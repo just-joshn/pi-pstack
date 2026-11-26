@@ -1,4 +1,3 @@
-// tsconfig.json covers TypeScript only, so this script names its types for the linter.
 /// <reference types="node" />
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";

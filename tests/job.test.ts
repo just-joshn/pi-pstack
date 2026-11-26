@@ -33,7 +33,6 @@ const outcome = (stdout: string) =>
 const child = async (log: string) => shaped<Child>(JSON.parse(await readFile(log, "utf8")));
 const receipt = (saved: string) => shaped<Receipt>(JSON.parse(saved));
 
-/** A fake Pi: in RPC mode it lists pstack's shared skills at PSTACK_TEST_SCOPE, else it records its run. */
 const fakePi = `#!/usr/bin/env node
 if (process.argv.includes("rpc")) {
   const scope = process.env.PSTACK_TEST_SCOPE ?? "project";
@@ -48,7 +47,6 @@ process.exitCode = Number(process.env.PSTACK_TEST_EXIT_CODE ?? 0);
 `;
 const git = (cwd: string, ...args: string[]) => spawned("git", ["-C", cwd, ...args]);
 
-/** A clone whose origin's main branch holds one commit, as a target repository does. */
 async function repository(dir: string) {
   const origin = join(dir, "origin");
   const clone = join(dir, "clone");

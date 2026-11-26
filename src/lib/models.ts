@@ -72,7 +72,6 @@ export function parseModelConfig(config: unknown): RoleConfig {
   assertSelections(config["roles"]);
   return { defaults: config["defaults"], budget: config["budget"], roles: config["roles"] };
 }
-/** Upstream setup-pstack's step 5 defaults, as Pi model IDs without a provider. */
 const panel = ["claude-fable-5-2", "claude-opus-5-5", "gemini-4-neon"];
 export const upstreamDefaults: Record<Role, string[]> = {
   "feature, refactoring": ["claude-opus-5-5"],
@@ -87,7 +86,6 @@ export const upstreamDefaults: Record<Role, string[]> = {
 };
 
 const modelId = (model: string) => model.slice(model.indexOf("/") + 1).toLowerCase();
-/** Arena's families: claude-fable-*, claude-*, gemini-*, otherwise the text before the first hyphen. */
 export function family(model: string) {
   const id = modelId(model);
   return (
@@ -100,10 +98,6 @@ const sharedPrefix = (a: string, b: string) => {
   return i;
 };
 
-/**
- * The available model with this ID, else the closest one of its family: the longest shared ID
- * prefix (claude-opus-* before claude-sonnet-* for claude-opus-5-5), then the highest version.
- */
 export function resolveDefault(id: string, available: readonly string[]) {
   const exact = available.toSorted().find((m) => modelId(m) === id);
   if (exact) return exact;
@@ -116,16 +110,13 @@ export function resolveDefault(id: string, available: readonly string[]) {
     )[0];
 }
 
-/**
- * The upstream defaults resolved against the models workers can use. An unresolved seat runs on
- * the parent model, so a panel keeps its size; the judge pool takes no alias and drops it.
- */
 export function defaultConfig(available: readonly string[] = []): RoleConfig {
   const resolve = (r: Role) =>
     upstreamDefaults[r].flatMap((id) => {
       const model = resolveDefault(id, available);
-      if (r === judgeRole) return model ? [model] : [];
-      return [model ?? "inherit-parent"];
+      if (model) return [model];
+      const unresolvedSeat = r === judgeRole ? [] : ["inherit-parent"];
+      return unresolvedSeat;
     });
   return parseModelConfig({
     defaults: 3,
@@ -160,7 +151,6 @@ export function vendor(model: string) {
   if (/(^|[/.-])grok|xai/.test(id)) return "xai";
   return provider;
 }
-/** Upstream arena's judge: the first available pool entry from a vendor other than the parent's. */
 export function crossJudge(config: RoleConfig, parent: string, available: ReadonlySet<string>) {
   return config.roles[judgeRole].find((m) => available.has(m) && vendor(m) !== vendor(parent));
 }

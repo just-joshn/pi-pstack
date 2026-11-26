@@ -1,4 +1,3 @@
-// tsconfig.json covers TypeScript only, so this script names its types for the linter.
 /// <reference types="node" />
 import { checkJob, projectSkills } from "./job-check.ts";
 

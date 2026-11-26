@@ -64,7 +64,6 @@ function judgingWorkers(
     const content: object[] = [{ type: "text", text: `Compared work for ${worker}` }];
     const results: object[] = [];
     if (worker === "openai/gpt") {
-      // Reads every candidate; only the first read succeeds.
       const paths = prompt.match(/\/[^\s,]+\/candidate-\d\.jsonl/g) ?? [];
       const projections = await Promise.all(paths.map((path) => readFile(path, "utf8")));
       assert(projections.every((line) => firstText(line)?.includes("[redacted-model]")));

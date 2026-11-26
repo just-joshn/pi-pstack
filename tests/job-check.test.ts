@@ -8,7 +8,6 @@ import { checkJob, projectSkills, sharedSkills } from "../src/jobs/job-check.ts"
 import { sandbox } from "./host.ts";
 import { spawned } from "./support.ts";
 
-/** A fake Pi that answers get_commands with the skills in PSTACK_TEST_SKILLS at PSTACK_TEST_SCOPE. */
 const fakePi = `#!/usr/bin/env node
 const lines = require("node:readline").createInterface({ input: process.stdin });
 lines.on("line", (line) => {
@@ -24,7 +23,6 @@ setTimeout(() => {}, 60000);
 const git = (cwd: string, ...args: string[]) => spawned("git", ["-C", cwd, ...args]);
 const pack = ".pi/automations/benny";
 
-/** A clone whose origin's main branch holds `files`, and a Benny job for it. */
 async function target(files: string[], instructions = "Read `.pi/benny/configuration.yaml`.") {
   const dir = await mkdtemp(join(sandbox, "job-check-"));
   const origin = join(dir, "origin");

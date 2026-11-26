@@ -10,7 +10,6 @@ import { type Job, readJob } from "./job-input.ts";
 
 const git = promisify(execFile);
 
-/** The pstack skills Benny's operational files use, which setup-benny checks resolve from project scope. */
 export const sharedSkills = [
   "why",
   "tdd",
@@ -28,7 +27,6 @@ const operational = {
   "benny-repro": `${pack}/skills/reproduce-and-fix-issues/SKILL.md`,
 };
 
-/** The project files a run needs: settings, the pack's entry points, and every `.pi/` path the prompt names. */
 function requiredFiles(job: Exclude<Job, { kind: "custom" }>) {
   const named = job.instructions.match(/\.pi\/[\w./-]*\w/g) ?? [];
   return [
@@ -57,7 +55,6 @@ function jsonLine(line: string): unknown {
   }
 }
 
-/** Each skill command's scope and file in a fresh Pi rooted at `cwd`, as Pi's RPC get_commands reports them. */
 async function skillSources(piBin: string, cwd: string) {
   const child = spawn(piBin, ["--mode", "rpc", "--no-session", "--approve", "--no-extensions"], {
     cwd,
@@ -90,10 +87,6 @@ async function skillSources(piBin: string, cwd: string) {
   }
 }
 
-/**
- * The file of each shared skill that a fresh Pi rooted at `cwd`, trusting the project for one run,
- * gets from project scope, and the shared skills it does not.
- */
 export async function projectSkills(cwd: string, piBin = process.env["PSTACK_PI_BIN"] ?? "pi") {
   const sources = await skillSources(piBin, cwd);
   const files = new Map<string, string>();
@@ -105,10 +98,6 @@ export async function projectSkills(cwd: string, piBin = process.env["PSTACK_PI_
   return { files, unresolved: sharedSkills.filter((s) => !files.has(s)) };
 }
 
-/**
- * Checks a Benny job before it is enabled: the files its runs read are committed on the default
- * branch, and a fresh Pi in a checkout of that branch gets pstack's shared skills from project scope.
- */
 export async function checkJob(path: string, piBin = process.env["PSTACK_PI_BIN"] ?? "pi") {
   const job = await readJob(path, { draft: true });
   if (job.kind === "custom") throw Error("Only Benny jobs are checked");

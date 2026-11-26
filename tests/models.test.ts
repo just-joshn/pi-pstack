@@ -157,7 +157,6 @@ test("a worker loads only the extension that lists its model", async () => {
   assert.deepEqual(shown.available, ["anthropic/claude", "google/gemini", "openai/gpt"]);
   assert.equal(shown.warning, undefined);
 
-  // With no saved configuration, swarm workers default to the Claude family, as upstream does.
   const provided = delegated(await h.call("pstack_delegate", swarm));
   assert.equal(fulfilled(provided.outputs).model, "anthropic/claude");
   assert.deepEqual(loadedBy(nth(workers, 0)), [provider]);

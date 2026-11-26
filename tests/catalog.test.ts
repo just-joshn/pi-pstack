@@ -51,7 +51,6 @@ test("all original nodes, edges and views are preserved and mapped", () => {
 });
 
 test("77 native skills, 22 ordered playbooks and all conditional links", async () => {
-  // Benny's SKILL.md files are automation instructions, not Pi skills (upstream benny README).
   const skills = Object.entries(catalog.paths).filter(([, p]) => /^skills\/.*SKILL\.md$/.test(p));
   assert.equal(skills.length, 77);
   assert.equal(skills.filter(([id]) => id.startsWith("principle-")).length, 24);
@@ -66,7 +65,6 @@ test("77 native skills, 22 ordered playbooks and all conditional links", async (
       assert(name, id);
       assert.equal(name, p.split("/")[1]);
       assert(name.length <= 64);
-      // Ported files keep upstream's frontmatter, which quotes some descriptions and not others.
       const described: unknown = description.startsWith('"')
         ? JSON.parse(description)
         : description;

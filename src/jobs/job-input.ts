@@ -5,7 +5,6 @@ import { isAbsolute } from "node:path";
 import { type BennyKind, isJobKind } from "../lib/jobs.ts";
 import { isRecord, parseJson } from "../lib/validation.ts";
 
-/** The fields upstream sets in a Benny automation's editor: its trigger channel and repository branch. */
 interface BennyConfig {
   sourceChannel: string;
   defaultBranch: string;
@@ -19,7 +18,6 @@ interface JobBase {
 }
 export type Job =
   (JobBase & { kind: "custom" }) | (JobBase & { kind: BennyKind; config: BennyConfig });
-/** Upstream's automation trigger for a new top-level Slack report. */
 export interface SlackTrigger {
   source_channel_id: string;
   message_ts: string;
@@ -48,7 +46,6 @@ function bennyConfig(tools: string[], cfg: unknown): BennyConfig {
   return { sourceChannel: cfg["sourceChannel"], defaultBranch: cfg["defaultBranch"] };
 }
 
-/** A job file. Only an enabled job runs; `draft` reads one before the operator enables it. */
 export async function readJob(path: string, { draft = false } = {}): Promise<Job> {
   const job = parseJson(await readFile(path, "utf8"), "job file");
   if (
@@ -75,7 +72,6 @@ export async function readJob(path: string, { draft = false } = {}): Promise<Job
     : { ...base, kind, config: bennyConfig(tools, job["config"]) };
 }
 
-/** The JSON object in an envelope signed with HMAC-SHA256 under the shared secret. */
 async function signedPayload(path: string, secret: string) {
   const envelope = parseJson(await readFile(path, "utf8"), "event envelope");
   if (
@@ -91,10 +87,6 @@ async function signedPayload(path: string, secret: string) {
   return parseJson(envelope["payload"], "signed event payload");
 }
 
-/**
- * A Benny job's event is upstream's trigger for a new top-level report in its source channel. A
- * custom job, such as a bot UI's, takes an optional signed event whose fields are the UI's own.
- */
 export async function readEvent(
   job: Job,
   path: string | undefined,
@@ -126,11 +118,6 @@ const isTrigger = (value: unknown): value is SlackTrigger =>
   isRecord(value) &&
   ["source_channel_id", "message_ts", "ts", "thread_ts"].every((k) => typeof value[k] === "string");
 
-/**
- * The prompt, run folder name and event ID of one run. A Benny job's instructions get the trigger
- * in upstream's placeholders, as an automation fills them, and each report gets one run per job.
- * A custom job's event, such as a bot UI click, is untrusted data and gets its own run.
- */
 export function planRun(job: Job, event: SlackTrigger | Record<string, unknown> | null) {
   if (job.kind === "custom" || !isTrigger(event)) {
     const data =

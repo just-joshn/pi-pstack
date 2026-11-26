@@ -31,7 +31,6 @@ function statusLine({ mode, plan, wake }: State) {
 
 const routerPath = "skills/poteto-mode/SKILL.md";
 
-/** Team Kit's always-applied rules; loaded with poteto-mode so non-TypeScript sessions skip them. */
 const teamKitRules = [
   "Team Kit rules:",
   packageFile("reference/rules/no-inline-imports.md"),

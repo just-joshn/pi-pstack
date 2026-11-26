@@ -7,13 +7,11 @@ import { Type } from "typebox";
 import { errorMessage, isRecord, parseJson } from "./lib/validation.ts";
 import { artifacts, fail, hasErrorCode, result, stringEnum } from "./support.ts";
 
-/** A worker started with `background: true`; `run` resolves when its Pi process exits. */
 export interface BackgroundJob {
   id: string;
   run: (signal: AbortSignal) => Promise<unknown>;
 }
 
-/** Workers that keep running after their pstack_delegate call returns, as upstream's background subagents do. */
 export function backgroundWorkers() {
   const running = new Map<string, AbortController>();
   function settle(dir: string, job: BackgroundJob, controller: AbortController) {
@@ -79,7 +77,6 @@ async function readJson(path: string) {
   }
 }
 
-/** Every worker this session started, newest activity first, with its state and evidence paths. */
 export async function listWorkers(root: string, background: BackgroundWorkers) {
   const batches = (await entries(root)).filter((e) => e.isDirectory());
   const found = await Promise.all(
