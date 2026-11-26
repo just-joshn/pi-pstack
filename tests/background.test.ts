@@ -334,3 +334,39 @@ test("a foreground swarm's waiting workers are listed as queued", async () => {
     ["done", "done", "done"],
   );
 });
+
+test("a running foreground worker or resume can be stopped, and is listed as stopped", async () => {
+  let calls = 0;
+  const h = host({
+    execute: async (bin, args, options) => {
+      if (bin === "git") return notARepository;
+      calls += 1;
+      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+      if (calls === 1) return { code: 0, stdout: "r", stderr: "" };
+      await new Promise((_, reject) =>
+        options?.signal?.addEventListener("abort", () => reject(Error("killed"))),
+      );
+      return { code: 0, stdout: "", stderr: "" };
+    },
+  });
+  const list = async (action = "list", id?: string) =>
+    shaped<Listed[]>(readResult(await h.call("pstack_workers", { action, id })));
+  const first = shaped<{ outputs: { value: { id: string; sessionDir: string } }[] }>(
+    readResult(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })),
+  ).outputs[0]?.value;
+  const resumed = h
+    .call("pstack_delegate", {
+      mode: "single",
+      tasks: ["more"],
+      resume: first?.sessionDir,
+    })
+    .then(
+      () => "finished",
+      (error: unknown) => String(error),
+    );
+  await settle();
+  assert.equal((await list())[0]?.state, "running");
+  await list("stop", first?.id);
+  assert.match(await resumed, /killed/);
+  assert.equal((await list())[0]?.state, "stopped");
+});

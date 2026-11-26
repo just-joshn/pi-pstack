@@ -18,22 +18,6 @@ const statusFile = (dir: string, id: string) => join(dir, `${id}.status.json`);
 const writeStatus = (dir: string, id: string, status: object) =>
   atomicWrite(statusFile(dir, id), JSON.stringify({ ...status, at: new Date().toISOString() }));
 
-export async function recordOutcome<T>(
-  dir: string,
-  id: string,
-  run: { report?: string },
-  work: () => Promise<T>,
-) {
-  try {
-    const output = await work();
-    await writeStatus(dir, id, { state: "done", ...run });
-    return output;
-  } catch (error) {
-    await writeStatus(dir, id, { state: "failed", error: errorMessage(error), ...run });
-    throw error;
-  }
-}
-
 interface Registry {
   queued: Map<string, { controller: AbortController; dir: string }>;
   active: Set<string>;
@@ -89,13 +73,20 @@ async function runForeground<T>(
   ids: readonly string[],
   concurrency: number,
   run: (id: string, stop: AbortSignal) => Promise<T>,
+  fields: object,
 ) {
   const queue = await enqueue(registry, dir, ids);
   return pool(queue, concurrency, async ({ id, controller }) => {
     if (controller.signal.aborted) fail(`Worker ${id} was stopped before it started`);
     registry.active.add(id);
     try {
-      return await run(id, controller.signal);
+      const output = await run(id, controller.signal);
+      await writeStatus(dir, id, { state: "done", ...fields });
+      return output;
+    } catch (error) {
+      const state = controller.signal.aborted ? "stopped" : "failed";
+      await writeStatus(dir, id, { state, error: errorMessage(error), ...fields });
+      throw error;
     } finally {
       registry.active.delete(id);
       registry.queued.delete(id);
@@ -114,7 +105,8 @@ export function backgroundWorkers() {
       ids: readonly string[],
       concurrency: number,
       run: (id: string, stop: AbortSignal) => Promise<T>,
-    ) => runForeground(registry, dir, ids, concurrency, run),
+      fields: object = {},
+    ) => runForeground(registry, dir, ids, concurrency, run, fields),
     state: (id: string) => (active.has(id) ? "running" : queued.has(id) ? "queued" : undefined),
     async stop(id: string) {
       const entry = queued.get(id);

@@ -5,7 +5,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
-import { type BackgroundWorkers, recordOutcome } from "./background.ts";
+import type { BackgroundWorkers } from "./background.ts";
 import { gitIn } from "./git.ts";
 import { srcDir } from "./lib/catalog.ts";
 import { mcpExtensions, mcpTools } from "./lib/mcp-access.ts";
@@ -349,6 +349,23 @@ async function launchWorker(
   });
 }
 
+const launchOptions = [
+  "readOnly",
+  "role",
+  "modelRole",
+  "models",
+  "base",
+  "rubric",
+  "concurrency",
+] as const;
+function assertResumable(p: DelegateParams) {
+  if (p.mode !== "single" || p.tasks.length !== 1 || p.model)
+    fail("Resume takes mode single, one follow-up task, and no model");
+  if (p.background) fail("Resume runs in the foreground; omit background");
+  if (launchOptions.some((option) => p[option] !== undefined))
+    fail(`Resume continues the worker as it was; omit ${launchOptions.join(", ")}`);
+}
+
 async function resumeWorker(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
@@ -356,20 +373,7 @@ async function resumeWorker(
   p: DelegateParams & { resume: string },
   options: Pick<RunnerOptions, "signal" | "progress">,
 ) {
-  if (p.mode !== "single" || p.tasks.length !== 1 || p.model)
-    fail("Resume takes mode single, one follow-up task, and no model");
-  if (p.background) fail("Resume runs in the foreground; omit background");
-  const launchOptions = [
-    "readOnly",
-    "role",
-    "modelRole",
-    "models",
-    "base",
-    "rubric",
-    "concurrency",
-  ] as const;
-  if (launchOptions.some((option) => p[option] !== undefined))
-    fail(`Resume continues the worker as it was; omit ${launchOptions.join(", ")}`);
+  assertResumable(p);
   const workersDir = join(artifacts(ctx), "workers");
   const sessionDir = resolve(p.resume);
   if (!sessionDir.startsWith(workersDir + sep)) fail(`Resume a worker session under ${workersDir}`);
@@ -381,17 +385,21 @@ async function resumeWorker(
   if (workers.background.state(worker.id) || workers.active.has(worker.sessionDir))
     fail(`Worker ${worker.id} is still running; resume it after it exits`);
   const report = join(sessionDir, `resume-${randomUUID().slice(0, 8)}.txt`);
-  const run = () =>
+  const run = (stop: AbortSignal) =>
     workers.active.hold(sessionDir, () =>
-      recordOutcome(dirname(sessionDir), worker.id, { report }, () =>
-        execWorker(pi, options, worker, {
-          thinking: p.thinking ?? worker.thinking,
-          prompt: p.tasks.join("\n"),
-          report,
-        }),
-      ),
+      execWorker(pi, { ...options, signal: withStop(options.signal, stop) }, worker, {
+        thinking: p.thinking ?? worker.thinking,
+        prompt: p.tasks.join("\n"),
+        report,
+      }),
     );
-  const output = worker.readOnly ? await run() : await workers.active.hold(worker.cwd, run);
+  const output = await trackedRun(
+    workers.background,
+    dirname(sessionDir),
+    worker.id,
+    { report },
+    (stop) => (worker.readOnly ? run(stop) : workers.active.hold(worker.cwd, () => run(stop))),
+  );
   const value = { id: worker.id, model: worker.model, path: worker.cwd, base: null, ...output };
   return { outputs: [{ status: "fulfilled", value }], dir: dirname(sessionDir) };
 }
@@ -423,6 +431,21 @@ function createRunner(
 }
 
 type RunWorker = ReturnType<typeof createRunner>;
+
+const withStop = (signal: AbortSignal | undefined, stop: AbortSignal) =>
+  signal ? AbortSignal.any([signal, stop]) : stop;
+
+async function trackedRun<T>(
+  background: BackgroundWorkers,
+  dir: string,
+  id: string,
+  fields: object,
+  work: (stop: AbortSignal) => Promise<T>,
+) {
+  const [outcome] = await background.foreground(dir, [id], 1, (_id, stop) => work(stop), fields);
+  if (outcome?.status !== "fulfilled") fail(outcome?.reason ?? `Worker ${id} did not run`);
+  return outcome.value;
+}
 type WorkerReport = Awaited<ReturnType<RunWorker>>;
 async function blindCandidates(dir: string, outputs: PoolResult<WorkerReport>[]) {
   const blindDir = join(dir, "blinded");
@@ -454,17 +477,15 @@ async function judgeArena(
   const files = candidates.map((c) => c.path);
   const worktrees = candidates.map((c) => c.label).join("; ");
   const id = workerId(outputs.length);
-  const assessment = await recordOutcome(dir, id, {}, () =>
-    run({
-      task: `Judge these ${files.length} anonymous candidate message transcripts: ${files.join(", ")}. Read every file in full, including tool results; rubric: ${rubric}. Score each candidate on each rubric criterion from actual evidence, recommend a base, and note missing artifacts or unverifiable claims. For write candidates, inspect candidate worktrees if necessary: ${worktrees}. Do not infer provider identity.`,
-      model: judge,
-      index: outputs.length,
-      id,
-      readOnly: true,
-      role: "general-purpose",
-      modelRole: judgeRole,
-    }),
-  );
+  const assessment = await run({
+    task: `Judge these ${files.length} anonymous candidate message transcripts: ${files.join(", ")}. Read every file in full, including tool results; rubric: ${rubric}. Score each candidate on each rubric criterion from actual evidence, recommend a base, and note missing artifacts or unverifiable claims. For write candidates, inspect candidate worktrees if necessary: ${worktrees}. Do not infer provider identity.`,
+    model: judge,
+    index: outputs.length,
+    id,
+    readOnly: true,
+    role: "general-purpose",
+    modelRole: judgeRole,
+  });
   const reads = new Set(
     assessment.transcript ? readPaths(await readFile(assessment.transcript, "utf8")) : [],
   );
@@ -551,17 +572,16 @@ async function delegate(
     const ids = started.map((id) => ({ id, sessionDir: join(dir, id) }));
     return { background: ids, dir, next: "Check them with pstack_workers action list." };
   }
-  const run = createRunner(pi, ctx, workers.active, options);
+  const runner = (stop: AbortSignal) =>
+    createRunner(pi, ctx, workers.active, { ...options, signal: withStop(options.signal, stop) });
+  const run: RunWorker = (request) =>
+    trackedRun(workers.background, dir, request.id ?? "", {}, (stop) => runner(stop)(request));
   const byId = new Map(requests.map((request) => [request.id, request]));
   const outputs = await workers.background.foreground(
     dir,
     [...byId.keys()],
     p.concurrency ?? 3,
-    (id, stop) => {
-      const either = options.signal ? AbortSignal.any([options.signal, stop]) : stop;
-      const runOne = createRunner(pi, ctx, workers.active, { ...options, signal: either });
-      return recordOutcome(dir, id, {}, () => runOne(byId.get(id) ?? fail(`Unknown worker ${id}`)));
-    },
+    (id, stop) => runner(stop)(byId.get(id) ?? fail(`Unknown worker ${id}`)),
   );
   const judgment =
     p.mode === "arena"
