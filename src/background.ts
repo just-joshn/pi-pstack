@@ -18,6 +18,17 @@ const statusFile = (dir: string, id: string) => join(dir, `${id}.status.json`);
 const writeStatus = (dir: string, id: string, status: object) =>
   atomicWrite(statusFile(dir, id), JSON.stringify({ ...status, at: new Date().toISOString() }));
 
+export async function recordOutcome<T>(dir: string, id: string, work: () => Promise<T>) {
+  try {
+    const output = await work();
+    await writeStatus(dir, id, { state: "done" });
+    return output;
+  } catch (error) {
+    await writeStatus(dir, id, { state: "failed", error: errorMessage(error) });
+    throw error;
+  }
+}
+
 export function backgroundWorkers() {
   const queued = new Map<string, { controller: AbortController; dir: string }>();
   const active = new Set<string>();

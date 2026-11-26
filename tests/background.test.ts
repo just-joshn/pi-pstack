@@ -121,7 +121,7 @@ test("the list covers every worker of the session, foreground ones included", as
   assert.deepEqual(await list(), []);
   await h.call("pstack_delegate", { mode: "single", tasks: ["review"] });
   const [finished] = await list();
-  assert.equal(finished?.state, "finished");
+  assert.equal(finished?.state, "done");
   const empty = join(h.artifacts, "workers", "batch", "worker-9-empty");
   await mkdir(empty, { recursive: true });
   const listed = await list();
@@ -238,7 +238,7 @@ test("a running foreground worker is listed as running, and arena folders are no
   await mkdir(join(h.artifacts, "workers", batch, "blinded"));
   assert.deepEqual(
     (await list()).map((w) => w.state),
-    ["finished"],
+    ["done"],
   );
 });
 
@@ -269,4 +269,20 @@ test("a queued worker that is stopped leaves the queue at once and never starts"
     ]),
   );
   assert(!waiting(two), "the stopped worker never started");
+});
+
+test("a foreground worker is listed done or failed, with its error", async () => {
+  let code = 0;
+  const h = host({
+    execute: async (bin) =>
+      bin === "git" ? notARepository : { code, stdout: "report", stderr: "boom" },
+  });
+  const list = async () =>
+    shaped<Listed[]>(readResult(await h.call("pstack_workers", { action: "list" })));
+  await h.call("pstack_delegate", { mode: "single", tasks: ["works"] });
+  code = 3;
+  await h.call("pstack_delegate", { mode: "single", tasks: ["breaks"] });
+  const listed = await list();
+  assert.deepEqual(listed.map((w) => w.state).toSorted(), ["done", "failed"]);
+  assert.match(listed.find((w) => w.state === "failed")?.error ?? "", /failed \(3\)/);
 });

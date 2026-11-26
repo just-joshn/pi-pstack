@@ -5,7 +5,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
-import type { BackgroundWorkers } from "./background.ts";
+import { type BackgroundWorkers, recordOutcome } from "./background.ts";
 import { gitIn } from "./git.ts";
 import { srcDir } from "./lib/catalog.ts";
 import {
@@ -526,7 +526,9 @@ async function delegate(
     return { background: ids, dir, next: "Check them with pstack_workers action list." };
   }
   const run = createRunner(pi, ctx, workers.active, options);
-  const outputs = await pool(requests, p.concurrency ?? 3, run);
+  const outputs = await pool(requests, p.concurrency ?? 3, (request) =>
+    recordOutcome(dir, request.id, () => run(request)),
+  );
   const judgment =
     p.mode === "arena"
       ? judge
