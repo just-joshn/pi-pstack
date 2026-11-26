@@ -314,15 +314,13 @@ test("a caller picks a panel's seats or a race's per-arm models for one call", a
     tasks: ["arm A", "arm B"],
     models: ["openai/gpt", "google/gemini"],
   });
+  const arms = runs.map(({ args }) => {
+    const task = args.at(-1)?.split("Assigned task: ")[1]?.split("\n")[0];
+    return `${task} on ${flag(args, "--model")}`;
+  });
   assert.deepEqual(
-    runs.map(({ args }) => [
-      args.at(-1)?.split("Assigned task: ")[1]?.split("\n")[0],
-      flag(args, "--model"),
-    ]),
-    [
-      ["arm A", "openai/gpt"],
-      ["arm B", "google/gemini"],
-    ],
+    arms.toSorted((a, b) => a.localeCompare(b)),
+    ["arm A on openai/gpt", "arm B on google/gemini"],
   );
   const panel = delegated(
     await h.call("pstack_delegate", {

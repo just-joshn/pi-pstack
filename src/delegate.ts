@@ -51,7 +51,11 @@ export const workerRoles = new Map<string, WorkerRole>([
     "poteto-agent",
     { alwaysReadOnly: false, modelRole: "feature, refactoring", contract: "poteto-agent.md" },
   ],
-  ["comment-sicko", reviewer("comment-sicko.md")],
+  // Comment Sicko deletes comments itself, in its own worktree; it never edits application code.
+  [
+    "comment-sicko",
+    { alwaysReadOnly: false, modelRole: "judgment and prose", contract: "comment-sicko.md" },
+  ],
   ["ci-watcher", reviewer("ci-watcher.md")],
   ["quality-agent", reviewer("quality-agent.md")],
   ["general-purpose", { alwaysReadOnly: false, modelRole: "judgment and prose" }],
