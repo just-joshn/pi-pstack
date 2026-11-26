@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, readFile, rm, writeFile } from "node:fs/promises";
+import { access, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { onTestFinished, test } from "vitest";
@@ -403,4 +403,23 @@ test("a resume refuses options that would change the worker it continues", async
     );
   }
   assert.equal(runs.length, 1);
+});
+
+test("a worker whose first launch left no session cannot be resumed", async () => {
+  const h = host({
+    execute: async (bin) =>
+      bin === "git" ? notARepository : { code: 1, stdout: "", stderr: "crashed at startup" },
+  });
+  const [failed] = delegated(
+    await h.call("pstack_delegate", { mode: "single", tasks: ["x"] }),
+  ).outputs;
+  assert.equal(failed?.status, "rejected");
+  const [batch = ""] = await readdir(join(h.artifacts, "workers"));
+  const entries = await readdir(join(h.artifacts, "workers", batch));
+  const id = entries.find((f) => !f.includes(".")) ?? "";
+  const sessionDir = join(h.artifacts, "workers", batch, id);
+  await assert.rejects(
+    () => h.call("pstack_delegate", { mode: "single", tasks: ["more"], resume: sessionDir }),
+    /has no session to resume/,
+  );
 });

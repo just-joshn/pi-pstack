@@ -60,7 +60,7 @@ def apply_overrides(base, overrides):
         if task.startswith(f"In place of step {number}"):
             merged[at] = task
         else:
-            merged.insert(at + 1, task)
+            merged[at] = f"{merged[at]} Exception: {task}"
     return merged
 
 

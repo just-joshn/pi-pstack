@@ -384,6 +384,10 @@ async function resumeWorker(
   if (!isWorkerRecord(worker) || worker.sessionDir !== sessionDir) fail("Invalid worker record");
   if (workers.background.state(worker.id) || workers.active.has(worker.sessionDir))
     fail(`Worker ${worker.id} is still running; resume it after it exits`);
+  const sessions = (await readdir(sessionDir, { recursive: true })).filter((f) =>
+    f.endsWith(".jsonl"),
+  );
+  if (!sessions.length) fail(`Worker ${worker.id} has no session to resume; start a new worker`);
   const report = join(sessionDir, `resume-${randomUUID().slice(0, 8)}.txt`);
   const run = (stop: AbortSignal) =>
     workers.active.hold(sessionDir, () =>

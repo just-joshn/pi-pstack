@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { createHmac } from "node:crypto";
+import { once } from "node:events";
 import { access, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -410,3 +412,39 @@ test("two jobs in one folder each run the same report", slow, async () => {
   const results = await Promise.all([run(), run(0, undefined, "project", second)]);
   for (const result of results) assert.equal(result.status, 0, result.stderr);
 });
+
+test(
+  "a stopped runner stops a Pi that ignores SIGTERM and records the run as stopped",
+  slow,
+  async () => {
+    const { job, enabled, runs } = await fixture("custom");
+    await writeFile(job, JSON.stringify({ ...enabled, tools: ["read"] }));
+    const stubborn = join(dirname(job), "stubborn-pi");
+    await writeFile(
+      stubborn,
+      "#!/bin/sh\ntrap '' TERM\necho started\nwhile :; do sleep 1; done\n",
+      { mode: 0o700 },
+    );
+    const runnerProcess = spawn(process.execPath, [runner, "--run", job], {
+      env: { ...process.env, PSTACK_PI_BIN: stubborn },
+      stdio: "ignore",
+    });
+    const exited = once(runnerProcess, "exit");
+    const deadline = Date.now() + 10_000;
+    let log = "";
+    while (!log.includes("started") && Date.now() < deadline) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the stubborn Pi to start.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Each check reads the run's log afresh.
+      const [run = ""] = await readdir(runs).catch(() => []);
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Each check reads the run's log afresh.
+      log = run ? await readFile(join(runs, run, "stdout.txt"), "utf8").catch(() => "") : "";
+    }
+    const started = Date.now();
+    runnerProcess.kill("SIGTERM");
+    await exited;
+    assert(Date.now() - started < 15_000, "the runner gives up on the child after a grace period");
+    const [run = ""] = await readdir(runs);
+    assert.equal(receipt(await readFile(join(runs, run, "result.json"), "utf8")).status, "stopped");
+  },
+);

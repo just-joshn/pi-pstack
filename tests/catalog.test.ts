@@ -131,8 +131,7 @@ test("autopilot-stack's plan is autopilot-full's, with its two overrides applied
   assert.deepEqual(stack, [
     full[0],
     full[1],
-    full[2],
-    "Stack a PR only when it builds on another PR.",
+    `${full[2]} Exception: Stack a PR only when it builds on another PR.`,
     full[3],
     "In place of step 5, stop at verified.",
     full[5],

@@ -140,8 +140,7 @@
     "autopilot-stack": [
       "The operator's gates come first.",
       "Spawn one owner per PR, and keep its work where a replacement can find it.",
-      "Run owners in parallel off trunk, never stacked, so each PR lands on its own.",
-      "Stack a PR only when it builds on another PR.",
+      "Run owners in parallel off trunk, never stacked, so each PR lands on its own. Exception: Stack a PR only when it builds on another PR.",
       "Swarm-verify once.",
       "In place of step 5, stop at verified.",
       "Run the root layer.",

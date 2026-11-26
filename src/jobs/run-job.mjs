@@ -107,11 +107,32 @@ async function prepareBennyRunOrFailure() {
   return undefined;
 }
 
+const stopGraceMs = 5000;
+
+/** @param {boolean} launched @param {string} reason */
+const launchFailure = (launched, reason) =>
+  launched
+    ? {
+        status: "unconfirmed",
+        code: 1,
+        error: `Pi run failed after launch (${reason}); inspect ${runDir}`,
+      }
+    : {
+        status: "not-started",
+        code: 1,
+        error: `Unable to start Pi (${reason}); check PSTACK_PI_BIN`,
+      };
+
 async function runPi() {
   let out, err;
   /** @type {ReturnType<typeof spawn> | undefined} */
   let child;
-  const abort = () => child?.kill("SIGTERM");
+  let stopped = false;
+  const abort = () => {
+    stopped = true;
+    child?.kill("SIGTERM");
+    setTimeout(() => child?.kill("SIGKILL"), stopGraceMs).unref();
+  };
   try {
     out = await open(log, "wx", 0o600);
     err = await open(errorLog, "wx", 0o600);
@@ -134,20 +155,9 @@ async function runPi() {
     const code = child.exitCode ?? 1;
     if (code === 0 && !(await sent))
       return { status: "exited", code: 1, error: "Pi exited before receiving the job prompt" };
-    return { status: "exited", code };
+    return { status: stopped ? "stopped" : "exited", code };
   } catch (error) {
-    const reason = errorCode(error);
-    return child?.pid === undefined
-      ? {
-          status: "not-started",
-          code: 1,
-          error: `Unable to start Pi (${reason}); check PSTACK_PI_BIN`,
-        }
-      : {
-          status: "unconfirmed",
-          code: 1,
-          error: `Pi run failed after launch (${reason}); inspect ${runDir}`,
-        };
+    return launchFailure(child?.pid !== undefined, errorCode(error));
   } finally {
     process.removeListener("SIGINT", abort);
     process.removeListener("SIGTERM", abort);

@@ -28,6 +28,8 @@ FIXED:
 - Write workers have MCP tools, as poteto-mode says. `--no-extensions` also turned off Pi's built-in MCP, `codemode` and `tool_search` extensions, so they had none; they now load all three and get `codemode` and `tool_search`, the only ways Pi reaches an MCP tool that is not exposed directly.
 - `pstack_delegate` mode `interrogate` honors an explicit `readOnly: true`; only its default is writable.
 - Resuming a worker that is still running, or that another resume is running, is refused, instead of starting a second Pi process on the same session. A resume with `background: true` is refused, since resume runs in the foreground.
+- A worker whose first launch left no session cannot be resumed; before, the resume started a fresh session with only the follow-up task.
+- A job runner that is sent `SIGTERM` or `SIGINT` kills its Pi with `SIGKILL` if it has not exited 5 seconds later, and records the run as `stopped`.
 - A resume refuses `readOnly`, `role`, `modelRole`, `models`, `base`, `rubric` and `concurrency` instead of silently ignoring them; it continues the worker as it was.
 - A Benny run's skill check no longer receives `PSTACK_EVENT_SECRET` or `PSTACK_SLACK_TRIGGER_TOKEN`; it gets the same cleaned environment as the run.
 - A Benny job reaches the MCP tools it names. It loaded only `builtin:mcp`, and Pi offers MCP tools only through `codemode` and `tool_search`, so a job that named its Slack tools could not call them; jobs now load the same three built-in extensions as write workers.
@@ -44,7 +46,7 @@ FIXED:
 - Every worker run goes through one registry: foreground and background workers, resumes and arena judges. `pstack_workers` lists those waiting for a slot as `queued`, can stop any queued or running one, and lists a stopped one as `stopped`, not `failed`.
 - `pstack_workers` lists a finished foreground worker, including an arena's judge, as `done`, or `failed` with its error, as it lists a background one.
 - Stopping a queued background worker takes it off the queue at once and lists it as `stopped`; it no longer waits for a running worker to finish.
-- The `autopilot-stack` plan is `autopilot-full`'s seven steps with its two overrides applied, as the playbook says, not only the two overrides.
+- The `autopilot-stack` plan is `autopilot-full`'s seven steps with its two overrides applied, as the playbook says, not only the two overrides. The stacking exception is attached to the step it qualifies, not listed as a separate task that contradicts it.
 - Background workers run with no time limit, as `pstack_delegate` says; they had a hidden 7-day cap.
 - `pstack_workers` lists a running foreground worker as `running`, not `finished`, and no longer lists an arena's `blinded/` folder as a worker.
 - The Slack watcher replaces its cursor file atomically, so a crash mid-write cannot leave a file that stops every later poll.
