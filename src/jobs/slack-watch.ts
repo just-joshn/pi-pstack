@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
-import { createHmac } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { rmSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync, readFileSync, rmSync } from "node:fs";
+import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -164,6 +164,7 @@ export async function watchedJobs(paths: readonly string[]): Promise<Watched[]> 
 }
 
 const isAlive = (pid: number) => {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
     return true;
@@ -172,21 +173,38 @@ const isAlive = (pid: number) => {
   }
 };
 
+async function takeOver(lock: string, deadOwner: string) {
+  const aside = `${lock}.${process.pid}.${randomUUID()}`;
+  try {
+    await rename(lock, aside);
+  } catch (error) {
+    if (hasErrorCode(error, "ENOENT")) return;
+    throw error;
+  }
+  if ((await readFile(aside, "utf8")) !== deadOwner) await link(aside, lock).catch(() => {});
+  await rm(aside, { force: true });
+}
+
 export async function claimState(statePath: string) {
   const lock = `${statePath}.lock`;
-  try {
-    await writeFile(lock, String(process.pid), { flag: "wx", mode: 0o600 });
-  } catch (error) {
-    if (!hasErrorCode(error, "EEXIST")) throw error;
-    const owner = Number(await readFile(lock, "utf8"));
-    if (Number.isInteger(owner) && owner > 0 && isAlive(owner))
-      throw Error(
-        `Another watcher (pid ${owner}) uses ${statePath}; run one watcher for its jobs`,
-        {
-          cause: error,
-        },
-      );
-    await atomicWrite(lock, String(process.pid));
+  const pid = String(process.pid);
+  const release = () => {
+    if (existsSync(lock) && readFileSync(lock, "utf8") === pid) rmSync(lock, { force: true });
+  };
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Each attempt follows the last takeover.
+      await writeFile(lock, pid, { flag: "wx", mode: 0o600 });
+      return release;
+    } catch (error) {
+      if (!hasErrorCode(error, "EEXIST")) throw error;
+    }
+    // oxlint-disable-next-line eslint/no-await-in-loop -- The owner is read after the failed claim.
+    const owner = await readFile(lock, "utf8").catch(() => "");
+    if (isAlive(Number(owner)))
+      throw Error(`Another watcher (pid ${owner}) uses ${statePath}; run one watcher for its jobs`);
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Take over before claiming again.
+    await takeOver(lock, owner);
   }
-  return () => rmSync(lock, { force: true });
+  throw Error(`Another watcher is claiming ${statePath}; run one watcher for its jobs`);
 }

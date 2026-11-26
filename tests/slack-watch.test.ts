@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { test } from "vitest";
@@ -279,4 +279,35 @@ test("one watcher owns a state file at a time; a dead watcher's claim is taken o
   const taken = await claimState(state);
   assert.equal(await readFile(`${state}.lock`, "utf8"), String(process.pid));
   taken();
+});
+
+test("of two watchers taking over a dead watcher's claim at once, only one wins", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  for (let round = 0; round < 20; round += 1) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each round starts from a fresh stale claim.
+    await writeFile(`${state}.lock`, "999999999");
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each round races two claims.
+    const claims = await Promise.allSettled([claimState(state), claimState(state)]);
+    assert.equal(claims.filter((c) => c.status === "fulfilled").length, 1, `round ${round}`);
+    for (const claim of claims) if (claim.status === "fulfilled") claim.value();
+  }
+});
+
+test("a watcher releases only a claim it still holds", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  const release = await claimState(state);
+  await writeFile(`${state}.lock`, "12345");
+  release();
+  assert.equal(await readFile(`${state}.lock`, "utf8"), "12345");
+});
+
+test("releasing a claim that is already gone creates nothing", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  const release = await claimState(state);
+  await rm(`${state}.lock`);
+  release();
+  assert.deepEqual(await readdir(dir), []);
 });
