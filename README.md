@@ -140,6 +140,7 @@ Everything the installed package needs lives in `src/`, and the package publishe
 - `src/reference/parity.json` (generated): machine-readable original IDs, edges and views with implementation classifications.
 - `src/reference/PARITY.md`, `src/reference/GAPS.md`: audit matrix and residual gaps.
 - `src/automations/benny/`: upstream's Benny pack, ported by hand.
+- `src/licenses/`: upstream pstack's and Team Kit's MIT notices, and which files came from each.
 - `scripts/catalog-source.json`: Pi implementation classifications and paths for the source map's nodes.
 - `scripts/generate.py`: `python3 scripts/generate.py` rebuilds `src/lib/catalog-data.json` (with each playbook's numbered steps for `pstack_plan`), `src/reference/parity.json` and `src/reference/PARITY.md`. It never writes the ported files.
 - `scripts/smoke.ts`, `scripts/smoke-provider.ts`, `tests/`: verification.
@@ -159,4 +160,8 @@ The extension targets the `@earendil-works` Pi SDK, not the older `@mariozechner
 - [Pinned original router](https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md)
 - [Pinned original setup](https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/setup-pstack/SKILL.md)
 
-Every upstream source URL from the map remains in `src/reference/source-map.json` and `src/reference/parity.json`. No claim is made that the independently authored instructions reproduce every detail in those upstream files.
+Every upstream source URL from the map remains in `src/reference/source-map.json` and `src/reference/parity.json`.
+
+## License
+
+This package's own code is under the MIT License in `LICENSE`. The skills, agents, rules, guide and Benny pack ported from upstream pstack (copyright Lauren Tan) and Cursor Team Kit (copyright Cursor) are also MIT-licensed; their notices ship unchanged in `src/licenses/`, which lists the files that came from each.

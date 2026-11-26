@@ -25,6 +25,7 @@ NEW FEATURES:
 
 FIXED:
 
+- The package ships upstream pstack's and Cursor Team Kit's MIT license notices, in `src/licenses/`, with the files it ports from them. 0.4.0 shipped those files without the notices.
 - Arena candidates no longer see the rubric; only the judge does.
 - The arena judge excludes only the parent's vendor, so upstream's default panel has a judge. An arena with no judge runs and reports the judge as skipped, and a candidate that drops out leaves the judge scoring the rest.
 - Interrogate adversaries and Comment Sicko work in their own writable worktrees, and the CI watcher has a shell, so each can do what upstream asks of it.
