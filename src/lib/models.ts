@@ -89,7 +89,7 @@ export const upstreamDefaults: Record<Role, string[]> = {
 const modelId = (model: string) => model.slice(model.indexOf("/") + 1).toLowerCase();
 /** Arena's families: claude-fable-*, claude-*, gemini-*, otherwise the text before the first hyphen. */
 export function family(model: string) {
-  const id = modelId(model).replace(/^cursor-/, "");
+  const id = modelId(model);
   return (
     ["claude-fable", "claude", "gemini"].find((f) => id.startsWith(f + "-")) ?? id.split("-")[0]
   );

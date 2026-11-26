@@ -43,11 +43,6 @@ interface WorkerRole {
   /** Runs shell commands in the parent's checkout, without edit tools or a worktree. */
   shell?: boolean;
 }
-const reviewer = (contract: string): WorkerRole => ({
-  alwaysReadOnly: true,
-  modelRole: "judgment and prose",
-  contract,
-});
 export const workerRoles = new Map<string, WorkerRole>([
   [
     "poteto-agent",
@@ -63,7 +58,14 @@ export const workerRoles = new Map<string, WorkerRole>([
     "ci-watcher",
     { alwaysReadOnly: true, shell: true, modelRole: "swarm workers", contract: "ci-watcher.md" },
   ],
-  ["thermo-nuclear-code-quality-review", reviewer("thermo-nuclear-code-quality-review.md")],
+  [
+    "thermo-nuclear-code-quality-review",
+    {
+      alwaysReadOnly: true,
+      modelRole: "judgment and prose",
+      contract: "thermo-nuclear-code-quality-review.md",
+    },
+  ],
   ["general-purpose", { alwaysReadOnly: false, modelRole: "judgment and prose" }],
 ]);
 const panelModelRoles: Partial<Record<Mode, Role>> = {
@@ -161,7 +163,8 @@ function workerModels(
     if (p.model) fail("Pass model or models, not both");
     return p.models;
   }
-  if (p.model) return Array.from({ length: batch.count }, () => p.model ?? "");
+  const { model } = p;
+  if (model) return Array.from({ length: batch.count }, () => model);
   return selectPanel(config, modelRole, batch.count);
 }
 
@@ -308,9 +311,12 @@ async function execWorker(
   ]);
   if (exec.code !== 0 || exec.truncated || exec.killed)
     fail(`Worker ${worker.id} failed (${exec.code}); inspect ${run.report}`);
-  const transcript = await singleTranscript(worker.sessionDir);
-  const { sessionDir } = worker;
-  return { report: run.report, transcript, sessionDir, summary: exec.stdout.slice(-6000) };
+  return {
+    report: run.report,
+    transcript: await singleTranscript(worker.sessionDir),
+    sessionDir: worker.sessionDir,
+    summary: exec.stdout.slice(-6000),
+  };
 }
 
 async function launchWorker(

@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { test } from "vitest";
 
-import { host, notARepository } from "./host.ts";
+import { host, notARepository, readResult } from "./host.ts";
 import { flag, shaped } from "./support.ts";
 
 interface Listed {
@@ -36,7 +36,7 @@ function longRunningWorkers() {
     },
   });
   const call = async <T>(tool: string, params: object) =>
-    shaped<T>(JSON.parse((await h.call(tool, params)).content[0]?.text ?? ""));
+    shaped<T>(readResult(await h.call(tool, params)));
   const list = (action = "list", id?: string) => call<Listed[]>("pstack_workers", { action, id });
   return { call, list, release, timeouts };
 }
@@ -94,9 +94,7 @@ test("the list covers every worker of the session, foreground ones included", as
     execute: async (bin) => (bin === "git" ? notARepository : { code: 0, stdout: "r", stderr: "" }),
   });
   const list = async () =>
-    shaped<Listed[]>(
-      JSON.parse((await h.call("pstack_workers", { action: "list" })).content[0]?.text ?? ""),
-    );
+    shaped<Listed[]>(readResult(await h.call("pstack_workers", { action: "list" })));
   assert.deepEqual(await list(), []);
   await h.call("pstack_delegate", { mode: "single", tasks: ["review"] });
   const [finished] = await list();

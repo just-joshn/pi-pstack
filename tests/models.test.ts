@@ -305,7 +305,6 @@ test("model families follow arena's prefixes", () => {
   assert.equal(family("anthropic/claude-opus-5-5"), "claude");
   assert.equal(family("google/gemini-4-neon"), "gemini");
   assert.equal(family("openai-codex/gpt-6.1-terra"), "gpt");
-  assert.equal(family("cursor-gemini-4"), "gemini");
 });
 
 test("the file shape setup-pstack shows is one pstack_delegate accepts", async () => {
