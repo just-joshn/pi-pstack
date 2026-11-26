@@ -66,7 +66,7 @@ function jsonLine(line: string): unknown {
   }
 }
 
-async function skillSources(piBin: string, cwd: string, env: NodeJS.ProcessEnv) {
+async function skillSources(piBin: string, cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number) {
   const child = spawn(piBin, ["--mode", "rpc", "--no-session", "--approve", "--no-extensions"], {
     cwd,
     env,
@@ -77,6 +77,11 @@ async function skillSources(piBin: string, cwd: string, env: NodeJS.ProcessEnv) 
   child.stdin.on("error", () => {});
   const closed = new Promise((resolve) => child.once("close", resolve));
   const lines = createInterface({ input: child.stdout });
+  const timer = setTimeout(() => {
+    failure = Error(`${piBin} did not answer within ${timeoutMs} ms`);
+    lines.close();
+    child.stdout.destroy();
+  }, timeoutMs);
   child.stdin.end(`${JSON.stringify({ id: "check", type: "get_commands" })}\n`);
   try {
     for await (const line of lines) {
@@ -94,6 +99,7 @@ async function skillSources(piBin: string, cwd: string, env: NodeJS.ProcessEnv) 
     if (failure) throw failure;
     return new Map<string, { scope: unknown; path: unknown }>();
   } finally {
+    clearTimeout(timer);
     child.kill();
     await closed;
   }
@@ -103,8 +109,9 @@ export async function projectSkills(
   cwd: string,
   piBin = process.env["PSTACK_PI_BIN"] ?? "pi",
   env: NodeJS.ProcessEnv = process.env,
+  timeoutMs = 60_000,
 ) {
-  const sources = await skillSources(piBin, cwd, env);
+  const sources = await skillSources(piBin, cwd, env, timeoutMs);
   const files = new Map<string, string>();
   for (const skill of sharedSkills) {
     const source = sources.get(`skill:${skill}`);

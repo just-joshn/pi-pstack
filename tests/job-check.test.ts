@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rename, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
 import { test } from "vitest";
@@ -120,4 +120,25 @@ test("a referenced path with spaces is checked whole, in backticks or on its own
     ".pi/benny/my config.json",
     ".pi/benny/route map.md",
   ]);
+});
+
+test("a Pi that never answers fails the skill check instead of hanging it", async () => {
+  const { clone } = await target([]);
+  const stalled = join(clone, "..", "stalled-pi");
+  await writeFile(stalled, "#!/bin/sh\nsleep 60\n", { mode: 0o700 });
+  const started = Date.now();
+  await assert.rejects(projectSkills(clone, stalled, process.env, 300), /did not answer within/);
+  assert(Date.now() - started < 5000);
+});
+
+test("check-benny.mjs runs the project check on a repository whose name ends in .json", async () => {
+  const { clone, fake } = await target([".pi/settings.json"]);
+  const named = join(clone, "..", "project.json");
+  await rename(clone, named);
+  const cli = join(srcDir, "jobs", "check-benny.mjs");
+  const run = await spawned(process.execPath, [cli, named], {
+    env: { ...process.env, PSTACK_PI_BIN: fake },
+  });
+  assert.equal(run.status, 0, run.stderr);
+  assert.deepEqual(JSON.parse(run.stdout), { ok: true, unresolved: [] });
 });
