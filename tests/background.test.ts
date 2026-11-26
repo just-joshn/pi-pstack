@@ -334,6 +334,7 @@ test("a foreground swarm's waiting workers are listed as queued", async () => {
   const deadline = Date.now() + 4000;
   // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the first worker to start.
   while ((await sortedStates()) !== "queued,queued,running" && Date.now() < deadline)
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the first worker to start.
     await settle();
   assert.equal(await sortedStates(), "queued,queued,running");
   gate.resolve();
