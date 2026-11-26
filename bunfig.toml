@@ -18,7 +18,6 @@ ignorePatterns = [
   "dist/",
   "build/",
   "coverage/",
-  "upstream/",
   "src/skills/*/scripts/",
   # Files ported by hand from upstream keep upstream's Markdown exactly.
   "src/skills/**/*.md",

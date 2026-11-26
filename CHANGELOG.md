@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.4.0 (Unreleased)
+
+BREAKING CHANGES:
+
+- Every skill, playbook, principle, agent and reference is now upstream's file, ported by hand, in place of a summary written from the source map. Skills follow upstream's steps, so their behavior changes wherever the summaries differed.
+- With no `pstack-models.json`, roles take upstream's default models (Opus 5.5, and a Fable 5.2, Opus 5.5 and Gemini 4 Neon panel), matched to the models workers can use, instead of the parent model.
+- `pstack_delegate` starts writing workers without asking, as upstream's Autonomy rule lets reversible work proceed.
+- The `quality-agent` worker role is now `thermo-nuclear-code-quality-review`, its upstream name.
+
+NEW FEATURES:
+
+- `pstack_delegate` takes `model` and `thinking` per call, `models` for panel seats and swarm race arms, `resume` to continue a worker's own session, and `background` to return at once while workers keep running.
+- `pstack_workers` lists the session's workers with their state and last activity, and stops a background worker.
+- `pstack_wake` action `start` lets the agent arm the wake loop, as upstream's agent arms `/loop`.
+- `pstack_plan` action `add` adds tasks to the open plan, after a given task or at the end.
+- The guide (`src/docs/guide`) and upstream's scripts ship with the package: `watch-pr`, `worktree-audit.sh`, `log.sh`, the statechart tools and the PR review canvas.
+- A custom job takes an optional HMAC-signed event, which `/make-bot-ui` uses to wake a bot from a button.
+- After saving, `/setup-pstack` offers each verification skill the project lacks.
+
+FIXED:
+
+- Arena candidates no longer see the rubric; only the judge does.
+- The arena judge excludes only the parent's vendor, so upstream's default panel has a judge. An arena with no judge runs and reports the judge as skipped, and a candidate that drops out leaves the judge scoring the rest.
+- Interrogate adversaries and Comment Sicko work in their own writable worktrees, and the CI watcher has a shell, so each can do what upstream asks of it.
+- Worker kickoffs no longer add a line that overrode `worker.md`.
+- `/poteto-mode` and persistent mode give the skill's file path, so its relative paths resolve.
+- Write workers keep MCP tools, as upstream's agent-mode subagents do.
+
+CHANGED:
+
+- `scripts/generate.py` only builds the catalog, the plan steps from each playbook, and the parity listings.
+- A test checks that no ported file names a Cursor mechanism. During the port, each file was also checked against upstream's for its name, headings, numbered steps and line layout; the upstream copies are not kept in the repository.
+
 ## 0.3.0 (Unreleased)
 
 NEW FEATURES:
