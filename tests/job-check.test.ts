@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { test } from "vitest";
 
-import { checkJob, sharedSkills, unresolvedSkills } from "../src/jobs/job-check.ts";
+import { checkJob, projectSkills, sharedSkills } from "../src/jobs/job-check.ts";
 import { sandbox } from "./host.ts";
 import { spawned } from "./support.ts";
 
@@ -75,8 +75,10 @@ test("an uncommitted file the job needs, or a skill from outside the project, fa
 
 test("the working-tree check reports skills not from project scope", async () => {
   const { clone, fake } = await target([".pi/settings.json"]);
-  assert.deepEqual(await unresolvedSkills(clone, fake), []);
-  assert.deepEqual(await unresolvedSkills(join(clone, ".pi"), fake), sharedSkills);
+  const found = await projectSkills(clone, fake);
+  assert.deepEqual(found.unresolved, []);
+  assert.equal(found.files.get("why"), "/pstack/why/SKILL.md");
+  assert.deepEqual((await projectSkills(join(clone, ".pi"), fake)).unresolved, sharedSkills);
 });
 
 test("only Benny jobs are checked", async () => {
@@ -93,14 +95,14 @@ test("a Pi that exits without answering, or answers without commands, resolves n
   const { clone, fake } = await target([]);
   const silent = join(fake, "..", "silent-pi");
   await writeFile(silent, "#!/bin/sh\nexit 0\n", { mode: 0o700 });
-  assert.deepEqual(await unresolvedSkills(clone, silent), sharedSkills);
+  assert.deepEqual((await projectSkills(clone, silent)).unresolved, sharedSkills);
   const empty = join(fake, "..", "empty-pi");
   const answer = JSON.stringify({ type: "response", id: "check", data: null });
   await writeFile(empty, `#!/bin/sh\nread line\necho '${answer}'\n`, { mode: 0o700 });
-  assert.deepEqual(await unresolvedSkills(clone, empty), sharedSkills);
+  assert.deepEqual((await projectSkills(clone, empty)).unresolved, sharedSkills);
 });
 
 test("a Pi that cannot start is an error, not an empty skill list", async () => {
   const { clone } = await target([]);
-  await assert.rejects(unresolvedSkills(clone, join(clone, "no-such-pi")), { code: "ENOENT" });
+  await assert.rejects(projectSkills(clone, join(clone, "no-such-pi")), { code: "ENOENT" });
 });

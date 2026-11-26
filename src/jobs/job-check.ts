@@ -104,8 +104,6 @@ export async function projectSkills(cwd: string, piBin = process.env["PSTACK_PI_
   }
   return { files, unresolved: sharedSkills.filter((s) => !files.has(s)) };
 }
-export const unresolvedSkills = async (cwd: string, piBin?: string) =>
-  (await projectSkills(cwd, piBin)).unresolved;
 
 /**
  * Checks a Benny job before it is enabled: the files its runs read are committed on the default
@@ -129,7 +127,7 @@ export async function checkJob(path: string, piBin = process.env["PSTACK_PI_BIN"
     "FETCH_HEAD",
   ]);
   try {
-    const unresolved = await unresolvedSkills(checkout, piBin);
+    const { unresolved } = await projectSkills(checkout, piBin);
     return {
       ok: !uncommitted.length && !unresolved.length,
       branch: `origin/${branch}`,

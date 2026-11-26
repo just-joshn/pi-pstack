@@ -6,7 +6,7 @@ import { type BennyKind, isJobKind } from "../lib/jobs.ts";
 import { isRecord, parseJson } from "../lib/validation.ts";
 
 /** The fields upstream sets in a Benny automation's editor: its trigger channel and repository branch. */
-export interface BennyConfig {
+interface BennyConfig {
   sourceChannel: string;
   defaultBranch: string;
 }
@@ -125,11 +125,6 @@ export async function readEvent(
 const isTrigger = (value: unknown): value is SlackTrigger =>
   isRecord(value) &&
   ["source_channel_id", "message_ts", "ts", "thread_ts"].every((k) => typeof value[k] === "string");
-const triggerFields = (trigger: SlackTrigger) => ({
-  "{{SLACK_CHANNEL_ID}}": trigger.source_channel_id,
-  "{{SLACK_MESSAGE_TS}}": trigger.message_ts,
-  "{{SLACK_THREAD_TS_OR_EMPTY}}": trigger.thread_ts,
-});
 
 /**
  * The prompt, run folder name and event ID of one run. A Benny job's instructions get the trigger
@@ -147,17 +142,21 @@ export function planRun(job: Job, event: SlackTrigger | Record<string, unknown> 
       eventId: isRecord(event) ? event["eventId"] : undefined,
     };
   }
-  const trigger = event;
-  const filled = Object.entries(triggerFields(trigger)).reduce(
+  const fields = {
+    "{{SLACK_CHANNEL_ID}}": event.source_channel_id,
+    "{{SLACK_MESSAGE_TS}}": event.message_ts,
+    "{{SLACK_THREAD_TS_OR_EMPTY}}": event.thread_ts,
+  };
+  const filled = Object.entries(fields).reduce(
     (text, [field, value]) => text.replaceAll(field, value),
     job.instructions,
   );
   const prompt =
     filled === job.instructions
-      ? `${job.instructions}\n\nTrigger:\n\n${JSON.stringify(trigger, null, 2)}`
+      ? `${job.instructions}\n\nTrigger:\n\n${JSON.stringify(event, null, 2)}`
       : filled;
   const key = createHash("sha256")
-    .update(`${job.kind}\0${trigger.source_channel_id}\0${trigger.message_ts}`)
+    .update(`${job.kind}\0${event.source_channel_id}\0${event.message_ts}`)
     .digest("hex");
-  return { prompt, key, eventId: trigger.message_ts };
+  return { prompt, key, eventId: event.message_ts };
 }
