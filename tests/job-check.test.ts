@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
 import { test } from "vitest";
@@ -141,4 +141,31 @@ test("check-benny.mjs runs the project check on a repository whose name ends in 
   });
   assert.equal(run.status, 0, run.stderr);
   assert.deepEqual(JSON.parse(run.stdout), { ok: true, unresolved: [] });
+});
+
+test("a required file committed as a folder counts as missing", async () => {
+  const files = complete.filter((f) => f !== ".pi/benny/configuration.yaml");
+  const { fake, job } = await target([...files, ".pi/benny/configuration.yaml/child"]);
+  assert.deepEqual((await checkJob(job, fake)).uncommitted, [".pi/benny/configuration.yaml"]);
+});
+
+test("the check removes only its own worktree", async () => {
+  const { clone, fake, job } = await target(complete);
+  const other = join(clone, "..", "other-tree");
+  await git(clone, "worktree", "add", "--quiet", "--detach", other);
+  await rm(other, { recursive: true, force: true });
+  await checkJob(job, fake);
+  const listed = await git(clone, "worktree", "list", "--porcelain");
+  assert.match(listed.stdout, /other-tree/, "an unrelated stale registration is left alone");
+});
+
+test("a Pi that ignores SIGTERM cannot hang the skill check", async () => {
+  const { clone } = await target([]);
+  const stubborn = join(clone, "..", "stubborn-pi");
+  await writeFile(stubborn, "#!/bin/sh\ntrap '' TERM\nwhile :; do sleep 1; done\n", {
+    mode: 0o700,
+  });
+  const started = Date.now();
+  await assert.rejects(projectSkills(clone, stubborn, process.env, 300), /did not answer within/);
+  assert(Date.now() - started < 5000);
 });

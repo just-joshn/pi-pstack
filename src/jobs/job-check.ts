@@ -51,11 +51,16 @@ function requiredFiles(job: Job) {
   return [...new Set([".pi/settings.json", ...packFiles, ...namedPaths(job.instructions)])];
 }
 
-async function committed(repository: string, ref: string, files: string[]) {
-  const checks = await Promise.allSettled(
-    files.map((file) => git("git", ["-C", repository, "cat-file", "-e", `${ref}:${file}`])),
+async function uncommittedFiles(repository: string, ref: string, files: string[]) {
+  const args = ["-C", repository, "ls-tree", "-z", "--full-tree", ref, "--", ...files];
+  const { stdout } = await git("git", args);
+  const blobs = new Set(
+    stdout
+      .split("\0")
+      .map((entry) => entry.match(/^\d+ blob \w+\t(.*)$/s)?.[1])
+      .filter((path) => path !== undefined),
   );
-  return files.filter((_, i) => checks[i]?.status === "rejected");
+  return files.filter((file) => !blobs.has(file));
 }
 
 function jsonLine(line: string): unknown {
@@ -81,6 +86,7 @@ async function skillSources(piBin: string, cwd: string, env: NodeJS.ProcessEnv, 
     failure = Error(`${piBin} did not answer within ${timeoutMs} ms`);
     lines.close();
     child.stdout.destroy();
+    child.kill("SIGKILL");
   }, timeoutMs);
   child.stdin.end(`${JSON.stringify({ id: "check", type: "get_commands" })}\n`);
   try {
@@ -100,7 +106,7 @@ async function skillSources(piBin: string, cwd: string, env: NodeJS.ProcessEnv, 
     return new Map<string, { scope: unknown; path: unknown }>();
   } finally {
     clearTimeout(timer);
-    child.kill();
+    child.kill("SIGKILL");
     await closed;
   }
 }
@@ -128,9 +134,11 @@ export async function checkJob(path: string, piBin = process.env["PSTACK_PI_BIN"
   const ref = `refs/pstack/check/${randomUUID()}`;
   await fetchBranch(job.cwd, branch, ref);
   const checkout = join(await mkdtemp(join(tmpdir(), "pstack-benny-check-")), "checkout");
+  let added = false;
   try {
-    const uncommitted = await committed(job.cwd, ref, requiredFiles(job));
+    const uncommitted = await uncommittedFiles(job.cwd, ref, requiredFiles(job));
     await git("git", ["-C", job.cwd, "worktree", "add", "--quiet", "--detach", checkout, ref]);
+    added = true;
     const { unresolved } = await projectSkills(checkout, piBin);
     return {
       ok: !uncommitted.length && !unresolved.length,
@@ -139,8 +147,8 @@ export async function checkJob(path: string, piBin = process.env["PSTACK_PI_BIN"
       unresolved,
     };
   } finally {
+    if (added) await git("git", ["-C", job.cwd, "worktree", "remove", "--force", checkout]);
     await rm(join(checkout, ".."), { recursive: true, force: true });
-    await git("git", ["-C", job.cwd, "worktree", "prune"]);
     await deleteRef(job.cwd, ref);
   }
 }
