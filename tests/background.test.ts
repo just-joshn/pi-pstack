@@ -74,9 +74,8 @@ test("background workers return at once, keep running, and can be listed and sto
     background: true,
   });
   const [one = "", two = ""] = started.background.map((w) => w.id);
-  await settle();
-  assert.deepEqual(
-    states(await list()),
+  await listedAs(
+    list,
     new Map([
       [one, "running"],
       [two, "running"],
@@ -327,8 +326,16 @@ test("a foreground swarm's waiting workers are listed as queued", async () => {
     shaped<Listed[]>(readResult(await h.call("pstack_workers", { action: "list" })));
   const tasks = ["one", "two", "three"];
   const running = h.call("pstack_delegate", { mode: "swarm", tasks, concurrency: 1 });
-  await settle();
-  assert.deepEqual((await list()).map((w) => w.state).toSorted(), ["queued", "queued", "running"]);
+  const sortedStates = async () =>
+    (await list())
+      .map((w) => w.state)
+      .toSorted()
+      .join();
+  const deadline = Date.now() + 4000;
+  // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the first worker to start.
+  while ((await sortedStates()) !== "queued,queued,running" && Date.now() < deadline)
+    await settle();
+  assert.equal(await sortedStates(), "queued,queued,running");
   gate.resolve();
   await running;
   assert.deepEqual(
@@ -366,7 +373,9 @@ test("a running foreground worker or resume can be stopped, and is listed as sto
       () => "finished",
       (error: unknown) => String(error),
     );
-  await settle();
+  const deadline = Date.now() + 4000;
+  // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the resume to start.
+  while ((await list())[0]?.state !== "running" && Date.now() < deadline) await settle();
   assert.equal((await list())[0]?.state, "running");
   await list("stop", first?.id);
   assert.match(await resumed, /killed/);
