@@ -40,7 +40,6 @@ function longRunningWorkers() {
   const call = async <T>(tool: string, params: object) =>
     shaped<T>(readResult(await h.call(tool, params)));
   const list = (action = "list", id?: string) => call<Listed[]>("pstack_workers", { action, id });
-  /** Releases a worker once its fake Pi process is waiting. */
   const finish = async (id: string) => {
     const deadline = Date.now() + 4000;
     // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the worker's process to start.
@@ -52,7 +51,6 @@ function longRunningWorkers() {
 
 const states = (listed: Listed[]) => new Map(listed.map((w) => [w.id, w.state]));
 
-/** Lists workers until their states match, for up to five seconds. */
 async function listedAs(list: () => Promise<Listed[]>, expected: Map<string, string>) {
   const deadline = Date.now() + 4000;
   let actual = states(await list());

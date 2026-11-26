@@ -46,7 +46,6 @@ def first_sentence(line):
 
 
 def playbook_steps(path):
-    """A playbook's top-level numbered steps, which pstack_plan copies into its task list."""
     lines = path.read_text().splitlines()
     numbered = [first_sentence(line) for line in lines if re.match(r"\d+\.\s", line)]
     return numbered or [lines[0].lstrip("# ").strip()]
