@@ -172,7 +172,6 @@ const isAlive = (pid: number) => {
   }
 };
 
-/** Claims a state file for this process; a claim left by a dead process is taken over. */
 export async function claimState(statePath: string) {
   const lock = `${statePath}.lock`;
   try {
