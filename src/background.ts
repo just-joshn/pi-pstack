@@ -67,15 +67,24 @@ async function startBackground(
   return { ids: jobs.map((job) => job.id), done };
 }
 
+interface ForegroundOptions {
+  signal?: AbortSignal | undefined;
+  fields?: object;
+}
+
 async function runForeground<T>(
   registry: Registry,
   dir: string,
   ids: readonly string[],
   concurrency: number,
   run: (id: string, stop: AbortSignal) => Promise<T>,
-  fields: object,
+  options: ForegroundOptions,
 ) {
   const queue = await enqueue(registry, dir, ids);
+  const fields = options.fields ?? {};
+  for (const { controller } of queue)
+    if (options.signal?.aborted) controller.abort();
+    else options.signal?.addEventListener("abort", () => controller.abort(), { once: true });
   return pool(queue, concurrency, async ({ id, controller }) => {
     if (controller.signal.aborted) fail(`Worker ${id} was stopped before it started`);
     registry.active.add(id);
@@ -105,8 +114,8 @@ export function backgroundWorkers() {
       ids: readonly string[],
       concurrency: number,
       run: (id: string, stop: AbortSignal) => Promise<T>,
-      fields: object = {},
-    ) => runForeground(registry, dir, ids, concurrency, run, fields),
+      options: ForegroundOptions = {},
+    ) => runForeground(registry, dir, ids, concurrency, run, options),
     state: (id: string) => (active.has(id) ? "running" : queued.has(id) ? "queued" : undefined),
     async stop(id: string) {
       const entry = queued.get(id);

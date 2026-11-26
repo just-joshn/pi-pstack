@@ -383,3 +383,26 @@ test("a running foreground worker or resume can be stopped, and is listed as sto
   assert.match(await resumed, /killed/);
   assert.equal((await list())[0]?.state, "stopped");
 });
+
+test("a foreground worker whose tool call is cancelled is listed as stopped", async () => {
+  const h = host({
+    execute: async (bin, args, options) => {
+      if (bin === "git") return notARepository;
+      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+      await new Promise((_, reject) =>
+        options?.signal?.addEventListener("abort", () => reject(Error("killed"))),
+      );
+      return { code: 0, stdout: "", stderr: "" };
+    },
+  });
+  const cancel = new AbortController();
+  const call = h.call("pstack_delegate", { mode: "single", tasks: ["work"] }, cancel.signal);
+  const deadline = Date.now() + 4000;
+  const listed = async () =>
+    shaped<Listed[]>(readResult(await h.call("pstack_workers", { action: "list" })));
+  // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the worker to start.
+  while ((await listed())[0]?.state !== "running" && Date.now() < deadline) await settle();
+  cancel.abort();
+  await call;
+  assert.equal((await listed())[0]?.state, "stopped");
+});

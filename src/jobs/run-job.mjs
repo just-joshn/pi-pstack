@@ -139,6 +139,7 @@ async function runPi() {
   try {
     out = await open(log, "wx", 0o600);
     err = await open(errorLog, "wx", 0o600);
+    if (stopped) return { status: "stopped", code: 1, error: "Stopped before Pi started" };
     child = spawn(piBin, args, {
       cwd,
       env,

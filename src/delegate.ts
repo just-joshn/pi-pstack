@@ -391,7 +391,7 @@ async function resumeWorker(
   const report = join(sessionDir, `resume-${randomUUID().slice(0, 8)}.txt`);
   const run = (stop: AbortSignal) =>
     workers.active.hold(sessionDir, () =>
-      execWorker(pi, { ...options, signal: withStop(options.signal, stop) }, worker, {
+      execWorker(pi, { ...options, signal: stop }, worker, {
         thinking: p.thinking ?? worker.thinking,
         prompt: p.tasks.join("\n"),
         report,
@@ -401,7 +401,7 @@ async function resumeWorker(
     workers.background,
     dirname(sessionDir),
     worker.id,
-    { report },
+    { fields: { report }, signal: options.signal },
     (stop) => (worker.readOnly ? run(stop) : workers.active.hold(worker.cwd, () => run(stop))),
   );
   const value = { id: worker.id, model: worker.model, path: worker.cwd, base: null, ...output };
@@ -436,17 +436,14 @@ function createRunner(
 
 type RunWorker = ReturnType<typeof createRunner>;
 
-const withStop = (signal: AbortSignal | undefined, stop: AbortSignal) =>
-  signal ? AbortSignal.any([signal, stop]) : stop;
-
 async function trackedRun<T>(
   background: BackgroundWorkers,
   dir: string,
   id: string,
-  fields: object,
+  options: { fields?: object; signal: AbortSignal | undefined },
   work: (stop: AbortSignal) => Promise<T>,
 ) {
-  const [outcome] = await background.foreground(dir, [id], 1, (_id, stop) => work(stop), fields);
+  const [outcome] = await background.foreground(dir, [id], 1, (_id, stop) => work(stop), options);
   if (outcome?.status !== "fulfilled") fail(outcome?.reason ?? `Worker ${id} did not run`);
   return outcome.value;
 }
@@ -503,6 +500,17 @@ async function judgeArena(
       : "INCONCLUSIVE: judge did not read every projected transcript",
   };
 }
+
+const arenaJudgment = (
+  dir: string,
+  outputs: PoolResult<WorkerReport>[],
+  rubric: string | undefined,
+  judge: string | undefined,
+  run: RunWorker,
+) =>
+  judge
+    ? judgeOrInconclusive(dir, outputs, rubric, judge, run)
+    : { status: "skipped: no available judge from a vendor other than the parent's" };
 
 const judgeOrInconclusive = (...args: Parameters<typeof judgeArena>) =>
   judgeArena(...args).catch((error: unknown) => ({
@@ -577,22 +585,20 @@ async function delegate(
     return { background: ids, dir, next: "Check them with pstack_workers action list." };
   }
   const runner = (stop: AbortSignal) =>
-    createRunner(pi, ctx, workers.active, { ...options, signal: withStop(options.signal, stop) });
+    createRunner(pi, ctx, workers.active, { ...options, signal: stop });
+  const tracked = { signal: options.signal };
   const run: RunWorker = (request) =>
-    trackedRun(workers.background, dir, request.id ?? "", {}, (stop) => runner(stop)(request));
+    trackedRun(workers.background, dir, request.id ?? "", tracked, (stop) => runner(stop)(request));
   const byId = new Map(requests.map((request) => [request.id, request]));
   const outputs = await workers.background.foreground(
     dir,
     [...byId.keys()],
     p.concurrency ?? 3,
     (id, stop) => runner(stop)(byId.get(id) ?? fail(`Unknown worker ${id}`)),
+    tracked,
   );
   const judgment =
-    p.mode === "arena"
-      ? judge
-        ? await judgeOrInconclusive(dir, outputs, p.rubric, judge, run)
-        : { status: "skipped: no available judge from a vendor other than the parent's" }
-      : undefined;
+    p.mode === "arena" ? await arenaJudgment(dir, outputs, p.rubric, judge, run) : undefined;
   return {
     outputs,
     judgment,
