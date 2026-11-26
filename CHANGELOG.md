@@ -29,7 +29,8 @@ FIXED:
 - `pstack_delegate` mode `interrogate` honors an explicit `readOnly: true`; only its default is writable.
 - Resuming a worker that is still running, or that another resume is running, is refused, instead of starting a second Pi process on the same session. A resume with `background: true` is refused, since resume runs in the foreground.
 - A worker whose first launch left no session cannot be resumed; before, the resume started a fresh session with only the follow-up task.
-- A job runner that is sent `SIGTERM` or `SIGINT` kills its Pi with `SIGKILL` if it has not exited 5 seconds later, and records the run as `stopped`.
+- A job runner that is sent `SIGTERM` or `SIGINT` kills its Pi with `SIGKILL` if it has not exited 5 seconds later, and records the run as `stopped`. A stop that arrives while a Benny run is still checking out or probing its skills records `stopped` too, and Pi never starts.
+- Two resumes of one worker started together cannot both run.
 - A resume refuses `readOnly`, `role`, `modelRole`, `models`, `base`, `rubric` and `concurrency` instead of silently ignoring them; it continues the worker as it was.
 - A Benny run's skill check no longer receives `PSTACK_EVENT_SECRET` or `PSTACK_SLACK_TRIGGER_TOKEN`; it gets the same cleaned environment as the run.
 - A Benny job reaches the MCP tools it names. It loaded only `builtin:mcp`, and Pi offers MCP tools only through `codemode` and `tool_search`, so a job that named its Slack tools could not call them; jobs now load the same three built-in extensions as write workers.

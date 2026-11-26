@@ -123,16 +123,19 @@ const launchFailure = (launched, reason) =>
         error: `Unable to start Pi (${reason}); check PSTACK_PI_BIN`,
       };
 
+/** @type {ReturnType<typeof spawn> | undefined} */
+let child;
+let stopped = false;
+const stop = () => {
+  stopped = true;
+  child?.kill("SIGTERM");
+  setTimeout(() => child?.kill("SIGKILL"), stopGraceMs).unref();
+};
+process.on("SIGINT", stop);
+process.on("SIGTERM", stop);
+
 async function runPi() {
   let out, err;
-  /** @type {ReturnType<typeof spawn> | undefined} */
-  let child;
-  let stopped = false;
-  const abort = () => {
-    stopped = true;
-    child?.kill("SIGTERM");
-    setTimeout(() => child?.kill("SIGKILL"), stopGraceMs).unref();
-  };
   try {
     out = await open(log, "wx", 0o600);
     err = await open(errorLog, "wx", 0o600);
@@ -143,8 +146,6 @@ async function runPi() {
     });
     const stdin = child.stdin;
     if (!stdin) throw Error("Pi started without a prompt stream");
-    process.once("SIGINT", abort);
-    process.once("SIGTERM", abort);
     const exited = once(child, "exit");
     const sent = finished(stdin).then(
       () => true,
@@ -159,13 +160,14 @@ async function runPi() {
   } catch (error) {
     return launchFailure(child?.pid !== undefined, errorCode(error));
   } finally {
-    process.removeListener("SIGINT", abort);
-    process.removeListener("SIGTERM", abort);
     await Promise.all([out?.close(), err?.close()]);
   }
 }
 
-const outcome = (await prepareBennyRunOrFailure()) ?? (await runPi());
+const prepared = await prepareBennyRunOrFailure();
+const outcome = stopped
+  ? { status: "stopped", code: 1, error: "Stopped before Pi started" }
+  : (prepared ?? (await runPi()));
 await writeFile(
   join(runDir, "result.json"),
   JSON.stringify({ ...outcome, eventId, cwd, log, errorLog }, null, 2),

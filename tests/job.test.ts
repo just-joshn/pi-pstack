@@ -448,3 +448,26 @@ test(
     assert.equal(receipt(await readFile(join(runs, run, "result.json"), "utf8")).status, "stopped");
   },
 );
+
+test("a Benny run stopped while it prepares records a stopped receipt", slow, async () => {
+  const { job, writeSigned, runs } = await fixture();
+  await writeSigned(report);
+  const slowProbe = join(dirname(job), "slow-pi");
+  await writeFile(slowProbe, "#!/bin/sh\nsleep 3\n", { mode: 0o700 });
+  const runnerProcess = spawn(
+    process.execPath,
+    [runner, "--run", job, join(dirname(job), "event.json")],
+    {
+      env: { ...process.env, PSTACK_PI_BIN: slowProbe, PSTACK_EVENT_SECRET: "test-secret" },
+      stdio: "ignore",
+    },
+  );
+  const exited = once(runnerProcess, "exit");
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  runnerProcess.kill("SIGTERM");
+  await exited;
+  const [run = ""] = await readdir(runs);
+  const saved = receipt(await readFile(join(runs, run, "result.json"), "utf8"));
+  assert.equal(saved.status, "stopped");
+  await assert.rejects(() => access(join(runs, run, "stdout.txt")), { code: "ENOENT" });
+});

@@ -423,3 +423,17 @@ test("a worker whose first launch left no session cannot be resumed", async () =
     /has no session to resume/,
   );
 });
+
+test("two resumes of one worker started together cannot both run", async () => {
+  const { h, runs } = recordingHost();
+  const first = fulfilled(
+    delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })).outputs,
+  );
+  const resume = { mode: "single", tasks: ["more"], resume: first.sessionDir };
+  const results = await Promise.allSettled([
+    h.call("pstack_delegate", resume),
+    h.call("pstack_delegate", resume),
+  ]);
+  assert.deepEqual(results.map((r) => r.status).toSorted(), ["fulfilled", "rejected"]);
+  assert.equal(runs.length, 2);
+});
