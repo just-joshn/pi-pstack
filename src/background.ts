@@ -7,7 +7,7 @@ import { Type } from "typebox";
 import { pool } from "./lib/pool.ts";
 import { errorMessage, isRecord, parseJson } from "./lib/validation.ts";
 import { artifacts, atomicWrite, fail, hasErrorCode, result, stringEnum } from "./support.ts";
-import type { ActiveWorktrees } from "./worktrees.ts";
+import type { BusyPaths } from "./worktrees.ts";
 
 export interface BackgroundJob {
   id: string;
@@ -84,11 +84,7 @@ async function readJson(path: string) {
   }
 }
 
-export async function listWorkers(
-  root: string,
-  background: BackgroundWorkers,
-  active: ActiveWorktrees,
-) {
+export async function listWorkers(root: string, background: BackgroundWorkers, active: BusyPaths) {
   const batches = (await entries(root)).filter((e) => e.isDirectory());
   const found = await Promise.all(
     batches.map(async (batch) => {
@@ -134,7 +130,7 @@ export async function listWorkers(
 export function registerBackground(
   pi: ExtensionAPI,
   background: BackgroundWorkers,
-  active: ActiveWorktrees,
+  active: BusyPaths,
 ) {
   pi.on("session_shutdown", () => background.stopAll());
   pi.registerTool({

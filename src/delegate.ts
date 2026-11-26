@@ -31,7 +31,7 @@ import {
 } from "./models.ts";
 import { type ParentDiff, saveParentDiff } from "./parent-diff.ts";
 import { artifacts, fail, piBin, result, stringEnum } from "./support.ts";
-import { type ActiveWorktrees, createWorktree } from "./worktrees.ts";
+import { type BusyPaths, createWorktree } from "./worktrees.ts";
 
 const modes = ["single", "swarm", "arena", "interrogate"] as const;
 type Mode = (typeof modes)[number];
@@ -348,7 +348,7 @@ async function launchWorker(
 async function resumeWorker(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
-  workers: { active: ActiveWorktrees; background: BackgroundWorkers },
+  workers: { active: BusyPaths; background: BackgroundWorkers },
   p: DelegateParams & { resume: string },
   options: Pick<RunnerOptions, "signal" | "progress">,
 ) {
@@ -383,7 +383,7 @@ const workerId = (index: number) => `worker-${index + 1}-${randomUUID().slice(0,
 function createRunner(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
-  active: ActiveWorktrees,
+  active: BusyPaths,
   options: RunnerOptions,
 ) {
   return async (request: WorkerRequest) => {
@@ -505,7 +505,7 @@ async function prepareBatch(
 async function delegate(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
-  workers: { active: ActiveWorktrees; background: BackgroundWorkers },
+  workers: { active: BusyPaths; background: BackgroundWorkers },
   p: DelegateParams,
   signal: AbortSignal | undefined,
   progress: (message: string) => void,
@@ -544,7 +544,7 @@ async function delegate(
 
 export function registerDelegation(
   pi: ExtensionAPI,
-  active: ActiveWorktrees,
+  active: BusyPaths,
   background: BackgroundWorkers,
 ) {
   pi.registerTool({

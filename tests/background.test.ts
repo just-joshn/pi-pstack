@@ -6,7 +6,7 @@ import { isDeepStrictEqual } from "node:util";
 import { test } from "vitest";
 
 import { backgroundWorkers, listWorkers } from "../src/background.ts";
-import { activeWorktrees } from "../src/worktrees.ts";
+import { busyPaths } from "../src/worktrees.ts";
 import { host, notARepository, readResult } from "./host.ts";
 import { flag, shaped } from "./support.ts";
 
@@ -207,11 +207,7 @@ test("workers a closed session left queued or running are listed as interrupted"
     concurrency: 1,
   });
   await settle();
-  const after = await listWorkers(
-    join(artifacts, "workers"),
-    backgroundWorkers(),
-    activeWorktrees(),
-  );
+  const after = await listWorkers(join(artifacts, "workers"), backgroundWorkers(), busyPaths());
   assert.deepEqual(
     after.map((w) => w.state),
     ["interrupted", "interrupted"],

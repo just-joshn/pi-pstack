@@ -48,8 +48,7 @@ function ancestry(exitCode: number | undefined) {
   return null;
 }
 
-/** Paths of worktrees that a running write worker is using; removal refuses them. */
-export function activeWorktrees() {
+export function busyPaths() {
   const paths = new Set<string>();
   return {
     has: (path: string) => paths.has(path),
@@ -63,7 +62,7 @@ export function activeWorktrees() {
     },
   };
 }
-export type ActiveWorktrees = ReturnType<typeof activeWorktrees>;
+export type BusyPaths = ReturnType<typeof busyPaths>;
 
 const validName = (name: string) => /^[a-z0-9][a-z0-9-]{0,48}$/.test(name);
 
@@ -96,7 +95,7 @@ export async function createWorktree(git: Git, ctx: ExtensionContext, name: stri
   return { path, base };
 }
 
-async function audit(git: Git, ref: string, active: ActiveWorktrees) {
+async function audit(git: Git, ref: string, active: BusyPaths) {
   const trees = await list(git);
   const base = await commit(git, ref);
   return pool(trees, 4, async (tree) => {
@@ -121,7 +120,7 @@ async function audit(git: Git, ref: string, active: ActiveWorktrees) {
 function assertRemovable(
   tree: Worktree | undefined,
   path: string,
-  active: ActiveWorktrees,
+  active: BusyPaths,
 ): asserts tree is Worktree & { head: string } {
   if (!tree?.head || tree.branch || tree.locked || tree.prunable || tree.bare || active.has(path)) {
     fail("Not a removable inactive package-owned detached tree");
@@ -143,7 +142,7 @@ async function removeWorktree(
   ctx: ExtensionContext,
   name: string,
   ref: string | undefined,
-  active: ActiveWorktrees,
+  active: BusyPaths,
 ) {
   if (!validName(name)) fail("Invalid name");
   if (!ctx.hasUI) fail("Removal not authorized without an interactive Pi UI");
@@ -182,7 +181,7 @@ async function removeWorktree(
   return { removed: path };
 }
 
-export function registerWorktrees(pi: ExtensionAPI, active: ActiveWorktrees) {
+export function registerWorktrees(pi: ExtensionAPI, active: BusyPaths) {
   pi.registerTool({
     name: "pstack_worktree",
     label: "Pstack worktree",
