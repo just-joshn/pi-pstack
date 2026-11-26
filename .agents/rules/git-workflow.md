@@ -13,19 +13,18 @@ Types: feat, fix, refactor, docs, test, chore, perf, ci
 ## Pull Request Workflow
 
 When creating PRs:
-
-1. Read the full commit history, not only the latest commit.
-2. Use `git diff [base-branch]...HEAD` to see all changes.
-3. Write a summary that says what changes for the reviewer.
-4. Include the commands you ran to verify the change.
-5. Push with `-u` when the branch is new.
+1. Analyze full commit history (not just latest commit)
+2. Use `git diff [base-branch]...HEAD` to see all changes
+3. Draft comprehensive PR summary
+4. Include test plan with TODOs
+5. Push with `-u` flag if new branch
 
 ## Feature Implementation Workflow
 
-1. Plan the change and name the data shape before writing code.
-2. Write the test first.
-3. Review the diff before committing.
-4. Commit in conventional format.
+1. **Plan First** - Use `planner` agent
+2. **TDD Approach** - Use `tdd-guide` agent
+3. **Code Review** - Use `code-reviewer` agent after writing code
+4. **Commit** - Follow conventional commits format
 
 ## Branch Naming
 
