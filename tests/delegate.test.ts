@@ -18,7 +18,7 @@ import {
   swarm,
 } from "./host.ts";
 import { audited, git, repo } from "./repo.ts";
-import { flag, nth } from "./support.ts";
+import { flag, loadedExtensions, nth } from "./support.ts";
 
 test("swarm preserves reports, errors, order and read-only tool restrictions", async () => {
   const cwd = sandbox;
@@ -176,7 +176,7 @@ test("worker flags disable nested extensions, MCP for readers, and writes for re
     "a writing worker keeps MCP tools, as upstream's agent mode does",
   );
   assert(write.includes("--no-extensions"));
-  const builtins = write.flatMap((arg, i) => (write[i - 1] === "-e" ? [arg] : []));
+  const builtins = loadedExtensions(write);
   assert.deepEqual(
     builtins,
     ["builtin:mcp", "builtin:codemode", "builtin:tool-search"],

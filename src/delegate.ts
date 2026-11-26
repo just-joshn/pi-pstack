@@ -8,6 +8,7 @@ import { type Static, Type } from "typebox";
 import { type BackgroundWorkers, recordOutcome } from "./background.ts";
 import { gitIn } from "./git.ts";
 import { srcDir } from "./lib/catalog.ts";
+import { mcpExtensions, mcpTools } from "./lib/mcp-access.ts";
 import {
   type Budget,
   crossJudge,
@@ -165,8 +166,6 @@ function workerModels(
 }
 
 const readTools = "read,grep,find,ls";
-// --no-extensions drops these too, and MCP tools are reachable only through codemode and tool_search.
-const mcpExtensions = ["builtin:mcp", "builtin:codemode", "builtin:tool-search"];
 export function workerArgs(options: {
   model: string;
   thinking: Thinking;
@@ -189,7 +188,7 @@ export function workerArgs(options: {
     "--tools",
     options.readOnly
       ? `${readTools}${options.shell ? ",bash" : ""}`
-      : `${readTools},bash,edit,write,codemode,tool_search`,
+      : [readTools, "bash,edit,write", ...mcpTools].join(","),
     "--session-dir",
     options.sessionDir,
     "--session-id",

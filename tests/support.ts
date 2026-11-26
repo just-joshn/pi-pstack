@@ -15,6 +15,8 @@ export function nth<T>(items: readonly T[], index: number): T {
 }
 export const flag = (args: readonly string[] | undefined, name: string) =>
   args?.[args.indexOf(name) + 1];
+export const loadedExtensions = (args: readonly string[]) =>
+  args.flatMap((arg, i) => (args[i - 1] === "-e" ? [arg] : []));
 
 const exec = promisify(execFile);
 const output = (value: unknown) => (typeof value === "string" ? value : "");

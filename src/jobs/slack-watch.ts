@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHmac } from "node:crypto";
+import { once } from "node:events";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -139,6 +140,7 @@ export function startRun(secret: string, launch: typeof spawn = spawn): WatchIo[
       detached: true,
       stdio: "ignore",
     });
+    await once(child, "spawn");
     child.unref();
   };
 }

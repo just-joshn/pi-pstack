@@ -9,7 +9,8 @@ import { onTestFinished, test } from "vitest";
 
 import { sharedSkills } from "../src/jobs/job-check.ts";
 import { srcDir } from "../src/lib/catalog.ts";
-import { flag, shaped, spawned } from "./support.ts";
+import { mcpExtensions } from "../src/lib/mcp-access.ts";
+import { flag, loadedExtensions, shaped, spawned } from "./support.ts";
 
 const runner = fileURLToPath(new URL("../src/jobs/run-job.mjs", import.meta.url));
 const report = { source_channel_id: "C1", message_ts: "1700000000.000100", thread_ts: "" };
@@ -182,8 +183,12 @@ test(
     assert.deepEqual(output.secrets, [null, null]);
     assert.equal(output.cwd, await realpath(join(runDir, "checkout")));
     await access(join(output.cwd, "on-main.txt"));
-    assert(output.args.includes("builtin:mcp"));
-    assert.equal(flag(output.args, "--tools"), "read,bash,mcp__slack__*,pstack_delegate");
+    assert.deepEqual(loadedExtensions(output.args).slice(0, 3), mcpExtensions);
+    assert.equal(
+      flag(output.args, "--tools"),
+      "read,bash,mcp__slack__*,pstack_delegate,codemode,tool_search",
+      "Pi reaches MCP tools only through codemode and tool_search",
+    );
     assert(!output.args.includes("--skill"), "skills come from the target's project settings");
     const listed = flag(output.args, "--append-system-prompt") ?? "";
     for (const skill of sharedSkills)

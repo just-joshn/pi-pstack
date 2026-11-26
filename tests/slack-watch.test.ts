@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import type { spawn } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -154,7 +155,9 @@ test("a started run gets a signed trigger its job accepts, in the background", a
   const launch = shaped<typeof spawn>((_bin: string, args: readonly string[], options: object) => {
     const entry = { args, options, unref: false };
     launched.push(entry);
-    return { unref: () => (entry.unref = true) };
+    const child = Object.assign(new EventEmitter(), { unref: () => (entry.unref = true) });
+    setImmediate(() => child.emit("spawn"));
+    return child;
   });
   const trigger = { source_channel_id: "C1", message_ts: "9.1", ts: "9.1", thread_ts: "" };
   await startRun("secret", launch)(job, trigger);
@@ -231,4 +234,19 @@ test("a cursor moved past non-reports is saved even when a later channel's poll 
   assert.deepEqual(JSON.parse(await readFile(state, "utf8")), {
     channels: { C1: "2.0", C2: "1.0" },
   });
+});
+
+test("a run that cannot be spawned fails its dispatch, so the report is not marked seen", async () => {
+  const dir = await folder();
+  const job = join(dir, "benny-triage.job.json");
+  await writeFile(job, JSON.stringify(benny("C1")));
+  const launch = shaped<typeof spawn>(() => {
+    const child = Object.assign(new EventEmitter(), { unref: () => {} });
+    setImmediate(() =>
+      child.emit("error", Object.assign(Error("spawn EAGAIN"), { code: "EAGAIN" })),
+    );
+    return child;
+  });
+  const trigger = { source_channel_id: "C1", message_ts: "9.1", ts: "9.1", thread_ts: "" };
+  await assert.rejects(startRun("secret", launch)(job, trigger), /EAGAIN/);
 });

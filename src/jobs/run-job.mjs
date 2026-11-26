@@ -8,6 +8,7 @@ import { finished } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { mcpExtensions, mcpTools } from "../lib/mcp-access.ts";
 import { aliases } from "../lib/models.ts";
 import { isRecord } from "../lib/validation.ts";
 import { deleteRef, fetchBranch, projectSkills } from "./job-check.ts";
@@ -41,10 +42,10 @@ const args = [
   "--print",
   "--approve",
   "--no-extensions",
-  ...(mcp ? ["-e", "builtin:mcp"] : ["--no-mcp"]),
+  ...(mcp ? mcpExtensions.flatMap((extension) => ["-e", extension]) : ["--no-mcp"]),
   ...(benny ? [] : ["--skill", join(srcDir, "skills")]),
   "--tools",
-  job.tools.join(","),
+  [...new Set([...job.tools, ...(mcp ? mcpTools : [])])].join(","),
   "--session-dir",
   runDir,
 ];
