@@ -26,7 +26,8 @@ function upstreamOf(path: string) {
   return candidates.find((candidate) => existsSync(candidate));
 }
 
-const ported = [...markdown(join(srcDir, "skills")), ...markdown(join(srcDir, "agents"))]
+const ported = ["skills", "agents", "docs"]
+  .flatMap((dir) => markdown(join(srcDir, dir)))
   .filter((path) => !readFileSync(path, "utf8").includes(generated))
   .map((path) => ({ path, original: upstreamOf(path) }));
 
