@@ -227,7 +227,9 @@ test("a running foreground worker is listed as running, and arena folders are no
   const list = async () =>
     shaped<Listed[]>(readResult(await h.call("pstack_workers", { action: "list" })));
   const running = h.call("pstack_delegate", { mode: "single", tasks: ["work"] });
-  await settle();
+  const deadline = Date.now() + 4000;
+  // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the worker to leave the queue.
+  while ((await list())[0]?.state !== "running" && Date.now() < deadline) await settle();
   assert.deepEqual(
     (await list()).map((w) => w.state),
     ["running"],
