@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
 
 import { errorMessage } from "../lib/validation.ts";
-import { pollOnce, slackHistory, startRun, watchedJobs } from "./slack-watch.ts";
+import { claimState, pollOnce, slackHistory, startRun, watchedJobs } from "./slack-watch.ts";
 
 const usage =
   "Usage: node src/jobs/watch-slack.mjs [--once] [--interval <seconds>] <enabled Benny job.json>...";
@@ -19,6 +19,9 @@ if (!token || !secret) throw Error("Set PSTACK_SLACK_TRIGGER_TOKEN and PSTACK_EV
 
 const jobs = await watchedJobs(paths.map((path) => resolve(path)));
 const statePath = join(dirname(resolve(paths[0])), "watch-state.json");
+process.on("exit", await claimState(statePath));
+process.on("SIGINT", () => process.exit(130));
+process.on("SIGTERM", () => process.exit(143));
 const io = { history: slackHistory(token), dispatch: startRun(secret), now: Date.now };
 const log = (value) =>
   process.stdout.write(`${JSON.stringify({ at: new Date().toISOString(), ...value })}\n`);

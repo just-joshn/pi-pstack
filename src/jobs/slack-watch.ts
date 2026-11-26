@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHmac } from "node:crypto";
 import { once } from "node:events";
+import { rmSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -160,4 +161,33 @@ export async function watchedJobs(paths: readonly string[]): Promise<Watched[]> 
       return { path, channel: job.config.sourceChannel };
     }),
   );
+}
+
+const isAlive = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return hasErrorCode(error, "EPERM");
+  }
+};
+
+/** Claims a state file for this process; a claim left by a dead process is taken over. */
+export async function claimState(statePath: string) {
+  const lock = `${statePath}.lock`;
+  try {
+    await writeFile(lock, String(process.pid), { flag: "wx", mode: 0o600 });
+  } catch (error) {
+    if (!hasErrorCode(error, "EEXIST")) throw error;
+    const owner = Number(await readFile(lock, "utf8"));
+    if (Number.isInteger(owner) && owner > 0 && isAlive(owner))
+      throw Error(
+        `Another watcher (pid ${owner}) uses ${statePath}; run one watcher for its jobs`,
+        {
+          cause: error,
+        },
+      );
+    await atomicWrite(lock, String(process.pid));
+  }
+  return () => rmSync(lock, { force: true });
 }

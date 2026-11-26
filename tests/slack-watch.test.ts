@@ -9,6 +9,7 @@ import { test } from "vitest";
 import { readEvent, readJob } from "../src/jobs/job-input.ts";
 import type { SlackTrigger } from "../src/jobs/job-input.ts";
 import {
+  claimState,
   pollOnce,
   slackHistory,
   type SlackMessage,
@@ -264,4 +265,18 @@ test("a new channel gets its starting cursor even when an earlier channel's poll
   assert.deepEqual(JSON.parse(await readFile(state, "utf8")), {
     channels: { A: "1.0", B: "1700000000.000000" },
   });
+});
+
+test("one watcher owns a state file at a time; a dead watcher's claim is taken over", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  const release = await claimState(state);
+  await assert.rejects(claimState(state), /Another watcher \(pid \d+\) uses/);
+  release();
+  const again = await claimState(state);
+  again();
+  await writeFile(`${state}.lock`, "999999999");
+  const taken = await claimState(state);
+  assert.equal(await readFile(`${state}.lock`, "utf8"), String(process.pid));
+  taken();
 });
