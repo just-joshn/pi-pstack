@@ -40,6 +40,8 @@ interface WorkerRole {
   alwaysReadOnly: boolean;
   modelRole: Role;
   contract?: string;
+  /** Runs shell commands in the parent's checkout, without edit tools or a worktree. */
+  shell?: boolean;
 }
 const reviewer = (contract: string): WorkerRole => ({
   alwaysReadOnly: true,
@@ -56,8 +58,12 @@ export const workerRoles = new Map<string, WorkerRole>([
     "comment-sicko",
     { alwaysReadOnly: false, modelRole: "judgment and prose", contract: "comment-sicko.md" },
   ],
-  ["ci-watcher", reviewer("ci-watcher.md")],
-  ["quality-agent", reviewer("quality-agent.md")],
+  // Upstream's CI watcher runs gh and git on the parent's branch, on the fast model.
+  [
+    "ci-watcher",
+    { alwaysReadOnly: true, shell: true, modelRole: "swarm workers", contract: "ci-watcher.md" },
+  ],
+  ["thermo-nuclear-code-quality-review", reviewer("thermo-nuclear-code-quality-review.md")],
   ["general-purpose", { alwaysReadOnly: false, modelRole: "judgment and prose" }],
 ]);
 const panelModelRoles: Partial<Record<Mode, Role>> = {
@@ -137,7 +143,8 @@ function resolveWorkers(
   const workers = tasks.flatMap((task, i) =>
     models.slice(i, i + 1).map((model) => ({ task, model })),
   );
-  return { role, modelRole, readOnly, workers, judge, thinking: p.thinking };
+  const shell = readOnly && worker.shell === true;
+  return { role, modelRole, readOnly, shell, workers, judge, thinking: p.thinking };
 }
 
 /** Each worker's model: a panel's seats, a swarm's per-task models, one model, or the role's. */
@@ -158,10 +165,12 @@ function workerModels(
   return selectPanel(config, modelRole, batch.count);
 }
 
+const readTools = "read,grep,find,ls";
 export function workerArgs(options: {
   model: string;
   thinking: Thinking;
   readOnly: boolean;
+  shell?: boolean | undefined;
   extension?: string | undefined;
   sessionDir: string;
   sessionId: string;
@@ -173,7 +182,9 @@ export function workerArgs(options: {
     ...workerIsolation.filter((flag) => options.readOnly || flag !== "--no-mcp"),
     ...(options.extension ? ["-e", options.extension] : []),
     "--tools",
-    options.readOnly ? "read,grep,find,ls" : "read,grep,find,ls,bash,edit,write",
+    options.readOnly
+      ? `${readTools}${options.shell ? ",bash" : ""}`
+      : `${readTools},bash,edit,write`,
     "--session-dir",
     options.sessionDir,
     "--session-id",
@@ -196,6 +207,7 @@ interface WorkerRequest {
   modelRole: Role;
   thinking?: Thinking | undefined;
   id?: string;
+  shell?: boolean | undefined;
 }
 interface RunnerOptions {
   dir: string;
@@ -229,7 +241,7 @@ async function workerPrompt(request: WorkerRequest, options: RunnerOptions) {
     `Read ${kickoffPath} before anything else.`,
     await readFile(kickoffPath, "utf8"),
     contract
-      ? await readFile(join(srcDir, "agents", contract), "utf8")
+      ? (await readFile(join(srcDir, "agents", contract), "utf8")).replace(/^---\n[^]*?\n---\n/, "")
       : "Independent scoped worker.",
     request.role === "poteto-agent" &&
       (await readFile(join(srcDir, "skills", "poteto-mode", "SKILL.md"), "utf8")),
@@ -255,6 +267,7 @@ interface WorkerRecord {
   cwd: string;
   model: string;
   readOnly: boolean;
+  shell?: boolean | undefined;
   thinking: Thinking;
   extension?: string | undefined;
 }
@@ -275,6 +288,7 @@ async function execWorker(
   const args = workerArgs({
     model: worker.model,
     readOnly: worker.readOnly,
+    shell: worker.shell,
     extension: worker.extension,
     sessionDir: worker.sessionDir,
     sessionId: worker.id,
@@ -314,6 +328,7 @@ async function launchWorker(
     cwd,
     model: request.model,
     readOnly: request.readOnly,
+    shell: request.shell,
     thinking: request.thinking ?? effort(request.modelRole, options.budget, request.model),
     extension: options.extensions.get(request.model),
   };
@@ -474,10 +489,10 @@ async function prepareBatch(
     rubric: p.mode === "arena" ? undefined : p.rubric,
     progress,
   };
-  const { role, modelRole, readOnly, thinking } = resolved;
+  const { role, modelRole, readOnly, shell, thinking } = resolved;
   const requests = resolved.workers.map(({ task, model }, index) => {
     const id = workerId(index);
-    return { task, index, model, readOnly, role, modelRole, thinking, id };
+    return { task, index, model, readOnly, shell, role, modelRole, thinking, id };
   });
   return { dir, options, requests, judge: resolved.judge };
 }

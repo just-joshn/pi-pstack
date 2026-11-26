@@ -82,7 +82,7 @@ Every original ID is mapped. Status is implementation classification, not behavi
 | `kit-workflow-from-chats`                            | instruction    | skills/workflow-from-chats/SKILL.md; /workflow-from-chats                                              |
 | `kit-thermo-nuclear-code-quality-review`             | instruction    | skills/thermo-nuclear-code-quality-review/SKILL.md; /thermo-nuclear-code-quality-review                |
 | `kit-ci-watcher`                                     | extension      | agents/ci-watcher.md + pstack_delegate                                                                 |
-| `kit-quality-agent`                                  | extension      | agents/quality-agent.md + pstack_delegate                                                              |
+| `kit-quality-agent`                                  | extension      | agents/thermo-nuclear-code-quality-review.md + pstack_delegate                                         |
 | `kit-exhaustive-switch`                              | extension      | reference/rules/typescript-exhaustive-switch.md; appended to the system prompt while poteto-mode is on |
 | `kit-no-inline-imports`                              | extension      | reference/rules/no-inline-imports.md; appended to the system prompt while poteto-mode is on            |
 | `cli`                                                | host           | pi interactive / --print / --mode json / --mode rpc                                                    |

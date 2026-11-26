@@ -4,7 +4,7 @@
     "agent-poteto": "agents/poteto-agent.md",
     "agent-comment": "agents/comment-sicko.md",
     "kit-ci-watcher": "agents/ci-watcher.md",
-    "kit-quality-agent": "agents/quality-agent.md",
+    "kit-quality-agent": "agents/thermo-nuclear-code-quality-review.md",
     "kit-exhaustive-switch": "reference/rules/typescript-exhaustive-switch.md",
     "kit-no-inline-imports": "reference/rules/no-inline-imports.md",
     "worker": "skills/poteto-mode/worker.md",
@@ -112,111 +112,11 @@
     "pb-opening-a-pr": "skills/poteto-mode/playbooks/opening-a-pr.md"
   },
   "steps": {
-    "investigation": [
-      "Trace the code the question is about.",
-      "Throughput checkpoint stays one line: `throughput checkpoint: n/a, read-only investigation`.",
-      "Produce the output (Overview / Key Concepts / How It Works / Where Things Live / Gotchas), or a recommendation with a tradeoffs table if the request is a decision between alternatives.",
-      "Apply the unslop skill to the reply."
-    ],
-    "bug-fix": [
-      "Reproduce it yourself on the matching surface via the control skill (Non-negotiables), even when a debug or instrumentation protocol says to ask the user to reproduce.",
-      "Binary-search the cause.",
-      "Plan the fix.",
-      "Verify on the same surface.",
-      "Stage the commits so the failing repro lands before the fix in git history.",
-      "Run Opening a PR."
-    ],
-    "perf-issue": [
-      "Capture a baseline trace via the matching control skill.",
-      "Trace the code to ground hypotheses.",
-      "Plan the fix from the trace.",
-      "Parse and compare the artifacts (JSON to sqlite, diff).",
-      "Cite the measurement in the PR.",
-      "Run Opening a PR."
-    ],
-    "hillclimb": [
-      "Ground the workload and architecture before choosing the metric.",
-      "Build the measurement harness, prove its sensitivity, then freeze it (the build-the-lever principle skill).",
-      "Open the decision log via the show-me-your-work skill.",
-      "Ground each hypothesis in the architecture model from step 1, so it names a specific mechanism (\"defer X off the boot path because it blocks first paint\"), not \"try memoizing something\".",
-      "Loop, one hypothesis per iteration:",
-      "Push past the first plateau.",
-      "Stop when the predicate is met, or when the remaining ideas are marginal and not worth their cost.",
-      "Run Opening a PR with the accepted commits stacked in the order they landed."
-    ],
-    "runtime-forensics": [
-      "Capture the live signal on the matching surface via the control skill: a CPU profile for a spinning process, a heap snapshot for a leak, a CDP trace for a visual glitch.",
-      "Reduce the artifact to the smoking gun: the function on the hot path, the retainer chain from the leaked object to a GC root, the loop firing without input.",
-      "Prove the mechanism before believing it.",
-      "Map the finding back to source: file, symbol, the line that allocates or schedules.",
-      "Throughput checkpoint stays one line: `throughput checkpoint: n/a, read-only forensics`."
-    ],
-    "trace-forensics": [
-      "Identify the format and load it with the right tool.",
-      "Transform the raw artifact into a form you can query.",
-      "Narrow to the cause.",
-      "Attribute to source.",
-      "If you have a paired capture, diff the before and after artifacts to confirm.",
-      "Hand back a cited diagnosis, no fix unless asked."
-    ],
-    "feature": [
-      "Trace the affected subsystem.",
-      "`architect` for the shape.",
-      "Write the throughput checkpoint as four tasks with `pstack_plan` action `add`.",
-      "Delegate code-writing to a subagent using your configured feature model (`modelRole: \"feature, refactoring\"`, default `claude-opus-5-5` at `xhigh`) with a specific scope (file paths, named data shape and its organizing structure per principle-model-the-domain, a state machine over scattered booleans, a table/registry over branching, a typed model over repeated shape assumptions, chosen before the delegate writes logic, and success criteria).",
-      "Verify on the matching surface.",
-      "Rebase into small, ordered commits.",
-      "If the design is contested, `interrogate` before shipping.",
-      "Run Opening a PR."
-    ],
-    "refactoring": [
-      "Pin the behavior contract first.",
-      "Name the structure the code is missing per principle-model-the-domain.",
-      "Name the target shape.",
-      "Subtract before you add.",
-      "Move in small behavior-preserving steps, each keeping the pin green.",
-      "Prove behavior is unchanged on the real artifact, not \"it compiles\" (principle-prove-it-works).",
-      "Confirm the change is worth keeping.",
-      "Rebase into small ordered commits."
-    ],
-    "prototype": [
-      "Scope the decision the prototype exists to make: which layout, which interaction, which density, or for an empirical fork which behavior, timing, or approach.",
-      "Gather references when the design space is open.",
-      "Build throwaway in an isolated scratch dir, separate from production source.",
-      "When comparing alternatives, build them behind one switcher (buttons or a keypress), each variant labeled.",
-      "Verify on the matching surface.",
-      "Present alternatives, tradeoffs, and a recommendation."
-    ],
-    "visual-parity": [
-      "Establish the baseline first, before any migration: a visual regression harness that screenshots the current component across its states, plus the target when matching two implementations.",
-      "Anti-shortcut clauses, stated and held: no harness modifications, no baseline tampering, no component restructuring to make a diff pass.",
-      "Migrate one component at a time.",
-      "Verify each component against its baseline via image diff on the matching surface via the control skill.",
-      "Run Opening a PR per component or per safe batch."
-    ],
     "authoring-a-skill": [
       "Follow Pi's skills guide (`docs/skills.md` in the `@earendil-works/pi-coding-agent` package), Pi's reference for authoring SKILL.md files.",
       "Validate the skill: frontmatter has `name` and `description`, referenced files exist, cross-skill links resolve.",
       "Test cases if structural.",
       "Run Opening a PR."
-    ],
-    "eval": [
-      "Frame.",
-      "Set up sanitized environments.",
-      "Author one organic prompt.",
-      "Spawn N parallel candidates on different models per the arena skill's Phase B.",
-      "Spawn one blinded judge on a different model family per the arena skill's Phase C.",
-      "Verify the chain from transcripts, not self-report.",
-      "Read every candidate output yourself end to end."
-    ],
-    "babysit": ["Babysit"],
-    "shipping": [
-      "Resolve the forge, then verify each PR independently before it lands.",
-      "Land only the contiguous verified run rooted at the bottom.",
-      "Re-check that the verdicts still describe the code.",
-      "Land bottom-up, one PR at a time.",
-      "Leave the stack alone while it lands.",
-      "Stop at the ceiling."
     ],
     "autonomous-run": [
       "State the exit condition as a checkable predicate before the first iteration (tests green, repro fixed, all N PRs merged, pixel-diff zero).",
@@ -239,18 +139,49 @@
       "In place of step 5, stop at verified.",
       "Stack a PR only when it builds on another PR."
     ],
-    "session-pickup": [
-      "Locate the prior trail.",
-      "Reconstruct operational state.",
-      "Diff done vs pending.",
-      "Route the remaining work to the matching playbook and pick the verdict: continue the execution, ship a finished recommendation, ratify or override a prior conclusion, or postmortem a failed run.",
-      "Verify the inherited claims against the original goal on the real artifact (the principle-prove-it-works skill)."
+    "babysit": ["Babysit"],
+    "bug-fix": [
+      "Reproduce it yourself on the matching surface via the control skill (Non-negotiables), even when a debug or instrumentation protocol says to ask the user to reproduce.",
+      "Binary-search the cause.",
+      "Plan the fix.",
+      "Verify on the same surface.",
+      "Stage the commits so the failing repro lands before the fix in git history.",
+      "Run Opening a PR."
     ],
-    "pause-safely": [
-      "Stop at a safe boundary.",
-      "Take no irreversible action to pause.",
-      "Make the work durable.",
-      "Write the resume note off-context."
+    "eval": [
+      "Frame.",
+      "Set up sanitized environments.",
+      "Author one organic prompt.",
+      "Spawn N parallel candidates on different models per the arena skill's Phase B.",
+      "Spawn one blinded judge on a different model family per the arena skill's Phase C.",
+      "Verify the chain from transcripts, not self-report.",
+      "Read every candidate output yourself end to end."
+    ],
+    "feature": [
+      "Trace the affected subsystem.",
+      "`architect` for the shape.",
+      "Write the throughput checkpoint as four tasks with `pstack_plan` action `add`.",
+      "Delegate code-writing to a subagent using your configured feature model (`modelRole: \"feature, refactoring\"`, default `claude-opus-5-5` at `xhigh`) with a specific scope (file paths, named data shape and its organizing structure per principle-model-the-domain, a state machine over scattered booleans, a table/registry over branching, a typed model over repeated shape assumptions, chosen before the delegate writes logic, and success criteria).",
+      "Verify on the matching surface.",
+      "Rebase into small, ordered commits.",
+      "If the design is contested, `interrogate` before shipping.",
+      "Run Opening a PR."
+    ],
+    "hillclimb": [
+      "Ground the workload and architecture before choosing the metric.",
+      "Build the measurement harness, prove its sensitivity, then freeze it (the build-the-lever principle skill).",
+      "Open the decision log via the show-me-your-work skill.",
+      "Ground each hypothesis in the architecture model from step 1, so it names a specific mechanism (\"defer X off the boot path because it blocks first paint\"), not \"try memoizing something\".",
+      "Loop, one hypothesis per iteration:",
+      "Push past the first plateau.",
+      "Stop when the predicate is met, or when the remaining ideas are marginal and not worth their cost.",
+      "Run Opening a PR with the accepted commits stacked in the order they landed."
+    ],
+    "investigation": [
+      "Trace the code the question is about.",
+      "Throughput checkpoint stays one line: `throughput checkpoint: n/a, read-only investigation`.",
+      "Produce the output (Overview / Key Concepts / How It Works / Where Things Live / Gotchas), or a recommendation with a tradeoffs table if the request is a decision between alternatives.",
+      "Apply the unslop skill to the reply."
     ],
     "multi-phase-plan": [
       "When the change is one or two files with an obvious approach, skip the plan.",
@@ -259,6 +190,76 @@
       "Tests alone are not sufficient verification.",
       "Hand back the plan path and stop."
     ],
+    "opening-a-pr": ["Opening a PR"],
+    "pause-safely": [
+      "Stop at a safe boundary.",
+      "Take no irreversible action to pause.",
+      "Make the work durable.",
+      "Write the resume note off-context."
+    ],
+    "perf-issue": [
+      "Capture a baseline trace via the matching control skill.",
+      "Trace the code to ground hypotheses.",
+      "Plan the fix from the trace.",
+      "Parse and compare the artifacts (JSON to sqlite, diff).",
+      "Cite the measurement in the PR.",
+      "Run Opening a PR."
+    ],
+    "prototype": [
+      "Scope the decision the prototype exists to make: which layout, which interaction, which density, or for an empirical fork which behavior, timing, or approach.",
+      "Gather references when the design space is open.",
+      "Build throwaway in an isolated scratch dir, separate from production source.",
+      "When comparing alternatives, build them behind one switcher (buttons or a keypress), each variant labeled.",
+      "Verify on the matching surface.",
+      "Present alternatives, tradeoffs, and a recommendation."
+    ],
+    "refactoring": [
+      "Pin the behavior contract first.",
+      "Name the structure the code is missing per principle-model-the-domain.",
+      "Name the target shape.",
+      "Subtract before you add.",
+      "Move in small behavior-preserving steps, each keeping the pin green.",
+      "Prove behavior is unchanged on the real artifact, not \"it compiles\" (principle-prove-it-works).",
+      "Confirm the change is worth keeping.",
+      "Rebase into small ordered commits."
+    ],
+    "runtime-forensics": [
+      "Capture the live signal on the matching surface via the control skill: a CPU profile for a spinning process, a heap snapshot for a leak, a CDP trace for a visual glitch.",
+      "Reduce the artifact to the smoking gun: the function on the hot path, the retainer chain from the leaked object to a GC root, the loop firing without input.",
+      "Prove the mechanism before believing it.",
+      "Map the finding back to source: file, symbol, the line that allocates or schedules.",
+      "Throughput checkpoint stays one line: `throughput checkpoint: n/a, read-only forensics`."
+    ],
+    "session-pickup": [
+      "Locate the prior trail.",
+      "Reconstruct operational state.",
+      "Diff done vs pending.",
+      "Route the remaining work to the matching playbook and pick the verdict: continue the execution, ship a finished recommendation, ratify or override a prior conclusion, or postmortem a failed run.",
+      "Verify the inherited claims against the original goal on the real artifact (the principle-prove-it-works skill)."
+    ],
+    "shipping": [
+      "Resolve the forge, then verify each PR independently before it lands.",
+      "Land only the contiguous verified run rooted at the bottom.",
+      "Re-check that the verdicts still describe the code.",
+      "Land bottom-up, one PR at a time.",
+      "Leave the stack alone while it lands.",
+      "Stop at the ceiling."
+    ],
+    "trace-forensics": [
+      "Identify the format and load it with the right tool.",
+      "Transform the raw artifact into a form you can query.",
+      "Narrow to the cause.",
+      "Attribute to source.",
+      "If you have a paired capture, diff the before and after artifacts to confirm.",
+      "Hand back a cited diagnosis, no fix unless asked."
+    ],
+    "visual-parity": [
+      "Establish the baseline first, before any migration: a visual regression harness that screenshots the current component across its states, plus the target when matching two implementations.",
+      "Anti-shortcut clauses, stated and held: no harness modifications, no baseline tampering, no component restructuring to make a diff pass.",
+      "Migrate one component at a time.",
+      "Verify each component against its baseline via image diff on the matching surface via the control skill.",
+      "Run Opening a PR per component or per safe batch."
+    ],
     "worktree-cleanup": [
       "Snapshot and audit.",
       "The bucket is advice, not permission.",
@@ -266,8 +267,7 @@
       "Pause on irreversible loss.",
       "Prune the confirmed set.",
       "Simulators and other reclaimers."
-    ],
-    "opening-a-pr": ["Opening a PR"]
+    ]
   },
   "implementations": {
     "setup-pstack": ["extension", "skills/setup-pstack/SKILL.md; /setup-pstack"],
@@ -435,7 +435,10 @@
       "skills/thermo-nuclear-code-quality-review/SKILL.md; /thermo-nuclear-code-quality-review"
     ],
     "kit-ci-watcher": ["extension", "agents/ci-watcher.md + pstack_delegate"],
-    "kit-quality-agent": ["extension", "agents/quality-agent.md + pstack_delegate"],
+    "kit-quality-agent": [
+      "extension",
+      "agents/thermo-nuclear-code-quality-review.md + pstack_delegate"
+    ],
     "kit-exhaustive-switch": [
       "extension",
       "reference/rules/typescript-exhaustive-switch.md; appended to the system prompt while poteto-mode is on"

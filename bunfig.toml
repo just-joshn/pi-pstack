@@ -22,6 +22,8 @@ ignorePatterns = [
   "src/skills/*/scripts/",
   # Files ported by hand from upstream keep upstream's Markdown exactly.
   "src/skills/**/*.md",
+  # Upstream's PR review canvas assets ship byte for byte.
+  "src/skills/pr-review-canvas/",
 ]
 
 [fmt.sortImports]

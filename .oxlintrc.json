@@ -92,6 +92,7 @@
     "**/dist/**",
     "**/build/**",
     "**/coverage/**",
-    "src/skills/*/scripts/**"
+    "src/skills/*/scripts/**",
+    "src/skills/pr-review-canvas/**"
   ]
 }

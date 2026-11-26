@@ -59,8 +59,9 @@ test("77 native skills, 22 ordered playbooks and all conditional links", async (
   await Promise.all(
     skills.map(async ([id, p]) => {
       const f = await packaged(p);
-      const [, name = "", description = ""] =
-        /^---\nname: ([a-z0-9-]+)\ndescription: (.+)\n/.exec(f) ?? [];
+      const front = /^---\n([^]*?)\n---\n/.exec(f)?.[1] ?? "";
+      const name = /^name: ([a-z0-9-]+)$/m.exec(front)?.[1] ?? "";
+      const description = /^description: (.+)$/m.exec(front)?.[1] ?? "";
       assert(name, id);
       assert.equal(name, p.split("/")[1]);
       assert(name.length <= 64);
@@ -92,7 +93,7 @@ test("catalog nodes return their declared instruction files, not display labels"
     "benny-setup": "reference/benny/setup.md",
     "benny-triage": "reference/benny/triage.md",
     "benny-repro": "reference/benny/repro.md",
-    "kit-quality-agent": "agents/quality-agent.md",
+    "kit-quality-agent": "agents/thermo-nuclear-code-quality-review.md",
     "kit-no-inline-imports": "reference/rules/no-inline-imports.md",
   };
   await Promise.all(

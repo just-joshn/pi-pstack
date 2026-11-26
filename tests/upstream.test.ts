@@ -26,7 +26,7 @@ function upstreamOf(path: string) {
   return candidates.find((candidate) => existsSync(candidate));
 }
 
-const ported = markdown(join(srcDir, "skills"))
+const ported = [...markdown(join(srcDir, "skills")), ...markdown(join(srcDir, "agents"))]
   .filter((path) => !readFileSync(path, "utf8").includes(generated))
   .map((path) => ({ path, original: upstreamOf(path) }));
 
@@ -58,11 +58,16 @@ test("hand-ported files keep upstream's name, sections and numbered steps", () =
   }
 });
 
+// Frontmatter is loader configuration; Pi's agent settings live in pstack_delegate's roles.
+const body = (file: string) =>
+  readFileSync(file, "utf8")
+    .replace(/^---\n[^]*?\n---\n/, "")
+    .split("\n");
+
 test("hand-ported files match upstream line for line, so no formatter reflows them", () => {
   for (const { path, original } of ported) {
     if (!original) continue;
-    const pi = readFileSync(path, "utf8").split("\n");
-    const cursor = readFileSync(original, "utf8").split("\n");
+    const [pi, cursor] = [body(path), body(original)];
     const label = relative(srcDir, path);
     assert.equal(pi.length, cursor.length, `${label}: line count`);
     pi.forEach((line, i) => {
@@ -86,7 +91,7 @@ const cursorOnly = [
   /generalPurpose/,
   /cursor-team-kit/,
   /AskQuestion/,
-  /-fast\b/,
+  /-(?:xhigh|high|medium|low)-fast\b/,
   /\bCursor\b/,
 ];
 

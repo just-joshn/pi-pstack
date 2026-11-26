@@ -87,9 +87,7 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 
 - Code, prose, and judgment: `claude-opus-5-5` at `xhigh`.
 - Trivial mechanical edits: `claude-opus-5-5` at `high`.
-- Diverse review and design panels: one runner each on `claude-fable-5-2` at `high`, `claude-opus-5-5` at `high`, and `gemini-4-neon` at `xhigh`.
-
-A default runs on whichever provider serves that model, such as `anthropic/claude-opus-5-5`. When none does, the role takes the closest available model of the same family, then the parent model. The judge pool drops a default it cannot find.
+- Diverse review and design panels: one runner each on `claude-fable-5-2` at `high`, `claude-opus-5-5` at `high`, and `gemini-4-neon` at `xhigh`. Each default runs on whichever provider serves that model, such as `anthropic/claude-opus-5-5`. When none does, the role takes the closest available model of the same family, then the parent model. The judge pool drops a default it cannot find.
 
 **Fable 5.2 is an exception.** It runs outside a panel only when the user named it for this task or two Opus 5.5 xhigh runs of the same brief failed its check. Say which. Difficulty alone never qualifies.
 
