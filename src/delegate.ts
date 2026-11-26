@@ -365,13 +365,16 @@ async function resumeWorker(
   if (!isWorkerRecord(worker) || worker.sessionDir !== sessionDir) fail("Invalid worker record");
   if (workers.background.state(worker.id) || workers.active.has(worker.sessionDir))
     fail(`Worker ${worker.id} is still running; resume it after it exits`);
+  const report = join(sessionDir, `resume-${randomUUID().slice(0, 8)}.txt`);
   const run = () =>
     workers.active.hold(sessionDir, () =>
-      execWorker(pi, options, worker, {
-        thinking: p.thinking ?? worker.thinking,
-        prompt: p.tasks.join("\n"),
-        report: join(sessionDir, `resume-${randomUUID().slice(0, 8)}.txt`),
-      }),
+      recordOutcome(dirname(sessionDir), worker.id, { report }, () =>
+        execWorker(pi, options, worker, {
+          thinking: p.thinking ?? worker.thinking,
+          prompt: p.tasks.join("\n"),
+          report,
+        }),
+      ),
     );
   const output = worker.readOnly ? await run() : await workers.active.hold(worker.cwd, run);
   const value = { id: worker.id, model: worker.model, path: worker.cwd, base: null, ...output };
@@ -527,7 +530,7 @@ async function delegate(
   }
   const run = createRunner(pi, ctx, workers.active, options);
   const outputs = await pool(requests, p.concurrency ?? 3, (request) =>
-    recordOutcome(dir, request.id, () => run(request)),
+    recordOutcome(dir, request.id, {}, () => run(request)),
   );
   const judgment =
     p.mode === "arena"

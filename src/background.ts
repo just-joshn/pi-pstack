@@ -18,13 +18,18 @@ const statusFile = (dir: string, id: string) => join(dir, `${id}.status.json`);
 const writeStatus = (dir: string, id: string, status: object) =>
   atomicWrite(statusFile(dir, id), JSON.stringify({ ...status, at: new Date().toISOString() }));
 
-export async function recordOutcome<T>(dir: string, id: string, work: () => Promise<T>) {
+export async function recordOutcome<T>(
+  dir: string,
+  id: string,
+  run: { report?: string },
+  work: () => Promise<T>,
+) {
   try {
     const output = await work();
-    await writeStatus(dir, id, { state: "done" });
+    await writeStatus(dir, id, { state: "done", ...run });
     return output;
   } catch (error) {
-    await writeStatus(dir, id, { state: "failed", error: errorMessage(error) });
+    await writeStatus(dir, id, { state: "failed", error: errorMessage(error), ...run });
     throw error;
   }
 }
@@ -122,7 +127,8 @@ export async function listWorkers(root: string, background: BackgroundWorkers, a
           const { model, cwd, readOnly } = record ?? {};
           const error = status?.["error"];
           const activity = await lastActivity(sessionDir);
-          const report = join(dir, `${id}.txt`);
+          const report =
+            typeof status?.["report"] === "string" ? status["report"] : join(dir, `${id}.txt`);
           return {
             id,
             state,

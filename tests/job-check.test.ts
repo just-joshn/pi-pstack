@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
+import { join, relative } from "node:path";
 
 import { test } from "vitest";
 
 import { checkJob, projectSkills, sharedSkills } from "../src/jobs/job-check.ts";
+import { srcDir } from "../src/lib/catalog.ts";
 import { sandbox } from "./host.ts";
 import { spawned } from "./support.ts";
 
@@ -45,13 +46,14 @@ async function target(files: string[], instructions = "Read `.pi/benny/configura
   await writeFile(job, JSON.stringify({ version: 1, enabled: false, instructions, ...fields }));
   return { clone, fake, job };
 }
-const complete = [
-  ".pi/settings.json",
-  `${pack}/FOR_AGENTS.md`,
-  `${pack}/skills/setup-benny/SKILL.md`,
-  `${pack}/skills/triage-issue-reports/SKILL.md`,
-  ".pi/benny/configuration.yaml",
-];
+const packFiles = (
+  await readdir(join(srcDir, "automations", "benny"), { recursive: true, withFileTypes: true })
+)
+  .filter((e) => e.isFile())
+  .map(
+    (e) => `${pack}/${relative(join(srcDir, "automations", "benny"), join(e.parentPath, e.name))}`,
+  );
+const complete = [".pi/settings.json", ".pi/benny/configuration.yaml", ...packFiles];
 
 test("a committed pack whose checkout gets the shared skills from project scope passes", async () => {
   const { clone, fake, job } = await target(complete);
@@ -103,4 +105,10 @@ test("a Pi that exits without answering, or answers without commands, resolves n
 test("a Pi that cannot start is an error, not an empty skill list", async () => {
   const { clone } = await target([]);
   await assert.rejects(projectSkills(clone, join(clone, "no-such-pi")), { code: "ENOENT" });
+});
+
+test("the check requires every file of the pack, such as the control-adapter reference", async () => {
+  const adapter = `${pack}/skills/reproduce-and-fix-issues/references/control-adapter.md`;
+  const { fake, job } = await target(complete.filter((f) => f !== adapter));
+  assert.deepEqual((await checkJob(job, fake)).uncommitted, [adapter]);
 });

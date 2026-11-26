@@ -286,3 +286,27 @@ test("a foreground worker is listed done or failed, with its error", async () =>
   assert.deepEqual(listed.map((w) => w.state).toSorted(), ["done", "failed"]);
   assert.match(listed.find((w) => w.state === "failed")?.error ?? "", /failed \(3\)/);
 });
+
+test("a resume's outcome and report replace the run it continued", async () => {
+  let code = 0;
+  const h = host({
+    execute: async (bin, args) => {
+      if (bin === "git") return notARepository;
+      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+      return { code, stdout: `report ${code}`, stderr: "" };
+    },
+  });
+  const list = async () =>
+    shaped<Listed[]>(readResult(await h.call("pstack_workers", { action: "list" })));
+  const first = shaped<{ outputs: { value: { sessionDir: string } }[] }>(
+    readResult(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })),
+  ).outputs[0]?.value.sessionDir;
+  code = 4;
+  await assert.rejects(() =>
+    h.call("pstack_delegate", { mode: "single", tasks: ["more"], resume: first }),
+  );
+  const [worker] = await list();
+  assert.equal(worker?.state, "failed");
+  assert.match(worker?.report ?? "", /resume-.*\.txt$/);
+  assert.equal(await readFile(worker?.report ?? "", "utf8"), "report 4");
+});

@@ -28,6 +28,9 @@ FIXED:
 - Write workers have MCP tools, as poteto-mode says. `--no-extensions` also turned off Pi's built-in MCP, so they had none.
 - `pstack_delegate` mode `interrogate` honors an explicit `readOnly: true`; only its default is writable.
 - Resuming a worker that is still running, or that another resume is running, is refused, instead of starting a second Pi process on the same session. A resume with `background: true` is refused, since resume runs in the foreground.
+- A resumed worker is listed with the resume's outcome and report, not the run it continued.
+- `check-benny.mjs` requires every file of the Benny pack, as upstream's setup does, not only its entry files.
+- The Slack watcher's cursor moves past messages that are not reports, so it no longer fetches them again on every poll.
 - `pstack_workers` lists a finished foreground worker as `done`, or `failed` with its error, as it lists a background one.
 - Stopping a queued background worker takes it off the queue at once and lists it as `stopped`; it no longer waits for a running worker to finish.
 - The `autopilot-stack` plan is `autopilot-full`'s seven steps with its two overrides applied, as the playbook says, not only the two overrides.

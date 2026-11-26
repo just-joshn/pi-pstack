@@ -116,6 +116,9 @@ export async function pollOnce(jobs: readonly Watched[], statePath: string, io: 
       // oxlint-disable-next-line eslint/no-await-in-loop -- Record each report as seen before the next.
       await save();
     }
+    const newest = history.toSorted(oldestFirst).at(-1);
+    if (newest && oldestFirst({ ts: state[channel] ?? oldest }, newest) < 0)
+      state[channel] = newest.ts;
   }
   await save();
   return started;

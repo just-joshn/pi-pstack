@@ -1,11 +1,12 @@
 import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { createInterface } from "node:readline";
 import { promisify } from "node:util";
 
+import { srcDir } from "../lib/catalog.ts";
 import { isRecord } from "../lib/validation.ts";
 import { type Job, readJob } from "./job-input.ts";
 
@@ -35,22 +36,14 @@ export const sharedSkills = [
   "principle-prove-it-works",
 ];
 const pack = ".pi/automations/benny";
-const operational = {
-  "benny-triage": `${pack}/skills/triage-issue-reports/SKILL.md`,
-  "benny-repro": `${pack}/skills/reproduce-and-fix-issues/SKILL.md`,
-};
+const packSource = join(srcDir, "automations", "benny");
+const packFiles = (await readdir(packSource, { recursive: true, withFileTypes: true }))
+  .filter((entry) => entry.isFile())
+  .map((entry) => `${pack}/${relative(packSource, join(entry.parentPath, entry.name))}`);
 
-function requiredFiles(job: Exclude<Job, { kind: "custom" }>) {
+function requiredFiles(job: Job) {
   const named = job.instructions.match(/\.pi\/[\w./-]*\w/g) ?? [];
-  return [
-    ...new Set([
-      ".pi/settings.json",
-      `${pack}/FOR_AGENTS.md`,
-      `${pack}/skills/setup-benny/SKILL.md`,
-      operational[job.kind],
-      ...named,
-    ]),
-  ];
+  return [...new Set([".pi/settings.json", ...packFiles, ...named])];
 }
 
 async function committed(repository: string, ref: string, files: string[]) {

@@ -196,3 +196,13 @@ test("the cursor file is replaced whole, never rewritten in place", async () => 
   assert.notEqual((await stat(state)).ino, before);
   assert.deepEqual(await readdir(dir), ["watch-state.json"], "no temporary file is left");
 });
+
+test("the cursor moves past messages that are not reports", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  await writeFile(state, JSON.stringify({ channels: { C1: "1.0" } }));
+  const { io, started } = fakeIo({ C1: [{ ts: "3.0", subtype: "channel_join" }, { ts: "2.0" }] });
+  await pollOnce([{ path: "a.json", channel: "C1" }], state, io);
+  assert.equal(started.length, 1);
+  assert.deepEqual(JSON.parse(await readFile(state, "utf8")), { channels: { C1: "3.0" } });
+});
