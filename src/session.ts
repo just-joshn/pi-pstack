@@ -1,8 +1,8 @@
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-import { packageFile, srcDir } from "./lib/catalog.ts";
+import { fileContext, packageFile, srcDir } from "./lib/catalog.ts";
 import {
   activePlan,
   closedTasks,
@@ -34,7 +34,7 @@ function systemPromptAdditions(state: State) {
     ...(state.mode
       ? [
           teamKitRules,
-          `Persistent poteto-mode. File: ${join(srcDir, routerPath)}\nRelative paths in it resolve from ${join(srcDir, dirname(routerPath))}.\n\n${packageFile(routerPath)}`,
+          `Persistent poteto-mode. ${fileContext(join(srcDir, routerPath))}\n\n${packageFile(routerPath)}`,
         ]
       : []),
     ...(state.goal ? [`Persistent operator goal: ${state.goal}`] : []),

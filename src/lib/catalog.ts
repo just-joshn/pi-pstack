@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -131,11 +131,18 @@ export function nativeNode(id: string) {
     incoming: incoming.get(id) ?? [],
   };
 }
+/** Upstream's files use two bases: `../` from the file's folder, other paths from its skill's. */
+export function fileContext(location: string) {
+  let skill = dirname(location);
+  while (!existsSync(join(skill, "SKILL.md")) && dirname(skill).startsWith(srcDir))
+    skill = dirname(skill);
+  if (!existsSync(join(skill, "SKILL.md"))) skill = dirname(location);
+  return `File: ${location}\nA path starting with ../ resolves from ${dirname(location)}; other relative paths resolve from ${skill}.`;
+}
+
 export function workflowPrompt(id: string, request: string) {
   const node = nativeNode(id);
-  const where = node.location
-    ? `\n\nFile: ${node.location}\nRelative paths in it resolve from ${dirname(node.location)}.`
-    : "";
+  const where = node.location ? `\n\n${fileContext(node.location)}` : "";
   return `Execute the Pi-native workflow ${id} for the operator's request.${where}\n\n${node.instructions ?? node.implementation}\n\nOperator request:\n${request || "(Use the current conversation context.)"}`;
 }
 export function view(id: string) {

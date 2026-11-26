@@ -5,7 +5,7 @@ import { type Static, Type } from "typebox";
 
 import { sendWorkflow } from "./catalog-ui.ts";
 import { mergeRoutes } from "./forge.ts";
-import { nativeNode, routes } from "./lib/catalog.ts";
+import { fileContext, nativeNode, routes } from "./lib/catalog.ts";
 import {
   addTasks,
   isTaskStatus,
@@ -132,6 +132,7 @@ async function runPlanAction(
 ) {
   const { plan, wake } = session.state();
   let instructions: string | undefined;
+  let location: string | undefined;
   switch (p.action) {
     case "show":
       return summary(session.state());
@@ -140,7 +141,9 @@ async function runPlanAction(
       const goal = p.goal ?? "";
       if (!route || !routes.includes(route)) fail("Choose a known playbook or use action custom");
       await approveMergeRoute(ctx, route, goal);
-      instructions = nativeNode("pb-" + route).instructions;
+      const playbook = nativeNode("pb-" + route);
+      instructions = playbook.instructions;
+      location = playbook.location && fileContext(playbook.location);
       session.commit(ctx, { plan: startPlan(route, goal) });
       break;
     }
@@ -162,7 +165,7 @@ async function runPlanAction(
     default:
       unreachable(p.action);
   }
-  return { state: summary(session.state()), instructions };
+  return { state: summary(session.state()), location, instructions };
 }
 
 function registerPlanTools(pi: ExtensionAPI, session: Session) {

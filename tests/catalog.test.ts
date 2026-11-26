@@ -110,15 +110,18 @@ test("search and catalog reject missing references", () => {
   assert.throws(() => nativeNode("unknown"));
 });
 
-test("a workflow prompt names its file, so the paths inside it resolve", () => {
+test("a workflow prompt names its file and both bases its relative paths use", async () => {
   const prompt = workflowPrompt("poteto-mode", "fix it");
-  const file = join(srcDir, "skills/poteto-mode/SKILL.md");
-  assert(
-    prompt.includes(
-      `File: ${file}\nRelative paths in it resolve from ${join(srcDir, "skills/poteto-mode")}.`,
-    ),
-  );
+  const skill = join(srcDir, "skills/poteto-mode");
+  assert(prompt.includes(`File: ${join(skill, "SKILL.md")}\n`));
   assert(prompt.endsWith("Operator request:\nfix it"));
+  const playbook = workflowPrompt("pb-babysit", "");
+  const playbooks = join(skill, "playbooks");
+  assert(playbook.includes(`File: ${join(playbooks, "babysit.md")}\n`));
+  assert(playbook.includes(`A path starting with ../ resolves from ${playbooks}`));
+  assert(playbook.includes(`other relative paths resolve from ${skill}`));
+  await access(join(playbooks, "../references/bugbot-triage.md"));
+  await access(join(skill, "playbooks/opening-a-pr.md"));
 });
 
 test("autopilot-stack's plan is autopilot-full's, with its two overrides applied", () => {

@@ -156,7 +156,7 @@ test("command activation, explicit plan, native tool update and restore", async 
   assert.equal(h.state().mode, true);
   const prompt = systemPrompt(h.emit("before_agent_start", { systemPrompt: "base" }));
   assert.match(prompt, /Persistent poteto-mode\. File: \/.+\/skills\/poteto-mode\/SKILL\.md\n/);
-  assert.match(prompt, /Relative paths in it resolve from \/.+\/skills\/poteto-mode\./);
+  assert.match(prompt, /other relative paths resolve from \/.+\/skills\/poteto-mode\./);
   assert(prompt.includes("## Subagents"));
   await h.cmd("pstack-run", "bug-fix repair");
   assert(h.messages.at(-1)?.includes("### Bug fix"));
@@ -372,4 +372,12 @@ test("added tasks go after the named task, as figure-it-out puts its steps betwe
     () => h.call("pstack_plan", { action: "add", steps: ["x"], task: 9 }),
     /Unknown task/,
   );
+});
+
+test("starting a playbook plan returns where the playbook is, so its paths resolve", async () => {
+  const h = host();
+  const started = shaped<{ location: string; instructions: string }>(
+    readResult(await h.call("pstack_plan", { action: "start", route: "babysit", goal: "watch" })),
+  );
+  assert.match(started.location, /File: .*playbooks\/babysit\.md\nA path starting with \.\.\//);
 });

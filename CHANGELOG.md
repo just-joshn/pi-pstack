@@ -59,7 +59,7 @@ FIXED:
 - The arena judge excludes only the parent's vendor, so upstream's default panel has a judge. An arena with no judge runs and reports the judge as skipped, and a candidate that drops out leaves the judge scoring the rest.
 - Interrogate adversaries and Comment Sicko work in their own writable worktrees, and the CI watcher has a shell, so each can do what upstream asks of it.
 - Worker kickoffs no longer add a line that overrode `worker.md`.
-- `/poteto-mode` and persistent mode give the skill's file path, so its relative paths resolve.
+- `/poteto-mode`, every workflow command, persistent mode and `pstack_plan start` give the file's path and both bases upstream's files use: a path starting with `../` resolves from the file's folder, other relative paths from its skill's folder. A playbook's `playbooks/shipping.md` and its `../references/bugbot-triage.md` both resolve; `pstack_plan start` gave no location at all.
 - Write workers keep MCP tools, as upstream's agent-mode subagents do.
 
 CHANGED:
