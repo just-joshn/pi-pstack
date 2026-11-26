@@ -20,7 +20,7 @@ import {
   type RoleConfig,
   selectPanel,
 } from "./lib/models.ts";
-import { pool, type PoolResult } from "./lib/pool.ts";
+import type { PoolResult } from "./lib/pool.ts";
 import { blindTranscript, readPaths } from "./lib/transcript.ts";
 import { errorMessage, isRecord, parseJson } from "./lib/validation.ts";
 import {
@@ -552,8 +552,16 @@ async function delegate(
     return { background: ids, dir, next: "Check them with pstack_workers action list." };
   }
   const run = createRunner(pi, ctx, workers.active, options);
-  const outputs = await pool(requests, p.concurrency ?? 3, (request) =>
-    recordOutcome(dir, request.id, {}, () => run(request)),
+  const byId = new Map(requests.map((request) => [request.id, request]));
+  const outputs = await workers.background.foreground(
+    dir,
+    [...byId.keys()],
+    p.concurrency ?? 3,
+    (id, stop) => {
+      const either = options.signal ? AbortSignal.any([options.signal, stop]) : stop;
+      const runOne = createRunner(pi, ctx, workers.active, { ...options, signal: either });
+      return recordOutcome(dir, id, {}, () => runOne(byId.get(id) ?? fail(`Unknown worker ${id}`)));
+    },
   );
   const judgment =
     p.mode === "arena"

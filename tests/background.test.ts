@@ -101,7 +101,7 @@ test("background workers return at once, keep running, and can be listed and sto
   const done = after.find((w) => w.id === two);
   assert.equal(await readFile(done?.report ?? "", "utf8"), "owner report");
   assert(done?.lastActivity);
-  await assert.rejects(() => list("stop", two), /No running background worker/);
+  await assert.rejects(() => list("stop", two), /No queued or running worker/);
 });
 
 test("background is for single and swarm workers", async () => {
@@ -309,4 +309,28 @@ test("a resume's outcome and report replace the run it continued", async () => {
   assert.equal(worker?.state, "failed");
   assert.match(worker?.report ?? "", /resume-.*\.txt$/);
   assert.equal(await readFile(worker?.report ?? "", "utf8"), "report 4");
+});
+
+test("a foreground swarm's waiting workers are listed as queued", async () => {
+  const gate = Promise.withResolvers<void>();
+  const h = host({
+    execute: async (bin, args) => {
+      if (bin === "git") return notARepository;
+      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+      await gate.promise;
+      return { code: 0, stdout: "r", stderr: "" };
+    },
+  });
+  const list = async () =>
+    shaped<Listed[]>(readResult(await h.call("pstack_workers", { action: "list" })));
+  const tasks = ["one", "two", "three"];
+  const running = h.call("pstack_delegate", { mode: "swarm", tasks, concurrency: 1 });
+  await settle();
+  assert.deepEqual((await list()).map((w) => w.state).toSorted(), ["queued", "queued", "running"]);
+  gate.resolve();
+  await running;
+  assert.deepEqual(
+    (await list()).map((w) => w.state),
+    ["done", "done", "done"],
+  );
 });

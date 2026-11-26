@@ -34,40 +34,91 @@ export async function recordOutcome<T>(
   }
 }
 
+interface Registry {
+  queued: Map<string, { controller: AbortController; dir: string }>;
+  active: Set<string>;
+}
+
+async function enqueue(registry: Registry, dir: string, ids: readonly string[]) {
+  const queue = ids.map((id) => ({ id, controller: new AbortController() }));
+  for (const { id, controller } of queue) registry.queued.set(id, { controller, dir });
+  await Promise.all(ids.map((id) => writeStatus(dir, id, { state: "queued" })));
+  return queue;
+}
+
+function settle(registry: Registry, dir: string, job: BackgroundJob, controller: AbortController) {
+  registry.active.add(job.id);
+  return job
+    .run(controller.signal)
+    .then(
+      () => ({ state: "done" }),
+      (error: unknown) => ({
+        state: controller.signal.aborted ? "stopped" : "failed",
+        error: errorMessage(error),
+      }),
+    )
+    .then((status) => {
+      registry.queued.delete(job.id);
+      registry.active.delete(job.id);
+      return writeStatus(dir, job.id, status);
+    });
+}
+
+async function startBackground(
+  registry: Registry,
+  dir: string,
+  jobs: readonly BackgroundJob[],
+  concurrency: number,
+) {
+  const queue = await enqueue(
+    registry,
+    dir,
+    jobs.map((job) => job.id),
+  );
+  const byId = new Map(jobs.map((job) => [job.id, job]));
+  const done = pool(queue, concurrency, async ({ id, controller }) => {
+    const job = byId.get(id);
+    return controller.signal.aborted || !job ? undefined : settle(registry, dir, job, controller);
+  });
+  return { ids: jobs.map((job) => job.id), done };
+}
+
+async function runForeground<T>(
+  registry: Registry,
+  dir: string,
+  ids: readonly string[],
+  concurrency: number,
+  run: (id: string, stop: AbortSignal) => Promise<T>,
+) {
+  const queue = await enqueue(registry, dir, ids);
+  return pool(queue, concurrency, async ({ id, controller }) => {
+    if (controller.signal.aborted) fail(`Worker ${id} was stopped before it started`);
+    registry.active.add(id);
+    try {
+      return await run(id, controller.signal);
+    } finally {
+      registry.active.delete(id);
+      registry.queued.delete(id);
+    }
+  });
+}
+
 export function backgroundWorkers() {
-  const queued = new Map<string, { controller: AbortController; dir: string }>();
-  const active = new Set<string>();
-  function settle(dir: string, job: BackgroundJob, controller: AbortController) {
-    active.add(job.id);
-    return job
-      .run(controller.signal)
-      .then(
-        () => ({ state: "done" }),
-        (error: unknown) => ({
-          state: controller.signal.aborted ? "stopped" : "failed",
-          error: errorMessage(error),
-        }),
-      )
-      .then((status) => {
-        queued.delete(job.id);
-        active.delete(job.id);
-        return writeStatus(dir, job.id, status);
-      });
-  }
+  const registry: Registry = { queued: new Map(), active: new Set() };
+  const { queued, active } = registry;
   return {
-    async start(dir: string, jobs: readonly BackgroundJob[], concurrency: number) {
-      const queue = jobs.map((job) => ({ job, controller: new AbortController() }));
-      for (const { job, controller } of queue) queued.set(job.id, { controller, dir });
-      await Promise.all(jobs.map((job) => writeStatus(dir, job.id, { state: "queued" })));
-      const done = pool(queue, concurrency, async ({ job, controller }) =>
-        controller.signal.aborted ? undefined : settle(dir, job, controller),
-      );
-      return { ids: jobs.map((job) => job.id), done };
-    },
+    start: (dir: string, jobs: readonly BackgroundJob[], concurrency: number) =>
+      startBackground(registry, dir, jobs, concurrency),
+    foreground: <T>(
+      dir: string,
+      ids: readonly string[],
+      concurrency: number,
+      run: (id: string, stop: AbortSignal) => Promise<T>,
+    ) => runForeground(registry, dir, ids, concurrency, run),
     state: (id: string) => (active.has(id) ? "running" : queued.has(id) ? "queued" : undefined),
     async stop(id: string) {
       const entry = queued.get(id);
-      if (!entry) fail(`No running background worker ${id} in this session`);
+      if (!entry) fail(`No queued or running worker ${id} in this session`);
       entry.controller.abort();
       if (active.has(id)) return;
       queued.delete(id);
@@ -159,7 +210,7 @@ export function registerBackground(
     name: "pstack_workers",
     label: "Pstack workers",
     description:
-      "List this session's pstack workers (state queued, running, done, failed, stopped, interrupted (its session closed first) or finished, with the error of a failed one; model; checkout; sessionDir; report; lastActivity, the newest write in its session), or stop a running background worker by id.",
+      "List this session's pstack workers (state queued, running, done, failed, stopped, interrupted (its session closed first) or finished, with the error of a failed one; model; checkout; sessionDir; report; lastActivity, the newest write in its session), or stop a queued or running worker by id.",
     parameters: Type.Object({
       action: stringEnum(["list", "stop"]),
       id: Type.Optional(Type.String()),
