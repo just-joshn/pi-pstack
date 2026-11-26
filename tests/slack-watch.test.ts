@@ -250,3 +250,18 @@ test("a run that cannot be spawned fails its dispatch, so the report is not mark
   const trigger = { source_channel_id: "C1", message_ts: "9.1", ts: "9.1", thread_ts: "" };
   await assert.rejects(startRun("secret", launch)(job, trigger), /EAGAIN/);
 });
+
+test("a new channel gets its starting cursor even when an earlier channel's poll fails", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  await writeFile(state, JSON.stringify({ channels: { A: "1.0" } }));
+  const io: WatchIo = { ...fakeIo({}).io, history: async () => Promise.reject(Error("down")) };
+  const jobs = [
+    { path: "a.json", channel: "A" },
+    { path: "b.json", channel: "B" },
+  ];
+  await assert.rejects(pollOnce(jobs, state, io), /down/);
+  assert.deepEqual(JSON.parse(await readFile(state, "utf8")), {
+    channels: { A: "1.0", B: "1700000000.000000" },
+  });
+});

@@ -51,7 +51,7 @@ FIXED:
 - A Benny prompt that uses only some of the trigger placeholders also gets the whole trigger appended, so the run always knows its report's timestamp.
 - `pstack_workers` lists a worker its session left queued or running as `interrupted`, instead of queued forever.
 - Two Benny jobs in one folder each run the same report; they no longer share a run folder.
-- The Slack watcher saves a channel's starting point at once, so a failure in another channel's poll cannot skip that channel's first reports.
+- The Slack watcher sets and saves every new channel's starting point before polling any channel, so a failing poll elsewhere cannot skip a new channel's first reports.
 - Benny runs that start together, as triage and repro always do, no longer collide on the repository's fetch. Each fetches the default branch into its own ref; before, when the branch had moved, one of the two failed about half the time, and runs on different branches could check out each other's code.
 - Background workers respect `concurrency`, are listed as `queued` until they start, and a worker that fails before its session exists is listed with its error. Status files are written atomically, so a listing never reads half a file.
 - The package ships upstream pstack's and Cursor Team Kit's MIT license notices, in `src/licenses/`, with the files it ports from them. 0.4.0 shipped those files without the notices.

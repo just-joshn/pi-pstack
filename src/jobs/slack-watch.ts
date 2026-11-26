@@ -81,48 +81,55 @@ async function readState(path: string): Promise<State> {
   }
 }
 
+async function pollChannel(
+  channel: string,
+  jobs: readonly Watched[],
+  state: State,
+  io: WatchIo,
+  save: () => Promise<void>,
+) {
+  const oldest = state[channel] ?? "";
+  const started: { job: string; ts: string }[] = [];
+  const history = await io.history(channel, oldest);
+  const reports = history
+    .filter((m) => isReport(m) && oldestFirst({ ts: oldest }, m) < 0)
+    .toSorted(oldestFirst);
+  for (const message of reports) {
+    const trigger = {
+      source_channel_id: channel,
+      message_ts: message.ts,
+      ts: message.ts,
+      thread_ts: "",
+    };
+    for (const job of jobs.filter((j) => j.channel === channel)) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Start each run before recording the report as seen.
+      await io.dispatch(job.path, trigger);
+      started.push({ job: job.path, ts: message.ts });
+    }
+    state[channel] = message.ts;
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Record each report as seen before the next.
+    await save();
+  }
+  const newest = history.toSorted(oldestFirst).at(-1);
+  if (newest && oldestFirst({ ts: state[channel] ?? oldest }, newest) < 0) {
+    state[channel] = newest.ts;
+    await save();
+  }
+  return started;
+}
+
 export async function pollOnce(jobs: readonly Watched[], statePath: string, io: WatchIo) {
   const state = await readState(statePath);
   const save = () => atomicWrite(statePath, JSON.stringify({ channels: state }, null, 2) + "\n");
-  const started: { job: string; ts: string }[] = [];
-  for (const channel of new Set(jobs.map((j) => j.channel))) {
-    const oldest = state[channel];
-    const firstPoll = oldest === undefined;
-    if (firstPoll) {
-      state[channel] = slackTimestamp(io.now());
-      // oxlint-disable-next-line eslint/no-await-in-loop -- A later channel's failure must not lose this cursor.
-      await save();
-      continue;
-    }
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Channels are polled one at a time to stay under Slack's rate limits.
-    const history = await io.history(channel, oldest);
-    const reports = history
-      .filter((m) => isReport(m) && oldestFirst({ ts: oldest }, m) < 0)
-      .toSorted(oldestFirst);
-    for (const message of reports) {
-      const trigger = {
-        source_channel_id: channel,
-        message_ts: message.ts,
-        ts: message.ts,
-        thread_ts: "",
-      };
-      for (const job of jobs.filter((j) => j.channel === channel)) {
-        // oxlint-disable-next-line eslint/no-await-in-loop -- Start each run before recording the report as seen.
-        await io.dispatch(job.path, trigger);
-        started.push({ job: job.path, ts: message.ts });
-      }
-      state[channel] = message.ts;
-      // oxlint-disable-next-line eslint/no-await-in-loop -- Record each report as seen before the next.
-      await save();
-    }
-    const newest = history.toSorted(oldestFirst).at(-1);
-    if (newest && oldestFirst({ ts: state[channel] ?? oldest }, newest) < 0) {
-      state[channel] = newest.ts;
-      // oxlint-disable-next-line eslint/no-await-in-loop -- A later channel's failure must not lose this cursor.
-      await save();
-    }
-  }
+  const channels = [...new Set(jobs.map((j) => j.channel))];
+  const known = channels.filter((channel) => state[channel] !== undefined);
+  for (const channel of channels) state[channel] ??= slackTimestamp(io.now());
   await save();
+  const started: { job: string; ts: string }[] = [];
+  for (const channel of known) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Channels are polled one at a time to stay under Slack's rate limits.
+    started.push(...(await pollChannel(channel, jobs, state, io, save)));
+  }
   return started;
 }
 
