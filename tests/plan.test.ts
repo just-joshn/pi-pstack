@@ -11,6 +11,11 @@ import { host, planned, readResult, type Summary, type ToolResponse } from "./ho
 import { nth, shaped } from "./support.ts";
 
 const woke = (response: ToolResponse) => shaped<Wake>(readResult(response));
+function systemPrompt(started: unknown) {
+  const prompt = isRecord(started) ? started["systemPrompt"] : undefined;
+  assert(typeof prompt === "string");
+  return prompt;
+}
 async function finishedPlan() {
   const h = host();
   await h.call("pstack_plan", { action: "custom", goal: "verify", steps: ["check"] });
@@ -149,11 +154,12 @@ test("command activation, explicit plan, native tool update and restore", async 
   const h = host();
   await h.cmd("poteto-mode", "on");
   assert.equal(h.state().mode, true);
-  const started = h.emit("before_agent_start", { systemPrompt: "base" });
-  const prompt = isRecord(started) ? started["systemPrompt"] : undefined;
-  assert(typeof prompt === "string" && prompt.includes("Native playbook triggers"));
+  const prompt = systemPrompt(h.emit("before_agent_start", { systemPrompt: "base" }));
+  assert.match(prompt, /Persistent poteto-mode\. File: \/.+\/skills\/poteto-mode\/SKILL\.md\n/);
+  assert.match(prompt, /other relative paths resolve from \/.+\/skills\/poteto-mode\./);
+  assert(prompt.includes("## Subagents"));
   await h.cmd("pstack-run", "bug-fix repair");
-  assert(h.messages.at(-1)?.includes("Ordered steps"));
+  assert(h.messages.at(-1)?.includes("### Bug fix"));
   assert.equal(h.state().plan?.route, "bug-fix");
   await h.call("pstack_plan", {
     action: "update",
@@ -184,13 +190,9 @@ test("timer does not start without confirmation, is cancelled on shutdown and de
 });
 
 for (const mode of ["print", "json"] as const)
-  test(`${mode} mode rejects writes, merges, and worktree removal before executing shell`, async () => {
+  test(`${mode} mode rejects merges and worktree removal before executing shell`, async () => {
     const h = host({ mode, confirm: true });
     await h.cmd("pstack-run", "shipping Merge reviewed PR");
-    await assert.rejects(
-      () => h.call("pstack_delegate", { mode: "single", tasks: ["write"], readOnly: false }),
-      /Write delegation not authorized/,
-    );
     await assert.rejects(
       () =>
         h.call("pstack_ship", {
@@ -250,6 +252,16 @@ test("a finished plan records its evidence and leaves the system prompt alone", 
   assert.equal(h.emit("before_agent_start", { systemPrompt: "base" }), undefined);
 });
 
+test("Team Kit rules are appended to the system prompt only while poteto-mode is on", async () => {
+  const h = host();
+  assert.equal(h.emit("before_agent_start", { systemPrompt: "base" }), undefined);
+  await h.cmd("poteto-mode", "on");
+  const prompt = systemPrompt(h.emit("before_agent_start", { systemPrompt: "base" }));
+  assert(prompt.startsWith("base\n\n"));
+  assert.match(prompt, /# No inline imports/);
+  assert.match(prompt, /# Exhaustive TypeScript switches/);
+});
+
 test("clearing state keeps the resume note written by a pause", async () => {
   const { h } = await finishedPlan();
   await h.cmd("pstack-goal", "keep progress");
@@ -296,4 +308,76 @@ test("stopping a wake loop records why it stopped", async () => {
   assert.equal(h.state().wake?.running, true);
   assert.equal(h.state().wake?.stopEvidence, undefined);
   h.emit("session_shutdown");
+});
+
+test("the agent arms the wake loop itself, as upstream arms /loop, and only in an open session", async () => {
+  const h = host();
+  await h.call("pstack_wake", { action: "start", seconds: 3600, max: 24, predicate: "CI green" });
+  assert.deepEqual(h.state().wake, {
+    seconds: 3600,
+    max: 24,
+    predicate: "CI green",
+    count: 0,
+    running: true,
+  });
+  await assert.rejects(
+    () => h.call("pstack_wake", { action: "start", seconds: 1, max: 1, predicate: "x" }),
+    /5–86400 seconds/,
+  );
+  await h.call("pstack_wake", { action: "stop", evidence: "CI green at abc123" });
+  assert.equal(h.state().wake?.running, false);
+  const headless = host({ mode: "print" });
+  await assert.rejects(
+    () => headless.call("pstack_wake", { action: "start", seconds: 60, max: 1, predicate: "x" }),
+    /open interactive Pi session/,
+  );
+});
+
+test("a playbook step adds tasks to the open plan, as upstream adds todo items", async () => {
+  const h = host();
+  await h.call("pstack_plan", { action: "start", route: "feature", goal: "ship it" });
+  const before = h.state().plan?.tasks.length ?? 0;
+  const checkpoint = ["Blocking first steps", "Independent workstreams"];
+  await h.call("pstack_plan", { action: "add", steps: checkpoint });
+  const tasks = h.state().plan?.tasks ?? [];
+  assert.deepEqual(
+    tasks.slice(before).map(({ id, text, status }) => ({ id, text, status })),
+    checkpoint.map((text, i) => ({ id: before + i + 1, text, status: "pending" })),
+  );
+  await assert.rejects(() => h.call("pstack_plan", { action: "add", steps: [] }), /Supply/);
+  await assert.rejects(
+    () => host().call("pstack_plan", { action: "add", steps: ["x"] }),
+    /No active plan/,
+  );
+});
+
+test("added tasks go after the named task, as figure-it-out puts its steps between phases", async () => {
+  const h = host();
+  await h.call("pstack_plan", { action: "custom", goal: "g", steps: ["A", "B", "C", "D"] });
+  await h.call("pstack_plan", { action: "update", task: 1, status: "done", evidence: "ok" });
+  await h.call("pstack_plan", { action: "add", steps: ["step 1", "step 2"], task: 3 });
+  const tasks = h.state().plan?.tasks ?? [];
+  assert.deepEqual(
+    tasks.map(({ id, text, status }) => `${id}:${text}:${status}`),
+    [
+      "1:A:done",
+      "2:B:pending",
+      "3:C:pending",
+      "4:step 1:pending",
+      "5:step 2:pending",
+      "6:D:pending",
+    ],
+  );
+  await assert.rejects(
+    () => h.call("pstack_plan", { action: "add", steps: ["x"], task: 9 }),
+    /Unknown task/,
+  );
+});
+
+test("starting a playbook plan returns where the playbook is, so its paths resolve", async () => {
+  const h = host();
+  const started = shaped<{ location: string; instructions: string }>(
+    readResult(await h.call("pstack_plan", { action: "start", route: "babysit", goal: "watch" })),
+  );
+  assert.match(started.location, /File: .*playbooks\/babysit\.md\nA path starting with \.\.\//);
 });

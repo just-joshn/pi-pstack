@@ -221,6 +221,7 @@ export interface Delegated {
     model?: string;
     error?: string;
     readAudit?: { path: string; read: boolean }[];
+    dropouts?: string[];
   };
   dir: string;
 }

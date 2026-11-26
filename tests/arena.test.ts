@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { onTestFinished, test } from "vitest";
@@ -50,27 +50,31 @@ async function runArena(judges: string[], judgeCode: number) {
 }
 
 /** A fake Pi worker; the judge reads the first candidate and fails to read the second. */
-function judgingWorkers(judged: string[]): NonNullable<HostOptions["execute"]> {
+function judgingWorkers(
+  judged: string[],
+  prompts: string[] = [],
+): NonNullable<HostOptions["execute"]> {
   return async (bin, args) => {
     if (bin === "git") return { code: 1, stdout: "", stderr: "not a repo" };
     const worker = flag(args, "--model") ?? "";
     const session = join(flag(args, "--session-dir") ?? "", "session.jsonl");
     const prompt = args.at(-1) ?? "";
     judged.push(worker);
+    prompts.push(prompt);
     const content: object[] = [{ type: "text", text: `Compared work for ${worker}` }];
     const results: object[] = [];
     if (worker === "openai/gpt") {
-      const [one = "", two = ""] = prompt.match(/\/[^\s,]+\/candidate-\d\.jsonl/g) ?? [];
-      const projections = await Promise.all([one, two].map((path) => readFile(path, "utf8")));
+      const paths = prompt.match(/\/[^\s,]+\/candidate-\d\.jsonl/g) ?? [];
+      const projections = await Promise.all(paths.map((path) => readFile(path, "utf8")));
       assert(projections.every((line) => firstText(line)?.includes("[redacted-model]")));
-      content.push(
-        { type: "toolCall", id: "r1", name: "read", arguments: { path: one } },
-        { type: "toolCall", id: "r2", name: "read", arguments: { path: two } },
-      );
-      results.push(
-        { role: "toolResult", toolCallId: "r1", content: [{ type: "text", text: "ok" }] },
-        { role: "toolResult", toolCallId: "r2", isError: true, content: [] },
-      );
+      paths.forEach((path, i) => {
+        content.push({ type: "toolCall", id: `r${i}`, name: "read", arguments: { path } });
+        results.push(
+          i === 0
+            ? { role: "toolResult", toolCallId: `r${i}`, content: [{ type: "text", text: "ok" }] }
+            : { role: "toolResult", toolCallId: `r${i}`, isError: true, content: [] },
+        );
+      });
     }
     await writeFile(
       session,
@@ -149,6 +153,13 @@ test("a failed arena judge returns the completed candidate reports", async () =>
   );
   assert.match(judgment?.status ?? "", /inconclusive/i);
   assert.match(judgment?.error ?? "", /failed \(7\)/);
+  const statuses = await Promise.all(
+    (await readdir(dir))
+      .filter((f) => f.endsWith(".status.json"))
+      .map((f) => readFile(join(dir, f), "utf8")),
+  );
+  const states = statuses.map((s) => shaped<{ state: string }>(JSON.parse(s)).state).toSorted();
+  assert.deepEqual(states, ["done", "done", "failed"], "the judge's failure is recorded too");
 });
 
 test("judge selection skips both unavailable and same-vendor pool entries", async () => {
@@ -156,26 +167,7 @@ test("judge selection skips both unavailable and same-vendor pool entries", asyn
   assert.equal(result.judgment?.model, "google/gemini");
 });
 
-test("arena rejects a judge whose provider appears in the candidate panel", async () => {
-  onTestFinished(() => rm(configFile, { force: true }));
-  const h = host({ confirm: true });
-  await h.cmd(
-    "setup-pstack",
-    JSON.stringify({
-      roles: {
-        "arena runners": ["anthropic/claude", "google/gemini"],
-        "arena cross-judge pool": ["google/gemini"],
-      },
-    }),
-  );
-  await assert.rejects(
-    () => h.call("pstack_delegate", { mode: "arena", tasks: ["compare"], rubric: "quality" }),
-    /judge from another provider/,
-  );
-  assert.equal(h.executions.length, 0);
-});
-
-test("arena sends anonymous transcript files to the independent judge and reports missing reads", async () => {
+test("the judge may share a candidate's vendor, but never the parent's", async () => {
   onTestFinished(() => rm(configFile, { force: true }));
   const judged: string[] = [];
   const h = host({ confirm: true, execute: judgingWorkers(judged) });
@@ -184,7 +176,62 @@ test("arena sends anonymous transcript files to the independent judge and report
     JSON.stringify({
       roles: {
         "arena runners": ["anthropic/claude", "google/gemini"],
-        "arena cross-judge pool": ["google/gemini", "openai/gpt"],
+        "arena cross-judge pool": ["anthropic/claude", "google/gemini"],
+      },
+    }),
+  );
+  await h.call("pstack_delegate", { mode: "arena", tasks: ["compare"], rubric: "quality" });
+  assert.equal(judged.at(-1), "google/gemini");
+});
+
+test("a candidate that drops out leaves the judge scoring the rest", async () => {
+  onTestFinished(() => rm(configFile, { force: true }));
+  const judged: string[] = [];
+  const workers = judgingWorkers(judged);
+  let calls = 0;
+  const h = host({
+    confirm: true,
+    execute: async (bin, args, options) =>
+      bin !== "git" && ++calls === 1
+        ? { code: 1, stdout: "", stderr: "crashed" }
+        : workers(bin, args, options),
+  });
+  await h.cmd(
+    "setup-pstack",
+    JSON.stringify({
+      roles: {
+        "arena runners": ["auto", "inherit-parent"],
+        "arena cross-judge pool": ["openai/gpt"],
+      },
+    }),
+  );
+  const output = delegated(
+    await h.call("pstack_delegate", {
+      mode: "arena",
+      tasks: ["compare"],
+      rubric: "quality",
+      concurrency: 1,
+    }),
+  );
+  assert.equal(judged.at(-1), "openai/gpt");
+  assert.deepEqual(output.judgment?.dropouts, ["candidate-1"]);
+  assert.deepEqual(
+    output.judgment?.readAudit?.map((entry) => entry.path.split("/").at(-1)),
+    ["candidate-2.jsonl"],
+  );
+});
+
+test("arena sends anonymous transcript files to the independent judge and reports missing reads", async () => {
+  onTestFinished(() => rm(configFile, { force: true }));
+  const judged: string[] = [];
+  const prompts: string[] = [];
+  const h = host({ confirm: true, execute: judgingWorkers(judged, prompts) });
+  await h.cmd(
+    "setup-pstack",
+    JSON.stringify({
+      roles: {
+        "arena runners": ["anthropic/claude", "google/gemini"],
+        "arena cross-judge pool": ["anthropic/claude", "openai/gpt"],
       },
     }),
   );
@@ -192,9 +239,15 @@ test("arena sends anonymous transcript files to the independent judge and report
     await h.call("pstack_delegate", {
       mode: "arena",
       tasks: ["shared task"],
-      rubric: "quality",
+      rubric: "secret rubric",
     }),
   );
+  const [first = "", second = "", judge = ""] = prompts;
+  for (const candidate of [first, second]) {
+    assert(candidate.includes("shared task"));
+    assert(!candidate.includes("secret rubric"), "candidates see only the task");
+  }
+  assert(judge.includes("secret rubric"), "the judge grades against the rubric");
   assert.equal(judged.at(-1), "openai/gpt");
   assert.deepEqual(
     output.outputs.map((_, i) => fulfilled(output.outputs, i).model),

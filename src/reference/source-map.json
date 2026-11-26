@@ -2,11 +2,11 @@
   "title": "pstack + Cursor Team Kit + Cursor CLI",
   "slug": "pstack-cursor-skill-map",
   "pack": "cursor/plugins/pstack",
-  "version": "pstack 0.15.46 · Team Kit 1.2.0",
-  "branch": "cursor/plugins @ 7a58391 · Super Board @ d0b7d5a",
+  "version": "pstack 0.15.48 · Team Kit 1.2.0",
+  "branch": "cursor/plugins @ 41e4009 · Super Board @ d0b7d5a",
   "sourcesBase": "",
   "meta": {
-    "sourceBase": "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/",
+    "sourceBase": "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/",
     "root": "",
     "project": "pstack / Cursor"
   },
@@ -27,7 +27,7 @@
       "when": "First install or whenever you need to change the reasoning budget or role models.",
       "how": "Detect available models, load existing choices, confirm the budget and roles, validate and write `~/.cursor/rules/pstack-models.mdc` with alwaysApply and defaults: 3. `auto` and `inherit-parent` omit the delegate model.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/setup-pstack/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/setup-pstack/SKILL.md"
       ],
       "sublabel": "Models and reasoning budget",
       "origin": "pstack",
@@ -42,8 +42,8 @@
       "when": "Start any nontrivial engineering task; explicitly attach the skill or use it as a Custom Mode.",
       "how": "Restate the goal, select a matching playbook, copy its steps into the todo list and run the required skills. Apply the appropriate principle leaf files. The receiving chat owns execution; direct delegates read worker.md. Route large or unmatched work to figure-it-out.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Router · 22 playbooks",
       "origin": "pstack",
@@ -58,7 +58,7 @@
       "when": "When new to pstack or unsure which skill or playbook fits. Explicit invocation.",
       "how": "Identify the task, consult the appropriate recipe and return a usable prompt instead of executing the engineering task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-help/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-help/SKILL.md"
       ],
       "sublabel": "Choose a workflow",
       "origin": "pstack"
@@ -71,7 +71,7 @@
       "when": "When the task or intent needs a faithful playback. Explicit invocation.",
       "how": "Explain the goal and problem in the agent’s own words before starting implementation.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/in-your-own-words/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/in-your-own-words/SKILL.md"
       ],
       "sublabel": "Restate intent",
       "origin": "pstack"
@@ -84,9 +84,22 @@
       "when": "When you want stronger methods, material and independent checks rather than a larger scope.",
       "how": "Return a rewritten prompt, using empirical prototypes to settle runnable questions and reserving product choices for the operator. Does not execute the task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/sharpen/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/sharpen/SKILL.md"
       ],
       "sublabel": "Improve a prompt",
+      "origin": "pstack"
+    },
+    {
+      "id": "reframe",
+      "label": "/reframe",
+      "kind": "public",
+      "what": "Name what the operator is building with expert terms.",
+      "when": "When you cannot name the problem clearly enough to ask an agent for it. Explicit invocation.",
+      "how": "Start from the operator's files and words; separate candidate problems, rank checked expert terms and neighboring-field analogies, then rewrite the description. Does not execute the task.",
+      "source": [
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/reframe/SKILL.md"
+      ],
+      "sublabel": "Name the problem",
       "origin": "pstack"
     },
     {
@@ -97,7 +110,7 @@
       "when": "When learning an unfamiliar subsystem or investigating how behavior works.",
       "how": "Read the actual implementation, follow the path and explain its moving parts and gotchas.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/how/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/how/SKILL.md"
       ],
       "sublabel": "Trace implementation",
       "origin": "pstack"
@@ -110,7 +123,7 @@
       "when": "When a design choice, constraint or regression needs historical explanation.",
       "how": "Trace commits and pull request discussions; attribute conclusions to the record, mark inferences and unknowns.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/why/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/why/SKILL.md"
       ],
       "sublabel": "History and intent",
       "origin": "pstack"
@@ -123,7 +136,7 @@
       "when": "When you want to understand a change rather than receive a summary.",
       "how": "Run how and why, then weave a plain account, using diagrams to build understanding.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/teach/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/teach/SKILL.md"
       ],
       "sublabel": "How + why",
       "origin": "pstack",
@@ -137,7 +150,7 @@
       "when": "When starting or resuming work with previous context.",
       "how": "Recover the relevant trail and provide a concise current-state brief.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/recall/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/recall/SKILL.md"
       ],
       "sublabel": "Recover prior context",
       "origin": "pstack"
@@ -150,7 +163,7 @@
       "when": "When returning to a long chat and needing to decide outstanding items.",
       "how": "Summarize changes, add small visuals where useful, and make each awaiting decision self-contained.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/ketchup/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/ketchup/SKILL.md"
       ],
       "sublabel": "Catch up on a chat",
       "origin": "pstack"
@@ -163,7 +176,7 @@
       "when": "When a visual catch-up is preferred.",
       "how": "Present the recap as a short video and list decisions waiting for the operator in text.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/ketchup-video/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/ketchup-video/SKILL.md"
       ],
       "sublabel": "Video recap",
       "origin": "pstack"
@@ -176,7 +189,7 @@
       "when": "When a change crosses a function boundary or a one-way-door design decision needs alternatives.",
       "how": "Name types and caller usage first; use arena for competing designs, then choose the smallest coherent shape.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/architect/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/architect/SKILL.md"
       ],
       "sublabel": "Design module boundaries",
       "origin": "pstack",
@@ -190,7 +203,7 @@
       "when": "When one attempt at a nontrivial artifact risks locking in the wrong design.",
       "how": "Frame the same task; create isolated output locations; fan out candidates using configured runners; use a cross-vendor judge; choose a base and integrate useful parts; verify the result.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/arena/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/arena/SKILL.md"
       ],
       "sublabel": "Compete and synthesize",
       "origin": "pstack",
@@ -204,7 +217,7 @@
       "when": "When independent coverage, races, mechanical edits or a gauntlet can run concurrently.",
       "how": "Define the finish predicate and outputs; use generalPurpose workers in cloud by default, local only for local-access needs, then reconcile and verify the report.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/swarm/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/swarm/SKILL.md"
       ],
       "sublabel": "Parallel independent work",
       "origin": "pstack",
@@ -218,7 +231,7 @@
       "when": "When an important design or change needs adversarial evidence.",
       "how": "Use arena setup and fan-out with configured reviewers; rerun each claimed failure, keep only verified findings that violate the intent; combine shared root causes.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/interrogate/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/interrogate/SKILL.md"
       ],
       "sublabel": "Evidence-based adversarial review",
       "origin": "pstack",
@@ -232,7 +245,7 @@
       "when": "Before accepting a change with uncertain downstream effects.",
       "how": "Trace affected behavior and prove the fact that makes the change safe by executing code.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/blast-radius/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/blast-radius/SKILL.md"
       ],
       "sublabel": "Prove impact boundaries",
       "origin": "pstack"
@@ -245,7 +258,7 @@
       "when": "For bugs with an inexpensive local test path.",
       "how": "Establish a red test that reflects observable behavior, implement the fix, then demonstrate green. Skip costly or unclear repro-test paths as specified by the playbook.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/tdd/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/tdd/SKILL.md"
       ],
       "sublabel": "Red → green",
       "origin": "pstack"
@@ -258,7 +271,7 @@
       "when": "Before reporting or acting on performance measurements.",
       "how": "Check the limiting factor, workload, tuning, error modes, repeat runs and end-to-end relevance before accepting a comparison.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/benchmark-checklist/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/benchmark-checklist/SKILL.md"
       ],
       "sublabel": "Validate measurements",
       "origin": "pstack"
@@ -271,7 +284,7 @@
       "when": "After implementation and before review.",
       "how": "Spawn Comment Sicko to examine comments, fix accepted findings and identify structural encodings for real constraints.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/no-comments/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/no-comments/SKILL.md"
       ],
       "sublabel": "Comment Sicko review",
       "origin": "pstack",
@@ -285,7 +298,7 @@
       "when": "When reading or editing TypeScript.",
       "how": "Use type-system discipline and the skill’s TypeScript patterns to keep invalid states out of the design.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/typescript-best-practices/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/typescript-best-practices/SKILL.md"
       ],
       "sublabel": "Type discipline",
       "origin": "pstack"
@@ -298,7 +311,7 @@
       "when": "For ambitious, cross-cutting, unattended or unmatched work.",
       "how": "Frame the outcome, design the workflow, use architect for consequential decisions, loop on hypotheses, log decisions via show-me-your-work and verify before handoff.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/figure-it-out/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/figure-it-out/SKILL.md"
       ],
       "sublabel": "Custom rigorous workflow",
       "origin": "pstack",
@@ -312,7 +325,7 @@
       "when": "For long tasks or work that will be reviewed after stepping away.",
       "how": "Record time, phase, decision, reason, evidence and result in a TSV; commit the trail when useful to a reviewer.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/show-me-your-work/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/show-me-your-work/SKILL.md"
       ],
       "sublabel": "Decision TSV",
       "origin": "pstack",
@@ -326,7 +339,7 @@
       "when": "When a repository lacks a scripted verification surface.",
       "how": "Inspect launch/drive/observe/isolate requirements, generate `.cursor/skills/verify-<app>/` with launch, doctor, drive, evidence and cleanup, seed a feature map, and run one feature end to end.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/create-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/create-verification-skill/SKILL.md"
       ],
       "sublabel": "Generate app-specific verifier",
       "origin": "pstack",
@@ -340,7 +353,7 @@
       "when": "When application behavior and verification instructions have drifted.",
       "how": "Run source readers per feature, reconcile, exercise every feature in a coordinator-owned live pass, fix only verified harness or documentation drift, and ship at most one PR.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/maintain-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/maintain-verification-skill/SKILL.md"
       ],
       "sublabel": "Source wave + live pass",
       "origin": "pstack",
@@ -354,7 +367,7 @@
       "when": "When a race, retry, protocol, parser, state machine or unsafe-code property exceeds ordinary tests.",
       "how": "Choose a suitable tool, verify a specific property and generate a repeatable project-local check.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/create-formal-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/create-formal-verification-skill/SKILL.md"
       ],
       "sublabel": "Formal property proof",
       "origin": "pstack",
@@ -368,7 +381,7 @@
       "when": "When the implementation covered by a formal check has changed.",
       "how": "Update the model, harness or properties to correspond to the code, rerun, and distinguish verification drift from actual defects.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/maintain-formal-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/maintain-formal-verification-skill/SKILL.md"
       ],
       "sublabel": "Recheck model and properties",
       "origin": "pstack",
@@ -382,7 +395,7 @@
       "when": "When a product or behavior owner needs to see reachable states and rule failures.",
       "how": "Check the model, draw the behavior in Mermaid, mark violating states and show a shortest path to each.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/statechart/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/statechart/SKILL.md"
       ],
       "sublabel": "TLA+ → statechart",
       "origin": "pstack"
@@ -395,7 +408,7 @@
       "when": "When a long task landed and its successful recipe should be reusable.",
       "how": "Review what happened and preserve the lesson as a skill edit rather than repeating the same discovery.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/reflect/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/reflect/SKILL.md"
       ],
       "sublabel": "Capture a recipe",
       "origin": "pstack"
@@ -408,7 +421,7 @@
       "when": "When the operator keeps correcting the same kind of error.",
       "how": "Mine history, fix mistake classes at the strongest enforceable level (architecture, types, lint/CI, tests, docs) and track the rules and enforcement.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/correct/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/correct/SKILL.md"
       ],
       "sublabel": "Encode repeated lessons",
       "origin": "pstack"
@@ -421,7 +434,7 @@
       "when": "When you want a reusable -mode skill derived from actual sessions.",
       "how": "Turn recurring behavior into a mode draft. Distinct from Cursor’s /automate, which creates cloud automations.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/automate-me/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/automate-me/SKILL.md"
       ],
       "sublabel": "Derive a custom mode",
       "origin": "pstack"
@@ -434,7 +447,7 @@
       "when": "When you need a UI trigger for an existing Grok Bot integration.",
       "how": "Design the webhook button and sender-key handoff, including Tailscale requirements described in the skill. Optional specialized workflow, not required for pstack.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/make-bot-ui/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/make-bot-ui/SKILL.md"
       ],
       "sublabel": "Optional bot integration",
       "origin": "pstack"
@@ -447,7 +460,7 @@
       "when": "When composing or revising replies, documentation or other prose.",
       "how": "Rewrite to remove formulaic phrasing and keep the useful facts. Distinct from Team Kit deslop, which cleans code.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/unslop/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/unslop/SKILL.md"
       ],
       "sublabel": "Clean prose",
       "origin": "pstack"
@@ -460,7 +473,7 @@
       "when": "When technical jargon obstructs understanding.",
       "how": "Translate the last message into plain human language without unnecessary jargon.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/bro/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/bro/SKILL.md"
       ],
       "sublabel": "Plain language",
       "origin": "pstack"
@@ -473,7 +486,7 @@
       "when": "For docs, RFCs, READMEs, PR descriptions and commit messages.",
       "how": "Apply Diátaxis, Google developer style, Simplified Technical English and Global English as appropriate.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/technical-writing/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/technical-writing/SKILL.md"
       ],
       "sublabel": "Technical docs and PRs",
       "origin": "pstack"
@@ -486,8 +499,8 @@
       "when": "Refactors or new abstractions",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-laziness-protocol/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-laziness-protocol/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Refactors or new abstractions",
       "origin": "pstack · core"
@@ -500,8 +513,8 @@
       "when": "Before writing logic",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-foundational-thinking/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-foundational-thinking/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Before writing logic",
       "origin": "pstack · core"
@@ -514,8 +527,8 @@
       "when": "New requirement changes design",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-redesign-from-first-principles/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-redesign-from-first-principles/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "New requirement changes design",
       "origin": "pstack · core"
@@ -528,8 +541,8 @@
       "when": "Repeated failure",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-attack-the-premise/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-attack-the-premise/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Repeated failure",
       "origin": "pstack · core"
@@ -542,8 +555,8 @@
       "when": "Refactors and rewrites",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-subtract-before-you-add/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-subtract-before-you-add/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Refactors and rewrites",
       "origin": "pstack · core"
@@ -556,8 +569,8 @@
       "when": "Hard-to-trace code",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-minimize-reader-load/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-minimize-reader-load/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Hard-to-trace code",
       "origin": "pstack · core"
@@ -570,8 +583,8 @@
       "when": "Phased migrations",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-outcome-oriented-execution/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-outcome-oriented-execution/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Phased migrations",
       "origin": "pstack · core"
@@ -584,8 +597,8 @@
       "when": "UX and product tradeoffs",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-experience-first/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-experience-first/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "UX and product tradeoffs",
       "origin": "pstack · core"
@@ -598,8 +611,8 @@
       "when": "Novel design choices",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-exhaust-the-design-space/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-exhaust-the-design-space/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Novel design choices",
       "origin": "pstack · core"
@@ -612,8 +625,8 @@
       "when": "Nontrivial work",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-build-the-lever/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-build-the-lever/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Nontrivial work",
       "origin": "pstack · core"
@@ -626,8 +639,8 @@
       "when": "Branch-heavy or stateful code",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-model-the-domain/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-model-the-domain/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Branch-heavy or stateful code",
       "origin": "pstack · architecture"
@@ -640,8 +653,8 @@
       "when": "Validation, adapters, error handling",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-boundary-discipline/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-boundary-discipline/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Validation, adapters, error handling",
       "origin": "pstack · architecture"
@@ -654,8 +667,8 @@
       "when": "Type or signature design",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-type-system-discipline/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-type-system-discipline/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Type or signature design",
       "origin": "pstack · architecture"
@@ -668,8 +681,8 @@
       "when": "Retries and lifecycle operations",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-make-operations-idempotent/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-make-operations-idempotent/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Retries and lifecycle operations",
       "origin": "pstack · architecture"
@@ -682,8 +695,8 @@
       "when": "API replacement",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "API replacement",
       "origin": "pstack · architecture"
@@ -696,8 +709,8 @@
       "when": "Concurrent actors",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-separate-before-serializing-shared-state/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-separate-before-serializing-shared-state/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Concurrent actors",
       "origin": "pstack · architecture"
@@ -710,8 +723,8 @@
       "when": "Every completion claim",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-prove-it-works/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-prove-it-works/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Every completion claim",
       "origin": "pstack · verification"
@@ -724,8 +737,8 @@
       "when": "Debugging",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-fix-root-causes/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-fix-root-causes/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Debugging",
       "origin": "pstack · verification"
@@ -738,8 +751,8 @@
       "when": "Multi-step work",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-sequence-verifiable-units/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-sequence-verifiable-units/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Multi-step work",
       "origin": "pstack · verification"
@@ -752,8 +765,8 @@
       "when": "Writing and changing tests",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-test-behavior-not-implementation/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-test-behavior-not-implementation/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Writing and changing tests",
       "origin": "pstack · verification"
@@ -766,8 +779,8 @@
       "when": "Before and after measurement",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-explain-the-number/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-explain-the-number/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Before and after measurement",
       "origin": "pstack · verification"
@@ -780,8 +793,8 @@
       "when": "Large files and fan-out",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-guard-the-context-window/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-guard-the-context-window/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Large files and fan-out",
       "origin": "pstack · delegation"
@@ -794,8 +807,8 @@
       "when": "Reversible decisions",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-never-block-on-the-human/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-never-block-on-the-human/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Reversible decisions",
       "origin": "pstack · delegation"
@@ -808,8 +821,8 @@
       "when": "Recurring mistakes",
       "how": "Read the full principle file before applying it; cite the actual decision it changed. This is an indexed pstack principle, not a mandatory step for every task.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-encode-lessons-in-structure/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-encode-lessons-in-structure/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Recurring mistakes",
       "origin": "pstack · meta"
@@ -822,8 +835,8 @@
       "when": "When proving UI behavior or reproducing visual/performance issues.",
       "how": "Drive the real UI, use stable selection, collect screenshots, accessibility snapshots or profiles, and isolate or clean up the controlled instance.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/control-ui/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/control-ui/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Real UI / CDP proof",
       "origin": "cursor-team-kit · direct pstack dependency"
@@ -836,8 +849,8 @@
       "when": "When proving terminal behavior, UX, latency, memory or hangs.",
       "how": "Drive an isolated tmux or PTY session; capture transcripts, profiles and user-visible results.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/control-cli/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/control-cli/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Real CLI / TUI proof",
       "origin": "cursor-team-kit · direct pstack dependency"
@@ -850,8 +863,8 @@
       "when": "Before committing a pstack change.",
       "how": "Review the diff for redundant code, inconsistent style and unnecessary abstractions; clean the patch without expanding scope.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/deslop/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/deslop/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Code cleanup before commit",
       "origin": "cursor-team-kit · direct pstack dependency"
@@ -864,8 +877,8 @@
       "when": "When a claim needs baseline/treatment comparison.",
       "how": "State a falsifiable claim, capture both artifacts, compare and return VERIFIED, NOT VERIFIED or INCONCLUSIVE.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/verify-this/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/verify-this/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability",
@@ -879,8 +892,8 @@
       "when": "When driving an active PR through failing checks.",
       "how": "Inspect runs, identify failures, make focused fixes and repeat. pstack has its own Babysit playbook.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/loop-on-ci/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/loop-on-ci/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -893,8 +906,8 @@
       "when": "When a specific CI run is red.",
       "how": "Read logs, identify the failing job and apply focused corrections.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/fix-ci/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/fix-ci/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -907,8 +920,8 @@
       "when": "When choosing Team Kit’s independent delivery flow.",
       "how": "Review the changes, commit and create a PR; not pstack’s Shipping playbook.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/review-and-ship/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/review-and-ship/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -921,8 +934,8 @@
       "when": "When a reviewer needs a categorized visual diff.",
       "how": "Render a PR walkthrough using the bundled template and renderer.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/pr-review-canvas/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/pr-review-canvas/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -935,8 +948,8 @@
       "when": "When preparing a noisy PR for a reviewer.",
       "how": "Clean noisy history and clarify the reviewer-facing explanation.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/make-pr-easy-to-review/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/make-pr-easy-to-review/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -949,8 +962,8 @@
       "when": "When the repository uses Playwright smoke coverage.",
       "how": "Execute smoke tests and diagnose failures.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/run-smoke-tests/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/run-smoke-tests/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -963,8 +976,8 @@
       "when": "When selecting Team Kit’s independent branch-to-PR workflow.",
       "how": "Start a fresh branch and deliver the work as a PR.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/new-branch-and-pr/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/new-branch-and-pr/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -977,8 +990,8 @@
       "when": "When reviewing incoming PR feedback.",
       "how": "Retrieve review comments and summarize the findings.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/get-pr-comments/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/get-pr-comments/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -991,8 +1004,8 @@
       "when": "When compiler or typing failures need diagnosis.",
       "how": "Run the repository’s compile and type-check commands; report failures.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/check-compiler-errors/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/check-compiler-errors/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -1005,8 +1018,8 @@
       "when": "When writing a status update.",
       "how": "Read authored commits and produce a concise summary.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/what-did-i-get-done/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/what-did-i-get-done/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -1019,8 +1032,8 @@
       "when": "For a weekly engineering recap.",
       "how": "Group delivered bug fixes, technical debt and new functionality.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/weekly-review/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/weekly-review/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -1033,8 +1046,8 @@
       "when": "When a branch has conflicts.",
       "how": "Resolve conflicts, validate the build and tests, then explain decisions.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/fix-merge-conflicts/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/fix-merge-conflicts/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -1047,8 +1060,8 @@
       "when": "When recurring work patterns merit reusable instructions.",
       "how": "Derive skills, rules or docs from chat history.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/workflow-from-chats/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/workflow-from-chats/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -1061,8 +1074,8 @@
       "when": "When evaluating whether a diff is unnecessarily complicated.",
       "how": "Apply the code quality rubric to complexity, boundaries and readability.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/thermo-nuclear-code-quality-review/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/thermo-nuclear-code-quality-review/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Team Kit · related capability",
       "origin": "cursor-team-kit · related capability"
@@ -1075,8 +1088,8 @@
       "when": "When the corresponding Team Kit agent or rule is applicable.",
       "how": "Part of Team Kit; included as adjacent capability, not a required pstack dependency.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/agents/ci-watcher.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/agents/ci-watcher.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "agents",
       "origin": "cursor-team-kit · related capability"
@@ -1089,8 +1102,8 @@
       "when": "When the corresponding Team Kit agent or rule is applicable.",
       "how": "Part of Team Kit; included as adjacent capability, not a required pstack dependency.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/agents/thermo-nuclear-code-quality-review.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/agents/thermo-nuclear-code-quality-review.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "agents",
       "origin": "cursor-team-kit · related capability"
@@ -1103,8 +1116,8 @@
       "when": "When the corresponding Team Kit agent or rule is applicable.",
       "how": "Part of Team Kit; included as adjacent capability, not a required pstack dependency.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/rules/typescript-exhaustive-switch.mdc",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/rules/typescript-exhaustive-switch.mdc",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "rules",
       "origin": "cursor-team-kit · related capability"
@@ -1117,8 +1130,8 @@
       "when": "When the corresponding Team Kit agent or rule is applicable.",
       "how": "Part of Team Kit; included as adjacent capability, not a required pstack dependency.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/rules/no-inline-imports.mdc",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/rules/no-inline-imports.mdc",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "rules",
       "origin": "cursor-team-kit · related capability"
@@ -1146,8 +1159,8 @@
       "source": [
         "https://cursor.com/docs/plugins",
         "https://cursor.com/docs/cli/reference/slash-commands",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Install both packs",
       "origin": "Cursor platform / CLI"
@@ -1162,7 +1175,7 @@
       "source": [
         "https://cursor.com/docs/cli/using",
         "https://cursor.com/docs/skills",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Persistent poteto-mode",
       "origin": "Cursor platform / CLI"
@@ -1190,7 +1203,7 @@
       "how": "Use a wake cadence or let the agent choose. pstack autonomous-run and visual-parity explicitly reference this built-in; /goal is a separate objective mechanism.",
       "source": [
         "https://cursor.com/docs/agent/overview#goals-with-goal",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autonomous-run.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autonomous-run.md"
       ],
       "sublabel": "Recurring checks",
       "origin": "Cursor platform / CLI"
@@ -1204,7 +1217,7 @@
       "how": "Describe triggers, instructions and tools. Review the draft in the editor. Benny requires explicit creation approval; no CLI availability claim is made for this skill.",
       "source": [
         "https://cursor.com/docs/cloud-agent/automations#getting-started",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ],
       "sublabel": "Create automation draft",
       "origin": "Cursor platform / CLI"
@@ -1219,7 +1232,7 @@
       "source": [
         "https://cursor.com/docs/cli/using",
         "https://cursor.com/docs/cloud-agent/overview",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
       ],
       "sublabel": "Remote workers",
       "origin": "Cursor platform / CLI"
@@ -1233,9 +1246,9 @@
       "how": "Delegate with the required subagent type, model, isolation and background mode. pstack direct delegates use poteto-agent; swarm and interrogate specify generalPurpose.",
       "source": [
         "https://cursor.com/docs/subagents",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/swarm/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/interrogate/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/swarm/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/interrogate/SKILL.md"
       ],
       "sublabel": "Delegate work",
       "origin": "Cursor platform / CLI"
@@ -1277,7 +1290,7 @@
       "how": "Use the CLI model selector; pstack setup writes a separate role configuration for delegates.",
       "source": [
         "https://cursor.com/docs/cli/reference/slash-commands",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/setup-pstack/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/setup-pstack/SKILL.md"
       ],
       "sublabel": "Session model",
       "origin": "Cursor platform / CLI"
@@ -1305,7 +1318,7 @@
       "how": "Select a recent conversation using /resume. This is a host command; pstack session-pickup reconstructs work state and routes unfinished work.",
       "source": [
         "https://cursor.com/docs/cli/reference/slash-commands",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/session-pickup.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/session-pickup.md"
       ],
       "sublabel": "Resume chat",
       "origin": "Cursor platform / CLI"
@@ -1319,7 +1332,7 @@
       "how": "Use /summarize (alias /compress). The pstack pause-safely playbook can preserve a separate off-context resume note.",
       "source": [
         "https://cursor.com/docs/cli/reference/slash-commands",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/pause-safely.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/pause-safely.md"
       ],
       "sublabel": "Context compaction",
       "origin": "Cursor platform / CLI"
@@ -1348,7 +1361,7 @@
       "how": "Use the built-in authoring skill, validate frontmatter, file references and cross-skill links, and test structural cases.",
       "source": [
         "https://cursor.com/docs/skills",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/authoring-a-skill.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/authoring-a-skill.md"
       ],
       "sublabel": "Author SKILL.md",
       "origin": "Cursor platform / CLI"
@@ -1362,7 +1375,7 @@
       "how": "Treat findings as claims to verify, fix real problems and dismiss unsupported ones with evidence; availability depends on configuration.",
       "source": [
         "https://cursor.com/docs/cloud-agent/bugbot",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/references/bugbot-triage.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/references/bugbot-triage.md"
       ],
       "sublabel": "PR bot findings",
       "origin": "Cursor platform / CLI"
@@ -1376,7 +1389,7 @@
       "how": "Configure triggers, instructions and tools, then enable a reviewed automation. Benny is one dormant automation pack built on this service.",
       "source": [
         "https://cursor.com/docs/cloud-agent/automations#getting-started",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/README.md"
       ],
       "sublabel": "Event-driven execution",
       "origin": "Cursor platform / CLI"
@@ -1389,8 +1402,8 @@
       "when": "When poteto-mode directly spawns a worker.",
       "how": "Read the poteto-mode instructions in full. The receiving chat remains the playbook owner, and special routed skills may set a different subagent type.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/agents/poteto-agent.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/agents/poteto-agent.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Direct delegate",
       "origin": "pstack subagent"
@@ -1403,8 +1416,8 @@
       "when": "When no-comments calls its comment reviewer.",
       "how": "Review the diff for unnecessary comments and report findings to the caller.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/agents/comment-sicko.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/no-comments/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/agents/comment-sicko.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/no-comments/SKILL.md"
       ],
       "sublabel": "Read-only reviewer",
       "origin": "pstack subagent"
@@ -1417,8 +1430,8 @@
       "when": "At the start of a Task or Project worker.",
       "how": "The kickoff’s first line points to the absolute worker.md path. Preserve the operator’s gates, avoid unnecessary blocking, use ready PRs and follow the PR writing format.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/worker.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/worker.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Worker kickoff contract"
     },
@@ -1430,8 +1443,8 @@
       "when": "After setup-pstack writes configuration.",
       "how": "The rule contains a defaults marker, budget and per-role model selections; roles not present retain defaults.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/setup-pstack/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/setup-pstack/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Role model state"
     },
@@ -1443,8 +1456,8 @@
       "when": "During long or unattended work.",
       "how": "Record outcome, change, rationale, evidence and result. The specific playbook determines whether the trail is local or committed.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/show-me-your-work/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/show-me-your-work/references/decision-log-template.tsv"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/show-me-your-work/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/show-me-your-work/references/decision-log-template.tsv"
       ],
       "sublabel": "Auditable state"
     },
@@ -1456,8 +1469,8 @@
       "when": "When real app verification must be repeatable.",
       "how": "Launch, doctor, drive, capture evidence, clean up; maintain coverage as the app evolves.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/create-verification-skill/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/maintain-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/create-verification-skill/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/maintain-verification-skill/SKILL.md"
       ],
       "sublabel": "Project-generated skill"
     },
@@ -1469,8 +1482,8 @@
       "when": "When repeatable formal verification is needed.",
       "how": "Run the chosen proof tool and maintain correspondence with actual source.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/create-formal-verification-skill/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/maintain-formal-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/create-formal-verification-skill/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/maintain-formal-verification-skill/SKILL.md"
       ],
       "sublabel": "Project-generated proof"
     },
@@ -1482,9 +1495,9 @@
       "when": "Babysit and Shipping need current checks or queued-stack status.",
       "how": "Use the script under the poteto-mode scripts directory for GitHub; Origin follows its own command path.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/scripts/watch-pr/watch-pr",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/babysit.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/shipping.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/scripts/watch-pr/watch-pr",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/babysit.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/shipping.md"
       ],
       "sublabel": "GitHub PR state"
     },
@@ -1496,8 +1509,8 @@
       "when": "During worktree-cleanup.",
       "how": "Read Git worktree paths and classify candidates; active and pinned chats and uncommitted work override automated advice.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/scripts/worktree-audit.sh",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/worktree-cleanup.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/scripts/worktree-audit.sh",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/worktree-cleanup.md"
       ],
       "sublabel": "Safety audit"
     },
@@ -1509,8 +1522,8 @@
       "when": "When opening, babysitting or shipping PRs.",
       "how": "Use gh by default; use origin pr when Origin can resolve the repository. No Graphite requirement. pstack shipping validates the contiguous verified run and honors operator permission.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/shipping.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/shipping.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
       ],
       "sublabel": "PR, checks and merge state"
     },
@@ -1522,7 +1535,7 @@
       "when": "Question about mechanics, motivation or a recommendation.",
       "how": "Trace code, use why for motivation, report in a clear structure and apply unslop.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/investigation.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/investigation.md"
       ],
       "sublabel": "investigation",
       "opensView": "pb-investigation",
@@ -1536,7 +1549,7 @@
       "when": "A real defect or regression.",
       "how": "Reproduce on the matching surface; narrow causes with evidence; consult why; architect if the boundary changes; delegate; prove the original repro passes; use tdd when cheap; open a PR.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/bug-fix.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/bug-fix.md"
       ],
       "sublabel": "bug-fix",
       "opensView": "pb-bug-fix",
@@ -1550,7 +1563,7 @@
       "when": "Latency, throughput or another measured slowdown.",
       "how": "Capture baseline trace with the matching control surface; vet it with benchmark-checklist; trace and delegate the fix; capture post-fix trace, compare and open a PR.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/perf-issue.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/perf-issue.md"
       ],
       "sublabel": "perf-issue",
       "opensView": "pb-perf-issue",
@@ -1564,7 +1577,7 @@
       "when": "Sustained scientific improvement toward a fixed metric target.",
       "how": "Ground workload and architecture, freeze a sensitive harness, keep decision log, run one hypothesis at a time, keep only measured behavior-preserving wins, open a PR.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/hillclimb.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/hillclimb.md"
       ],
       "sublabel": "hillclimb",
       "opensView": "pb-hillclimb",
@@ -1578,7 +1591,7 @@
       "when": "Leak, idle CPU spin or visual glitch.",
       "how": "Capture profile, snapshot or trace on matching surface; reduce it to a cause, prove the mechanism, link it to source. Read-only.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/runtime-forensics.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/runtime-forensics.md"
       ],
       "sublabel": "runtime-forensics",
       "opensView": "pb-runtime-forensics",
@@ -1592,7 +1605,7 @@
       "when": "A trace, heap snapshot or profiling artifact.",
       "how": "Parse into a queryable shape, narrow and attribute to source, compare paired captures if available; report without fixing unless requested.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/trace-forensics.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/trace-forensics.md"
       ],
       "sublabel": "trace-forensics",
       "opensView": "pb-trace-forensics",
@@ -1606,7 +1619,7 @@
       "when": "A new feature or changed behavior.",
       "how": "Trace the subsystem, use architect for the shape, record throughput checkpoints, delegate a scoped change, verify the real surface, order commits, interrogate contested design, open a PR.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/feature.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/feature.md"
       ],
       "sublabel": "feature",
       "opensView": "pb-feature",
@@ -1620,7 +1633,7 @@
       "when": "A structural change without behavior change.",
       "how": "Pin behavior, name the target structure, subtract before adding, move in checked slices, prove equivalence and lower reader load, open a PR.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/refactoring.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/refactoring.md"
       ],
       "sublabel": "refactoring",
       "opensView": "pb-refactoring",
@@ -1634,7 +1647,7 @@
       "when": "A design or empirical fork that can be settled by running something.",
       "how": "Name the decision, create isolated lightweight alternatives, observe them on the correct surface, report tradeoffs and hand chosen direction to Feature.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/prototype.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/prototype.md"
       ],
       "sublabel": "prototype",
       "opensView": "pb-prototype",
@@ -1648,7 +1661,7 @@
       "when": "Matching two visual implementations or a migration baseline.",
       "how": "Capture baseline, preserve harness and baseline, parallelize isolated components, compare image diffs on real surface and loop until zero, open a PR.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/visual-parity.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/visual-parity.md"
       ],
       "sublabel": "visual-parity",
       "opensView": "pb-visual-parity",
@@ -1662,7 +1675,7 @@
       "when": "A new or modified SKILL.md.",
       "how": "Use built-in create-skill; validate frontmatter, paths and cross-links; run structural cases; open a PR.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/authoring-a-skill.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/authoring-a-skill.md"
       ],
       "sublabel": "authoring-a-skill",
       "opensView": "pb-authoring-a-skill",
@@ -1676,7 +1689,7 @@
       "when": "Comparing variants of a skill or prompt.",
       "how": "Frame judge-only rubric, sanitize candidate environments, give the same organic prompt, use arena fan-out and blinded judge, verify actual transcript reads, inspect every output.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/eval.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/eval.md"
       ],
       "sublabel": "eval",
       "opensView": "pb-eval",
@@ -1690,7 +1703,7 @@
       "when": "PR conflicts, comments or red CI.",
       "how": "Resolve forge, watch current PR state, investigate and fix failures, triage Bugbot findings skeptically and report merge readiness.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/babysit.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/babysit.md"
       ],
       "sublabel": "babysit",
       "opensView": "pb-babysit",
@@ -1704,7 +1717,7 @@
       "when": "Explicit authorization to land a stack.",
       "how": "Verify each PR independently with cloud agent on matching surface, determine contiguous verified ceiling, check patch identity and current checks, land bottom-up and stop at the ceiling.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/shipping.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/shipping.md"
       ],
       "sublabel": "shipping",
       "opensView": "pb-shipping",
@@ -1718,7 +1731,7 @@
       "when": "A long task with a checkable exit condition.",
       "how": "State predicate, choose /loop wake policy, make small evidence-driven changes, verify each iteration and log decisions, stop on actual completion or real dead end.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autonomous-run.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autonomous-run.md"
       ],
       "sublabel": "autonomous-run",
       "opensView": "pb-autonomous-run",
@@ -1732,7 +1745,7 @@
       "when": "Authorized queue of independently landable PRs.",
       "how": "One cloud owner per PR off trunk; code-ready after deslop/no-comments; independent swarm verifies patches; current head CI stays green; only authorized, verified patches merge. Coordinator audits with /loop.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
       ],
       "sublabel": "autopilot-full",
       "opensView": "pb-autopilot-full",
@@ -1746,7 +1759,7 @@
       "when": "Work queue where the operator owns landing.",
       "how": "Follow autopilot-full with no merges; stack only actual dependencies, rebase and recheck affected patches, stop verified and green and hand back to operator.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autopilot-stack.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autopilot-stack.md"
       ],
       "sublabel": "autopilot-stack",
       "opensView": "pb-autopilot-stack",
@@ -1760,7 +1773,7 @@
       "when": "Taking over or resuming an interrupted run.",
       "how": "Locate prior trail, reconstruct branch and todos, determine done versus pending, route remaining task and verify inherited claims on real artifact.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/session-pickup.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/session-pickup.md"
       ],
       "sublabel": "session-pickup",
       "opensView": "pb-session-pickup",
@@ -1774,7 +1787,7 @@
       "when": "Pausing or handling impending context compaction.",
       "how": "Stop at safe boundary, cancel nested work, avoid irreversible action, commit WIP locally, write resume note or point at decision log.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/pause-safely.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/pause-safely.md"
       ],
       "sublabel": "pause-safely",
       "opensView": "pb-pause-safely",
@@ -1788,7 +1801,7 @@
       "when": "Large change spanning phases or stacked PRs.",
       "how": "Prototype unsettled choices; write a dependency graph and per-PR scope, tests and live/perf predicates; stop for explicit go before execution.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/multi-phase-plan.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/multi-phase-plan.md"
       ],
       "sublabel": "multi-phase-plan",
       "opensView": "pb-multi-phase-plan",
@@ -1802,7 +1815,7 @@
       "when": "Merged or abandoned worktrees and simulator clutter.",
       "how": "Audit candidates, cross-check pinned and active chat state, stop on uncommitted work or uncertain ownership, remove confirmed safe candidates and verify disk usage.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/worktree-cleanup.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/worktree-cleanup.md"
       ],
       "sublabel": "worktree-cleanup",
       "opensView": "pb-worktree-cleanup",
@@ -1816,7 +1829,7 @@
       "when": "At the end of an applicable delivery playbook.",
       "how": "Use a worktree off trunk and ordered commits, run Team Kit deslop before commit and follow the pstack PR writing and verification contract.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/opening-a-pr.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/opening-a-pr.md"
       ],
       "sublabel": "opening-a-pr",
       "opensView": "pb-opening-a-pr",
@@ -1830,8 +1843,8 @@
       "when": "Operator points Cursor at FOR_AGENTS.md and names a target repository.",
       "how": "Merge pack into `.cursor/automations/benny/`, preserve local configuration, enable project-scoped pstack and verify dependencies in a fresh agent. Commit prerequisites; create drafts only when explicitly authorized.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/skills/setup-benny/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/setup-benny/SKILL.md"
       ],
       "sublabel": "Direct file, not slash skill"
     },
@@ -1843,8 +1856,8 @@
       "when": "A configured top-level issue-channel report arrives.",
       "how": "Read thread and attachments, locate likely owning layer, search tracker for duplicates, create only clear net-new bugs, reply once in the original thread with a trusted marker.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/skills/triage-issue-reports/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/triage-issue-reports/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ],
       "sublabel": "Automation 1 · classify"
     },
@@ -1856,8 +1869,8 @@
       "when": "When the trusted triage marker identifies a bug or performance issue.",
       "how": "Respect existing ownership or PRs, reproduce on real UI twice, capture evidence and state cross-check, make one bounded root-cause fix when justified, open only a draft PR with passing before/after proof. Never merge or deploy.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/skills/reproduce-and-fix-issues/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/reproduce-and-fix-issues/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ],
       "sublabel": "Automation 2 · prove",
       "opensView": "benny-repro"
@@ -1870,8 +1883,8 @@
       "when": "Before enabling either automation.",
       "how": "Set Slack source and optional operations channel, tracker, repo, feature map, adapter, models and budgets; retain secrets separately. Fail closed when a required input is missing.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/templates/configuration.example.yaml",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/templates/configuration.example.yaml",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ],
       "sublabel": "Repository configuration"
     },
@@ -1883,8 +1896,8 @@
       "when": "For live reproducibility and before/after proof.",
       "how": "Benny requires a configured control skill or adapter and feature map; Team Kit control skills are examples of compatible surfaces, not mandatory Benny install dependencies.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ],
       "sublabel": "Real behavior evidence",
       "origin": "project-specific dependency"
@@ -1897,7 +1910,7 @@
       "when": "At event intake and follow-up.",
       "how": "Keep channel and root thread immutable; post only in the original thread, not a root message. Subagents do not receive Slack credentials or post.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ],
       "sublabel": "Immutable thread identity"
     },
@@ -1909,8 +1922,8 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Select by task",
       "opensView": "playbooks"
@@ -1923,7 +1936,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Direct or routed skills",
       "opensView": "skill-library"
@@ -1936,7 +1949,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "Core · architecture · verification",
       "opensView": "principles"
@@ -1949,8 +1962,8 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Direct vs related",
       "opensView": "team-kit"
@@ -1977,8 +1990,8 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Two pstack subagents",
       "opensView": "delegates"
@@ -1991,8 +2004,8 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/README.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/README.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ],
       "sublabel": "Event-driven maintenance",
       "opensView": "benny"
@@ -2005,7 +2018,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ],
       "sublabel": "Optional companions",
       "opensView": "tk-adjacent"
@@ -2018,8 +2031,8 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Read-only questions and profiling artifacts",
       "opensView": "pb-understand"
@@ -2032,8 +2045,8 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Design decisions, bugs, features and refactors",
       "opensView": "pb-build"
@@ -2046,8 +2059,8 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Parity, authoring and blinded evaluation",
       "opensView": "pb-verify"
@@ -2060,8 +2073,8 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Open, babysit, ship and autopilot",
       "opensView": "pb-delivery"
@@ -2074,8 +2087,8 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Autonomous work, plans, pauses and cleanup",
       "opensView": "pb-long"
@@ -2088,7 +2101,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Goal, history, mechanics and explanations",
       "opensView": "sk-understand"
@@ -2101,7 +2114,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Shape, parallel candidates and adversarial checks",
       "opensView": "sk-design"
@@ -2114,7 +2127,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Tests, measurement, comment and writing quality",
       "opensView": "sk-verify"
@@ -2127,7 +2140,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ],
       "sublabel": "Verification upkeep, lessons, catch-up and automation",
       "opensView": "sk-maintain"
@@ -2140,7 +2153,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "10 indexed principles",
       "opensView": "pr-core"
@@ -2153,7 +2166,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "6 indexed principles",
       "opensView": "pr-architecture"
@@ -2166,7 +2179,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "5 indexed principles",
       "opensView": "pr-verification"
@@ -2179,7 +2192,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "2 indexed principles",
       "opensView": "pr-delegation"
@@ -2192,7 +2205,7 @@
       "when": "Open the inner view to inspect this group.",
       "how": "This is a map navigation group, not an installed skill or an automatic execution step.",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ],
       "sublabel": "1 indexed principles",
       "opensView": "pr-meta"
@@ -4203,7 +4216,7 @@
       "id": "skill-library",
       "parent": "root",
       "title": "Pstack · registered ordinary skills",
-      "caption": "34 ordinary registered skills. Setup and router are shown separately; principles have their own 24-skill catalog.",
+      "caption": "35 ordinary registered skills. Setup and router are shown separately; principles have their own 24-skill catalog.",
       "nodeIds": [
         "setup-pstack",
         "poteto-mode",
@@ -4233,6 +4246,7 @@
         "poteto-help",
         "in-your-own-words",
         "sharpen",
+        "reframe",
         "how",
         "why",
         "teach",
@@ -4253,7 +4267,8 @@
         "recall": [0, 2],
         "ketchup": [1, 2],
         "ketchup-video": [2, 2],
-        "bro": [0, 3]
+        "bro": [0, 3],
+        "reframe": [1, 3]
       }
     },
     {
@@ -4858,14 +4873,15 @@
     {
       "id": "all-dependencies",
       "parent": "root",
-      "title": "All Dependencies · 161 nodes / 163 relationships",
-      "caption": "All 161 nodes and 163 original dependency records in one native canvas. Reciprocal relations may share a two-way arrow. The dense overview uses precomputed connector paths; click a node to highlight its dependencies, and open Behind the scenes for every relationship and its source. Double-click to drill down. Catalog entries with no recorded direct edge are grouped below.",
+      "title": "All Dependencies · 162 nodes / 163 relationships",
+      "caption": "All 162 nodes and 163 original dependency records in one native canvas. Reciprocal relations may share a two-way arrow. The dense overview uses precomputed connector paths; click a node to highlight its dependencies, and open Behind the scenes for every relationship and its source. Double-click to drill down. Catalog entries with no recorded direct edge are grouped below.",
       "nodeIds": [
         "setup-pstack",
         "poteto-mode",
         "poteto-help",
         "in-your-own-words",
         "sharpen",
+        "reframe",
         "how",
         "why",
         "teach",
@@ -7987,7 +8003,8 @@
         "pr-meta": [14, 40.5],
         "cli-exec": [16, 40.5],
         "cli-persist": [0, 41.75],
-        "cli-integrate": [2, 41.75]
+        "cli-integrate": [2, 41.75],
+        "reframe": [10, 26.75]
       },
       "containers": [
         {
@@ -7997,6 +8014,7 @@
             "poteto-help",
             "in-your-own-words",
             "sharpen",
+            "reframe",
             "recall",
             "ketchup",
             "ketchup-video",
@@ -8578,12 +8596,15 @@
         },
         "cli-integrate": {
           "w": 240
+        },
+        "reframe": {
+          "w": 240
         }
       }
     }
   ],
   "notes": [
-    "Map model built from official Cursor plugin source at 7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9; native Super Board renderer d0b7d5a6850614ca809477c1af43d5d7da408726.",
+    "Map model built from official Cursor plugin source at 41e400932eca14f289e7db717a70455256b6d388; native Super Board renderer d0b7d5a6850614ca809477c1af43d5d7da408726.",
     "Arrows are selected source-backed dependencies or labeled optional host composition, not a claim that every possible call occurs. Navigation groups are not commands.",
     "Team Kit adjacent catalog is informational; only deslop, control-ui and control-cli are explicitly named as conditional dependencies in poteto-mode.",
     "Benny instructions are dormant files, not slash skills. No Claude Code port is included.",

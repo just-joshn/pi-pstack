@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { onTestFinished, test } from "vitest";
@@ -21,9 +21,13 @@ async function generatorCopy() {
       "scripts/generate.py",
       "scripts/catalog-source.json",
       "src/reference/source-map.json",
+      "src/lib/catalog-data.json",
+      "src/reference/parity.json",
+      "src/reference/PARITY.md",
       "bunfig.toml",
     ].map((p) => copyFile(join(packageRoot, p), join(dir, p))),
   );
+  await cp(join(packageRoot, "src/skills"), join(dir, "src/skills"), { recursive: true });
   const run = (...args: string[]) =>
     spawned("python3", ["scripts/generate.py", ...args], { cwd: dir });
   const success = async (...args: string[]) => {
@@ -37,46 +41,43 @@ async function generatorCopy() {
 const slow = { timeout: 30_000 };
 
 test(
-  "generated checks are read-only, detect drift, and regenerate only owned files",
+  "generated checks are read-only, detect drift, and never write the ported files",
   slow,
   async () => {
     const { dir, run, success } = await generatorCopy();
-    await success();
     await success("--check");
-    const old = join(dir, "src/skills/bro/SKILL.md");
-    const original = await readFile(old, "utf8");
+    const catalogFile = join(dir, "src/lib/catalog-data.json");
+    const catalog = async () =>
+      shaped<{ steps: Record<string, string[]>; implementations: Record<string, string[]> }>(
+        JSON.parse(await readFile(catalogFile, "utf8")),
+      );
+    const original = await readFile(catalogFile, "utf8");
+
     const input = join(dir, "scripts/catalog-source.json");
-    const source = shaped<{ skills: Record<string, string> }>(
+    const source = shaped<{ implementations: Record<string, string[]> }>(
       JSON.parse(await readFile(input, "utf8")),
     );
-    source.skills["bro"] = "Changed source instructions.";
+    source.implementations["kit-ci-watcher"] = ["extension", "agents/ci-watcher.md (changed)"];
     await writeFile(input, JSON.stringify(source));
     assert.notEqual((await run("--check")).status, 0);
-    assert.equal(await readFile(old, "utf8"), original);
+    assert.equal(await readFile(catalogFile, "utf8"), original);
     await success();
-    assert.match(await readFile(old, "utf8"), /Changed source instructions/);
+    assert.deepEqual((await catalog()).implementations["kit-ci-watcher"], [
+      "extension",
+      "agents/ci-watcher.md (changed)",
+    ]);
 
-    const mapFile = join(dir, "src/reference/source-map.json");
-    const map = shaped<{ nodes: { id: string; label: string }[] }>(
-      JSON.parse(await readFile(mapFile, "utf8")),
+    const playbook = join(dir, "src/skills/poteto-mode/playbooks/investigation.md");
+    const text = await readFile(playbook, "utf8");
+    await writeFile(
+      playbook,
+      text.replace("1. Trace the code", "1. **Read the code first.** Trace the code"),
     );
-    const bro = map.nodes.find((n) => n.id === "bro");
-    assert(bro);
-    bro.label = "/renamed-bro";
-    await writeFile(mapFile, JSON.stringify(map));
-    const manual = join(dir, "src/skills/hand-authored/SKILL.md");
-    await mkdir(dirname(manual));
-    await writeFile(manual, "Keep my skill.\n");
     const check = await run("--check");
     assert.notEqual(check.status, 0);
-    assert.match(check.stdout + check.stderr, /src\/skills\/bro\/SKILL\.md/);
-    assert.match(check.stdout + check.stderr, /src\/skills\/renamed-bro\/SKILL\.md/);
-    const renamed = join(dir, "src/skills/renamed-bro/SKILL.md");
-    await assert.rejects(() => readFile(renamed), { code: "ENOENT" });
+    assert.match(check.stdout + check.stderr, /src\/lib\/catalog-data\.json/);
     await success();
-    await success("--check");
-    await assert.rejects(() => readFile(old), { code: "ENOENT" });
-    assert.match(await readFile(renamed, "utf8"), /Changed source instructions/);
-    assert.equal(await readFile(manual, "utf8"), "Keep my skill.\n");
+    assert.equal((await catalog()).steps["investigation"]?.[0], "Read the code first.");
+    assert.match(await readFile(playbook, "utf8"), /Read the code first/);
   },
 );

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile, rm } from "node:fs/promises";
+import { mkdir, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
 
 import { onTestFinished, test } from "vitest";
 
@@ -8,7 +9,9 @@ import {
   crossJudge,
   defaultConfig,
   effort,
+  family,
   modelFor,
+  parseModelConfig,
   selectPanel,
   validateConfig,
   vendor,
@@ -161,7 +164,7 @@ test("a worker loads only the extension that lists its model", async () => {
   assert.equal(flag(nth(workers, 0), "--tools"), "read,grep,find,ls");
 
   h.ctx.model = model("google", "gemini");
-  const builtIn = delegated(await h.call("pstack_delegate", swarm));
+  const builtIn = delegated(await h.call("pstack_delegate", { ...swarm, model: "inherit-parent" }));
   assert.equal(fulfilled(builtIn.outputs).model, "google/gemini");
   assert.deepEqual(loadedBy(nth(workers, 1)), []);
 });
@@ -246,7 +249,7 @@ test("roles, budget, alias and cross-vendor judge validation", () => {
   validateConfig(cfg, [a, b, c]);
   assert.equal(modelFor("auto", a), a);
   assert.equal(modelFor("inherit-parent", a), a);
-  assert.equal(crossJudge(cfg, a, [], new Set([a, b, c])), b);
+  assert.equal(crossJudge(cfg, a, new Set([a, b, c])), b);
   assert.equal(vendor("openrouter/anthropic/claude-sonnet"), "anthropic");
   assert.equal(vendor("openrouter/openai/gpt-5"), "openai");
   assert.equal(effort("feature, refactoring", "large"), "xhigh");
@@ -257,4 +260,81 @@ test("roles, budget, alias and cross-vendor judge validation", () => {
   cfg.roles["arena cross-judge pool"] = ["auto"];
   assert.throws(() => validateConfig(cfg, [a, b, c]));
   assert.throws(() => modelFor("auto", ""));
+});
+
+test("with no saved configuration, each role takes upstream's default from the models workers can use", () => {
+  const exact = defaultConfig([
+    "anthropic/claude-opus-5-5",
+    "claude/claude-fable-5-2",
+    "openai/gpt-6",
+  ]);
+  assert.deepEqual(exact.roles["feature, refactoring"], ["anthropic/claude-opus-5-5"]);
+  assert.deepEqual(exact.roles["swarm workers"], ["anthropic/claude-opus-5-5"]);
+  assert.deepEqual(exact.roles["arena runners"], [
+    "claude/claude-fable-5-2",
+    "anthropic/claude-opus-5-5",
+    "inherit-parent",
+  ]);
+  assert.deepEqual(exact.roles["arena cross-judge pool"], ["anthropic/claude-opus-5-5"]);
+
+  const sameFamily = defaultConfig(["a/claude-sonnet-5-5", "a/claude-opus-4-8", "g/gemini-3-pro"]);
+  assert.deepEqual(sameFamily.roles["bug-fix"], ["a/claude-opus-4-8"]);
+  assert.deepEqual(sameFamily.roles["interrogate reviewers"], [
+    "inherit-parent",
+    "a/claude-opus-4-8",
+    "g/gemini-3-pro",
+  ]);
+  assert.deepEqual(sameFamily.roles["arena cross-judge pool"], [
+    "a/claude-opus-4-8",
+    "g/gemini-3-pro",
+  ]);
+
+  const none = defaultConfig(["openai/gpt-6"]);
+  assert.deepEqual(none.roles["hillclimb"], ["inherit-parent"]);
+  assert.deepEqual(none.roles["arena runners"], [
+    "inherit-parent",
+    "inherit-parent",
+    "inherit-parent",
+  ]);
+  assert.deepEqual(none.roles["arena cross-judge pool"], []);
+});
+
+test("model families follow arena's prefixes", () => {
+  assert.equal(family("claude/claude-fable-5-2"), "claude-fable");
+  assert.equal(family("anthropic/claude-opus-5-5"), "claude");
+  assert.equal(family("google/gemini-4-neon"), "gemini");
+  assert.equal(family("openai-codex/gpt-6.1-terra"), "gpt");
+});
+
+test("the file shape setup-pstack shows is one pstack_delegate accepts", async () => {
+  const skill = await readFile(
+    new URL("../src/skills/setup-pstack/SKILL.md", import.meta.url),
+    "utf8",
+  );
+  const example = /```\n(\{[^]*?\n\})\n```/.exec(skill)?.[1];
+  assert(example);
+  const config = parseModelConfig(JSON.parse(example));
+  assert.equal(config.budget, "large");
+  assert.equal(config.roles["interrogate reviewers"].length, 3);
+});
+
+test("setup offers each verification skill the project lacks, then starts the one accepted", async () => {
+  onTestFinished(() => rm(configFile, { force: true }));
+  const asked: string[] = [];
+  const h = host({
+    confirm: (title) => {
+      asked.push(title);
+      return !title.startsWith("Want a formal");
+    },
+  });
+  await mkdir(join(h.ctx.cwd, ".pi", "skills", "tla-checks"), { recursive: true });
+  onTestFinished(() => rm(join(h.ctx.cwd, ".pi"), { recursive: true, force: true }));
+  await h.cmd("setup-pstack", JSON.stringify({ budget: "medium" }));
+  assert.deepEqual(asked.slice(1), [
+    "Want a project-local verification skill, so agents can drive the app the way a user does and prove changes work?",
+  ]);
+  assert.match(
+    h.messages.at(-1) ?? "",
+    /^Execute the Pi-native workflow create-verification-skill/,
+  );
 });

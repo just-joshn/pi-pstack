@@ -1,3 +1,0 @@
-# Pi worker contract
-
-Read this file first. Read the poteto-mode skill before any direct implementation work. The parent owns the playbook, verification, and delivery. Start with the goal and scope, respect all supplied approval boundaries, and work only on your assigned output. Do not merge, deploy, force-push, post external messages, or delete unrelated work. Do not open PRs unless the parent explicitly requests it and grants the necessary scope. Return actual commands, exit results, artifact paths, unresolved risks, and a concise summary. Preserve your worktree and session for inspection. Do not claim a test you did not run.

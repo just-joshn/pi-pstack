@@ -36,7 +36,10 @@ test("/pstack-create-skill starts the skill-authoring playbook with the request"
   await h.cmd("pstack-create-skill", "a release checklist");
   const prompt = nth(h.messages, 0);
   assert.match(prompt, /^Execute the Pi-native workflow pb-authoring-a-skill /);
-  assert.match(prompt, /Ordered steps[^]*\nOperator request:\na release checklist$/);
+  assert.match(
+    prompt,
+    /### Authoring or modifying a skill[^]*\nOperator request:\na release checklist$/,
+  );
 });
 
 test("/pstack-map shows the node it is given, or the nodes that match a search", async () => {
@@ -134,5 +137,5 @@ test("catalog tools expose routes, views, search results and node instructions",
       (node) => node.id === "pb-runtime-forensics",
     ),
   );
-  assert.match((await one("node", "pb-bug-fix")).instructions ?? "", /Ordered steps/);
+  assert.match((await one("node", "pb-bug-fix")).instructions ?? "", /^### Bug fix\n/);
 });

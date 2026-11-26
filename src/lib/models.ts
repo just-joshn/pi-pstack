@@ -72,11 +72,56 @@ export function parseModelConfig(config: unknown): RoleConfig {
   assertSelections(config["roles"]);
   return { defaults: config["defaults"], budget: config["budget"], roles: config["roles"] };
 }
-export function defaultConfig(): RoleConfig {
+const panel = ["claude-fable-5-2", "claude-opus-5-5", "gemini-4-neon"];
+export const upstreamDefaults: Record<Role, string[]> = {
+  "feature, refactoring": ["claude-opus-5-5"],
+  "bug-fix": ["claude-opus-5-5"],
+  "perf-issue": ["claude-opus-5-5"],
+  hillclimb: ["claude-opus-5-5"],
+  "judgment and prose": ["claude-opus-5-5"],
+  "arena runners": panel,
+  "arena cross-judge pool": ["claude-opus-5-5", "gemini-4-neon"],
+  "swarm workers": ["claude-opus-5-5"],
+  "interrogate reviewers": panel,
+};
+
+const modelId = (model: string) => model.slice(model.indexOf("/") + 1).toLowerCase();
+export function family(model: string) {
+  const id = modelId(model);
+  return (
+    ["claude-fable", "claude", "gemini"].find((f) => id.startsWith(f + "-")) ?? id.split("-")[0]
+  );
+}
+const sharedPrefix = (a: string, b: string) => {
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  return i;
+};
+
+export function resolveDefault(id: string, available: readonly string[]) {
+  const exact = available.toSorted().find((m) => modelId(m) === id);
+  if (exact) return exact;
+  return available
+    .filter((m) => family(m) === family(id))
+    .toSorted(
+      (a, b) =>
+        sharedPrefix(modelId(b), id) - sharedPrefix(modelId(a), id) ||
+        modelId(b).localeCompare(modelId(a), undefined, { numeric: true }),
+    )[0];
+}
+
+export function defaultConfig(available: readonly string[] = []): RoleConfig {
+  const resolve = (r: Role) =>
+    upstreamDefaults[r].flatMap((id) => {
+      const model = resolveDefault(id, available);
+      if (model) return [model];
+      const unresolvedSeat = r === judgeRole ? [] : ["inherit-parent"];
+      return unresolvedSeat;
+    });
   return parseModelConfig({
     defaults: 3,
     budget: "large",
-    roles: Object.fromEntries(roles.map((r) => [r, r === judgeRole ? [] : ["inherit-parent"]])),
+    roles: Object.fromEntries(roles.map((r) => [r, resolve(r)])),
   });
 }
 export function applyConfigPatch(config: RoleConfig, patch: unknown): RoleConfig {
@@ -106,14 +151,8 @@ export function vendor(model: string) {
   if (/(^|[/.-])grok|xai/.test(id)) return "xai";
   return provider;
 }
-export function crossJudge(
-  config: RoleConfig,
-  parent: string,
-  candidates: readonly string[],
-  available: ReadonlySet<string>,
-) {
-  const excluded = new Set([parent, ...candidates].map(vendor));
-  return config.roles[judgeRole].find((m) => available.has(m) && !excluded.has(vendor(m)));
+export function crossJudge(config: RoleConfig, parent: string, available: ReadonlySet<string>) {
+  return config.roles[judgeRole].find((m) => available.has(m) && vendor(m) !== vendor(parent));
 }
 export function selectPanel(config: RoleConfig, role: Role, count: number) {
   if (!Number.isInteger(count) || count < 1 || count > 8)

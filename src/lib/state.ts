@@ -49,7 +49,7 @@ const isTask = (task: unknown, i: number): task is Task =>
   typeof task["text"] === "string" &&
   isTaskStatus(task["status"]) &&
   typeof task["evidence"] === "string";
-const isPlan = (plan: unknown): plan is Plan =>
+export const isPlan = (plan: unknown): plan is Plan =>
   isRecord(plan) &&
   typeof plan["route"] === "string" &&
   typeof plan["goal"] === "string" &&
@@ -110,8 +110,29 @@ export function updateTask(plan: Plan | null, id: number, status: TaskStatus, ev
     ? { ...open, tasks, finishedEvidence }
     : { ...open, tasks };
 }
+export function addTasks(
+  plan: Plan | null,
+  steps: readonly string[] = [],
+  after = plan?.tasks.length ?? 0,
+): Plan {
+  if (!plan || plan.finishedEvidence !== undefined) throw Error("No active plan");
+  if (!steps.length || steps.some((s) => !s.trim())) throw Error("Supply the tasks to add");
+  if (!Number.isInteger(after) || after < 0 || after > plan.tasks.length)
+    throw Error("Unknown task");
+  const added = steps.map((text) => ({ text, status: "pending" as const, evidence: "" }));
+  const ordered = [...plan.tasks.slice(0, after), ...added, ...plan.tasks.slice(after)];
+  const tasks = ordered.map((t, i) => ({
+    id: i + 1,
+    text: t.text,
+    status: t.status,
+    evidence: t.evidence,
+  }));
+  return { ...plan, tasks };
+}
+const isClosed = (t: Task) => t.status === "done" || t.status === "skipped";
+export const closedTasks = (plan: Plan) => plan.tasks.filter(isClosed).length;
 export function planComplete(plan: Plan | null) {
-  return !!plan && plan.tasks.every((t) => t.status === "done" || t.status === "skipped");
+  return !!plan && plan.tasks.every(isClosed);
 }
 export const summary = (state: State) => ({
   mode: state.mode,

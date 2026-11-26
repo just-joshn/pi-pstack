@@ -5,8 +5,9 @@ import { type Static, Type } from "typebox";
 
 import { sendWorkflow } from "./catalog-ui.ts";
 import { mergeRoutes } from "./forge.ts";
-import { nativeNode, routes } from "./lib/catalog.ts";
+import { fileContext, nativeNode, routes } from "./lib/catalog.ts";
 import {
+  addTasks,
   isTaskStatus,
   planComplete,
   startPlan,
@@ -16,6 +17,7 @@ import {
   updateTask,
   wakeConfig,
 } from "./lib/state.ts";
+import { planCall, planResult } from "./plan-view.ts";
 import type { Session } from "./session.ts";
 import {
   artifacts,
@@ -29,7 +31,7 @@ import {
 } from "./support.ts";
 
 const planParameters = Type.Object({
-  action: stringEnum(["start", "custom", "show", "update", "finish"]),
+  action: stringEnum(["start", "custom", "add", "show", "update", "finish"]),
   route: Type.Optional(Type.String()),
   goal: Type.Optional(Type.String()),
   steps: Type.Optional(Type.Array(Type.String())),
@@ -130,6 +132,7 @@ async function runPlanAction(
 ) {
   const { plan, wake } = session.state();
   let instructions: string | undefined;
+  let location: string | undefined;
   switch (p.action) {
     case "show":
       return summary(session.state());
@@ -138,12 +141,17 @@ async function runPlanAction(
       const goal = p.goal ?? "";
       if (!route || !routes.includes(route)) fail("Choose a known playbook or use action custom");
       await approveMergeRoute(ctx, route, goal);
-      instructions = nativeNode("pb-" + route).instructions;
+      const playbook = nativeNode("pb-" + route);
+      instructions = playbook.instructions;
+      location = playbook.location && fileContext(playbook.location);
       session.commit(ctx, { plan: startPlan(route, goal) });
       break;
     }
     case "custom":
       session.commit(ctx, { plan: startPlan("figure-it-out", p.goal ?? "", p.steps) });
+      break;
+    case "add":
+      session.commit(ctx, { plan: addTasks(plan, p.steps, p.task) });
       break;
     case "update":
       if (p.task === undefined || !isTaskStatus(p.status)) fail("Specify task and status");
@@ -157,7 +165,7 @@ async function runPlanAction(
     default:
       unreachable(p.action);
   }
-  return { state: summary(session.state()), instructions };
+  return { state: summary(session.state()), location, instructions };
 }
 
 function registerPlanTools(pi: ExtensionAPI, session: Session) {
@@ -165,24 +173,34 @@ function registerPlanTools(pi: ExtensionAPI, session: Session) {
     name: "pstack_plan",
     label: "Pstack plan",
     description:
-      "Maintain branch-local plan. Start with a route and goal or custom steps for figure-it-out. Mark tasks with real evidence. Finish only when all are done or justified skips.",
+      "Maintain branch-local plan. Start with a route and goal or custom steps for figure-it-out. Add tasks (steps) to the open plan, after task `task` or at the end. Mark tasks with real evidence. Finish only when all are done or justified skips.",
     executionMode: "sequential",
     parameters: planParameters,
     async execute(_id, p, _signal, _update, ctx) {
-      return result(await runPlanAction(session, ctx, p));
+      const outcome = await runPlanAction(session, ctx, p);
+      return { ...result(outcome), details: session.state().plan };
     },
+    renderCall: (args, theme) => planCall(args, theme),
+    renderResult: (output, _options, theme, context) => planResult(output, context.isError, theme),
   });
   pi.registerTool({
     name: "pstack_wake",
     label: "Pstack wake status",
     description:
-      "Inspect or stop an operator-started wake loop. Starting requires the explicit /pstack-loop command.",
+      "Start, show or stop the wake loop. A started loop wakes this session every `seconds` (5 to 86400), up to `max` times (1 to 100), to check `predicate`; stop it with evidence when the predicate holds or is blocked. Wakes need an open interactive session.",
     executionMode: "sequential",
     parameters: Type.Object({
-      action: stringEnum(["show", "stop"]),
+      action: stringEnum(["start", "show", "stop"]),
+      seconds: Type.Optional(Type.Integer()),
+      max: Type.Optional(Type.Integer()),
+      predicate: Type.Optional(Type.String()),
       evidence: Type.Optional(Type.String()),
     }),
     async execute(_id, p, _signal, _update, ctx) {
+      if (p.action === "start") {
+        if (ctx.mode !== "tui") fail("Wake loops require an open interactive Pi session.");
+        session.startWake(ctx, wakeConfig(p.seconds ?? 0, p.max ?? 0, p.predicate ?? ""));
+      }
       if (p.action === "stop") {
         if (!p.evidence?.trim()) fail("Provide stop evidence or blocker");
         session.stopWake(ctx, p.evidence);

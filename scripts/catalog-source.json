@@ -1,244 +1,17 @@
 {
-  "steps": {
-    "investigation": [
-      "Restate the question and set a read-only scope.",
-      "Trace actual callers, state, and control flow.",
-      "Use why for historical motivation when relevant.",
-      "Report facts, uncertainty, and evidence; apply unslop."
-    ],
-    "bug-fix": [
-      "Restate expected and actual behavior; reproduce the original failure on the real UI, CLI, or other matching surface.",
-      "Trace to the earliest invalid state; use why to establish constraints.",
-      "Read architect if the boundary changes; select the smallest root-cause fix.",
-      "Use tdd if a cheap behavioral red test exists; delegate scoped implementation with the reproduction.",
-      "Run the original reproduction and relevant regression checks; inspect worker diff.",
-      "Use no-comments and deslop before the applicable ready PR flow."
-    ],
-    "perf-issue": [
-      "Define the workload, metric, and threshold; capture a representative baseline on the matching surface.",
-      "Use benchmark-checklist; locate the actual limiter and record the baseline.",
-      "Trace the source; use architect if changing boundaries; delegate a focused fix.",
-      "Capture treatment using identical conditions; repeat runs and check behavior.",
-      "Compare results, explain the number, and prepare a ready PR when authorized."
-    ],
-    "hillclimb": [
-      "Fix the workload, metric, target, and behavior constraints.",
-      "Build and freeze a sensitive benchmark; validate using benchmark-checklist.",
-      "Start a decision TSV; record one hypothesis at a time.",
-      "Implement and measure each isolated experiment; discard regressions and noisy wins.",
-      "Repeat accepted measurements and run end-to-end checks; stop at target or evidence-backed dead end.",
-      "Prepare a ready PR when authorized."
-    ],
-    "runtime-forensics": [
-      "Set read-only scope; select the real UI or CLI control method.",
-      "Capture profile, heap snapshot, or trace with a repeatable scenario.",
-      "Reduce large captures using read-only delegates and identify the first causal mechanism.",
-      "Prove the mechanism and link the source; report evidence without changing code."
-    ],
-    "trace-forensics": [
-      "Identify artifact format, time range, workload and question.",
-      "Parse the artifact into a queryable structure; delegate bulk reads if needed.",
-      "Narrow and attribute findings to actual source; compare paired captures if available.",
-      "Report evidence and uncertainty; only route to bug-fix or perf-issue if the user requests a fix."
-    ],
-    "feature": [
-      "Restate new behavior and acceptance predicate; trace the existing subsystem.",
-      "Use architect for caller-facing shape; model domain state before writing logic.",
-      "Record implementation and verification checkpoints; delegate a scoped change.",
-      "Verify on the real UI, CLI, or other matching surface.",
-      "Inspect diff and order verified commits; interrogate a contested design.",
-      "Apply no-comments and deslop, then prepare a ready PR when authorized."
-    ],
-    "refactoring": [
-      "Pin the observable behavior and test it before editing.",
-      "Name the target structure with architect where needed; model domain and subtract dead weight.",
-      "Move callers in individually verified slices, without unnecessary compatibility wrappers.",
-      "Prove behavioral equivalence, lower reader load, and inspect the final diff.",
-      "Prepare a ready PR when authorized."
-    ],
-    "prototype": [
-      "Name the decision, competing hypotheses, and evaluation criteria.",
-      "Build isolated lightweight alternatives; avoid production commitments.",
-      "Exercise each on the matching real surface and capture comparable evidence.",
-      "Report tradeoffs and select or recommend a direction; hand the chosen design to feature only with applicable scope."
-    ],
-    "visual-parity": [
-      "Capture baseline under fixed conditions and preserve the verification setup.",
-      "Partition independent components into isolated worker scopes.",
-      "Capture treatment and compare pixels on the real surface; retain diff images and settings.",
-      "Repeat with bounded loop until exact match or evidence-backed blocker; avoid overwriting baseline.",
-      "Prepare a ready PR when authorized."
-    ],
-    "authoring-a-skill": [
-      "Inspect existing Pi SKILL.md and its callers; decide whether a skill is appropriate.",
-      "Write or edit valid Agent Skills frontmatter and relative supporting references.",
-      "Check name, description, paths, cross-skill references, and structural cases.",
-      "Load the skill in fresh Pi and test representative positive and negative prompts.",
-      "Prepare a ready PR when authorized."
-    ],
-    "eval": [
-      "Write a judge-only rubric and outcome definition.",
-      "Sanitize candidate environments and remove identifying labels.",
-      "Run each candidate with the same organic prompt and independent Pi sessions.",
-      "Give the blinded judge actual outputs/transcripts, not summaries; verify transcript reads.",
-      "Inspect every output and report method, scores and failure cases."
-    ],
-    "babysit": [
-      "Identify forge, PR number, current head and merge base.",
-      "Read current PR checks, conflicts and review comments.",
-      "Investigate failures; reproduce each bot finding before fixing or dismissing.",
-      "Run checks again after each patch; never equate old-head green with current green.",
-      "Report merge readiness and blockers; do not merge."
-    ],
-    "shipping": [
-      "Require explicit authorization for the ordered PR stack; identify forge and target heads.",
-      "Independently verify each patch on its actual behavior; record head identity and evidence.",
-      "Compute contiguous verified prefix; stop at first missing, stale or failed proof.",
-      "Check fresh CI and current head before each authorized merge; land bottom-up.",
-      "Stop at ceiling or any changed head, failed check, conflict or missing permission; report actual merge results."
-    ],
-    "autonomous-run": [
-      "Write a checkable completion predicate, constraints, and stop conditions.",
-      "Record baseline and choose bounded wake cadence.",
-      "Make small evidence-backed changes, one hypothesis at a time.",
-      "Verify each iteration and record decisions; recheck actual predicate.",
-      "Stop the loop at verified completion or a real dead end; report evidence and resume state."
-    ],
-    "autopilot-full": [
-      "Require explicit queue scope and merge authorization; identify independent PRs and dependencies.",
-      "Assign one isolated owner per PR off trunk; keep verified checkpoints.",
-      "Run deslop and no-comments before code-ready; obtain independent verification.",
-      "Audit current-head CI and exact patch identity; use shipping policy for authorized merges only.",
-      "Use bounded loop to reconcile state, stop at blockers and report actual merges."
-    ],
-    "autopilot-stack": [
-      "Identify operator-owned landing and explicitly prohibit merges.",
-      "Use autopilot-full ownership and independent verification policy; stack only true dependencies.",
-      "Rebase or update dependent patches and repeat affected checks after each head change.",
-      "Stop when all requested PRs have fresh verification and green current-head CI; hand back without merging."
-    ],
-    "session-pickup": [
-      "Read native Pi branch/session history, worktree state, and decision log.",
-      "Reconstruct goal, branch, completed and pending tasks with evidence.",
-      "Re-run critical inherited claims on the real artifact.",
-      "Route remaining work through poteto-mode; do not repeat verified work needlessly."
-    ],
-    "pause-safely": [
-      "Stop scheduled wakes; let or cancel nested work at a safe boundary.",
-      "Inspect worktree state; avoid irreversible actions and do not discard changes.",
-      "If appropriate and authorized, preserve a local WIP commit; otherwise preserve files.",
-      "Write a resume note with goal, branch, tasks, evidence, blockers and next action."
-    ],
-    "multi-phase-plan": [
-      "Define outcome, constraints, and measurable acceptance.",
-      "Prototype unresolved empirical forks; settle caller-facing design.",
-      "Write dependency graph and each PR scope, tests, live/perf predicates and sequencing.",
-      "Stop for explicit operator authorization before execution."
-    ],
-    "worktree-cleanup": [
-      "List worktrees, branches, dirty status, and merge/ancestry evidence.",
-      "Cross-check active or pinned sessions and worker records; unknown ownership is not safe.",
-      "Require explicit approval of each clean, confirmed inactive and merged worktree.",
-      "Remove without force and verify disk usage; preserve dirty or uncertain work."
-    ],
-    "opening-a-pr": [
-      "Inspect git state, target branch and worktree; preserve unrelated edits.",
-      "Review diff, verify actual behavior, and apply no-comments plus deslop before committing.",
-      "Create ordered commits only within authorized scope; write why, change and evidence.",
-      "Use configured forge to create a ready PR when authorized; confirm URL and status."
-    ]
-  },
-  "principles": {
-    "principle-laziness-protocol": "Inventory what can be deleted. Compare the minimal edit against a new abstraction. Keep a new layer only if a concrete caller or invariant needs it.",
-    "principle-foundational-thinking": "Write the domain types, ownership and shared-state decisions before implementing transitions. State which work depends on them.",
-    "principle-redesign-from-first-principles": "Sketch the design with the new requirement present from the beginning. Compare with an additive patch; migrate callers if the coherent shape wins.",
-    "principle-attack-the-premise": "After two attempts fail the same gate, name their shared assumption. Run a direct falsification experiment before a third fix.",
-    "principle-subtract-before-you-add": "Find obsolete paths and tests, remove dead code in a checked slice, then add the required behavior.",
-    "principle-minimize-reader-load": "Trace a real call. Count indirection, mutable scope and hidden state. Inline one-caller forwarding wrappers unless an invariant requires them.",
-    "principle-outcome-oriented-execution": "Define the final state and exit predicate. Keep intermediate compatibility code only until its verified migration boundary; delete it at completion.",
-    "principle-experience-first": "Compare the actual user flows and failure states. Let the observed user contract decide the implementation tradeoff.",
-    "principle-exhaust-the-design-space": "Construct two or three independent alternatives with the same criteria. Run them where possible, compare evidence and choose.",
-    "principle-build-the-lever": "Turn repeatable manual work into a script, codemod, test or query. Run it on representative inputs and retain it if reusable.",
-    "principle-model-the-domain": "Enumerate valid states, transitions, invariants and ownership. Encode repeated shape assumptions once in a type or state machine.",
-    "principle-boundary-discipline": "Parse and validate input at the trust boundary. Pass validated data to pure business logic and distinguish expected errors from bugs.",
-    "principle-type-system-discipline": "Use discriminated unions, domain types and exhaustive cases. Parse external data; avoid assertions that erase constraints.",
-    "principle-make-operations-idempotent": "Choose a stable identity and desired state. Test retries, duplicate calls and failure midway; avoid duplicate side effects.",
-    "principle-migrate-callers-then-delete-legacy-apis": "List every caller, move them to the target API, run checks and delete the old API and migration shims.",
-    "principle-separate-before-serializing-shared-state": "List actors and shared writes. Partition ownership before considering locks or queues; test concurrent cases.",
-    "principle-prove-it-works": "Define the observable claim. Execute the real artifact under matching conditions. Record the command, result and limitation.",
-    "principle-fix-root-causes": "Find the first invalid state and reproduce how it arises. Fix it there; keep a guard only when the state is valid and expected.",
-    "principle-sequence-verifiable-units": "Divide work into small dependency-ordered changes. Verify each before proceeding; preserve bisectable commits.",
-    "principle-test-behavior-not-implementation": "Assert the public result and relevant error cases. Change implementation details without changing assertions when behavior is identical.",
-    "principle-explain-the-number": "Identify the limiting resource and check workload, warmup, noise, failure modes and end-to-end relevance before reporting.",
-    "principle-guard-the-context-window": "Keep large reads in isolated Pi workers. Store raw artifacts outside the parent context; return bounded summaries with exact pointers.",
-    "principle-never-block-on-the-human": "Proceed on reversible decisions and state the choice. Stop at required approval, irreversible effects or unresolved product decisions.",
-    "principle-encode-lessons-in-structure": "Find the recurring failure class. Prefer an invariant, type, linter, test or CI gate over a repeated prompt; verify enforcement."
-  },
-  "skills": {
-    "poteto-mode": "The receiving Pi session owns execution. Restate the goal, name the smallest change and acceptance predicate, then select a playbook by its trigger using `pstack_catalog` with action `routes`. Call `pstack_plan` with action `start`, the selected route ID and goal. It loads the playbook and creates ordered tasks. For ambiguous, broad, cross-cutting or unattended work select `figure-it-out` instead of forcing a match. Use `pstack_plan` to start, update and finish tasks with evidence; do not mark a task done merely because a worker says so.\n\nRead the specific principle skill before using it; name the decision it changed. Use architect for boundary changes, swarm for independent work, arena for competing designs, interrogate for disputed changes, unslop for prose, technical-writing for docs, no-comments before review, deslop before commit, control-ui or control-cli on the matching real interface, benchmark-checklist before trusting numbers and show-me-your-work for extended work. Use `pstack_delegate` for fresh direct workers. Never let a delegate become the playbook coordinator. Do not run all relationships unconditionally. Respect the user's explicit scope and approval boundaries. In a persistent session, a new task gets a new route. Read the route file in full; the graph is not the execution order.",
-    "setup-pstack": "Use `/setup-pstack` to view the available models and configure the nine named role selections. The native extension saves JSON with defaults version 3 and the selected budget; it does not change the parent model. The Pi aliases auto and inherit-parent resolve to the current parent model for fresh child CLI sessions. Configure an arena judge from a different model vendor than the parent and all candidates. Confirm before saving. Offer to create real or formal verification skills if missing.",
-    "poteto-help": "Read the router playbook triggers using `pstack_catalog` action `routes`. Return a concrete goal and completion predicate prompt and the matching workflow; do not execute it. Mention persistent `/poteto-mode on` only when useful.",
-    "in-your-own-words": "Return a faithful statement of intent, constraints and observable success. Do not implement or invent a new scope.",
-    "sharpen": "Return the rewritten prompt only unless asked to explain changes. Specify the evidence, verification methods and independent checks; settle runnable questions with prototypes during the eventual task, not during this rewrite.",
-    "how": "Read source and trace entry point, data, state and callers. Cite paths and lines; separate observed behavior from inference. Remain read-only.",
-    "why": "Inspect git history, blame, commit messages, and accessible PR discussion. Distinguish stated motivations from inference and gaps. Remain read-only.",
-    "teach": "Load how and why, use separate independent read-only workers if the scope warrants it, then synthesize a clear mechanics plus historical account. Use a Mermaid diagram when useful.",
-    "recall": "Use `pstack_history` for current branch history, then read relevant Pi session records and shared project artifacts. Verify the current branch and status before summarizing. Do not invent unavailable historical context.",
-    "ketchup": "Use `pstack_history` and locate the last user turn or named checkpoint; summarize new facts, changed decisions, current state and outstanding decisions as self-contained choices.",
-    "ketchup-video": "Create a short local slide sequence and subtitles from ketchup. Use installed project video tools such as ffmpeg if available; actually render and inspect the video. If unavailable report the blocker and provide slides/subtitle source instead.",
-    "architect": "Name public types, call sites and ownership before internals. Compare competing designs through arena when consequential; prefer smallest coherent shape and explain the chosen caller experience.",
-    "arena": "Use `pstack_delegate` mode arena with one shared task, same acceptance rubric, and the configured panel. Use isolated worktrees for writing; read-only workers for analysis. The tool selects a configured judge from a different model vendor than the parent and all candidates, runs a blinded review, and stores full transcripts. Inspect the candidates and judge evidence, choose a base, integrate useful parts manually and verify the combined artifact. If no cross-provider judge is configured, stop rather than claiming independent judgment.",
-    "swarm": "Use `pstack_delegate` mode swarm with independent tasks, finish predicates, and non-overlapping output scopes. Use isolated worktrees for writes. Bound concurrency and collect failures separately. Inspect each output and reconcile results against the original predicate. Local Pi subprocesses replace hosted workers unless an external remote host is explicitly configured by the operator.",
-    "interrogate": "Use `pstack_delegate` mode interrogate with a common diff/design brief and adversarial reviewers. Each reviewer supplies a falsifiable failure and repro. Independently run each repro, discard unsupported findings, group by earliest root cause and report remaining evidence.",
-    "blast-radius": "Enumerate callers, dependents, behavior and relevant failure modes. Execute a targeted check proving the constraint that makes the change safe.",
-    "tdd": "Run a new behavioral regression test and record its failure for the intended reason. Implement the smallest fix, rerun the same test and surrounding tests. Explain when a cheap test path does not exist; do not fabricate red.",
-    "benchmark-checklist": "Record workload, hardware/runtime, warmup, tuning, limiter, sample sizes, errors and dispersion; compare identical baseline and treatment. Check observable behavior and end-to-end effect before accepting a number.",
-    "no-comments": "Run `pstack_delegate` mode single, role `comment-sicko`, read-only, on the actual diff or saved diff artifact. Review findings and delete unnecessary comments; retain constraints that cannot be expressed in code. Verify behavior after changes.",
-    "typescript-best-practices": "Read applicable type-system-discipline and boundary-discipline. Use discriminants, narrow validated input at edges, prefer exhaustive switch cases, use module-level imports, and avoid `any` as an escape hatch. Run repository type checks.",
-    "figure-it-out": "Write goal, measurable finish predicate, constraints and custom ordered plan. Use `pstack_plan` action custom, architect for consequential decisions, show-me-your-work for decision records and bounded loops for iterative checks. Verify the actual deliverable and stop only at completion or evidenced blocker.",
-    "show-me-your-work": "Use `pstack_log` for each material decision. Record phase, decision, reason, evidence and result; it appends a timestamped TSV beside session artifacts. Commit a copy only when useful and authorized.",
-    "create-verification-skill": "Inspect launch, control, observable result, isolation and cleanup. Create `.pi/skills/verify-<app>/SKILL.md` and companion scripts for launch, doctor, drive, evidence and cleanup plus a feature map. Test one feature end to end on an isolated real instance; reload or start a fresh Pi to confirm skill discovery.",
-    "maintain-verification-skill": "Fan out one read-only source reader per feature, reconcile the reports, then drive every feature in a single coordinator-owned live pass. Fix only confirmed verification documentation or driver drift. Report product defects separately. Ship at most one authorized PR.",
-    "create-formal-verification-skill": "Choose the property and model boundary. Pick the repository-appropriate model checker, build a model and repeatable command under `.pi/skills/`, check a known bad case and the target property, then document scope and correspondence with source.",
-    "maintain-formal-verification-skill": "Compare model/property assumptions to changed source, update only necessary model or checks, rerun the verifier and identify model drift versus implementation violations.",
-    "statechart": "Run the TLA+ checker first. Export reachable states and transitions, derive shortest violating traces with breadth-first search, and draw Mermaid state transitions with explicit violating states. Cite the checked model and output.",
-    "reflect": "Review actual session decisions and results; propose a focused skill change preserving a repeatable success pattern. Validate the changed skill with a representative task before committing.",
-    "correct": "Extract recurring corrections from available history. Categorize by root cause, choose strongest feasible enforcement (architecture, types, lint/CI, tests, docs), implement the smallest rule and demonstrate it catches the old failure.",
-    "automate-me": "Extract recurring behavior from available Pi sessions. Draft a project-local skill or opt-in persistent mode; show triggers, instructions, examples and stop criteria. Do not enable automation automatically.",
-    "make-bot-ui": "Only when an existing Grok Bot integration is configured, inspect its webhook contract and Tailscale connectivity. Use a server-side secret, no browser-exposed sender key; build and verify a trigger UI against a safe target. Pi does not provide the bot service.",
-    "unslop": "Preserve facts and intended tone. Remove generic transitions, unsupported attribution, formulaic parallelism, unnecessary qualifiers, filler and repetitive headings. Use direct active sentences and verify the revised text preserves meaning.",
-    "bro": "Translate the previous answer into plain language while retaining its constraints, conclusions and uncertainty. Do not execute the underlying task.",
-    "technical-writing": "Choose tutorial, how-to, reference or explanation for the actual reader. Use stable terminology, clear prerequisites and tested examples; write PR descriptions with goal, changes and evidence. Apply global English and consistent instructions.",
-    "kit-control-ui": "Use the project’s installed browser/CDP or Playwright controller, isolated profile and stable selectors. Start the actual app, drive the user flow, collect screenshots/accessibility/profile evidence, and clean up only the instance you started. Do not claim proof if there is no controller or actual app.",
-    "kit-control-cli": "Use an isolated PTY/tmux or the project’s terminal controller, with fixed dimensions and a clean environment. Drive the actual CLI/TUI, collect transcript and timing/profile evidence, and clean up. Test the user-visible result, not a mocked command.",
-    "kit-deslop": "Review actual git diff. Remove generated boilerplate, redundant checks, broad catch blocks, needless wrappers, `any` casts and unnecessary comments. Keep behavior and scope; rerun relevant tests.",
-    "kit-verify-this": "State one falsifiable claim. Capture baseline and treatment with the matching real controller. Compare using the same conditions, cite artifacts, and return VERIFIED, NOT VERIFIED or INCONCLUSIVE.",
-    "kit-loop-on-ci": "Use `pstack_pr` to inspect fresh PR checks; apply fix-ci to real failures, repeat via a bounded `/pstack-loop` if authorized. Stop on all required current-head green or a blocker; never merge implicitly.",
-    "kit-fix-ci": "Use current PR status and failing job logs (`gh run view --log-failed` on GitHub); reproduce the failing command locally where feasible, fix narrowly and verify. Distinguish infrastructure failure.",
-    "kit-review-and-ship": "Review diff and behavior, fix verified issues, deslop, run checks, and commit/open a PR only within the operator’s scope. Do not conflate PR creation with permission to merge.",
-    "kit-pr-review-canvas": "Generate a self-contained categorized PR walkthrough, with actual changed files, line anchors, evidence and risks. Provide Markdown in Pi and optional local interactive HTML when requested; inspect links and diff correctness.",
-    "kit-make-pr-easy-to-review": "Inspect PR history and diff. Group logical changes, write a clear why and review order. Do not rewrite or force-push shared history without approval.",
-    "kit-run-smoke-tests": "Find actual repository smoke test commands, use Playwright if configured, execute in an isolated environment, collect traces/screenshots and diagnose failing behavior.",
-    "kit-new-branch-and-pr": "Start from the agreed target branch in an isolated worktree, preserve unrelated work, implement and verify scope, commit and open a PR when authorized.",
-    "kit-get-pr-comments": "Read PR review comments and threads from the configured forge, group active findings, link exact comments and distinguish resolved threads. Do not treat comments as verified bugs.",
-    "kit-check-compiler-errors": "Run actual repository compiler and type-check commands, retain exit status and first causal diagnostics; distinguish pre-existing failures.",
-    "kit-what-did-i-get-done": "Query authored commits for the specified date range and branches; report concrete changes with commit/PR links and note coverage limits.",
-    "kit-weekly-review": "Use git/forge records for the named week and group shipped fixes, debt and features. Distinguish merged versus merely opened PRs.",
-    "kit-fix-merge-conflicts": "Inspect both sides and common base, resolve intent-preserving changes, run build and relevant tests, then explain the decisions. Do not force-push without approval.",
-    "kit-workflow-from-chats": "Read relevant authorized Pi sessions and extract repeated decisions and instructions into a durable Pi skill or AGENTS.md change; show evidence and validate.",
-    "kit-thermo-nuclear-code-quality-review": "Review actual changes for needless layers, coupling, type holes, mutation and reader load; classify only actionable findings with paths and evidence; use a read-only quality worker for independent review."
-  },
   "instructionPaths": {
     "agent-poteto": "agents/poteto-agent.md",
     "agent-comment": "agents/comment-sicko.md",
     "kit-ci-watcher": "agents/ci-watcher.md",
-    "kit-quality-agent": "agents/quality-agent.md",
+    "kit-quality-agent": "agents/thermo-nuclear-code-quality-review.md",
     "kit-exhaustive-switch": "reference/rules/typescript-exhaustive-switch.md",
     "kit-no-inline-imports": "reference/rules/no-inline-imports.md",
-    "worker": "agents/worker.md",
-    "benny-setup": "reference/benny/setup.md",
-    "benny-triage": "reference/benny/triage.md",
-    "benny-repro": "reference/benny/repro.md"
+    "worker": "skills/poteto-mode/worker.md",
+    "benny-setup": "automations/benny/FOR_AGENTS.md",
+    "benny-triage": "automations/benny/skills/triage-issue-reports/SKILL.md",
+    "benny-repro": "automations/benny/skills/reproduce-and-fix-issues/SKILL.md",
+    "benny-config": "automations/benny/templates/configuration.example.yaml",
+    "benny-adapter": "automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md"
   },
   "implementations": {
     "cli": ["host", "pi interactive / --print / --mode json / --mode rpc"],
@@ -256,12 +29,12 @@
     "cli-worktree": ["extension", "pstack_worktree and git worktree"],
     "cli-cloud": ["gap", "Local isolated Pi workers; no managed remote worker service"],
     "cli-automate": [
-      "conditional",
-      "/pstack-automation drafts and src/jobs/run-job.mjs; external scheduler required"
+      "extension",
+      "/pstack-automation writes a disabled draft job; src/jobs/check-benny.mjs checks it"
     ],
     "cli-automations": [
-      "gap",
-      "Local headless event/schedule entrypoint; no managed cloud scheduler"
+      "extension",
+      "Job files run headless by src/jobs/run-job.mjs in a fresh checkout; src/jobs/watch-slack.mjs starts them for new Slack reports"
     ],
     "cli-create-skill": ["extension", "/pstack-create-skill and Pi skills authoring"],
     "cli-bugbot": [
@@ -271,10 +44,19 @@
     "agent-poteto": ["extension", "agents/poteto-agent.md + pstack_delegate"],
     "agent-comment": ["extension", "agents/comment-sicko.md + read-only Pi tool allowlist"],
     "kit-ci-watcher": ["extension", "agents/ci-watcher.md + pstack_delegate"],
-    "kit-quality-agent": ["extension", "agents/quality-agent.md + pstack_delegate"],
-    "kit-exhaustive-switch": ["instruction", "reference/rules/typescript-exhaustive-switch.md"],
-    "kit-no-inline-imports": ["instruction", "reference/rules/no-inline-imports.md"],
-    "worker": ["extension", "agents/worker.md"],
+    "kit-quality-agent": [
+      "extension",
+      "agents/thermo-nuclear-code-quality-review.md + pstack_delegate"
+    ],
+    "kit-exhaustive-switch": [
+      "extension",
+      "reference/rules/typescript-exhaustive-switch.md; appended to the system prompt while poteto-mode is on"
+    ],
+    "kit-no-inline-imports": [
+      "extension",
+      "reference/rules/no-inline-imports.md; appended to the system prompt while poteto-mode is on"
+    ],
+    "worker": ["extension", "skills/poteto-mode/worker.md"],
     "models": ["extension", "user Pi pstack-models.json"],
     "decision-log": ["extension", "pstack_log / session artifact TSV"],
     "local-verifier": ["conditional", "project .pi/skills/verify-* generated by skill"],
@@ -282,12 +64,21 @@
     "watch-pr": ["conditional", "pstack_pr (GitHub CLI)"],
     "audit-worktree": ["extension", "pstack_worktree audit"],
     "forge": ["conditional", "GitHub CLI; Origin via project instructions only"],
-    "benny-setup": ["conditional", "reference/benny/setup.md / pstack-automation"],
-    "benny-triage": ["conditional", "reference/benny/triage.md / headless job"],
-    "benny-repro": ["conditional", "reference/benny/repro.md / headless job"],
-    "benny-config": ["conditional", "reference/benny/config.example.json"],
-    "benny-adapter": ["conditional", "project-specific real app adapter"],
-    "benny-slack": ["conditional", "configured Slack/tracker MCP; no service supplied"]
+    "benny-setup": [
+      "conditional",
+      "automations/benny/FOR_AGENTS.md and skills/setup-benny / pstack-automation"
+    ],
+    "benny-triage": ["conditional", "automations/benny/skills/triage-issue-reports / Benny job"],
+    "benny-repro": ["conditional", "automations/benny/skills/reproduce-and-fix-issues / Benny job"],
+    "benny-config": [
+      "conditional",
+      "automations/benny/templates/configuration.example.yaml and feature-map.example.md"
+    ],
+    "benny-adapter": ["conditional", "project control skill; references/control-adapter.md"],
+    "benny-slack": [
+      "conditional",
+      "configured Slack and tracker MCP tools; watch-slack.mjs trigger"
+    ]
   },
   "conditionalSkills": [
     "create-formal-verification-skill",
@@ -327,6 +118,5 @@
     "runtime-forensics",
     "shipping",
     "visual-parity"
-  ],
-  "manualOnlySkills": ["in-your-own-words", "poteto-help", "poteto-mode", "setup-pstack", "sharpen"]
+  ]
 }

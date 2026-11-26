@@ -91,6 +91,8 @@
     "**/node_modules/**",
     "**/dist/**",
     "**/build/**",
-    "**/coverage/**"
+    "**/coverage/**",
+    "src/skills/*/scripts/**",
+    "src/skills/pr-review-canvas/**"
   ]
 }

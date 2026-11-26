@@ -38,7 +38,7 @@ test("a custom automation draft asks for explicit instructions and carries no Be
     instructions: "Supply explicit task, approved tools, trigger and finish predicate.",
   });
   assert.deepEqual(h.notifications, [
-    `Disabled draft: ${path}. No scheduler or service was enabled.`,
+    `Disabled draft: ${path}. No job was enabled and no watcher was started.`,
   ]);
   assert.equal(h.executions.length, 0);
 });
@@ -84,17 +84,35 @@ test("the decision log escapes tabs into one TSV row", async () => {
   assert((await readFile(path, "utf8")).includes("test\ta b\twhy\tproof\tgreen"));
 });
 
-test("an automation draft is written disabled and runs nothing", async () => {
+test("a Benny draft is upstream's prompt template in a disabled job, and runs nothing", async () => {
   const h = host();
+  await h.cmd("pstack-automation", "benny-repro");
+  const draft = shaped<{
+    enabled: boolean;
+    name: string;
+    instructions: string;
+    tools: string[];
+    config: { sourceChannel: string; defaultBranch: string };
+  }>(JSON.parse(await readFile(join(h.artifacts, "benny-repro.job.json"), "utf8")));
+  assert.equal(draft.enabled, false);
+  assert.equal(draft.name, "benny-reproduce");
+  assert.deepEqual(draft.config, { sourceChannel: "", defaultBranch: "" });
+  assert(draft.tools.includes("edit") && draft.tools.includes("pstack_delegate"));
+  const template = await readFile(
+    join(srcDir, "automations/benny/templates/reproduce-automation-prompt.md"),
+    "utf8",
+  );
+  assert(
+    draft.instructions.startsWith(
+      "Read and follow `.pi/automations/benny/skills/reproduce-and-fix-issues/SKILL.md`",
+    ),
+  );
+  assert(template.includes(draft.instructions));
+  assert(draft.instructions.includes("{{SLACK_MESSAGE_TS}}"));
+  assert.equal(h.executions.length, 0);
   await h.cmd("pstack-automation", "benny-triage");
-  const draft = shaped<{ enabled: boolean; instructions: string; config: { enabled: boolean } }>(
+  const triage = shaped<{ tools: string[] }>(
     JSON.parse(await readFile(join(h.artifacts, "benny-triage.job.json"), "utf8")),
   );
-  assert.equal(draft.enabled, false);
-  assert.equal(draft.config.enabled, false);
-  assert.equal(
-    draft.instructions,
-    await readFile(join(srcDir, "reference/benny/triage.md"), "utf8"),
-  );
-  assert.equal(h.executions.length, 0);
+  assert(!triage.tools.includes("edit"));
 });

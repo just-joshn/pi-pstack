@@ -1,41 +1,40 @@
+import { join } from "node:path";
+
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-import { packageFile, routeTriggers } from "./lib/catalog.ts";
+import { fileContext, packageFile, srcDir } from "./lib/catalog.ts";
 import {
   activePlan,
+  closedTasks,
   initialState,
   restore,
   type State,
   stateType,
   stopped,
-  type TaskStatus,
   type Wake,
 } from "./lib/state.ts";
 
-const markers: Record<TaskStatus, string> = {
-  pending: "[ ]",
-  active: "[>]",
-  done: "[x]",
-  blocked: "[!]",
-  skipped: "[-]",
-};
-
 function statusLine({ mode, plan, wake }: State) {
   if (!mode && !plan && !wake?.running) return undefined;
-  const closed = plan?.tasks.filter((t) => t.status === "done" || t.status === "skipped").length;
-  const progress = plan ? ` | ${plan.route} ${closed}/${plan.tasks.length}` : "";
+  const progress = plan ? ` | ${plan.route} ${closedTasks(plan)}/${plan.tasks.length}` : "";
   return `pstack ${mode ? "on" : "off"}${progress}${wake?.running ? " | loop" : ""}`;
 }
+
+const routerPath = "skills/poteto-mode/SKILL.md";
+
+const teamKitRules = [
+  "Team Kit rules:",
+  packageFile("reference/rules/no-inline-imports.md"),
+  packageFile("reference/rules/typescript-exhaustive-switch.md"),
+].join("\n\n");
 
 function systemPromptAdditions(state: State) {
   const plan = activePlan(state);
   return [
     ...(state.mode
       ? [
-          packageFile("skills/poteto-mode/SKILL.md"),
-          `Native playbook triggers:\n${routeTriggers()
-            .map((r) => `${r.id}: ${r.when}`)
-            .join("\n")}`,
+          teamKitRules,
+          `Persistent poteto-mode. ${fileContext(join(srcDir, routerPath))}\n\n${packageFile(routerPath)}`,
         ]
       : []),
     ...(state.goal ? [`Persistent operator goal: ${state.goal}`] : []),
@@ -71,10 +70,6 @@ function createStore(pi: ExtensionAPI) {
   function refresh(ctx: ExtensionContext) {
     if (!ctx.hasUI) return;
     ctx.ui.setStatus("pstack", statusLine(state));
-    ctx.ui.setWidget(
-      "pstack",
-      state.plan?.tasks.map((t) => `${markers[t.status]} ${t.id}. ${t.text}`),
-    );
   }
   return {
     state: () => state,

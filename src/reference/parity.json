@@ -1,6 +1,6 @@
 {
   "generatedBy": "scripts/generate.py",
-  "sourceVersion": "pstack 0.15.46 \u00b7 Team Kit 1.2.0",
+  "sourceVersion": "pstack 0.15.48 \u00b7 Team Kit 1.2.0",
   "statusDefinitions": {
     "extension": "Executable Pi extension integration; live verification pending",
     "instruction": "Native skill or playbook; model-mediated, not deterministic",
@@ -17,7 +17,7 @@
       "implementation": "skills/setup-pstack/SKILL.md; /setup-pstack",
       "invocation": "/skill:setup-pstack",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/setup-pstack/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/setup-pstack/SKILL.md"
       ]
     },
     {
@@ -27,8 +27,8 @@
       "implementation": "skills/poteto-mode/SKILL.md; /poteto-mode",
       "invocation": "/skill:poteto-mode",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -38,7 +38,7 @@
       "implementation": "skills/poteto-help/SKILL.md; /poteto-help",
       "invocation": "/skill:poteto-help",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-help/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-help/SKILL.md"
       ]
     },
     {
@@ -48,7 +48,7 @@
       "implementation": "skills/in-your-own-words/SKILL.md; /in-your-own-words",
       "invocation": "/skill:in-your-own-words",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/in-your-own-words/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/in-your-own-words/SKILL.md"
       ]
     },
     {
@@ -58,7 +58,17 @@
       "implementation": "skills/sharpen/SKILL.md; /sharpen",
       "invocation": "/skill:sharpen",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/sharpen/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/sharpen/SKILL.md"
+      ]
+    },
+    {
+      "id": "reframe",
+      "kind": "public",
+      "status": "instruction",
+      "implementation": "skills/reframe/SKILL.md; /reframe",
+      "invocation": "/skill:reframe",
+      "source": [
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/reframe/SKILL.md"
       ]
     },
     {
@@ -68,7 +78,7 @@
       "implementation": "skills/how/SKILL.md; /how",
       "invocation": "/skill:how",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/how/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/how/SKILL.md"
       ]
     },
     {
@@ -78,7 +88,7 @@
       "implementation": "skills/why/SKILL.md; /why",
       "invocation": "/skill:why",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/why/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/why/SKILL.md"
       ]
     },
     {
@@ -88,7 +98,7 @@
       "implementation": "skills/teach/SKILL.md; /teach",
       "invocation": "/skill:teach",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/teach/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/teach/SKILL.md"
       ]
     },
     {
@@ -98,7 +108,7 @@
       "implementation": "skills/recall/SKILL.md; /recall",
       "invocation": "/skill:recall",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/recall/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/recall/SKILL.md"
       ]
     },
     {
@@ -108,7 +118,7 @@
       "implementation": "skills/ketchup/SKILL.md; /ketchup",
       "invocation": "/skill:ketchup",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/ketchup/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/ketchup/SKILL.md"
       ]
     },
     {
@@ -118,7 +128,7 @@
       "implementation": "skills/ketchup-video/SKILL.md; /ketchup-video",
       "invocation": "/skill:ketchup-video",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/ketchup-video/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/ketchup-video/SKILL.md"
       ]
     },
     {
@@ -128,7 +138,7 @@
       "implementation": "skills/architect/SKILL.md; /architect",
       "invocation": "/skill:architect",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/architect/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/architect/SKILL.md"
       ]
     },
     {
@@ -138,7 +148,7 @@
       "implementation": "skills/arena/SKILL.md; /arena",
       "invocation": "/skill:arena",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/arena/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/arena/SKILL.md"
       ]
     },
     {
@@ -148,7 +158,7 @@
       "implementation": "skills/swarm/SKILL.md; /swarm",
       "invocation": "/skill:swarm",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/swarm/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/swarm/SKILL.md"
       ]
     },
     {
@@ -158,7 +168,7 @@
       "implementation": "skills/interrogate/SKILL.md; /interrogate",
       "invocation": "/skill:interrogate",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/interrogate/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/interrogate/SKILL.md"
       ]
     },
     {
@@ -168,7 +178,7 @@
       "implementation": "skills/blast-radius/SKILL.md; /blast-radius",
       "invocation": "/skill:blast-radius",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/blast-radius/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/blast-radius/SKILL.md"
       ]
     },
     {
@@ -178,7 +188,7 @@
       "implementation": "skills/tdd/SKILL.md; /tdd",
       "invocation": "/skill:tdd",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/tdd/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/tdd/SKILL.md"
       ]
     },
     {
@@ -188,7 +198,7 @@
       "implementation": "skills/benchmark-checklist/SKILL.md; /benchmark-checklist",
       "invocation": "/skill:benchmark-checklist",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/benchmark-checklist/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/benchmark-checklist/SKILL.md"
       ]
     },
     {
@@ -198,7 +208,7 @@
       "implementation": "skills/no-comments/SKILL.md; /no-comments",
       "invocation": "/skill:no-comments",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/no-comments/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/no-comments/SKILL.md"
       ]
     },
     {
@@ -208,7 +218,7 @@
       "implementation": "skills/typescript-best-practices/SKILL.md; /typescript-best-practices",
       "invocation": "/skill:typescript-best-practices",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/typescript-best-practices/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/typescript-best-practices/SKILL.md"
       ]
     },
     {
@@ -218,7 +228,7 @@
       "implementation": "skills/figure-it-out/SKILL.md; /figure-it-out",
       "invocation": "/skill:figure-it-out",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/figure-it-out/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/figure-it-out/SKILL.md"
       ]
     },
     {
@@ -228,7 +238,7 @@
       "implementation": "skills/show-me-your-work/SKILL.md; /show-me-your-work",
       "invocation": "/skill:show-me-your-work",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/show-me-your-work/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/show-me-your-work/SKILL.md"
       ]
     },
     {
@@ -238,7 +248,7 @@
       "implementation": "skills/create-verification-skill/SKILL.md; /create-verification-skill",
       "invocation": "/skill:create-verification-skill",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/create-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/create-verification-skill/SKILL.md"
       ]
     },
     {
@@ -248,7 +258,7 @@
       "implementation": "skills/maintain-verification-skill/SKILL.md; /maintain-verification-skill",
       "invocation": "/skill:maintain-verification-skill",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/maintain-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/maintain-verification-skill/SKILL.md"
       ]
     },
     {
@@ -258,7 +268,7 @@
       "implementation": "skills/create-formal-verification-skill/SKILL.md; /create-formal-verification-skill",
       "invocation": "/skill:create-formal-verification-skill",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/create-formal-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/create-formal-verification-skill/SKILL.md"
       ]
     },
     {
@@ -268,7 +278,7 @@
       "implementation": "skills/maintain-formal-verification-skill/SKILL.md; /maintain-formal-verification-skill",
       "invocation": "/skill:maintain-formal-verification-skill",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/maintain-formal-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/maintain-formal-verification-skill/SKILL.md"
       ]
     },
     {
@@ -278,7 +288,7 @@
       "implementation": "skills/statechart/SKILL.md; /statechart",
       "invocation": "/skill:statechart",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/statechart/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/statechart/SKILL.md"
       ]
     },
     {
@@ -288,7 +298,7 @@
       "implementation": "skills/reflect/SKILL.md; /reflect",
       "invocation": "/skill:reflect",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/reflect/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/reflect/SKILL.md"
       ]
     },
     {
@@ -298,7 +308,7 @@
       "implementation": "skills/correct/SKILL.md; /correct",
       "invocation": "/skill:correct",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/correct/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/correct/SKILL.md"
       ]
     },
     {
@@ -308,7 +318,7 @@
       "implementation": "skills/automate-me/SKILL.md; /automate-me",
       "invocation": "/skill:automate-me",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/automate-me/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/automate-me/SKILL.md"
       ]
     },
     {
@@ -318,7 +328,7 @@
       "implementation": "skills/make-bot-ui/SKILL.md; /make-bot-ui",
       "invocation": "/skill:make-bot-ui",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/make-bot-ui/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/make-bot-ui/SKILL.md"
       ]
     },
     {
@@ -328,7 +338,7 @@
       "implementation": "skills/unslop/SKILL.md; /unslop",
       "invocation": "/skill:unslop",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/unslop/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/unslop/SKILL.md"
       ]
     },
     {
@@ -338,7 +348,7 @@
       "implementation": "skills/bro/SKILL.md; /bro",
       "invocation": "/skill:bro",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/bro/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/bro/SKILL.md"
       ]
     },
     {
@@ -348,7 +358,7 @@
       "implementation": "skills/technical-writing/SKILL.md; /technical-writing",
       "invocation": "/skill:technical-writing",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/technical-writing/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/technical-writing/SKILL.md"
       ]
     },
     {
@@ -358,8 +368,8 @@
       "implementation": "skills/principle-laziness-protocol/SKILL.md",
       "invocation": "/skill:principle-laziness-protocol",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-laziness-protocol/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-laziness-protocol/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -369,8 +379,8 @@
       "implementation": "skills/principle-foundational-thinking/SKILL.md",
       "invocation": "/skill:principle-foundational-thinking",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-foundational-thinking/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-foundational-thinking/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -380,8 +390,8 @@
       "implementation": "skills/principle-redesign-from-first-principles/SKILL.md",
       "invocation": "/skill:principle-redesign-from-first-principles",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-redesign-from-first-principles/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-redesign-from-first-principles/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -391,8 +401,8 @@
       "implementation": "skills/principle-attack-the-premise/SKILL.md",
       "invocation": "/skill:principle-attack-the-premise",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-attack-the-premise/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-attack-the-premise/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -402,8 +412,8 @@
       "implementation": "skills/principle-subtract-before-you-add/SKILL.md",
       "invocation": "/skill:principle-subtract-before-you-add",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-subtract-before-you-add/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-subtract-before-you-add/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -413,8 +423,8 @@
       "implementation": "skills/principle-minimize-reader-load/SKILL.md",
       "invocation": "/skill:principle-minimize-reader-load",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-minimize-reader-load/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-minimize-reader-load/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -424,8 +434,8 @@
       "implementation": "skills/principle-outcome-oriented-execution/SKILL.md",
       "invocation": "/skill:principle-outcome-oriented-execution",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-outcome-oriented-execution/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-outcome-oriented-execution/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -435,8 +445,8 @@
       "implementation": "skills/principle-experience-first/SKILL.md",
       "invocation": "/skill:principle-experience-first",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-experience-first/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-experience-first/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -446,8 +456,8 @@
       "implementation": "skills/principle-exhaust-the-design-space/SKILL.md",
       "invocation": "/skill:principle-exhaust-the-design-space",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-exhaust-the-design-space/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-exhaust-the-design-space/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -457,8 +467,8 @@
       "implementation": "skills/principle-build-the-lever/SKILL.md",
       "invocation": "/skill:principle-build-the-lever",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-build-the-lever/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-build-the-lever/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -468,8 +478,8 @@
       "implementation": "skills/principle-model-the-domain/SKILL.md",
       "invocation": "/skill:principle-model-the-domain",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-model-the-domain/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-model-the-domain/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -479,8 +489,8 @@
       "implementation": "skills/principle-boundary-discipline/SKILL.md",
       "invocation": "/skill:principle-boundary-discipline",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-boundary-discipline/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-boundary-discipline/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -490,8 +500,8 @@
       "implementation": "skills/principle-type-system-discipline/SKILL.md",
       "invocation": "/skill:principle-type-system-discipline",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-type-system-discipline/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-type-system-discipline/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -501,8 +511,8 @@
       "implementation": "skills/principle-make-operations-idempotent/SKILL.md",
       "invocation": "/skill:principle-make-operations-idempotent",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-make-operations-idempotent/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-make-operations-idempotent/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -512,8 +522,8 @@
       "implementation": "skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
       "invocation": "/skill:principle-migrate-callers-then-delete-legacy-apis",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -523,8 +533,8 @@
       "implementation": "skills/principle-separate-before-serializing-shared-state/SKILL.md",
       "invocation": "/skill:principle-separate-before-serializing-shared-state",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-separate-before-serializing-shared-state/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-separate-before-serializing-shared-state/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -534,8 +544,8 @@
       "implementation": "skills/principle-prove-it-works/SKILL.md",
       "invocation": "/skill:principle-prove-it-works",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-prove-it-works/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-prove-it-works/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -545,8 +555,8 @@
       "implementation": "skills/principle-fix-root-causes/SKILL.md",
       "invocation": "/skill:principle-fix-root-causes",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-fix-root-causes/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-fix-root-causes/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -556,8 +566,8 @@
       "implementation": "skills/principle-sequence-verifiable-units/SKILL.md",
       "invocation": "/skill:principle-sequence-verifiable-units",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-sequence-verifiable-units/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-sequence-verifiable-units/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -567,8 +577,8 @@
       "implementation": "skills/principle-test-behavior-not-implementation/SKILL.md",
       "invocation": "/skill:principle-test-behavior-not-implementation",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-test-behavior-not-implementation/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-test-behavior-not-implementation/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -578,8 +588,8 @@
       "implementation": "skills/principle-explain-the-number/SKILL.md",
       "invocation": "/skill:principle-explain-the-number",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-explain-the-number/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-explain-the-number/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -589,8 +599,8 @@
       "implementation": "skills/principle-guard-the-context-window/SKILL.md",
       "invocation": "/skill:principle-guard-the-context-window",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-guard-the-context-window/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-guard-the-context-window/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -600,8 +610,8 @@
       "implementation": "skills/principle-never-block-on-the-human/SKILL.md",
       "invocation": "/skill:principle-never-block-on-the-human",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-never-block-on-the-human/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-never-block-on-the-human/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -611,8 +621,8 @@
       "implementation": "skills/principle-encode-lessons-in-structure/SKILL.md",
       "invocation": "/skill:principle-encode-lessons-in-structure",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/principle-encode-lessons-in-structure/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/principle-encode-lessons-in-structure/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -622,8 +632,8 @@
       "implementation": "skills/control-ui/SKILL.md; /control-ui",
       "invocation": "/skill:control-ui",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/control-ui/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/control-ui/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -633,8 +643,8 @@
       "implementation": "skills/control-cli/SKILL.md; /control-cli",
       "invocation": "/skill:control-cli",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/control-cli/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/control-cli/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -644,8 +654,8 @@
       "implementation": "skills/deslop/SKILL.md; /deslop",
       "invocation": "/skill:deslop",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/deslop/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/deslop/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -655,8 +665,8 @@
       "implementation": "skills/verify-this/SKILL.md; /verify-this",
       "invocation": "/skill:verify-this",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/verify-this/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/verify-this/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -666,8 +676,8 @@
       "implementation": "skills/loop-on-ci/SKILL.md; /loop-on-ci",
       "invocation": "/skill:loop-on-ci",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/loop-on-ci/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/loop-on-ci/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -677,8 +687,8 @@
       "implementation": "skills/fix-ci/SKILL.md; /fix-ci",
       "invocation": "/skill:fix-ci",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/fix-ci/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/fix-ci/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -688,8 +698,8 @@
       "implementation": "skills/review-and-ship/SKILL.md; /review-and-ship",
       "invocation": "/skill:review-and-ship",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/review-and-ship/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/review-and-ship/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -699,8 +709,8 @@
       "implementation": "skills/pr-review-canvas/SKILL.md; /pr-review-canvas",
       "invocation": "/skill:pr-review-canvas",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/pr-review-canvas/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/pr-review-canvas/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -710,8 +720,8 @@
       "implementation": "skills/make-pr-easy-to-review/SKILL.md; /make-pr-easy-to-review",
       "invocation": "/skill:make-pr-easy-to-review",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/make-pr-easy-to-review/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/make-pr-easy-to-review/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -721,8 +731,8 @@
       "implementation": "skills/run-smoke-tests/SKILL.md; /run-smoke-tests",
       "invocation": "/skill:run-smoke-tests",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/run-smoke-tests/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/run-smoke-tests/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -732,8 +742,8 @@
       "implementation": "skills/new-branch-and-pr/SKILL.md; /new-branch-and-pr",
       "invocation": "/skill:new-branch-and-pr",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/new-branch-and-pr/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/new-branch-and-pr/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -743,8 +753,8 @@
       "implementation": "skills/get-pr-comments/SKILL.md; /get-pr-comments",
       "invocation": "/skill:get-pr-comments",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/get-pr-comments/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/get-pr-comments/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -754,8 +764,8 @@
       "implementation": "skills/check-compiler-errors/SKILL.md; /check-compiler-errors",
       "invocation": "/skill:check-compiler-errors",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/check-compiler-errors/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/check-compiler-errors/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -765,8 +775,8 @@
       "implementation": "skills/what-did-i-get-done/SKILL.md; /what-did-i-get-done",
       "invocation": "/skill:what-did-i-get-done",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/what-did-i-get-done/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/what-did-i-get-done/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -776,8 +786,8 @@
       "implementation": "skills/weekly-review/SKILL.md; /weekly-review",
       "invocation": "/skill:weekly-review",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/weekly-review/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/weekly-review/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -787,8 +797,8 @@
       "implementation": "skills/fix-merge-conflicts/SKILL.md; /fix-merge-conflicts",
       "invocation": "/skill:fix-merge-conflicts",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/fix-merge-conflicts/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/fix-merge-conflicts/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -798,8 +808,8 @@
       "implementation": "skills/workflow-from-chats/SKILL.md; /workflow-from-chats",
       "invocation": "/skill:workflow-from-chats",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/workflow-from-chats/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/workflow-from-chats/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -809,8 +819,8 @@
       "implementation": "skills/thermo-nuclear-code-quality-review/SKILL.md; /thermo-nuclear-code-quality-review",
       "invocation": "/skill:thermo-nuclear-code-quality-review",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/skills/thermo-nuclear-code-quality-review/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/skills/thermo-nuclear-code-quality-review/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -820,41 +830,41 @@
       "implementation": "agents/ci-watcher.md + pstack_delegate",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/agents/ci-watcher.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/agents/ci-watcher.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
       "id": "kit-quality-agent",
       "kind": "external",
       "status": "extension",
-      "implementation": "agents/quality-agent.md + pstack_delegate",
+      "implementation": "agents/thermo-nuclear-code-quality-review.md + pstack_delegate",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/agents/thermo-nuclear-code-quality-review.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/agents/thermo-nuclear-code-quality-review.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
       "id": "kit-exhaustive-switch",
       "kind": "external",
-      "status": "instruction",
-      "implementation": "reference/rules/typescript-exhaustive-switch.md",
+      "status": "extension",
+      "implementation": "reference/rules/typescript-exhaustive-switch.md; appended to the system prompt while poteto-mode is on",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/rules/typescript-exhaustive-switch.mdc",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/rules/typescript-exhaustive-switch.mdc",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
       "id": "kit-no-inline-imports",
       "kind": "external",
-      "status": "instruction",
-      "implementation": "reference/rules/no-inline-imports.md",
+      "status": "extension",
+      "implementation": "reference/rules/no-inline-imports.md; appended to the system prompt while poteto-mode is on",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/rules/no-inline-imports.mdc",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/rules/no-inline-imports.mdc",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -874,8 +884,8 @@
       "source": [
         "https://cursor.com/docs/plugins",
         "https://cursor.com/docs/cli/reference/slash-commands",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -887,7 +897,7 @@
       "source": [
         "https://cursor.com/docs/cli/using",
         "https://cursor.com/docs/skills",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -909,18 +919,18 @@
       "invocation": null,
       "source": [
         "https://cursor.com/docs/agent/overview#goals-with-goal",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autonomous-run.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autonomous-run.md"
       ]
     },
     {
       "id": "cli-automate",
       "kind": "external",
-      "status": "conditional",
-      "implementation": "/pstack-automation drafts and src/jobs/run-job.mjs; external scheduler required",
+      "status": "extension",
+      "implementation": "/pstack-automation writes a disabled draft job; src/jobs/check-benny.mjs checks it",
       "invocation": null,
       "source": [
         "https://cursor.com/docs/cloud-agent/automations#getting-started",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ]
     },
     {
@@ -932,7 +942,7 @@
       "source": [
         "https://cursor.com/docs/cli/using",
         "https://cursor.com/docs/cloud-agent/overview",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
       ]
     },
     {
@@ -943,9 +953,9 @@
       "invocation": null,
       "source": [
         "https://cursor.com/docs/subagents",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/swarm/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/interrogate/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/swarm/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/interrogate/SKILL.md"
       ]
     },
     {
@@ -978,7 +988,7 @@
       "invocation": null,
       "source": [
         "https://cursor.com/docs/cli/reference/slash-commands",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/setup-pstack/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/setup-pstack/SKILL.md"
       ]
     },
     {
@@ -1000,7 +1010,7 @@
       "invocation": null,
       "source": [
         "https://cursor.com/docs/cli/reference/slash-commands",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/session-pickup.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/session-pickup.md"
       ]
     },
     {
@@ -1011,7 +1021,7 @@
       "invocation": null,
       "source": [
         "https://cursor.com/docs/cli/reference/slash-commands",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/pause-safely.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/pause-safely.md"
       ]
     },
     {
@@ -1034,7 +1044,7 @@
       "invocation": null,
       "source": [
         "https://cursor.com/docs/skills",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/authoring-a-skill.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/authoring-a-skill.md"
       ]
     },
     {
@@ -1045,18 +1055,18 @@
       "invocation": null,
       "source": [
         "https://cursor.com/docs/cloud-agent/bugbot",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/references/bugbot-triage.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/references/bugbot-triage.md"
       ]
     },
     {
       "id": "cli-automations",
       "kind": "external",
-      "status": "gap",
-      "implementation": "Local headless event/schedule entrypoint; no managed cloud scheduler",
+      "status": "extension",
+      "implementation": "Job files run headless by src/jobs/run-job.mjs in a fresh checkout; src/jobs/watch-slack.mjs starts them for new Slack reports",
       "invocation": null,
       "source": [
         "https://cursor.com/docs/cloud-agent/automations#getting-started",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/README.md"
       ]
     },
     {
@@ -1066,8 +1076,8 @@
       "implementation": "agents/poteto-agent.md + pstack_delegate",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/agents/poteto-agent.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/agents/poteto-agent.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -1077,19 +1087,19 @@
       "implementation": "agents/comment-sicko.md + read-only Pi tool allowlist",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/agents/comment-sicko.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/no-comments/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/agents/comment-sicko.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/no-comments/SKILL.md"
       ]
     },
     {
       "id": "worker",
       "kind": "script",
       "status": "extension",
-      "implementation": "agents/worker.md",
+      "implementation": "skills/poteto-mode/worker.md",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/worker.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/worker.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -1099,8 +1109,8 @@
       "implementation": "user Pi pstack-models.json",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/setup-pstack/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/setup-pstack/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -1110,8 +1120,8 @@
       "implementation": "pstack_log / session artifact TSV",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/show-me-your-work/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/show-me-your-work/references/decision-log-template.tsv"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/show-me-your-work/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/show-me-your-work/references/decision-log-template.tsv"
       ]
     },
     {
@@ -1121,8 +1131,8 @@
       "implementation": "project .pi/skills/verify-* generated by skill",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/create-verification-skill/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/maintain-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/create-verification-skill/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/maintain-verification-skill/SKILL.md"
       ]
     },
     {
@@ -1132,8 +1142,8 @@
       "implementation": "project .pi/skills formal verification skill + proof tool",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/create-formal-verification-skill/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/maintain-formal-verification-skill/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/create-formal-verification-skill/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/maintain-formal-verification-skill/SKILL.md"
       ]
     },
     {
@@ -1143,9 +1153,9 @@
       "implementation": "pstack_pr (GitHub CLI)",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/scripts/watch-pr/watch-pr",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/babysit.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/shipping.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/scripts/watch-pr/watch-pr",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/babysit.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/shipping.md"
       ]
     },
     {
@@ -1155,8 +1165,8 @@
       "implementation": "pstack_worktree audit",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/scripts/worktree-audit.sh",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/worktree-cleanup.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/scripts/worktree-audit.sh",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/worktree-cleanup.md"
       ]
     },
     {
@@ -1166,8 +1176,8 @@
       "implementation": "GitHub CLI; Origin via project instructions only",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/shipping.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/shipping.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
       ]
     },
     {
@@ -1177,7 +1187,7 @@
       "implementation": "skills/poteto-mode/playbooks/investigation.md + pstack_plan",
       "invocation": "/pstack-run investigation",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/investigation.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/investigation.md"
       ]
     },
     {
@@ -1187,7 +1197,7 @@
       "implementation": "skills/poteto-mode/playbooks/bug-fix.md + pstack_plan",
       "invocation": "/pstack-run bug-fix",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/bug-fix.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/bug-fix.md"
       ]
     },
     {
@@ -1197,7 +1207,7 @@
       "implementation": "skills/poteto-mode/playbooks/perf-issue.md + pstack_plan",
       "invocation": "/pstack-run perf-issue",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/perf-issue.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/perf-issue.md"
       ]
     },
     {
@@ -1207,7 +1217,7 @@
       "implementation": "skills/poteto-mode/playbooks/hillclimb.md + pstack_plan",
       "invocation": "/pstack-run hillclimb",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/hillclimb.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/hillclimb.md"
       ]
     },
     {
@@ -1217,7 +1227,7 @@
       "implementation": "skills/poteto-mode/playbooks/runtime-forensics.md + pstack_plan",
       "invocation": "/pstack-run runtime-forensics",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/runtime-forensics.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/runtime-forensics.md"
       ]
     },
     {
@@ -1227,7 +1237,7 @@
       "implementation": "skills/poteto-mode/playbooks/trace-forensics.md + pstack_plan",
       "invocation": "/pstack-run trace-forensics",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/trace-forensics.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/trace-forensics.md"
       ]
     },
     {
@@ -1237,7 +1247,7 @@
       "implementation": "skills/poteto-mode/playbooks/feature.md + pstack_plan",
       "invocation": "/pstack-run feature",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/feature.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/feature.md"
       ]
     },
     {
@@ -1247,7 +1257,7 @@
       "implementation": "skills/poteto-mode/playbooks/refactoring.md + pstack_plan",
       "invocation": "/pstack-run refactoring",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/refactoring.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/refactoring.md"
       ]
     },
     {
@@ -1257,7 +1267,7 @@
       "implementation": "skills/poteto-mode/playbooks/prototype.md + pstack_plan",
       "invocation": "/pstack-run prototype",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/prototype.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/prototype.md"
       ]
     },
     {
@@ -1267,7 +1277,7 @@
       "implementation": "skills/poteto-mode/playbooks/visual-parity.md + pstack_plan",
       "invocation": "/pstack-run visual-parity",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/visual-parity.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/visual-parity.md"
       ]
     },
     {
@@ -1277,7 +1287,7 @@
       "implementation": "skills/poteto-mode/playbooks/authoring-a-skill.md + pstack_plan",
       "invocation": "/pstack-run authoring-a-skill",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/authoring-a-skill.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/authoring-a-skill.md"
       ]
     },
     {
@@ -1287,7 +1297,7 @@
       "implementation": "skills/poteto-mode/playbooks/eval.md + pstack_plan",
       "invocation": "/pstack-run eval",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/eval.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/eval.md"
       ]
     },
     {
@@ -1297,7 +1307,7 @@
       "implementation": "skills/poteto-mode/playbooks/babysit.md + pstack_plan",
       "invocation": "/pstack-run babysit",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/babysit.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/babysit.md"
       ]
     },
     {
@@ -1307,7 +1317,7 @@
       "implementation": "skills/poteto-mode/playbooks/shipping.md + pstack_plan",
       "invocation": "/pstack-run shipping",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/shipping.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/shipping.md"
       ]
     },
     {
@@ -1317,7 +1327,7 @@
       "implementation": "skills/poteto-mode/playbooks/autonomous-run.md + pstack_plan",
       "invocation": "/pstack-run autonomous-run",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autonomous-run.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autonomous-run.md"
       ]
     },
     {
@@ -1327,7 +1337,7 @@
       "implementation": "skills/poteto-mode/playbooks/autopilot-full.md + pstack_plan",
       "invocation": "/pstack-run autopilot-full",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autopilot-full.md"
       ]
     },
     {
@@ -1337,7 +1347,7 @@
       "implementation": "skills/poteto-mode/playbooks/autopilot-stack.md + pstack_plan",
       "invocation": "/pstack-run autopilot-stack",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/autopilot-stack.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/autopilot-stack.md"
       ]
     },
     {
@@ -1347,7 +1357,7 @@
       "implementation": "skills/poteto-mode/playbooks/session-pickup.md + pstack_plan",
       "invocation": "/pstack-run session-pickup",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/session-pickup.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/session-pickup.md"
       ]
     },
     {
@@ -1357,7 +1367,7 @@
       "implementation": "skills/poteto-mode/playbooks/pause-safely.md + pstack_plan",
       "invocation": "/pstack-run pause-safely",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/pause-safely.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/pause-safely.md"
       ]
     },
     {
@@ -1367,7 +1377,7 @@
       "implementation": "skills/poteto-mode/playbooks/multi-phase-plan.md + pstack_plan",
       "invocation": "/pstack-run multi-phase-plan",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/multi-phase-plan.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/multi-phase-plan.md"
       ]
     },
     {
@@ -1377,7 +1387,7 @@
       "implementation": "skills/poteto-mode/playbooks/worktree-cleanup.md + pstack_plan",
       "invocation": "/pstack-run worktree-cleanup",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/worktree-cleanup.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/worktree-cleanup.md"
       ]
     },
     {
@@ -1387,72 +1397,72 @@
       "implementation": "skills/poteto-mode/playbooks/opening-a-pr.md + pstack_plan",
       "invocation": "/pstack-run opening-a-pr",
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/playbooks/opening-a-pr.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/playbooks/opening-a-pr.md"
       ]
     },
     {
       "id": "benny-setup",
       "kind": "step",
       "status": "conditional",
-      "implementation": "reference/benny/setup.md / pstack-automation",
+      "implementation": "automations/benny/FOR_AGENTS.md and skills/setup-benny / pstack-automation",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/skills/setup-benny/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/setup-benny/SKILL.md"
       ]
     },
     {
       "id": "benny-triage",
       "kind": "step",
       "status": "conditional",
-      "implementation": "reference/benny/triage.md / headless job",
+      "implementation": "automations/benny/skills/triage-issue-reports / Benny job",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/skills/triage-issue-reports/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/triage-issue-reports/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ]
     },
     {
       "id": "benny-repro",
       "kind": "step",
       "status": "conditional",
-      "implementation": "reference/benny/repro.md / headless job",
+      "implementation": "automations/benny/skills/reproduce-and-fix-issues / Benny job",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/skills/reproduce-and-fix-issues/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/reproduce-and-fix-issues/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ]
     },
     {
       "id": "benny-config",
       "kind": "board",
       "status": "conditional",
-      "implementation": "reference/benny/config.example.json",
+      "implementation": "automations/benny/templates/configuration.example.yaml and feature-map.example.md",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/templates/configuration.example.yaml",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/templates/configuration.example.yaml",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ]
     },
     {
       "id": "benny-adapter",
       "kind": "external",
       "status": "conditional",
-      "implementation": "project-specific real app adapter",
+      "implementation": "project control skill; references/control-adapter.md",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ]
     },
     {
       "id": "benny-slack",
       "kind": "board",
       "status": "conditional",
-      "implementation": "configured Slack/tracker MCP; no service supplied",
+      "implementation": "configured Slack and tracker MCP tools; watch-slack.mjs trigger",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ]
     },
     {
@@ -1462,8 +1472,8 @@
       "implementation": "/pstack-map playbooks",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1473,7 +1483,7 @@
       "implementation": "/pstack-map skill-library",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1483,7 +1493,7 @@
       "implementation": "/pstack-map principles",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -1493,8 +1503,8 @@
       "implementation": "/pstack-map team-kit",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -1515,8 +1525,8 @@
       "implementation": "/pstack-map delegates",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1526,8 +1536,8 @@
       "implementation": "/pstack-map benny",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/README.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/automations/benny/FOR_AGENTS.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/README.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/automations/benny/FOR_AGENTS.md"
       ]
     },
     {
@@ -1537,7 +1547,7 @@
       "implementation": "/pstack-map tk-adjacent",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/cursor-team-kit/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/cursor-team-kit/README.md"
       ]
     },
     {
@@ -1547,8 +1557,8 @@
       "implementation": "/pstack-map pb-understand",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1558,8 +1568,8 @@
       "implementation": "/pstack-map pb-build",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1569,8 +1579,8 @@
       "implementation": "/pstack-map pb-verify",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1580,8 +1590,8 @@
       "implementation": "/pstack-map pb-delivery",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1591,8 +1601,8 @@
       "implementation": "/pstack-map pb-long",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md",
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md",
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1602,7 +1612,7 @@
       "implementation": "/pstack-map sk-understand",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1612,7 +1622,7 @@
       "implementation": "/pstack-map sk-design",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1622,7 +1632,7 @@
       "implementation": "/pstack-map sk-verify",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1632,7 +1642,7 @@
       "implementation": "/pstack-map sk-maintain",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/README.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/README.md"
       ]
     },
     {
@@ -1642,7 +1652,7 @@
       "implementation": "/pstack-map pr-core",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -1652,7 +1662,7 @@
       "implementation": "/pstack-map pr-architecture",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -1662,7 +1672,7 @@
       "implementation": "/pstack-map pr-verification",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -1672,7 +1682,7 @@
       "implementation": "/pstack-map pr-delegation",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
@@ -1682,7 +1692,7 @@
       "implementation": "/pstack-map pr-meta",
       "invocation": null,
       "source": [
-        "https://github.com/cursor/plugins/blob/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills/poteto-mode/SKILL.md"
+        "https://github.com/cursor/plugins/blob/41e400932eca14f289e7db717a70455256b6d388/pstack/skills/poteto-mode/SKILL.md"
       ]
     },
     {
