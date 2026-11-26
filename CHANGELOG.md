@@ -28,6 +28,8 @@ FIXED:
 - Write workers have MCP tools, as poteto-mode says. `--no-extensions` also turned off Pi's built-in MCP, so they had none.
 - `pstack_delegate` mode `interrogate` honors an explicit `readOnly: true`; only its default is writable.
 - Resuming a worker that is still running, or that another resume is running, is refused, instead of starting a second Pi process on the same session. A resume with `background: true` is refused, since resume runs in the foreground.
+- Stopping a queued background worker takes it off the queue at once and lists it as `stopped`; it no longer waits for a running worker to finish.
+- The `autopilot-stack` plan is `autopilot-full`'s seven steps with its two overrides applied, as the playbook says, not only the two overrides.
 - Background workers run with no time limit, as `pstack_delegate` says; they had a hidden 7-day cap.
 - `pstack_workers` lists a running foreground worker as `running`, not `finished`, and no longer lists an arena's `blinded/` folder as a worker.
 - The Slack watcher replaces its cursor file atomically, so a crash mid-write cannot leave a file that stops every later poll.

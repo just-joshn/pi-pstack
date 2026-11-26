@@ -120,3 +120,19 @@ test("a workflow prompt names its file, so the paths inside it resolve", () => {
   );
   assert(prompt.endsWith("Operator request:\nfix it"));
 });
+
+test("autopilot-stack's plan is autopilot-full's, with its two overrides applied", () => {
+  const full = catalog.steps["autopilot-full"] ?? [];
+  const stack = catalog.steps["autopilot-stack"] ?? [];
+  assert.equal(full.length, 7);
+  assert.deepEqual(stack, [
+    full[0],
+    full[1],
+    full[2],
+    "Stack a PR only when it builds on another PR.",
+    full[3],
+    "In place of step 5, stop at verified.",
+    full[5],
+    full[6],
+  ]);
+});

@@ -241,3 +241,32 @@ test("a running foreground worker is listed as running, and arena folders are no
     ["finished"],
   );
 });
+
+test("a queued worker that is stopped leaves the queue at once and never starts", async () => {
+  const { call, list, finish, waiting } = longRunningWorkers();
+  const started = await call<Started>("pstack_delegate", {
+    mode: "swarm",
+    tasks: ["first", "second"],
+    background: true,
+    concurrency: 1,
+  });
+  const [one = "", two = ""] = started.background.map((w) => w.id);
+  await listedAs(
+    list,
+    new Map([
+      [one, "running"],
+      [two, "queued"],
+    ]),
+  );
+  await list("stop", two);
+  assert.equal(states(await list()).get(two), "stopped");
+  await finish(one);
+  await listedAs(
+    list,
+    new Map([
+      [one, "done"],
+      [two, "stopped"],
+    ]),
+  );
+  assert(!waiting(two), "the stopped worker never started");
+});

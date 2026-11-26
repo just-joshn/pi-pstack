@@ -51,7 +51,32 @@ def playbook_steps(path):
     return numbered or [lines[0].lstrip("# ").strip()]
 
 
-steps = {path.stem: playbook_steps(path) for path in sorted(PLAYBOOKS.glob("*.md"))}
+def apply_overrides(base, overrides):
+    """A playbook that runs another with overrides: each replaces or follows the step it names."""
+    merged = list(base)
+    for line in overrides:
+        number = int(re.search(r"step (\d+)", line).group(1))
+        task = first_sentence(line)
+        at = merged.index(base[number - 1])
+        if task.startswith(f"In place of step {number}"):
+            merged[at] = task
+        else:
+            merged.insert(at + 1, task)
+    return merged
+
+
+def playbook_plan(path, own):
+    """A playbook's plan; one that opens with "Run the X playbook" inherits X's steps."""
+    lines = path.read_text().splitlines()
+    parent = re.match(r"Run the (\S+) playbook", lines[2])
+    if not parent:
+        return own[path.stem]
+    overrides = [line for line in lines if re.match(r"\d+\.\s", line)]
+    return apply_overrides(own[parent.group(1).lower()], overrides)
+
+
+own_steps = {path.stem: playbook_steps(path) for path in sorted(PLAYBOOKS.glob("*.md"))}
+steps = {path.stem: playbook_plan(path, own_steps) for path in sorted(PLAYBOOKS.glob("*.md"))}
 
 
 def is_skill(node):

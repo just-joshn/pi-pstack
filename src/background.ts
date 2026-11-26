@@ -19,7 +19,7 @@ const writeStatus = (dir: string, id: string, status: object) =>
   atomicWrite(statusFile(dir, id), JSON.stringify({ ...status, at: new Date().toISOString() }));
 
 export function backgroundWorkers() {
-  const queued = new Map<string, AbortController>();
+  const queued = new Map<string, { controller: AbortController; dir: string }>();
   const active = new Set<string>();
   function settle(dir: string, job: BackgroundJob, controller: AbortController) {
     active.add(job.id);
@@ -41,19 +41,24 @@ export function backgroundWorkers() {
   return {
     async start(dir: string, jobs: readonly BackgroundJob[], concurrency: number) {
       const queue = jobs.map((job) => ({ job, controller: new AbortController() }));
-      for (const { job, controller } of queue) queued.set(job.id, controller);
+      for (const { job, controller } of queue) queued.set(job.id, { controller, dir });
       await Promise.all(jobs.map((job) => writeStatus(dir, job.id, { state: "queued" })));
-      const done = pool(queue, concurrency, ({ job, controller }) => settle(dir, job, controller));
+      const done = pool(queue, concurrency, async ({ job, controller }) =>
+        controller.signal.aborted ? undefined : settle(dir, job, controller),
+      );
       return { ids: jobs.map((job) => job.id), done };
     },
     state: (id: string) => (active.has(id) ? "running" : queued.has(id) ? "queued" : undefined),
-    stop(id: string) {
-      const controller = queued.get(id);
-      if (!controller) fail(`No running background worker ${id} in this session`);
-      controller.abort();
+    async stop(id: string) {
+      const entry = queued.get(id);
+      if (!entry) fail(`No running background worker ${id} in this session`);
+      entry.controller.abort();
+      if (active.has(id)) return;
+      queued.delete(id);
+      await writeStatus(entry.dir, id, { state: "stopped" });
     },
     stopAll() {
-      for (const controller of queued.values()) controller.abort();
+      for (const { controller } of queued.values()) controller.abort();
     },
   };
 }
@@ -143,7 +148,7 @@ export function registerBackground(
       id: Type.Optional(Type.String()),
     }),
     async execute(_id, p, _signal, _update, ctx) {
-      if (p.action === "stop") background.stop(p.id ?? "");
+      if (p.action === "stop") await background.stop(p.id ?? "");
       return result(await listWorkers(join(artifacts(ctx), "workers"), background, active));
     },
   });
