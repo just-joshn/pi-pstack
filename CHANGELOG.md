@@ -40,7 +40,7 @@ FIXED:
 - `check-benny.mjs` counts a required path that is committed as a folder or a symlink as missing, removes only its own worktree instead of pruning every stale one, and stops a Pi probe that ignores `SIGTERM`.
 - The Benny skill check gives up after 60 seconds if Pi does not answer, instead of hanging the check or the run.
 - `check-benny.mjs` tells a job file from a repository by what is on disk, not by a `.json` suffix.
-- A second Slack watcher refuses to start on a state file another live watcher holds, instead of both overwriting each other's cursors; a claim left by a dead watcher is taken over by exactly one new watcher, and a watcher releases only a claim it still holds. A claim names its watcher by pid and process start time, so a reused pid does not block a new watcher, and it is published whole with `link`, so no watcher ever reads a half-written claim.
+- A second Slack watcher on the same state file refuses to start, instead of both overwriting each other's cursors. The claim is a localhost port derived from the state file's path, which the OS frees when the watcher exits, crash included, so there is no stale claim to recover.
 - The Slack watcher stops on a saved state file it cannot read whole, instead of dropping the bad cursor and skipping that channel's reports.
 - `check-benny.mjs` checks a referenced path with spaces whole when it is in backticks or on its own line.
 - A failed `pstack_plan` call shows its error in the conversation instead of "No plan".

@@ -19,9 +19,7 @@ if (!token || !secret) throw Error("Set PSTACK_SLACK_TRIGGER_TOKEN and PSTACK_EV
 
 const jobs = await watchedJobs(paths.map((path) => resolve(path)));
 const statePath = join(dirname(resolve(paths[0])), "watch-state.json");
-process.on("exit", await claimState(statePath));
-process.on("SIGINT", () => process.exit(130));
-process.on("SIGTERM", () => process.exit(143));
+await claimState(statePath);
 const io = { history: slackHistory(token), dispatch: startRun(secret), now: Date.now };
 const log = (value) =>
   process.stdout.write(`${JSON.stringify({ at: new Date().toISOString(), ...value })}\n`);

@@ -1,9 +1,9 @@
-import { execFileSync, spawn } from "node:child_process";
-import { createHmac, randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
+import { createHash, createHmac } from "node:crypto";
 import { once } from "node:events";
-import { existsSync, readFileSync, rmSync } from "node:fs";
-import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { isRecord, parseJson } from "../lib/validation.ts";
@@ -163,67 +163,25 @@ export async function watchedJobs(paths: readonly string[]): Promise<Watched[]> 
   );
 }
 
-const processStart = (pid: number) => {
-  if (!Number.isInteger(pid) || pid <= 0) return "";
-  try {
-    const args = ["-p", String(pid), "-o", "lstart="];
-    return execFileSync("ps", args, {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    return "";
-  }
-};
-// A pid alone can be reused, so a claim names its process by pid and start time.
-const identity = (pid: number) => `${pid} ${processStart(pid)}`;
-const ownerPid = (claim: string) => Number(claim.split(" ")[0]);
-const isAlive = (claim: string) =>
-  !!processStart(ownerPid(claim)) && claim === identity(ownerPid(claim));
-
-async function takeOver(lock: string, deadOwner: string) {
-  const aside = `${lock}.${process.pid}.${randomUUID()}`;
-  try {
-    await rename(lock, aside);
-  } catch (error) {
-    if (hasErrorCode(error, "ENOENT")) return;
-    throw error;
-  }
-  if ((await readFile(aside, "utf8")) !== deadOwner) await link(aside, lock).catch(() => {});
-  await rm(aside, { force: true });
-}
-
-async function publish(lock: string, claim: string) {
-  const draft = `${lock}.${process.pid}.${randomUUID()}`;
-  await writeFile(draft, claim, { flag: "wx", mode: 0o600 });
-  try {
-    await link(draft, lock);
-    return true;
-  } catch (error) {
-    if (hasErrorCode(error, "EEXIST")) return false;
-    throw error;
-  } finally {
-    await rm(draft, { force: true });
-  }
-}
+// The OS lets one process listen on a port and frees it when that process exits, crash
+// included, so a port held for the watcher's life is a lock with no stale claim to recover.
+const lockPort = (statePath: string) =>
+  49152 + (createHash("sha256").update(resolve(statePath)).digest().readUInt16BE(0) % 16384);
 
 export async function claimState(statePath: string) {
-  const lock = `${statePath}.lock`;
-  const me = identity(process.pid);
-  const release = () => {
-    if (existsSync(lock) && readFileSync(lock, "utf8") === me) rmSync(lock, { force: true });
-  };
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Each attempt follows the last takeover.
-    if (await publish(lock, me)) return release;
-    // oxlint-disable-next-line eslint/no-await-in-loop -- The owner is read after the failed claim.
-    const owner = await readFile(lock, "utf8").catch(() => "");
-    if (isAlive(owner)) {
-      const pid = ownerPid(owner);
-      throw Error(`Another watcher (pid ${pid}) uses ${statePath}; run one watcher for its jobs`);
-    }
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Take over before claiming again.
-    await takeOver(lock, owner);
+  const server = createServer((socket) => socket.end());
+  try {
+    await new Promise<void>((done, reject) => {
+      server.once("error", reject);
+      server.listen(lockPort(statePath), "127.0.0.1", done);
+    });
+  } catch (error) {
+    if (!hasErrorCode(error, "EADDRINUSE")) throw error;
+    throw Error(
+      `Another watcher uses ${statePath} (port ${lockPort(statePath)} is taken); run one watcher for its jobs`,
+      { cause: error },
+    );
   }
-  throw Error(`Another watcher is claiming ${statePath}; run one watcher for its jobs`);
+  server.unref();
+  return () => new Promise<void>((done) => server.close(() => done()));
 }

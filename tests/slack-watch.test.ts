@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import type { spawn } from "node:child_process";
-import { EventEmitter } from "node:events";
-import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { EventEmitter, once } from "node:events";
+import { mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { test } from "vitest";
 
@@ -19,6 +20,8 @@ import {
 } from "../src/jobs/slack-watch.ts";
 import { sandbox } from "./host.ts";
 import { shaped } from "./support.ts";
+
+const watchModule = fileURLToPath(new URL("../src/jobs/slack-watch.ts", import.meta.url));
 
 const folder = () => mkdtemp(join(sandbox, "slack-watch-"));
 const benny = (channel: string) => ({
@@ -267,56 +270,44 @@ test("a new channel gets its starting cursor even when an earlier channel's poll
   });
 });
 
-test("one watcher owns a state file at a time; a dead watcher's claim is taken over", async () => {
+test("one watcher owns a state file at a time, and the claim ends with its process", async () => {
   const dir = await folder();
   const state = join(dir, "watch-state.json");
   const release = await claimState(state);
-  await assert.rejects(claimState(state), /Another watcher \(pid \d+\) uses/);
-  release();
+  await assert.rejects(claimState(state), /Another watcher uses/);
+  await assert.rejects(claimState(state), /Another watcher uses/);
+  await release();
   const again = await claimState(state);
-  again();
-  await writeFile(`${state}.lock`, "999999999");
-  const taken = await claimState(state);
-  assert.match(await readFile(`${state}.lock`, "utf8"), new RegExp(`^${process.pid} \\S`));
-  taken();
+  await again();
+  const holder = spawn(
+    process.execPath,
+    [
+      "-e",
+      `import(${JSON.stringify(watchModule)}).then(m => m.claimState(${JSON.stringify(state)})).then(() => { console.log("claimed"); setTimeout(() => {}, 60000); })`,
+    ],
+    { stdio: ["ignore", "pipe", "inherit"] },
+  );
+  await once(holder.stdout, "data");
+  await assert.rejects(claimState(state), /Another watcher uses/);
+  holder.kill("SIGKILL");
+  await once(holder, "exit");
+  const afterCrash = await claimState(state);
+  await afterCrash();
 });
 
-test("of two watchers taking over a dead watcher's claim at once, only one wins", async () => {
+test("two watchers claiming at once never both win", async () => {
   const dir = await folder();
   const state = join(dir, "watch-state.json");
   for (let round = 0; round < 20; round += 1) {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Each round starts from a fresh stale claim.
-    await writeFile(`${state}.lock`, "999999999");
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Each round races two claims.
-    const claims = await Promise.allSettled([claimState(state), claimState(state)]);
-    assert.equal(claims.filter((c) => c.status === "fulfilled").length, 1, `round ${round}`);
-    for (const claim of claims) if (claim.status === "fulfilled") claim.value();
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each round races three claims.
+    const claims = await Promise.allSettled([
+      claimState(state),
+      claimState(state),
+      claimState(state),
+    ]);
+    const won = claims.flatMap((c) => (c.status === "fulfilled" ? [c.value] : []));
+    assert.equal(won.length, 1, `round ${round}`);
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Release before the next round.
+    await Promise.all(won.map((release) => release()));
   }
-});
-
-test("a watcher releases only a claim it still holds", async () => {
-  const dir = await folder();
-  const state = join(dir, "watch-state.json");
-  const release = await claimState(state);
-  await writeFile(`${state}.lock`, "12345");
-  release();
-  assert.equal(await readFile(`${state}.lock`, "utf8"), "12345");
-});
-
-test("releasing a claim that is already gone creates nothing", async () => {
-  const dir = await folder();
-  const state = join(dir, "watch-state.json");
-  const release = await claimState(state);
-  await rm(`${state}.lock`);
-  release();
-  assert.deepEqual(await readdir(dir), []);
-});
-
-test("a claim whose pid now belongs to another process is taken over", async () => {
-  const dir = await folder();
-  const state = join(dir, "watch-state.json");
-  await writeFile(`${state}.lock`, `${process.pid} Mon Jan  1 00:00:00 2001`);
-  const release = await claimState(state);
-  assert.match(await readFile(`${state}.lock`, "utf8"), new RegExp(`^${process.pid} `));
-  release();
 });
