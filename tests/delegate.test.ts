@@ -176,6 +176,7 @@ test("worker flags disable nested extensions, MCP for readers, and writes for re
     "a writing worker keeps MCP tools, as upstream's agent mode does",
   );
   assert(write.includes("--no-extensions"));
+  assert.equal(flag(write, "-e"), "builtin:mcp", "--no-extensions also drops Pi's built-in MCP");
   assert(read.includes("--no-extensions"));
   assert.equal(flag(read, "--tools"), "read,grep,find,ls");
   assert.equal(flag(write, "--tools"), "read,grep,find,ls,bash,edit,write");
@@ -305,6 +306,12 @@ test("interrogate adversaries run in their own writable worktrees to prove findi
     assert.notEqual(worker.cwd, cwd);
   }
   assert.equal(new Set(launched.map((w) => w.cwd)).size, 3);
+  launched.length = 0;
+  await h.call("pstack_delegate", { mode: "interrogate", tasks: ["review"], readOnly: true });
+  for (const worker of launched) {
+    assert.equal(worker.tools, "read,grep,find,ls", "an explicit readOnly: true is honored");
+    assert.equal(worker.cwd, cwd);
+  }
 });
 
 test("a caller picks a panel's seats or a race's per-arm models for one call", async () => {

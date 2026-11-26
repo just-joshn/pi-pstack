@@ -98,7 +98,9 @@ export async function listWorkers(root: string, background: BackgroundWorkers) {
           const sessionDir = join(dir, id);
           const record = await readJson(join(sessionDir, "worker.json"));
           const status = await readJson(statusFile(dir, id));
-          const state = background.state(id) ?? status?.["state"] ?? "finished";
+          const saved = status?.["state"];
+          const unsettled = saved === "queued" || saved === "running";
+          const state = background.state(id) ?? (unsettled ? "interrupted" : (saved ?? "finished"));
           const { model, cwd, readOnly } = record ?? {};
           const error = status?.["error"];
           const activity = await lastActivity(sessionDir);
@@ -129,7 +131,7 @@ export function registerBackground(pi: ExtensionAPI, background: BackgroundWorke
     name: "pstack_workers",
     label: "Pstack workers",
     description:
-      "List this session's pstack workers (state queued, running, done, failed, stopped or finished, with the error of a failed one; model; checkout; sessionDir; report; lastActivity, the newest write in its session), or stop a running background worker by id.",
+      "List this session's pstack workers (state queued, running, done, failed, stopped, interrupted (its session closed first) or finished, with the error of a failed one; model; checkout; sessionDir; report; lastActivity, the newest write in its session), or stop a running background worker by id.",
     parameters: Type.Object({
       action: stringEnum(["list", "stop"]),
       id: Type.Optional(Type.String()),

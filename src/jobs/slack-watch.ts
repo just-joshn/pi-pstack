@@ -91,6 +91,8 @@ export async function pollOnce(jobs: readonly Watched[], statePath: string, io: 
     const firstPoll = oldest === undefined;
     if (firstPoll) {
       state[channel] = slackTimestamp(io.now());
+      // oxlint-disable-next-line eslint/no-await-in-loop -- A later channel's failure must not lose this cursor.
+      await save();
       continue;
     }
     // oxlint-disable-next-line eslint/no-await-in-loop -- Channels are polled one at a time to stay under Slack's rate limits.

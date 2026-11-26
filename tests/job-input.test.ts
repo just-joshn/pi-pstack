@@ -160,17 +160,22 @@ test("a run's prompt and folder follow its job kind", async () => {
     ...triage,
     instructions: "channel {{SLACK_CHANNEL_ID}} at {{SLACK_MESSAGE_TS}}",
   });
-  const first = planRun(benny, trigger);
+  const first = planRun("/jobs/a.json", benny, trigger);
   assert.equal(first.prompt, "channel C1 at 1700000000.000100");
   assert.equal(first.eventId, trigger.message_ts);
-  assert.equal(planRun(benny, trigger).key, first.key, "one run per report");
-  assert.notEqual(planRun(benny, { ...trigger, message_ts: "2" }).key, first.key);
+  assert.equal(planRun("/jobs/a.json", benny, trigger).key, first.key, "one run per report");
+  assert.notEqual(planRun("/jobs/b.json", benny, trigger).key, first.key, "and per job");
+  assert.notEqual(planRun("/jobs/a.json", benny, { ...trigger, message_ts: "2" }).key, first.key);
   const own = await job(custom);
-  const click = planRun(own, { eventId: "E1", note: "x" });
+  const click = planRun("/jobs/a.json", own, { eventId: "E1", note: "x" });
   assert.match(click.prompt, /^check\n\nAuthenticated event .*"note":"x"/);
   assert.equal(click.eventId, "E1");
-  assert.notEqual(planRun(own, { eventId: "E1" }).key, click.key, "each event gets its own run");
-  const plain = planRun(own, null);
+  assert.notEqual(
+    planRun("/jobs/a.json", own, { eventId: "E1" }).key,
+    click.key,
+    "each event gets its own run",
+  );
+  const plain = planRun("/jobs/a.json", own, null);
   assert.equal(plain.prompt, "check");
   assert.equal(plain.eventId, undefined);
 });

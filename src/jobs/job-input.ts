@@ -118,7 +118,11 @@ const isTrigger = (value: unknown): value is SlackTrigger =>
   isRecord(value) &&
   ["source_channel_id", "message_ts", "ts", "thread_ts"].every((k) => typeof value[k] === "string");
 
-export function planRun(job: Job, event: SlackTrigger | Record<string, unknown> | null) {
+export function planRun(
+  jobFile: string,
+  job: Job,
+  event: SlackTrigger | Record<string, unknown> | null,
+) {
   if (job.kind === "custom" || !isTrigger(event)) {
     const data =
       event &&
@@ -143,7 +147,7 @@ export function planRun(job: Job, event: SlackTrigger | Record<string, unknown> 
       ? `${job.instructions}\n\nTrigger:\n\n${JSON.stringify(event, null, 2)}`
       : filled;
   const key = createHash("sha256")
-    .update(`${job.kind}\0${event.source_channel_id}\0${event.message_ts}`)
+    .update(`${jobFile}\0${event.source_channel_id}\0${event.message_ts}`)
     .digest("hex");
   return { prompt, key, eventId: event.message_ts };
 }

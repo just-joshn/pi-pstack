@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import { test } from "vitest";
 
+import { backgroundWorkers, listWorkers } from "../src/background.ts";
 import { host, notARepository, readResult } from "./host.ts";
 import { flag, shaped } from "./support.ts";
 
@@ -46,7 +47,8 @@ function longRunningWorkers() {
     while (!release.has(id) && Date.now() < deadline) await settle();
     release.get(id)?.();
   };
-  return { call, list, finish, timeouts };
+  const waiting = (id: string) => release.has(id);
+  return { call, list, finish, waiting, timeouts, artifacts: h.artifacts };
 }
 
 const states = (listed: Listed[]) => new Map(listed.map((w) => [w.id, w.state]));
@@ -176,4 +178,37 @@ test("a background worker that fails before its session exists is listed with it
   assert.equal(worker?.id, started.background[0]?.id);
   assert.equal(worker?.state, "failed");
   assert.match(worker?.error ?? "", /git/);
+});
+
+test("a running worker cannot be resumed until it exits", async () => {
+  const { call, finish, waiting } = longRunningWorkers();
+  const started = await call<Started>("pstack_delegate", {
+    mode: "single",
+    tasks: ["work"],
+    background: true,
+  });
+  const [worker] = started.background;
+  const id = worker?.id ?? "";
+  const deadline = Date.now() + 4000;
+  // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the worker's process to start.
+  while (!waiting(id) && Date.now() < deadline) await settle();
+  const resume = { mode: "single", tasks: ["more"], resume: worker?.sessionDir };
+  await assert.rejects(() => call("pstack_delegate", resume), /is still running/);
+  await finish(id);
+});
+
+test("workers a closed session left queued or running are listed as interrupted", async () => {
+  const { call, artifacts } = longRunningWorkers();
+  await call<Started>("pstack_delegate", {
+    mode: "swarm",
+    tasks: ["one", "two"],
+    background: true,
+    concurrency: 1,
+  });
+  await settle();
+  const after = await listWorkers(join(artifacts, "workers"), backgroundWorkers());
+  assert.deepEqual(
+    after.map((w) => w.state),
+    ["interrupted", "interrupted"],
+  );
 });

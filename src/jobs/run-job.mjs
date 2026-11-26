@@ -25,7 +25,7 @@ const benny = job.kind === "custom" ? undefined : job.config;
 const repository = await realpath(job.cwd);
 const dir = join(dirname(resolve(jobFile)), "runs");
 await mkdir(dir, { recursive: true, mode: 0o700 });
-const { prompt, key, eventId } = planRun(job, event);
+const { prompt, key, eventId } = planRun(resolve(jobFile), job, event);
 const runDir = join(dir, key);
 await mkdir(runDir, { mode: 0o700 });
 const cwd = benny ? join(runDir, "checkout") : repository;

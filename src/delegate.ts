@@ -124,7 +124,7 @@ function resolveWorkers(
   const modelRole = p.modelRole ?? panelModelRoles[p.mode] ?? worker.modelRole;
   if (!isRole(modelRole)) fail("Unknown model role");
   const provesFindingsInOwnWorktree = p.mode === "interrogate";
-  const readOnly = worker.alwaysReadOnly || (!provesFindingsInOwnWorktree && p.readOnly !== false);
+  const readOnly = worker.alwaysReadOnly || (p.readOnly ?? !provesFindingsInOwnWorktree);
   if (p.mode !== "swarm" && p.tasks.length !== 1)
     fail("Single, arena and interrogate require one shared task");
   if (p.mode === "arena" && !p.rubric?.trim()) fail("Arena requires a common evaluation rubric");
@@ -177,7 +177,9 @@ export function workerArgs(options: {
 }) {
   return [
     "--print",
-    ...workerIsolation.filter((flag) => options.readOnly || flag !== "--no-mcp"),
+    ...(options.readOnly
+      ? workerIsolation
+      : [...workerIsolation.filter((f) => f !== "--no-mcp"), "-e", "builtin:mcp"]),
     ...(options.extension ? ["-e", options.extension] : []),
     "--tools",
     options.readOnly
@@ -346,27 +348,29 @@ async function launchWorker(
 async function resumeWorker(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
-  active: ActiveWorktrees,
+  workers: { active: ActiveWorktrees; background: BackgroundWorkers },
   p: DelegateParams & { resume: string },
   options: Pick<RunnerOptions, "signal" | "progress">,
 ) {
   if (p.mode !== "single" || p.tasks.length !== 1 || p.model)
     fail("Resume takes mode single, one follow-up task, and no model");
-  const workers = join(artifacts(ctx), "workers");
+  const workersDir = join(artifacts(ctx), "workers");
   const sessionDir = resolve(p.resume);
-  if (!sessionDir.startsWith(workers + sep)) fail(`Resume a worker session under ${workers}`);
+  if (!sessionDir.startsWith(workersDir + sep)) fail(`Resume a worker session under ${workersDir}`);
   const worker: unknown = parseJson(
     await readFile(join(sessionDir, "worker.json"), "utf8"),
     "worker record",
   );
   if (!isWorkerRecord(worker) || worker.sessionDir !== sessionDir) fail("Invalid worker record");
+  if (workers.background.state(worker.id) || workers.active.has(worker.cwd))
+    fail(`Worker ${worker.id} is still running; resume it after it exits`);
   const run = () =>
     execWorker(pi, options, worker, {
       thinking: p.thinking ?? worker.thinking,
       prompt: p.tasks.join("\n"),
       report: join(sessionDir, `resume-${randomUUID().slice(0, 8)}.txt`),
     });
-  const output = worker.readOnly ? await run() : await active.hold(worker.cwd, run);
+  const output = worker.readOnly ? await run() : await workers.active.hold(worker.cwd, run);
   const value = { id: worker.id, model: worker.model, path: worker.cwd, base: null, ...output };
   return { outputs: [{ status: "fulfilled", value }], dir: dirname(sessionDir) };
 }
@@ -551,7 +555,13 @@ export function registerDelegation(
       return result(
         resume === undefined
           ? await delegate(pi, ctx, { active, background }, p, signal, progress)
-          : await resumeWorker(pi, ctx, active, { ...p, resume }, { signal, progress }),
+          : await resumeWorker(
+              pi,
+              ctx,
+              { active, background },
+              { ...p, resume },
+              { signal, progress },
+            ),
       );
     },
   });

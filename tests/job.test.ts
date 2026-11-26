@@ -392,3 +392,12 @@ test(
     assert.equal(refs.stdout, "", "each run deletes its private ref");
   },
 );
+
+test("two jobs in one folder each run the same report", slow, async () => {
+  const { job, enabled, run, writeSigned } = await fixture();
+  const second = join(dirname(job), "second.json");
+  await writeFile(second, JSON.stringify(enabled));
+  await writeSigned(report);
+  const results = await Promise.all([run(), run(0, undefined, "project", second)]);
+  for (const result of results) assert.equal(result.status, 0, result.stderr);
+});

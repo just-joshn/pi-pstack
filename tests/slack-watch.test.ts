@@ -170,3 +170,19 @@ test("only Benny jobs can be watched", async () => {
   assert.deepEqual(await watchedJobs([triage]), [{ path: triage, channel: "C9" }]);
   await assert.rejects(watchedJobs([custom]), /is not a Benny job/);
 });
+
+test("a channel's first cursor is saved even when another channel's poll fails", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  await writeFile(state, JSON.stringify({ channels: { C2: "5.0" } }));
+  const { io } = fakeIo({});
+  const failing = { ...io, history: async () => Promise.reject(Error("ratelimited")) };
+  const jobs = [
+    { path: "new.json", channel: "C1" },
+    { path: "old.json", channel: "C2" },
+  ];
+  await assert.rejects(pollOnce(jobs, state, failing), /ratelimited/);
+  assert.deepEqual(JSON.parse(await readFile(state, "utf8")), {
+    channels: { C2: "5.0", C1: "1700000000.000000" },
+  });
+});
