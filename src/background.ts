@@ -86,9 +86,9 @@ async function runForeground<T>(
     if (options.signal?.aborted) controller.abort();
     else options.signal?.addEventListener("abort", () => controller.abort(), { once: true });
   return pool(queue, concurrency, async ({ id, controller }) => {
-    if (controller.signal.aborted) fail(`Worker ${id} was stopped before it started`);
-    registry.active.add(id);
     try {
+      if (controller.signal.aborted) fail(`Worker ${id} was stopped before it started`);
+      registry.active.add(id);
       const output = await run(id, controller.signal);
       await writeStatus(dir, id, { state: "done", ...fields });
       return output;

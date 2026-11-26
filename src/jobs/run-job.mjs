@@ -57,9 +57,10 @@ const git = promisify(execFile);
 /** @param {string} branch */
 async function checkout(branch) {
   const ref = `refs/pstack/runs/${key}`;
-  await fetchBranch(repository, branch, ref);
+  await fetchBranch(repository, branch, ref, stopping.signal);
   try {
-    await git("git", ["-C", repository, "worktree", "add", "--quiet", "--detach", cwd, ref]);
+    const addWorktree = ["-C", repository, "worktree", "add", "--quiet", "--detach", cwd, ref];
+    await git("git", addWorktree, { signal: stopping.signal, killSignal: "SIGKILL" });
   } finally {
     await deleteRef(repository, ref);
   }
@@ -85,7 +86,7 @@ function listSkillFilesInSystemPrompt(files) {
 
 async function sharedSkillFilesOrFailure() {
   try {
-    const { files, unresolved } = await projectSkills(cwd, piBin, env);
+    const { files, unresolved } = await projectSkills(cwd, piBin, env, 60_000, stopping.signal);
     return unresolved.length
       ? notStarted(`pstack skills not in the checkout's project scope: ${unresolved.join(", ")}`)
       : files;
@@ -126,8 +127,10 @@ const launchFailure = (launched, reason) =>
 /** @type {ReturnType<typeof spawn> | undefined} */
 let child;
 let stopped = false;
+const stopping = new AbortController();
 const stop = () => {
   stopped = true;
+  stopping.abort();
   child?.kill("SIGTERM");
   setTimeout(() => child?.kill("SIGKILL"), stopGraceMs).unref();
 };

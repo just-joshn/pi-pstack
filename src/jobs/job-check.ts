@@ -16,10 +16,15 @@ const git = promisify(execFile);
  * Fetches `origin/<branch>` into a ref only this caller uses. Runs fetching the same repository at
  * once otherwise collide on the remote-tracking ref and FETCH_HEAD.
  */
-export async function fetchBranch(repository: string, branch: string, ref: string) {
+export async function fetchBranch(
+  repository: string,
+  branch: string,
+  ref: string,
+  signal?: AbortSignal,
+) {
   const refspec = `+refs/heads/${branch}:${ref}`;
   const args = ["fetch", "--quiet", "--no-write-fetch-head", "--refmap=", "origin", refspec];
-  await git("git", ["-C", repository, ...args]);
+  await git("git", ["-C", repository, ...args], { signal, killSignal: "SIGKILL" });
 }
 export const deleteRef = (repository: string, ref: string) =>
   git("git", ["-C", repository, "update-ref", "-d", ref]);
@@ -71,11 +76,18 @@ function jsonLine(line: string): unknown {
   }
 }
 
-async function skillSources(piBin: string, cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number) {
+async function skillSources(
+  piBin: string,
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  timeoutMs: number,
+  signal: AbortSignal | undefined,
+) {
   const child = spawn(piBin, ["--mode", "rpc", "--no-session", "--approve", "--no-extensions"], {
     cwd,
     env,
     stdio: ["pipe", "pipe", "ignore"],
+    ...(signal && { signal, killSignal: "SIGKILL" as const }),
   });
   let failure: unknown;
   child.on("error", (error) => (failure = error));
@@ -116,8 +128,9 @@ export async function projectSkills(
   piBin = process.env["PSTACK_PI_BIN"] ?? "pi",
   env: NodeJS.ProcessEnv = process.env,
   timeoutMs = 60_000,
+  signal?: AbortSignal,
 ) {
-  const sources = await skillSources(piBin, cwd, env, timeoutMs);
+  const sources = await skillSources(piBin, cwd, env, timeoutMs, signal);
   const files = new Map<string, string>();
   for (const skill of sharedSkills) {
     const source = sources.get(`skill:${skill}`);

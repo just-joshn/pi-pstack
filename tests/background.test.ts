@@ -406,3 +406,31 @@ test("a foreground worker whose tool call is cancelled is listed as stopped", as
   await call;
   assert.equal((await listed())[0]?.state, "stopped");
 });
+
+test("cancelling a foreground swarm stops the workers still waiting for a slot", async () => {
+  const h = host({
+    execute: async (bin, args, options) => {
+      if (bin === "git") return notARepository;
+      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+      await new Promise((_, reject) =>
+        options?.signal?.addEventListener("abort", () => reject(Error("killed"))),
+      );
+      return { code: 0, stdout: "", stderr: "" };
+    },
+  });
+  const listed = async () =>
+    shaped<Listed[]>(readResult(await h.call("pstack_workers", { action: "list" })));
+  const cancel = new AbortController();
+  const tasks = ["one", "two"];
+  const call = h.call("pstack_delegate", { mode: "swarm", tasks, concurrency: 1 }, cancel.signal);
+  const deadline = Date.now() + 4000;
+  const running = async () => (await listed()).some((w) => w.state === "running");
+  // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the first worker to start.
+  while (!(await running()) && Date.now() < deadline) await settle();
+  cancel.abort();
+  await call;
+  assert.deepEqual(
+    (await listed()).map((w) => w.state),
+    ["stopped", "stopped"],
+  );
+});

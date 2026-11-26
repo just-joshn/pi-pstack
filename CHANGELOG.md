@@ -29,9 +29,9 @@ FIXED:
 - `pstack_delegate` mode `interrogate` honors an explicit `readOnly: true`; only its default is writable.
 - Resuming a worker that is still running, or that another resume is running, is refused, instead of starting a second Pi process on the same session. A resume with `background: true` is refused, since resume runs in the foreground.
 - A worker whose first launch left no session cannot be resumed; before, the resume started a fresh session with only the follow-up task.
-- A job runner that is sent `SIGTERM` or `SIGINT` kills its Pi with `SIGKILL` if it has not exited 5 seconds later, and records the run as `stopped`. A stop that arrives while a Benny run is still checking out or probing its skills records `stopped` too, and Pi never starts.
+- A job runner that is sent `SIGTERM` or `SIGINT` kills its Pi with `SIGKILL` if it has not exited 5 seconds later, and records the run as `stopped`. A stop that arrives while a Benny run is still fetching, checking out or probing its skills kills that step, records `stopped`, and Pi never starts.
 - Two resumes of one worker started together cannot both run.
-- A foreground worker whose `pstack_delegate` call is cancelled is listed as `stopped`, not `failed`.
+- A foreground worker whose `pstack_delegate` call is cancelled is listed as `stopped`, not `failed`, including one still waiting for a slot, which no longer stays `queued`.
 - A job runner stopped while it opens its log files no longer starts Pi.
 - A resume refuses `readOnly`, `role`, `modelRole`, `models`, `base`, `rubric` and `concurrency` instead of silently ignoring them; it continues the worker as it was.
 - A Benny run's skill check no longer receives `PSTACK_EVENT_SECRET` or `PSTACK_SLACK_TRIGGER_TOKEN`; it gets the same cleaned environment as the run.

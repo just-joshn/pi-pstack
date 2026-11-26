@@ -453,7 +453,7 @@ test("a Benny run stopped while it prepares records a stopped receipt", slow, as
   const { job, writeSigned, runs } = await fixture();
   await writeSigned(report);
   const slowProbe = join(dirname(job), "slow-pi");
-  await writeFile(slowProbe, "#!/bin/sh\nsleep 3\n", { mode: 0o700 });
+  await writeFile(slowProbe, "#!/bin/sh\nexec sleep 30\n", { mode: 0o700 });
   const runnerProcess = spawn(
     process.execPath,
     [runner, "--run", job, join(dirname(job), "event.json")],
@@ -464,8 +464,10 @@ test("a Benny run stopped while it prepares records a stopped receipt", slow, as
   );
   const exited = once(runnerProcess, "exit");
   await new Promise((resolve) => setTimeout(resolve, 1000));
+  const stoppedAt = Date.now();
   runnerProcess.kill("SIGTERM");
   await exited;
+  assert(Date.now() - stoppedAt < 5000, "the stop reaches the skill probe");
   const [run = ""] = await readdir(runs);
   const saved = receipt(await readFile(join(runs, run, "result.json"), "utf8"));
   assert.equal(saved.status, "stopped");
