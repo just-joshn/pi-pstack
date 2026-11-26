@@ -81,7 +81,6 @@ async function checkout(branch) {
   }
 }
 
-/** @param {unknown} error */
 const errorCode = (error) =>
   isRecord(error) && typeof error.code === "string" ? error.code : "unknown error";
 /** @param {string} error */
@@ -123,7 +122,6 @@ async function prepareBennyRunOrFailure() {
   return undefined;
 }
 
-/** @param {boolean} launched @param {string} reason */
 const launchFailure = (launched, reason) =>
   launched
     ? {
