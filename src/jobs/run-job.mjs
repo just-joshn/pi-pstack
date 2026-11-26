@@ -20,6 +20,20 @@ if (flag !== "--run" || !jobFile)
   throw Error(
     "Usage: node src/jobs/run-job.mjs --run <reviewed enabled job.json> [signed-event.json]",
   );
+const stopGraceMs = 5000;
+/** @type {ReturnType<typeof spawn> | undefined} */
+let child;
+let stopped = false;
+const stopping = new AbortController();
+const stop = () => {
+  stopped = true;
+  stopping.abort();
+  child?.kill("SIGTERM");
+  setTimeout(() => child?.kill("SIGKILL"), stopGraceMs).unref();
+};
+process.on("SIGINT", stop);
+process.on("SIGTERM", stop);
+
 const job = await readJob(jobFile);
 const event = await readEvent(job, eventFile, process.env.PSTACK_EVENT_SECRET);
 const benny = job.kind === "custom" ? undefined : job.config;
@@ -28,6 +42,7 @@ const dir = join(dirname(resolve(jobFile)), "runs");
 await mkdir(dir, { recursive: true, mode: 0o700 });
 const { prompt, key, eventId } = planRun(resolve(jobFile), job, event);
 const runDir = join(dir, key);
+if (stopped) throw Error("Stopped before the run was claimed");
 await mkdir(runDir, { mode: 0o700 });
 const cwd = benny ? join(runDir, "checkout") : repository;
 const log = join(runDir, "stdout.txt");
@@ -108,8 +123,6 @@ async function prepareBennyRunOrFailure() {
   return undefined;
 }
 
-const stopGraceMs = 5000;
-
 /** @param {boolean} launched @param {string} reason */
 const launchFailure = (launched, reason) =>
   launched
@@ -123,19 +136,6 @@ const launchFailure = (launched, reason) =>
         code: 1,
         error: `Unable to start Pi (${reason}); check PSTACK_PI_BIN`,
       };
-
-/** @type {ReturnType<typeof spawn> | undefined} */
-let child;
-let stopped = false;
-const stopping = new AbortController();
-const stop = () => {
-  stopped = true;
-  stopping.abort();
-  child?.kill("SIGTERM");
-  setTimeout(() => child?.kill("SIGKILL"), stopGraceMs).unref();
-};
-process.on("SIGINT", stop);
-process.on("SIGTERM", stop);
 
 async function runPi() {
   let out, err;
@@ -160,7 +160,7 @@ async function runPi() {
     const code = child.exitCode ?? 1;
     if (code === 0 && !(await sent))
       return { status: "exited", code: 1, error: "Pi exited before receiving the job prompt" };
-    return { status: stopped ? "stopped" : "exited", code };
+    return { status: stopped ? "stopped" : "exited", code: stopped && code === 0 ? 1 : code };
   } catch (error) {
     return launchFailure(child?.pid !== undefined, errorCode(error));
   } finally {

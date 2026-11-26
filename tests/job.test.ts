@@ -5,6 +5,7 @@ import { once } from "node:events";
 import { access, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { onTestFinished, test } from "vitest";
@@ -472,4 +473,34 @@ test("a Benny run stopped while it prepares records a stopped receipt", slow, as
   const saved = receipt(await readFile(join(runs, run, "result.json"), "utf8"));
   assert.equal(saved.status, "stopped");
   await assert.rejects(() => access(join(runs, run, "stdout.txt")), { code: "ENOENT" });
+});
+
+test("a stopped run fails even when its Pi exits cleanly on SIGTERM", slow, async () => {
+  const { job, enabled, runs } = await fixture("custom");
+  await writeFile(job, JSON.stringify({ ...enabled, tools: ["read"] }));
+  const polite = join(dirname(job), "polite-pi");
+  await writeFile(
+    polite,
+    "#!/bin/sh\ntrap 'exit 0' TERM\necho started\nwhile :; do sleep 1; done\n",
+    { mode: 0o700 },
+  );
+  const runnerProcess = spawn(process.execPath, [runner, "--run", job], {
+    env: { ...process.env, PSTACK_PI_BIN: polite },
+    stdio: "ignore",
+  });
+  const exited = once(runnerProcess, "exit");
+  const deadline = Date.now() + 10_000;
+  const startedLog = async () => {
+    const [run = ""] = await readdir(runs).catch(() => []);
+    return run ? readFile(join(runs, run, "stdout.txt"), "utf8").catch(() => "") : "";
+  };
+  // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the Pi to start.
+  while (!(await startedLog()).includes("started") && Date.now() < deadline) await sleep(50);
+  runnerProcess.kill("SIGTERM");
+  await exited;
+  assert.notEqual(runnerProcess.exitCode, 0);
+  const [run = ""] = await readdir(runs);
+  const saved = receipt(await readFile(join(runs, run, "result.json"), "utf8"));
+  assert.equal(saved.status, "stopped");
+  assert.notEqual(saved.code, 0);
 });
