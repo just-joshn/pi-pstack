@@ -5,7 +5,7 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { isRecord, parseJson } from "../lib/validation.ts";
-import { hasErrorCode } from "../support.ts";
+import { atomicWrite, hasErrorCode } from "../support.ts";
 import { readJob, type SlackTrigger } from "./job-input.ts";
 
 export interface SlackMessage {
@@ -84,7 +84,7 @@ async function readState(path: string): Promise<State> {
 
 export async function pollOnce(jobs: readonly Watched[], statePath: string, io: WatchIo) {
   const state = await readState(statePath);
-  const save = () => writeFile(statePath, JSON.stringify({ channels: state }, null, 2) + "\n");
+  const save = () => atomicWrite(statePath, JSON.stringify({ channels: state }, null, 2) + "\n");
   const started: { job: string; ts: string }[] = [];
   for (const channel of new Set(jobs.map((j) => j.channel))) {
     const oldest = state[channel];

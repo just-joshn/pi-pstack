@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 import { test } from "vitest";
 
 import { backgroundWorkers, listWorkers } from "../src/background.ts";
+import { activeWorktrees } from "../src/worktrees.ts";
 import { host, notARepository, readResult } from "./host.ts";
 import { flag, shaped } from "./support.ts";
 
@@ -82,8 +83,8 @@ test("background workers return at once, keep running, and can be listed and sto
     ]),
   );
   assert(
-    timeouts.every((t) => (t ?? 0) > 24 * 60 * 60 * 1000),
-    "no 30-minute cap",
+    timeouts.every((t) => t === undefined),
+    "no time limit",
   );
 
   await list("stop", one);
@@ -206,9 +207,41 @@ test("workers a closed session left queued or running are listed as interrupted"
     concurrency: 1,
   });
   await settle();
-  const after = await listWorkers(join(artifacts, "workers"), backgroundWorkers());
+  const after = await listWorkers(
+    join(artifacts, "workers"),
+    backgroundWorkers(),
+    activeWorktrees(),
+  );
   assert.deepEqual(
     after.map((w) => w.state),
     ["interrupted", "interrupted"],
+  );
+});
+
+test("a running foreground worker is listed as running, and arena folders are not workers", async () => {
+  const gate = Promise.withResolvers<void>();
+  const h = host({
+    execute: async (bin, args) => {
+      if (bin === "git") return notARepository;
+      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+      await gate.promise;
+      return { code: 0, stdout: "r", stderr: "" };
+    },
+  });
+  const list = async () =>
+    shaped<Listed[]>(readResult(await h.call("pstack_workers", { action: "list" })));
+  const running = h.call("pstack_delegate", { mode: "single", tasks: ["work"] });
+  await settle();
+  assert.deepEqual(
+    (await list()).map((w) => w.state),
+    ["running"],
+  );
+  gate.resolve();
+  await running;
+  const [batch = ""] = await readdir(join(h.artifacts, "workers"));
+  await mkdir(join(h.artifacts, "workers", batch, "blinded"));
+  assert.deepEqual(
+    (await list()).map((w) => w.state),
+    ["finished"],
   );
 });

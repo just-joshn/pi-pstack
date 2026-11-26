@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { spawn } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { test } from "vitest";
@@ -185,4 +185,14 @@ test("a channel's first cursor is saved even when another channel's poll fails",
   assert.deepEqual(JSON.parse(await readFile(state, "utf8")), {
     channels: { C2: "5.0", C1: "1700000000.000000" },
   });
+});
+
+test("the cursor file is replaced whole, never rewritten in place", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  await writeFile(state, JSON.stringify({ channels: { C1: "1.0" } }));
+  const before = (await stat(state)).ino;
+  await pollOnce([{ path: "a.json", channel: "C1" }], state, fakeIo({ C1: [{ ts: "2.0" }] }).io);
+  assert.notEqual((await stat(state)).ino, before);
+  assert.deepEqual(await readdir(dir), ["watch-state.json"], "no temporary file is left");
 });

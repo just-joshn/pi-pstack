@@ -215,7 +215,7 @@ interface RunnerOptions {
   extensions: ReadonlyMap<string, string>;
   workerRubric: string | undefined;
   base: string | undefined;
-  timeoutMs?: number;
+  timeoutMs?: number | "none";
   diff: ParentDiff | undefined;
   signal: AbortSignal | undefined;
   progress: (message: string) => void;
@@ -298,7 +298,7 @@ async function execWorker(
   options.progress(`Running ${worker.id}`);
   const exec = await pi.exec(piBin, args, {
     cwd: worker.cwd,
-    timeout: options.timeoutMs ?? 30 * 60 * 1000,
+    ...(options.timeoutMs !== "none" && { timeout: options.timeoutMs ?? 30 * 60 * 1000 }),
     maxBuffer: 4 * 1024 * 1024,
     ...(options.signal && { signal: options.signal }),
   });
@@ -379,7 +379,6 @@ async function resumeWorker(
 }
 
 const workerId = (index: number) => `worker-${index + 1}-${randomUUID().slice(0, 8)}`;
-const backgroundTimeoutMs = 7 * 24 * 60 * 60 * 1000;
 
 function createRunner(
   pi: ExtensionAPI,
@@ -519,7 +518,7 @@ async function delegate(
         createRunner(pi, ctx, workers.active, {
           ...options,
           signal: stop,
-          timeoutMs: backgroundTimeoutMs,
+          timeoutMs: "none",
         })(request),
     }));
     const { ids: started } = await workers.background.start(dir, jobs, p.concurrency ?? 3);

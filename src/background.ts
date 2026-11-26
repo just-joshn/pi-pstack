@@ -7,6 +7,7 @@ import { Type } from "typebox";
 import { pool } from "./lib/pool.ts";
 import { errorMessage, isRecord, parseJson } from "./lib/validation.ts";
 import { artifacts, atomicWrite, fail, hasErrorCode, result, stringEnum } from "./support.ts";
+import type { ActiveWorktrees } from "./worktrees.ts";
 
 export interface BackgroundJob {
   id: string;
@@ -83,14 +84,18 @@ async function readJson(path: string) {
   }
 }
 
-export async function listWorkers(root: string, background: BackgroundWorkers) {
+export async function listWorkers(
+  root: string,
+  background: BackgroundWorkers,
+  active: ActiveWorktrees,
+) {
   const batches = (await entries(root)).filter((e) => e.isDirectory());
   const found = await Promise.all(
     batches.map(async (batch) => {
       const dir = join(root, batch.name);
       const listed = await entries(dir);
       const ids = new Set([
-        ...listed.filter((e) => e.isDirectory()).map((e) => e.name),
+        ...listed.filter((e) => e.isDirectory() && e.name.startsWith("worker-")).map((e) => e.name),
         ...listed.flatMap((e) => (e.name.endsWith(".status.json") ? [e.name.slice(0, -12)] : [])),
       ]);
       return Promise.all(
@@ -100,7 +105,8 @@ export async function listWorkers(root: string, background: BackgroundWorkers) {
           const status = await readJson(statusFile(dir, id));
           const saved = status?.["state"];
           const unsettled = saved === "queued" || saved === "running";
-          const state = background.state(id) ?? (unsettled ? "interrupted" : (saved ?? "finished"));
+          const live = background.state(id) ?? (active.has(sessionDir) ? "running" : undefined);
+          const state = live ?? (unsettled ? "interrupted" : (saved ?? "finished"));
           const { model, cwd, readOnly } = record ?? {};
           const error = status?.["error"];
           const activity = await lastActivity(sessionDir);
@@ -125,7 +131,11 @@ export async function listWorkers(root: string, background: BackgroundWorkers) {
     .toSorted((a, b) => (b.lastActivity ?? "").localeCompare(a.lastActivity ?? ""));
 }
 
-export function registerBackground(pi: ExtensionAPI, background: BackgroundWorkers) {
+export function registerBackground(
+  pi: ExtensionAPI,
+  background: BackgroundWorkers,
+  active: ActiveWorktrees,
+) {
   pi.on("session_shutdown", () => background.stopAll());
   pi.registerTool({
     name: "pstack_workers",
@@ -138,7 +148,7 @@ export function registerBackground(pi: ExtensionAPI, background: BackgroundWorke
     }),
     async execute(_id, p, _signal, _update, ctx) {
       if (p.action === "stop") background.stop(p.id ?? "");
-      return result(await listWorkers(join(artifacts(ctx), "workers"), background));
+      return result(await listWorkers(join(artifacts(ctx), "workers"), background, active));
     },
   });
 }

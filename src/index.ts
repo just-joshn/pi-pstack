@@ -23,6 +23,6 @@ export default function pstack(pi: ExtensionAPI) {
   registerWorktrees(pi, active);
   const background = backgroundWorkers();
   registerDelegation(pi, active, background);
-  registerBackground(pi, background);
+  registerBackground(pi, background, active);
   registerForge(pi, () => activePlan(session.state())?.route);
 }
