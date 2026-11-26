@@ -131,7 +131,7 @@ test("a worker is told when the parent diff could not be captured", async () => 
   assert.match(nth(prompts, 0), /Parent diff artifact unavailable/);
 });
 
-test("delegation checks the selected workers and judge, not unused roles", async () => {
+test("an arena with no usable judge skips the judge, as upstream does", async () => {
   onTestFinished(() => rm(configFile, { force: true }));
   const h = host({
     confirm: true,
@@ -151,12 +151,13 @@ test("delegation checks the selected workers and judge, not unused roles", async
   const tasks = ["review"];
   const result = delegated(await h.call("pstack_delegate", { mode: "single", tasks }));
   assert.equal(fulfilled(result.outputs).model, "anthropic/claude");
-  const runs = h.executions.length;
-  await assert.rejects(
-    () => h.call("pstack_delegate", { mode: "arena", tasks, rubric: "quality" }),
-    /openai\/gpt/,
+  const workers = () => h.executions.filter(([bin]) => bin !== "git").length;
+  const runs = workers();
+  const arena = delegated(
+    await h.call("pstack_delegate", { mode: "arena", tasks, rubric: "quality" }),
   );
-  assert.equal(h.executions.length, runs, "do not start an arena without a usable judge");
+  assert.equal(workers(), runs + 2, "the candidates run without a judge");
+  assert.match(arena.judgment?.status ?? "", /skipped: no available judge/);
 });
 
 test("worker flags disable nested extensions, MCP for readers, and writes for reviewers", () => {
@@ -284,4 +285,24 @@ test("resume continues a worker's own session in its own checkout with the follo
     ),
   );
   assert.equal(runs.length, 2);
+});
+
+test("interrogate adversaries run in their own writable worktrees to prove findings", async () => {
+  const cwd = await repo();
+  const launched: { tools: string | undefined; cwd: string | undefined }[] = [];
+  const h: Host = host({
+    cwd,
+    realGit: true,
+    execute: async (_, args, options) => {
+      launched.push({ tools: flag(args, "--tools"), cwd: options?.cwd });
+      return { code: 0, stdout: "no verified findings", stderr: "" };
+    },
+  });
+  await h.call("pstack_delegate", { mode: "interrogate", tasks: ["break this change"] });
+  assert.equal(launched.length, 3, "one adversary per default reviewer seat");
+  for (const worker of launched) {
+    assert.equal(worker.tools, "read,grep,find,ls,bash,edit,write");
+    assert.notEqual(worker.cwd, cwd);
+  }
+  assert.equal(new Set(launched.map((w) => w.cwd)).size, 3);
 });

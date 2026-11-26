@@ -248,7 +248,7 @@ test("roles, budget, alias and cross-vendor judge validation", () => {
   validateConfig(cfg, [a, b, c]);
   assert.equal(modelFor("auto", a), a);
   assert.equal(modelFor("inherit-parent", a), a);
-  assert.equal(crossJudge(cfg, a, [], new Set([a, b, c])), b);
+  assert.equal(crossJudge(cfg, a, new Set([a, b, c])), b);
   assert.equal(vendor("openrouter/anthropic/claude-sonnet"), "anthropic");
   assert.equal(vendor("openrouter/openai/gpt-5"), "openai");
   assert.equal(effort("feature, refactoring", "large"), "xhigh");

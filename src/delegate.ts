@@ -106,7 +106,8 @@ function resolveWorkers(
   if (!worker) fail("Unknown worker role");
   const modelRole = p.modelRole ?? panelModelRoles[p.mode] ?? worker.modelRole;
   if (!isRole(modelRole)) fail("Unknown model role");
-  const readOnly = worker.alwaysReadOnly || p.mode === "interrogate" || p.readOnly !== false;
+  // Interrogate adversaries prove each finding by running it in their own worktree.
+  const readOnly = worker.alwaysReadOnly || (p.mode !== "interrogate" && p.readOnly !== false);
   if (p.mode !== "swarm" && p.tasks.length !== 1)
     fail("Single, arena and interrogate require one shared task");
   if (p.mode === "arena" && !p.rubric?.trim()) fail("Arena requires a common evaluation rubric");
@@ -120,11 +121,7 @@ function resolveWorkers(
     p.model ? tasks.map(() => p.model ?? "") : selectPanel(config, modelRole, tasks.length)
   ).map((m) => modelFor(m, parent));
   assertReachable(available, models);
-  const judge = p.mode === "arena" ? crossJudge(config, parent, models, available) : undefined;
-  if (p.mode === "arena" && !judge)
-    fail(
-      `Configure an available judge from another provider than the parent and all candidates in /setup-pstack. Configured pool: ${config.roles[judgeRole].join(", ") || "(empty)"}.`,
-    );
+  const judge = p.mode === "arena" ? crossJudge(config, parent, available) : undefined;
   const workers = tasks.flatMap((task, i) =>
     models.slice(i, i + 1).map((model) => ({ task, model })),
   );
@@ -364,30 +361,29 @@ async function judgeArena(
   judge: string,
   run: RunWorker,
 ) {
-  if (!outputs.every((entry) => entry.status === "fulfilled"))
-    return { status: "INCONCLUSIVE: a candidate failed" };
-  const candidates = outputs.map((entry) => entry.value);
   const blindDir = join(dir, "blinded");
   await mkdir(blindDir, { mode: 0o700 });
-  const files = await Promise.all(
-    candidates.map(async ({ model, transcript }, i) => {
-      if (!transcript) return null;
+  const projected = await Promise.all(
+    outputs.map(async (entry, i) => {
+      if (entry.status !== "fulfilled" || !entry.value.transcript) return null;
+      const { model, transcript, path: worktree } = entry.value;
       const projection = blindTranscript(await readFile(transcript, "utf8"), model);
       if (!projection.trim()) return null;
       const path = join(blindDir, `candidate-${i + 1}.jsonl`);
       await writeFile(path, projection, { mode: 0o600 });
-      return path;
+      return { path, label: `Candidate ${i + 1}: ${worktree}` };
     }),
   );
-  if (!files.every((path) => path !== null))
-    return { status: "INCONCLUSIVE: missing or empty candidate transcript" };
-  const worktrees = candidates
-    .map((candidate, i) => `Candidate ${i + 1}: ${candidate.path}`)
-    .join("; ");
+  // A candidate with no output drops out, and the judge scores the rest (upstream arena, Phase B).
+  const dropouts = projected.flatMap((entry, i) => (entry ? [] : [`candidate-${i + 1}`]));
+  const candidates = projected.filter((entry) => entry !== null);
+  if (!candidates.length) return { status: "INCONCLUSIVE: every candidate dropped out", dropouts };
+  const files = candidates.map((c) => c.path);
+  const worktrees = candidates.map((c) => c.label).join("; ");
   const assessment = await run({
     task: `Judge these ${files.length} anonymous candidate message transcripts: ${files.join(", ")}. Read every file in full, including tool results; rubric: ${rubric}. Rank by actual evidence; note missing artifacts or unverifiable claims. For write candidates, inspect candidate worktrees if necessary: ${worktrees}. Do not infer provider identity.`,
     model: judge,
-    index: candidates.length,
+    index: outputs.length,
     readOnly: true,
     role: "general-purpose",
     modelRole: judgeRole,
@@ -399,6 +395,7 @@ async function judgeArena(
   return {
     ...assessment,
     readAudit,
+    dropouts,
     status: readAudit.every((entry) => entry.read)
       ? "reviewed"
       : "INCONCLUSIVE: judge did not read every projected transcript",
@@ -480,7 +477,12 @@ async function delegate(
   }
   const run = createRunner(pi, ctx, workers.active, options);
   const outputs = await pool(requests, p.concurrency ?? 3, run);
-  const judgment = judge && (await judgeOrInconclusive(dir, outputs, p.rubric, judge, run));
+  const judgment =
+    p.mode === "arena"
+      ? judge
+        ? await judgeOrInconclusive(dir, outputs, p.rubric, judge, run)
+        : { status: "skipped: no available judge from a vendor other than the parent's" }
+      : undefined;
   return {
     outputs,
     judgment,

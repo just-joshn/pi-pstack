@@ -64,17 +64,18 @@ function judgingWorkers(
     const content: object[] = [{ type: "text", text: `Compared work for ${worker}` }];
     const results: object[] = [];
     if (worker === "openai/gpt") {
-      const [one = "", two = ""] = prompt.match(/\/[^\s,]+\/candidate-\d\.jsonl/g) ?? [];
-      const projections = await Promise.all([one, two].map((path) => readFile(path, "utf8")));
+      // Reads every candidate; only the first read succeeds.
+      const paths = prompt.match(/\/[^\s,]+\/candidate-\d\.jsonl/g) ?? [];
+      const projections = await Promise.all(paths.map((path) => readFile(path, "utf8")));
       assert(projections.every((line) => firstText(line)?.includes("[redacted-model]")));
-      content.push(
-        { type: "toolCall", id: "r1", name: "read", arguments: { path: one } },
-        { type: "toolCall", id: "r2", name: "read", arguments: { path: two } },
-      );
-      results.push(
-        { role: "toolResult", toolCallId: "r1", content: [{ type: "text", text: "ok" }] },
-        { role: "toolResult", toolCallId: "r2", isError: true, content: [] },
-      );
+      paths.forEach((path, i) => {
+        content.push({ type: "toolCall", id: `r${i}`, name: "read", arguments: { path } });
+        results.push(
+          i === 0
+            ? { role: "toolResult", toolCallId: `r${i}`, content: [{ type: "text", text: "ok" }] }
+            : { role: "toolResult", toolCallId: `r${i}`, isError: true, content: [] },
+        );
+      });
     }
     await writeFile(
       session,
@@ -160,23 +161,58 @@ test("judge selection skips both unavailable and same-vendor pool entries", asyn
   assert.equal(result.judgment?.model, "google/gemini");
 });
 
-test("arena rejects a judge whose provider appears in the candidate panel", async () => {
+test("the judge may share a candidate's vendor, but never the parent's", async () => {
   onTestFinished(() => rm(configFile, { force: true }));
-  const h = host({ confirm: true });
+  const judged: string[] = [];
+  const h = host({ confirm: true, execute: judgingWorkers(judged) });
   await h.cmd(
     "setup-pstack",
     JSON.stringify({
       roles: {
         "arena runners": ["anthropic/claude", "google/gemini"],
-        "arena cross-judge pool": ["google/gemini"],
+        "arena cross-judge pool": ["anthropic/claude", "google/gemini"],
       },
     }),
   );
-  await assert.rejects(
-    () => h.call("pstack_delegate", { mode: "arena", tasks: ["compare"], rubric: "quality" }),
-    /judge from another provider/,
+  await h.call("pstack_delegate", { mode: "arena", tasks: ["compare"], rubric: "quality" });
+  assert.equal(judged.at(-1), "google/gemini");
+});
+
+test("a candidate that drops out leaves the judge scoring the rest", async () => {
+  onTestFinished(() => rm(configFile, { force: true }));
+  const judged: string[] = [];
+  const workers = judgingWorkers(judged);
+  let calls = 0;
+  const h = host({
+    confirm: true,
+    execute: async (bin, args, options) =>
+      bin !== "git" && ++calls === 1
+        ? { code: 1, stdout: "", stderr: "crashed" }
+        : workers(bin, args, options),
+  });
+  await h.cmd(
+    "setup-pstack",
+    JSON.stringify({
+      roles: {
+        "arena runners": ["auto", "inherit-parent"],
+        "arena cross-judge pool": ["openai/gpt"],
+      },
+    }),
   );
-  assert.equal(h.executions.length, 0);
+  const output = delegated(
+    await h.call("pstack_delegate", {
+      mode: "arena",
+      tasks: ["compare"],
+      rubric: "quality",
+      concurrency: 1,
+    }),
+  );
+  assert.equal(judged.at(-1), "openai/gpt");
+  assert.deepEqual(output.judgment?.dropouts, ["candidate-1"]);
+  assert.deepEqual(
+    output.judgment?.readAudit?.map((entry) => entry.path.split("/").at(-1)),
+    ["candidate-2.jsonl"],
+  );
 });
 
 test("arena sends anonymous transcript files to the independent judge and reports missing reads", async () => {
@@ -189,7 +225,7 @@ test("arena sends anonymous transcript files to the independent judge and report
     JSON.stringify({
       roles: {
         "arena runners": ["anthropic/claude", "google/gemini"],
-        "arena cross-judge pool": ["google/gemini", "openai/gpt"],
+        "arena cross-judge pool": ["anthropic/claude", "openai/gpt"],
       },
     }),
   );
