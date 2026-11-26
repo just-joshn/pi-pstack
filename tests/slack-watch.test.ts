@@ -60,7 +60,7 @@ test("a channel seen for the first time starts from now and replays nothing", as
 test("each new top-level report starts every job on its channel once, oldest first", async () => {
   const dir = await folder();
   const state = join(dir, "watch-state.json");
-  await writeFile(state, JSON.stringify({ channels: { C1: "100.000001", C2: "5.0", bad: 1 } }));
+  await writeFile(state, JSON.stringify({ channels: { C1: "100.000001", C2: "5.0" } }));
   const { io, asked, started } = fakeIo({
     C1: [
       { ts: "100.000300" },
@@ -103,8 +103,15 @@ test("an unreadable state file stops the watcher instead of replaying history", 
   const state = join(dir, "watch-state.json");
   await writeFile(state, "{");
   await assert.rejects(pollOnce([], state, fakeIo({}).io), /Invalid JSON/);
-  await writeFile(state, "[]");
-  assert.deepEqual(await pollOnce([], state, fakeIo({}).io), []);
+  for (const saved of ["[]", '{"channels":{"C1":123}}', '{"channels":[]}']) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each case rewrites the same file.
+    await writeFile(state, saved);
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each case rewrites the same file.
+    await assert.rejects(
+      pollOnce([{ path: "a.json", channel: "C1" }], state, fakeIo({}).io),
+      /Invalid watcher state/,
+    );
+  }
 });
 
 test("history reads every page of conversations.history with the token", async () => {

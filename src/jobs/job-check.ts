@@ -41,9 +41,14 @@ const packFiles = (await readdir(packSource, { recursive: true, withFileTypes: t
   .filter((entry) => entry.isFile())
   .map((entry) => `${pack}/${relative(packSource, join(entry.parentPath, entry.name))}`);
 
+const quotedPath = /`(\.pi\/[^`\n]+)`|^[ \t]*(\.pi\/[^\n]*?)[ \t]*$/gm;
+function namedPaths(text: string) {
+  const quoted = [...text.matchAll(quotedPath)].map((m) => m[1] ?? m[2] ?? "");
+  const prose = text.replace(quotedPath, "").match(/\.pi\/[\w./-]*\w/g) ?? [];
+  return [...quoted, ...prose];
+}
 function requiredFiles(job: Job) {
-  const named = job.instructions.match(/\.pi\/[\w./-]*\w/g) ?? [];
-  return [...new Set([".pi/settings.json", ...packFiles, ...named])];
+  return [...new Set([".pi/settings.json", ...packFiles, ...namedPaths(job.instructions)])];
 }
 
 async function committed(repository: string, ref: string, files: string[]) {

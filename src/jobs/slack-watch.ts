@@ -66,16 +66,14 @@ export function slackHistory(token: string, fetcher: typeof fetch = fetch): Watc
 const slackTimestamp = (milliseconds: number) => (milliseconds / 1000).toFixed(6);
 
 type State = Record<string, string>;
+const isCursors = (value: unknown): value is State =>
+  isRecord(value) && Object.values(value).every((ts) => typeof ts === "string");
 async function readState(path: string): Promise<State> {
   try {
     const saved = parseJson(await readFile(path, "utf8"), path);
-    return isRecord(saved) && isRecord(saved["channels"])
-      ? Object.fromEntries(
-          Object.entries(saved["channels"]).filter(
-            (e): e is [string, string] => typeof e[1] === "string",
-          ),
-        )
-      : {};
+    const channels = isRecord(saved) ? saved["channels"] : undefined;
+    if (!isCursors(channels)) throw Error(`Invalid watcher state in ${path}; fix or delete it`);
+    return channels;
   } catch (error) {
     if (hasErrorCode(error, "ENOENT")) return {};
     throw error;

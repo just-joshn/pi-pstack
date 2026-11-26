@@ -80,7 +80,7 @@ test("a write worker starts in a real detached worktree without asking, as upstr
     confirm: () => assert.fail("reversible work proceeds without asking"),
     execute: async (_, args, options) => {
       launchedIn.push(options?.cwd);
-      assert.equal(flag(args, "--tools"), "read,grep,find,ls,bash,edit,write");
+      assert.equal(flag(args, "--tools"), "read,grep,find,ls,bash,edit,write,codemode,tool_search");
       return { code: 0, stdout: "mock worker", stderr: "" };
     },
   });
@@ -176,10 +176,15 @@ test("worker flags disable nested extensions, MCP for readers, and writes for re
     "a writing worker keeps MCP tools, as upstream's agent mode does",
   );
   assert(write.includes("--no-extensions"));
-  assert.equal(flag(write, "-e"), "builtin:mcp", "--no-extensions also drops Pi's built-in MCP");
+  const builtins = write.flatMap((arg, i) => (write[i - 1] === "-e" ? [arg] : []));
+  assert.deepEqual(
+    builtins,
+    ["builtin:mcp", "builtin:codemode", "builtin:tool-search"],
+    "--no-extensions also drops the built-in extensions that reach MCP tools",
+  );
   assert(read.includes("--no-extensions"));
   assert.equal(flag(read, "--tools"), "read,grep,find,ls");
-  assert.equal(flag(write, "--tools"), "read,grep,find,ls,bash,edit,write");
+  assert.equal(flag(write, "--tools"), "read,grep,find,ls,bash,edit,write,codemode,tool_search");
   assert.deepEqual(read.slice(-2), ["--", "--not-a-flag"]);
   assert(!read.includes("-e"));
   const provided = workerArgs({ ...base, readOnly: true, extension: "/provider.ts" });
@@ -302,7 +307,7 @@ test("interrogate adversaries run in their own writable worktrees to prove findi
   await h.call("pstack_delegate", { mode: "interrogate", tasks: ["break this change"] });
   assert.equal(launched.length, 3, "one adversary per default reviewer seat");
   for (const worker of launched) {
-    assert.equal(worker.tools, "read,grep,find,ls,bash,edit,write");
+    assert.equal(worker.tools, "read,grep,find,ls,bash,edit,write,codemode,tool_search");
     assert.notEqual(worker.cwd, cwd);
   }
   assert.equal(new Set(launched.map((w) => w.cwd)).size, 3);

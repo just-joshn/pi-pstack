@@ -165,6 +165,8 @@ function workerModels(
 }
 
 const readTools = "read,grep,find,ls";
+// --no-extensions drops these too, and MCP tools are reachable only through codemode and tool_search.
+const mcpExtensions = ["builtin:mcp", "builtin:codemode", "builtin:tool-search"];
 export function workerArgs(options: {
   model: string;
   thinking: Thinking;
@@ -179,12 +181,15 @@ export function workerArgs(options: {
     "--print",
     ...(options.readOnly
       ? workerIsolation
-      : [...workerIsolation.filter((f) => f !== "--no-mcp"), "-e", "builtin:mcp"]),
+      : [
+          ...workerIsolation.filter((f) => f !== "--no-mcp"),
+          ...mcpExtensions.flatMap((extension) => ["-e", extension]),
+        ]),
     ...(options.extension ? ["-e", options.extension] : []),
     "--tools",
     options.readOnly
       ? `${readTools}${options.shell ? ",bash" : ""}`
-      : `${readTools},bash,edit,write`,
+      : `${readTools},bash,edit,write,codemode,tool_search`,
     "--session-dir",
     options.sessionDir,
     "--session-id",

@@ -112,3 +112,12 @@ test("the check requires every file of the pack, such as the control-adapter ref
   const { fake, job } = await target(complete.filter((f) => f !== adapter));
   assert.deepEqual((await checkJob(job, fake)).uncommitted, [adapter]);
 });
+
+test("a referenced path with spaces is checked whole, in backticks or on its own line", async () => {
+  const instructions = "Read `.pi/benny/my config.json`.\n\n```text\n.pi/benny/route map.md\n```\n";
+  const { fake, job } = await target(complete, instructions);
+  assert.deepEqual((await checkJob(job, fake)).uncommitted, [
+    ".pi/benny/my config.json",
+    ".pi/benny/route map.md",
+  ]);
+});
