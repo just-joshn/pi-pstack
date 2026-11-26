@@ -424,16 +424,10 @@ function createRunner(
 
 type RunWorker = ReturnType<typeof createRunner>;
 type WorkerReport = Awaited<ReturnType<RunWorker>>;
-async function judgeArena(
-  dir: string,
-  outputs: PoolResult<WorkerReport>[],
-  rubric: string | undefined,
-  judge: string,
-  run: RunWorker,
-) {
+async function blindCandidates(dir: string, outputs: PoolResult<WorkerReport>[]) {
   const blindDir = join(dir, "blinded");
   await mkdir(blindDir, { mode: 0o700 });
-  const projected = await Promise.all(
+  return Promise.all(
     outputs.map(async (entry, i) => {
       if (entry.status !== "fulfilled" || !entry.value.transcript) return null;
       const { model, transcript, path: worktree } = entry.value;
@@ -444,19 +438,33 @@ async function judgeArena(
       return { path, label: `Candidate ${i + 1}: ${worktree}` };
     }),
   );
+}
+
+async function judgeArena(
+  dir: string,
+  outputs: PoolResult<WorkerReport>[],
+  rubric: string | undefined,
+  judge: string,
+  run: RunWorker,
+) {
+  const projected = await blindCandidates(dir, outputs);
   const dropouts = projected.flatMap((entry, i) => (entry ? [] : [`candidate-${i + 1}`]));
   const candidates = projected.filter((entry) => entry !== null);
   if (!candidates.length) return { status: "INCONCLUSIVE: every candidate dropped out", dropouts };
   const files = candidates.map((c) => c.path);
   const worktrees = candidates.map((c) => c.label).join("; ");
-  const assessment = await run({
-    task: `Judge these ${files.length} anonymous candidate message transcripts: ${files.join(", ")}. Read every file in full, including tool results; rubric: ${rubric}. Score each candidate on each rubric criterion from actual evidence, recommend a base, and note missing artifacts or unverifiable claims. For write candidates, inspect candidate worktrees if necessary: ${worktrees}. Do not infer provider identity.`,
-    model: judge,
-    index: outputs.length,
-    readOnly: true,
-    role: "general-purpose",
-    modelRole: judgeRole,
-  });
+  const id = workerId(outputs.length);
+  const assessment = await recordOutcome(dir, id, {}, () =>
+    run({
+      task: `Judge these ${files.length} anonymous candidate message transcripts: ${files.join(", ")}. Read every file in full, including tool results; rubric: ${rubric}. Score each candidate on each rubric criterion from actual evidence, recommend a base, and note missing artifacts or unverifiable claims. For write candidates, inspect candidate worktrees if necessary: ${worktrees}. Do not infer provider identity.`,
+      model: judge,
+      index: outputs.length,
+      id,
+      readOnly: true,
+      role: "general-purpose",
+      modelRole: judgeRole,
+    }),
+  );
   const reads = new Set(
     assessment.transcript ? readPaths(await readFile(assessment.transcript, "utf8")) : [],
   );

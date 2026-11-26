@@ -41,7 +41,7 @@ FIXED:
 - A resumed worker is listed with the resume's outcome and report, not the run it continued.
 - `check-benny.mjs` requires every file of the Benny pack, as upstream's setup does, not only its entry files.
 - The Slack watcher's cursor moves past messages that are not reports, and saves at once, so it no longer fetches them again on every poll, even while another channel's poll is failing.
-- `pstack_workers` lists a finished foreground worker as `done`, or `failed` with its error, as it lists a background one.
+- `pstack_workers` lists a finished foreground worker, including an arena's judge, as `done`, or `failed` with its error, as it lists a background one.
 - Stopping a queued background worker takes it off the queue at once and lists it as `stopped`; it no longer waits for a running worker to finish.
 - The `autopilot-stack` plan is `autopilot-full`'s seven steps with its two overrides applied, as the playbook says, not only the two overrides.
 - Background workers run with no time limit, as `pstack_delegate` says; they had a hidden 7-day cap.

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { onTestFinished, test } from "vitest";
@@ -153,6 +153,13 @@ test("a failed arena judge returns the completed candidate reports", async () =>
   );
   assert.match(judgment?.status ?? "", /inconclusive/i);
   assert.match(judgment?.error ?? "", /failed \(7\)/);
+  const statuses = await Promise.all(
+    (await readdir(dir))
+      .filter((f) => f.endsWith(".status.json"))
+      .map((f) => readFile(join(dir, f), "utf8")),
+  );
+  const states = statuses.map((s) => shaped<{ state: string }>(JSON.parse(s)).state).toSorted();
+  assert.deepEqual(states, ["done", "done", "failed"], "the judge's failure is recorded too");
 });
 
 test("judge selection skips both unavailable and same-vendor pool entries", async () => {
