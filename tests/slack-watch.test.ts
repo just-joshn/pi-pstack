@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { EventEmitter, once } from "node:events";
-import { mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -310,4 +310,13 @@ test("two watchers claiming at once never both win", async () => {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Release before the next round.
     await Promise.all(won.map((release) => release()));
   }
+});
+
+test("a watcher's claim covers the state file under every path that reaches it", async () => {
+  const dir = await folder();
+  const alias = `${dir}-alias`;
+  await symlink(dir, alias);
+  const release = await claimState(join(dir, "watch-state.json"));
+  await assert.rejects(claimState(join(alias, "watch-state.json")), /Another watcher uses/);
+  await release();
 });

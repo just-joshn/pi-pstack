@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process";
 import { createHash, createHmac } from "node:crypto";
 import { once } from "node:events";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { isRecord, parseJson } from "../lib/validation.ts";
@@ -166,19 +166,20 @@ export async function watchedJobs(paths: readonly string[]): Promise<Watched[]> 
 // The OS lets one process listen on a port and frees it when that process exits, crash
 // included, so a port held for the watcher's life is a lock with no stale claim to recover.
 const lockPort = (statePath: string) =>
-  49152 + (createHash("sha256").update(resolve(statePath)).digest().readUInt16BE(0) % 16384);
+  49152 + (createHash("sha256").update(statePath).digest().readUInt16BE(0) % 16384);
 
 export async function claimState(statePath: string) {
+  const port = lockPort(join(await realpath(dirname(statePath)), basename(statePath)));
   const server = createServer((socket) => socket.end());
   try {
     await new Promise<void>((done, reject) => {
       server.once("error", reject);
-      server.listen(lockPort(statePath), "127.0.0.1", done);
+      server.listen(port, "127.0.0.1", done);
     });
   } catch (error) {
     if (!hasErrorCode(error, "EADDRINUSE")) throw error;
     throw Error(
-      `Another watcher uses ${statePath} (port ${lockPort(statePath)} is taken); run one watcher for its jobs`,
+      `Another watcher uses ${statePath} (port ${port} is taken); run one watcher for its jobs`,
       { cause: error },
     );
   }

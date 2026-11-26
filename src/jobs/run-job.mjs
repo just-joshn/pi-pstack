@@ -40,7 +40,7 @@ const benny = job.kind === "custom" ? undefined : job.config;
 const repository = await realpath(job.cwd);
 const dir = join(dirname(resolve(jobFile)), "runs");
 await mkdir(dir, { recursive: true, mode: 0o700 });
-const { prompt, key, eventId } = planRun(resolve(jobFile), job, event);
+const { prompt, key, eventId } = planRun(await realpath(jobFile), job, event);
 const runDir = join(dir, key);
 if (stopped) throw Error("Stopped before the run was claimed");
 await mkdir(runDir, { mode: 0o700 });

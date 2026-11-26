@@ -2,7 +2,16 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHmac } from "node:crypto";
 import { once } from "node:events";
-import { access, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdtemp,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -503,4 +512,14 @@ test("a stopped run fails even when its Pi exits cleanly on SIGTERM", slow, asyn
   const saved = receipt(await readFile(join(runs, run, "result.json"), "utf8"));
   assert.equal(saved.status, "stopped");
   assert.notEqual(saved.code, 0);
+});
+
+test("one job reached through two paths runs a report once", slow, async () => {
+  const { job, run, writeSigned } = await fixture();
+  const alias = `${dirname(job)}-alias`;
+  await symlink(dirname(job), alias);
+  await writeSigned(report);
+  assert.equal((await run()).status, 0);
+  const again = await run(0, undefined, "project", join(alias, "job.json"));
+  assert.notEqual(again.status, 0, "the second dispatch is the same run");
 });
