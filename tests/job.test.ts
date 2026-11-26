@@ -523,3 +523,15 @@ test("one job reached through two paths runs a report once", slow, async () => {
   const again = await run(0, undefined, "project", join(alias, "job.json"));
   assert.notEqual(again.status, 0, "the second dispatch is the same run");
 });
+
+test("a job reached through a symlink to its file runs a report once", slow, async () => {
+  const { job, run, writeSigned } = await fixture();
+  const elsewhere = await mkdtemp(join(tmpdir(), "pstack-job-link-"));
+  onTestFinished(() => rm(elsewhere, { recursive: true, force: true }));
+  const linked = join(elsewhere, "job.json");
+  await symlink(job, linked);
+  await writeSigned(report);
+  assert.equal((await run()).status, 0);
+  const again = await run(0, undefined, "project", linked);
+  assert.notEqual(again.status, 0, "the second dispatch is the same run");
+});
