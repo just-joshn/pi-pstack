@@ -117,8 +117,11 @@ export async function pollOnce(jobs: readonly Watched[], statePath: string, io: 
       await save();
     }
     const newest = history.toSorted(oldestFirst).at(-1);
-    if (newest && oldestFirst({ ts: state[channel] ?? oldest }, newest) < 0)
+    if (newest && oldestFirst({ ts: state[channel] ?? oldest }, newest) < 0) {
       state[channel] = newest.ts;
+      // oxlint-disable-next-line eslint/no-await-in-loop -- A later channel's failure must not lose this cursor.
+      await save();
+    }
   }
   await save();
   return started;

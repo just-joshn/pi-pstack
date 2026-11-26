@@ -206,3 +206,22 @@ test("the cursor moves past messages that are not reports", async () => {
   assert.equal(started.length, 1);
   assert.deepEqual(JSON.parse(await readFile(state, "utf8")), { channels: { C1: "3.0" } });
 });
+
+test("a cursor moved past non-reports is saved even when a later channel's poll fails", async () => {
+  const dir = await folder();
+  const state = join(dir, "watch-state.json");
+  await writeFile(state, JSON.stringify({ channels: { C1: "1.0", C2: "1.0" } }));
+  const io: WatchIo = {
+    ...fakeIo({}).io,
+    history: async (channel) =>
+      channel === "C1" ? [{ ts: "2.0", subtype: "channel_join" }] : Promise.reject(Error("down")),
+  };
+  const jobs = [
+    { path: "a.json", channel: "C1" },
+    { path: "b.json", channel: "C2" },
+  ];
+  await assert.rejects(pollOnce(jobs, state, io), /down/);
+  assert.deepEqual(JSON.parse(await readFile(state, "utf8")), {
+    channels: { C1: "2.0", C2: "1.0" },
+  });
+});
