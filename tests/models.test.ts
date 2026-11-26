@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile, rm } from "node:fs/promises";
+import { mkdir, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
 
 import { onTestFinished, test } from "vitest";
 
@@ -10,6 +11,7 @@ import {
   effort,
   family,
   modelFor,
+  parseModelConfig,
   selectPanel,
   validateConfig,
   vendor,
@@ -304,4 +306,37 @@ test("model families follow arena's prefixes", () => {
   assert.equal(family("google/gemini-4-neon"), "gemini");
   assert.equal(family("openai-codex/gpt-6.1-terra"), "gpt");
   assert.equal(family("cursor-gemini-4"), "gemini");
+});
+
+test("the file shape setup-pstack shows is one pstack_delegate accepts", async () => {
+  const skill = await readFile(
+    new URL("../src/skills/setup-pstack/SKILL.md", import.meta.url),
+    "utf8",
+  );
+  const example = /```\n(\{[^]*?\n\})\n```/.exec(skill)?.[1];
+  assert(example);
+  const config = parseModelConfig(JSON.parse(example));
+  assert.equal(config.budget, "large");
+  assert.equal(config.roles["interrogate reviewers"].length, 3);
+});
+
+test("setup offers each verification skill the project lacks, then starts the one accepted", async () => {
+  onTestFinished(() => rm(configFile, { force: true }));
+  const asked: string[] = [];
+  const h = host({
+    confirm: (title) => {
+      asked.push(title);
+      return !title.startsWith("Want a formal");
+    },
+  });
+  await mkdir(join(h.ctx.cwd, ".pi", "skills", "tla-checks"), { recursive: true });
+  onTestFinished(() => rm(join(h.ctx.cwd, ".pi"), { recursive: true, force: true }));
+  await h.cmd("setup-pstack", JSON.stringify({ budget: "medium" }));
+  assert.deepEqual(asked.slice(1), [
+    "Want a project-local verification skill, so agents can drive the app the way a user does and prove changes work?",
+  ]);
+  assert.match(
+    h.messages.at(-1) ?? "",
+    /^Execute the Pi-native workflow create-verification-skill/,
+  );
 });

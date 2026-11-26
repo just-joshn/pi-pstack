@@ -146,14 +146,8 @@ export async function readJob(path: string): Promise<Job> {
     : { ...base, kind, config: bennyConfig(kind, tools, job["config"]) };
 }
 
-export async function readEvent(
-  job: Job,
-  path: string | undefined,
-  secret: string | undefined,
-): Promise<JobEvent | null> {
-  if (job.kind === "custom") return null;
-  if (!path || !secret)
-    throw Error("Benny requires an authenticated event and PSTACK_EVENT_SECRET");
+/** The JSON object in an envelope signed with HMAC-SHA256 under the shared secret. */
+async function signedPayload(path: string, secret: string) {
   const envelope = parseJson(await readFile(path, "utf8"), "event envelope");
   if (
     !isRecord(envelope) ||
@@ -165,7 +159,28 @@ export async function readEvent(
   const expected = createHmac("sha256", secret).update(envelope["payload"]).digest();
   if (!timingSafeEqual(expected, Buffer.from(envelope["signature"], "hex")))
     throw Error("Event signature rejected");
-  const event = parseJson(envelope["payload"], "signed event payload");
+  return parseJson(envelope["payload"], "signed event payload");
+}
+
+/**
+ * A Benny job's event must carry its immutable thread. A custom job, such as a bot UI's, takes an
+ * optional signed event whose fields are the UI's own.
+ */
+export async function readEvent(
+  job: Job,
+  path: string | undefined,
+  secret: string | undefined,
+): Promise<JobEvent | Record<string, unknown> | null> {
+  if (job.kind === "custom") {
+    if (!path) return null;
+    if (!secret) throw Error("A signed event requires PSTACK_EVENT_SECRET");
+    const fields = await signedPayload(path, secret);
+    if (!isRecord(fields)) throw Error("A signed event payload must be a JSON object");
+    return fields;
+  }
+  if (!path || !secret)
+    throw Error("Benny requires an authenticated event and PSTACK_EVENT_SECRET");
+  const event = await signedPayload(path, secret);
   if (
     !isRecord(event) ||
     !hasText(event["channel"]) ||

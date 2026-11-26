@@ -1,8 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
+import { sendWorkflow } from "./catalog-ui.ts";
 import {
   aliases,
   applyConfigPatch,
@@ -160,6 +161,34 @@ async function chooseConfig(ctx: ExtensionContext, config: RoleConfig, available
   return { ...config, budget: budget.split(" ")[0], roles: selections };
 }
 
+/** Upstream setup's steps 7 and 8: offer each verification skill the project lacks, once. */
+const verificationOffers = [
+  {
+    skill: "create-verification-skill",
+    exists: /^verify-/,
+    question:
+      "Want a project-local verification skill, so agents can drive the app the way a user does and prove changes work?",
+  },
+  {
+    skill: "create-formal-verification-skill",
+    exists: /formal|tla|proof|model-check/i,
+    question:
+      "Want a formal verification skill, so agents can prove a key property of your code holds in every case in scope, not only the cases tests reach?",
+  },
+];
+async function offerVerification(pi: ExtensionAPI, ctx: ExtensionContext) {
+  const listed = await Promise.all(
+    [".pi", ".agents"].map((dir) => readdir(join(ctx.cwd, dir, "skills")).catch(() => [])),
+  );
+  const skills = listed.flat();
+  for (const offer of verificationOffers) {
+    if (skills.some((name) => offer.exists.test(name))) continue;
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Pi shows one confirmation at a time.
+    if (await ctx.ui.confirm(offer.question, `I can generate one with /${offer.skill}.`))
+      sendWorkflow(pi, offer.skill, "");
+  }
+}
+
 export function registerModelSetup(pi: ExtensionAPI, notify: Notify) {
   pi.registerCommand("setup-pstack", {
     description: "Configure pstack role models and reasoning budget",
@@ -187,6 +216,7 @@ export function registerModelSetup(pi: ExtensionAPI, notify: Notify) {
       if (!(await ctx.ui.confirm("Save pstack role configuration?", text(config)))) return;
       await atomicWrite(configPath, JSON.stringify(config, null, 2) + "\n");
       notify(ctx, `Saved ${configPath}. Parent model unchanged.`);
+      await offerVerification(pi, ctx);
     },
   });
 }

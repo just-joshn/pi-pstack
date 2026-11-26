@@ -30,7 +30,14 @@ const ported = markdown(join(srcDir, "skills"))
   .filter((path) => !readFileSync(path, "utf8").includes(generated))
   .map((path) => ({ path, original: upstreamOf(path) }));
 
-const headings = (text: string) => text.split("\n").filter((line) => /^#{1,6} /.test(line));
+/** Markdown headings, leaving out lines inside fenced code blocks. */
+function headings(text: string) {
+  let fenced = false;
+  return text.split("\n").filter((line) => {
+    if (line.startsWith("```")) fenced = !fenced;
+    return !fenced && /^#{1,6} /.test(line);
+  });
+}
 const steps = (text: string) => text.split("\n").filter((line) => /^\d+\. /.test(line)).length;
 const name = (text: string) => /^---\nname: ([\w-]+)\n/.exec(text)?.[1];
 

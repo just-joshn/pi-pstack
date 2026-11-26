@@ -23,9 +23,13 @@ const event = await readEvent(job, eventFile, process.env.PSTACK_EVENT_SECRET);
 const cwd = await realpath(job.cwd);
 const dir = join(dirname(resolve(jobFile)), "runs");
 await mkdir(dir, { recursive: true, mode: 0o700 });
-const key = event
-  ? createHash("sha256").update(`${job.kind}\0${event.channel}\0${event.thread}`).digest("hex")
-  : randomUUID();
+// A Benny event keeps one run per thread; a custom job's event, such as a bot UI click, gets its own run.
+const key =
+  event && job.kind !== "custom"
+    ? createHash("sha256")
+        .update(`${job.kind}\0${String(event.channel)}\0${String(event.thread)}`)
+        .digest("hex")
+    : randomUUID();
 const runDir = join(dir, key);
 await mkdir(runDir, { mode: 0o700 });
 const log = join(runDir, "stdout.txt");

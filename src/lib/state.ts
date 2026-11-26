@@ -125,7 +125,13 @@ export function addTasks(
     throw Error("Unknown task");
   const added = steps.map((text) => ({ text, status: "pending" as const, evidence: "" }));
   const ordered = [...plan.tasks.slice(0, after), ...added, ...plan.tasks.slice(after)];
-  return { ...plan, tasks: ordered.map((t, i) => ({ ...t, id: i + 1 })) };
+  const tasks = ordered.map((t, i) => ({
+    id: i + 1,
+    text: t.text,
+    status: t.status,
+    evidence: t.evidence,
+  }));
+  return { ...plan, tasks };
 }
 export function planComplete(plan: Plan | null) {
   return !!plan && plan.tasks.every((t) => t.status === "done" || t.status === "skipped");
