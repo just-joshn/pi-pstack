@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
 import { test } from "vitest";
@@ -168,4 +168,14 @@ test("a Pi that ignores SIGTERM cannot hang the skill check", async () => {
   const started = Date.now();
   await assert.rejects(projectSkills(clone, stubborn, process.env, 300), /did not answer within/);
   assert(Date.now() - started < 5000);
+});
+
+test("a required file committed as a symlink counts as missing", async () => {
+  const operational = `${pack}/skills/triage-issue-reports/SKILL.md`;
+  const { clone, fake, job } = await target(complete.filter((f) => f !== operational));
+  const origin = join(clone, "..", "origin");
+  await symlink("missing.md", join(origin, operational));
+  await git(origin, "add", ".");
+  await git(origin, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--quiet", "-m", "link");
+  assert.deepEqual((await checkJob(job, fake)).uncommitted, [operational]);
 });

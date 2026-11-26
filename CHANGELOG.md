@@ -32,7 +32,7 @@ FIXED:
 - A Benny run's skill check no longer receives `PSTACK_EVENT_SECRET` or `PSTACK_SLACK_TRIGGER_TOKEN`; it gets the same cleaned environment as the run.
 - A Benny job reaches the MCP tools it names. It loaded only `builtin:mcp`, and Pi offers MCP tools only through `codemode` and `tool_search`, so a job that named its Slack tools could not call them; jobs now load the same three built-in extensions as write workers.
 - The Slack watcher waits for each run's process to start, so a failed start fails the dispatch, and the report is retried, instead of crashing the watcher after the report was marked seen.
-- `check-benny.mjs` counts a required path that is committed as a folder as missing, removes only its own worktree instead of pruning every stale one, and stops a Pi probe that ignores `SIGTERM`.
+- `check-benny.mjs` counts a required path that is committed as a folder or a symlink as missing, removes only its own worktree instead of pruning every stale one, and stops a Pi probe that ignores `SIGTERM`.
 - The Benny skill check gives up after 60 seconds if Pi does not answer, instead of hanging the check or the run.
 - `check-benny.mjs` tells a job file from a repository by what is on disk, not by a `.json` suffix.
 - The Slack watcher stops on a saved state file it cannot read whole, instead of dropping the bad cursor and skipping that channel's reports.

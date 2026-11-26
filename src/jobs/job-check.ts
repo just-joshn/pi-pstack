@@ -54,13 +54,13 @@ function requiredFiles(job: Job) {
 async function uncommittedFiles(repository: string, ref: string, files: string[]) {
   const args = ["-C", repository, "ls-tree", "-z", "--full-tree", ref, "--", ...files];
   const { stdout } = await git("git", args);
-  const blobs = new Set(
+  const regularFiles = new Set(
     stdout
       .split("\0")
-      .map((entry) => entry.match(/^\d+ blob \w+\t(.*)$/s)?.[1])
+      .map((entry) => entry.match(/^100[67]\d\d blob \w+\t(.*)$/s)?.[1])
       .filter((path) => path !== undefined),
   );
-  return files.filter((file) => !blobs.has(file));
+  return files.filter((file) => !regularFiles.has(file));
 }
 
 function jsonLine(line: string): unknown {
