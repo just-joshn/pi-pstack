@@ -81,8 +81,8 @@ async function fixture(kind = "benny-triage") {
     instructions: "test",
     config,
   };
-  const run = (exitCode = 0, bin = fake, scope = "project") =>
-    spawned(process.execPath, [runner, "--run", job, ...(kind === "custom" ? [] : [event])], {
+  const run = (exitCode = 0, bin = fake, scope = "project", file = job) =>
+    spawned(process.execPath, [runner, "--run", file, ...(kind === "custom" ? [] : [event])], {
       timeout: 10_000,
       env: {
         ...process.env,
@@ -357,3 +357,38 @@ test("a run whose checkout lacks pstack's project-scoped skills never starts", s
   assert.match(result.error ?? "", /pstack skills not in the checkout's project scope: why, tdd/);
   await assert.rejects(() => access(join(runDir, "stdout.txt")), { code: "ENOENT" });
 });
+
+test(
+  "triage and repro started together on a moved branch both run on its newest commit",
+  slow,
+  async () => {
+    const { job, enabled, run, writeSigned } = await fixture();
+    const origin = join(dirname(job), "origin");
+    await writeFile(join(origin, "on-main.txt"), "moved");
+    await git(
+      origin,
+      "-c",
+      "user.name=t",
+      "-c",
+      "user.email=t@t",
+      "commit",
+      "--quiet",
+      "-am",
+      "move",
+    );
+    const repro = join(dirname(job), "repro.json");
+    await writeFile(repro, JSON.stringify({ ...enabled, kind: "benny-repro" }));
+    await writeSigned(report);
+    const results = await Promise.all([run(), run(0, undefined, "project", repro)]);
+    for (const result of results) assert.equal(result.status, 0, result.stderr);
+    const checkouts = await Promise.all(
+      results.map(async (result) => (await child(outcome(result.stdout).log)).cwd),
+    );
+    const contents = await Promise.all(
+      checkouts.map((cwd) => readFile(join(cwd, "on-main.txt"), "utf8")),
+    );
+    assert.deepEqual(contents, ["moved", "moved"]);
+    const refs = await git(enabled.cwd, "for-each-ref", "refs/pstack");
+    assert.equal(refs.stdout, "", "each run deletes its private ref");
+  },
+);

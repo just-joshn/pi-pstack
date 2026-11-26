@@ -25,6 +25,8 @@ NEW FEATURES:
 
 FIXED:
 
+- Benny runs that start together, as triage and repro always do, no longer collide on the repository's fetch. Each fetches the default branch into its own ref; before, when the branch had moved, one of the two failed about half the time, and runs on different branches could check out each other's code.
+- Background workers respect `concurrency`, are listed as `queued` until they start, and a worker that fails before its session exists is listed with its error. Status files are written atomically, so a listing never reads half a file.
 - The package ships upstream pstack's and Cursor Team Kit's MIT license notices, in `src/licenses/`, with the files it ports from them. 0.4.0 shipped those files without the notices.
 - Arena candidates no longer see the rubric; only the judge does.
 - The arena judge excludes only the parent's vendor, so upstream's default panel has a judge. An arena with no judge runs and reports the judge as skipped, and a candidate that drops out leaves the judge scoring the rest.

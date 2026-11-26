@@ -513,8 +513,8 @@ async function delegate(
           timeoutMs: backgroundTimeoutMs,
         })(request),
     }));
-    const started = workers.background.start(dir, jobs);
-    const ids = started.map(({ id }) => ({ id, sessionDir: join(dir, id) }));
+    const { ids: started } = await workers.background.start(dir, jobs, p.concurrency ?? 3);
+    const ids = started.map((id) => ({ id, sessionDir: join(dir, id) }));
     return { background: ids, dir, next: "Check them with pstack_workers action list." };
   }
   const run = createRunner(pi, ctx, workers.active, options);

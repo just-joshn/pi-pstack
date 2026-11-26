@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 import { test } from "vitest";
 
@@ -10,6 +11,7 @@ import { flag, shaped } from "./support.ts";
 interface Listed {
   id: string;
   state: string;
+  error?: string;
   report: string;
   lastActivity: string | null;
 }
@@ -26,24 +28,45 @@ function longRunningWorkers() {
     execute: async (bin, args, options) => {
       if (bin === "git") return notARepository;
       timeouts.push(options?.timeout);
-      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
-      await new Promise<void>((resolve, reject) => {
+      const released = new Promise<void>((resolve, reject) => {
         release.set(flag(args, "--session-id") ?? "", resolve);
         options?.signal?.addEventListener("abort", () => reject(Error("killed")));
       });
+      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+      await released;
       return { code: 0, stdout: "owner report", stderr: "" };
     },
   });
   const call = async <T>(tool: string, params: object) =>
     shaped<T>(readResult(await h.call(tool, params)));
   const list = (action = "list", id?: string) => call<Listed[]>("pstack_workers", { action, id });
-  return { call, list, release, timeouts };
+  /** Releases a worker once its fake Pi process is waiting. */
+  const finish = async (id: string) => {
+    const deadline = Date.now() + 4000;
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the worker's process to start.
+    while (!release.has(id) && Date.now() < deadline) await settle();
+    release.get(id)?.();
+  };
+  return { call, list, finish, timeouts };
 }
 
 const states = (listed: Listed[]) => new Map(listed.map((w) => [w.id, w.state]));
 
+/** Lists workers until their states match, for up to five seconds. */
+async function listedAs(list: () => Promise<Listed[]>, expected: Map<string, string>) {
+  const deadline = Date.now() + 4000;
+  let actual = states(await list());
+  while (!isDeepStrictEqual(actual, expected) && Date.now() < deadline) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Each check waits for the workers to move on.
+    await settle();
+    // oxlint-disable-next-line eslint/no-await-in-loop -- The next check needs a fresh listing.
+    actual = states(await list());
+  }
+  assert.deepEqual(actual, expected);
+}
+
 test("background workers return at once, keep running, and can be listed and stopped", async () => {
-  const { call, list, release, timeouts } = longRunningWorkers();
+  const { call, list, finish, timeouts } = longRunningWorkers();
   const started = await call<Started>("pstack_delegate", {
     mode: "swarm",
     tasks: ["own PR 1", "own PR 2"],
@@ -64,7 +87,7 @@ test("background workers return at once, keep running, and can be listed and sto
   );
 
   await list("stop", one);
-  release.get(two)?.();
+  await finish(two);
   await settle();
   const after = await list();
   assert.deepEqual(
@@ -106,4 +129,53 @@ test("the list covers every worker of the session, foreground ones included", as
   await rm(join(h.artifacts, "workers"), { recursive: true });
   await writeFile(join(h.artifacts, "workers"), "not a folder");
   await assert.rejects(list, /ENOTDIR/);
+});
+
+test("a background swarm runs at most `concurrency` workers at once and lists the rest queued", async () => {
+  const { call, list, finish } = longRunningWorkers();
+  const started = await call<Started>("pstack_delegate", {
+    mode: "swarm",
+    tasks: ["first", "second"],
+    background: true,
+    concurrency: 1,
+  });
+  const [one = "", two = ""] = started.background.map((w) => w.id);
+  await listedAs(
+    list,
+    new Map([
+      [one, "running"],
+      [two, "queued"],
+    ]),
+  );
+  await finish(one);
+  await listedAs(
+    list,
+    new Map([
+      [one, "done"],
+      [two, "running"],
+    ]),
+  );
+  await finish(two);
+  await listedAs(
+    list,
+    new Map([
+      [one, "done"],
+      [two, "done"],
+    ]),
+  );
+});
+
+test("a background worker that fails before its session exists is listed with its error", async () => {
+  const { call, list } = longRunningWorkers();
+  const started = await call<Started>("pstack_delegate", {
+    mode: "single",
+    tasks: ["edit"],
+    readOnly: false,
+    background: true,
+  });
+  await settle();
+  const [worker] = await list();
+  assert.equal(worker?.id, started.background[0]?.id);
+  assert.equal(worker?.state, "failed");
+  assert.match(worker?.error ?? "", /git/);
 });

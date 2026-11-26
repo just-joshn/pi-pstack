@@ -1,4 +1,5 @@
 import { execFile, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,6 +10,18 @@ import { isRecord } from "../lib/validation.ts";
 import { type Job, readJob } from "./job-input.ts";
 
 const git = promisify(execFile);
+
+/**
+ * Fetches `origin/<branch>` into a ref only this caller uses. Runs fetching the same repository at
+ * once otherwise collide on the remote-tracking ref and FETCH_HEAD.
+ */
+export async function fetchBranch(repository: string, branch: string, ref: string) {
+  const refspec = `+refs/heads/${branch}:${ref}`;
+  const args = ["fetch", "--quiet", "--no-write-fetch-head", "--refmap=", "origin", refspec];
+  await git("git", ["-C", repository, ...args]);
+}
+export const deleteRef = (repository: string, ref: string) =>
+  git("git", ["-C", repository, "update-ref", "-d", ref]);
 
 export const sharedSkills = [
   "why",
@@ -40,9 +53,9 @@ function requiredFiles(job: Exclude<Job, { kind: "custom" }>) {
   ];
 }
 
-async function committed(repository: string, files: string[]) {
+async function committed(repository: string, ref: string, files: string[]) {
   const checks = await Promise.allSettled(
-    files.map((file) => git("git", ["-C", repository, "cat-file", "-e", `FETCH_HEAD:${file}`])),
+    files.map((file) => git("git", ["-C", repository, "cat-file", "-e", `${ref}:${file}`])),
   );
   return files.filter((_, i) => checks[i]?.status === "rejected");
 }
@@ -102,20 +115,12 @@ export async function checkJob(path: string, piBin = process.env["PSTACK_PI_BIN"
   const job = await readJob(path, { draft: true });
   if (job.kind === "custom") throw Error("Only Benny jobs are checked");
   const branch = job.config.defaultBranch;
-  await git("git", ["-C", job.cwd, "fetch", "--quiet", "origin", branch]);
-  const uncommitted = await committed(job.cwd, requiredFiles(job));
+  const ref = `refs/pstack/check/${randomUUID()}`;
+  await fetchBranch(job.cwd, branch, ref);
   const checkout = join(await mkdtemp(join(tmpdir(), "pstack-benny-check-")), "checkout");
-  await git("git", [
-    "-C",
-    job.cwd,
-    "worktree",
-    "add",
-    "--quiet",
-    "--detach",
-    checkout,
-    "FETCH_HEAD",
-  ]);
   try {
+    const uncommitted = await committed(job.cwd, ref, requiredFiles(job));
+    await git("git", ["-C", job.cwd, "worktree", "add", "--quiet", "--detach", checkout, ref]);
     const { unresolved } = await projectSkills(checkout, piBin);
     return {
       ok: !uncommitted.length && !unresolved.length,
@@ -124,7 +129,8 @@ export async function checkJob(path: string, piBin = process.env["PSTACK_PI_BIN"
       unresolved,
     };
   } finally {
-    await git("git", ["-C", job.cwd, "worktree", "remove", "--force", checkout]);
     await rm(join(checkout, ".."), { recursive: true, force: true });
+    await git("git", ["-C", job.cwd, "worktree", "prune"]);
+    await deleteRef(job.cwd, ref);
   }
 }

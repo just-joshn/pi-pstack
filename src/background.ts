@@ -1,20 +1,27 @@
-import { readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
+import { pool } from "./lib/pool.ts";
 import { errorMessage, isRecord, parseJson } from "./lib/validation.ts";
-import { artifacts, fail, hasErrorCode, result, stringEnum } from "./support.ts";
+import { artifacts, atomicWrite, fail, hasErrorCode, result, stringEnum } from "./support.ts";
 
 export interface BackgroundJob {
   id: string;
   run: (signal: AbortSignal) => Promise<unknown>;
 }
 
+const statusFile = (dir: string, id: string) => join(dir, `${id}.status.json`);
+const writeStatus = (dir: string, id: string, status: object) =>
+  atomicWrite(statusFile(dir, id), JSON.stringify({ ...status, at: new Date().toISOString() }));
+
 export function backgroundWorkers() {
-  const running = new Map<string, AbortController>();
+  const queued = new Map<string, AbortController>();
+  const active = new Set<string>();
   function settle(dir: string, job: BackgroundJob, controller: AbortController) {
+    active.add(job.id);
     return job
       .run(controller.signal)
       .then(
@@ -25,28 +32,27 @@ export function backgroundWorkers() {
         }),
       )
       .then((status) => {
-        running.delete(job.id);
-        const path = join(dir, `${job.id}.status.json`);
-        return writeFile(path, JSON.stringify({ ...status, at: new Date().toISOString() }));
+        queued.delete(job.id);
+        active.delete(job.id);
+        return writeStatus(dir, job.id, status);
       });
   }
   return {
-    start(dir: string, jobs: readonly BackgroundJob[]) {
-      return jobs.map((job) => {
-        const controller = new AbortController();
-        running.set(job.id, controller);
-        const settled = settle(dir, job, controller);
-        return { id: job.id, settled };
-      });
+    async start(dir: string, jobs: readonly BackgroundJob[], concurrency: number) {
+      const queue = jobs.map((job) => ({ job, controller: new AbortController() }));
+      for (const { job, controller } of queue) queued.set(job.id, controller);
+      await Promise.all(jobs.map((job) => writeStatus(dir, job.id, { state: "queued" })));
+      const done = pool(queue, concurrency, ({ job, controller }) => settle(dir, job, controller));
+      return { ids: jobs.map((job) => job.id), done };
     },
-    isRunning: (id: string) => running.has(id),
+    state: (id: string) => (active.has(id) ? "running" : queued.has(id) ? "queued" : undefined),
     stop(id: string) {
-      const controller = running.get(id);
+      const controller = queued.get(id);
       if (!controller) fail(`No running background worker ${id} in this session`);
       controller.abort();
     },
     stopAll() {
-      for (const controller of running.values()) controller.abort();
+      for (const controller of queued.values()) controller.abort();
     },
   };
 }
@@ -82,17 +88,32 @@ export async function listWorkers(root: string, background: BackgroundWorkers) {
   const found = await Promise.all(
     batches.map(async (batch) => {
       const dir = join(root, batch.name);
-      const workers = (await entries(dir)).filter((e) => e.isDirectory());
+      const listed = await entries(dir);
+      const ids = new Set([
+        ...listed.filter((e) => e.isDirectory()).map((e) => e.name),
+        ...listed.flatMap((e) => (e.name.endsWith(".status.json") ? [e.name.slice(0, -12)] : [])),
+      ]);
       return Promise.all(
-        workers.map(async ({ name: id }) => {
+        [...ids].map(async (id) => {
           const sessionDir = join(dir, id);
           const record = await readJson(join(sessionDir, "worker.json"));
-          const status = await readJson(join(dir, `${id}.status.json`));
-          const state = background.isRunning(id) ? "running" : (status?.["state"] ?? "finished");
+          const status = await readJson(statusFile(dir, id));
+          const state = background.state(id) ?? status?.["state"] ?? "finished";
           const { model, cwd, readOnly } = record ?? {};
+          const error = status?.["error"];
           const activity = await lastActivity(sessionDir);
           const report = join(dir, `${id}.txt`);
-          return { id, state, model, cwd, readOnly, sessionDir, report, lastActivity: activity };
+          return {
+            id,
+            state,
+            error,
+            model,
+            cwd,
+            readOnly,
+            sessionDir,
+            report,
+            lastActivity: activity,
+          };
         }),
       );
     }),
@@ -108,7 +129,7 @@ export function registerBackground(pi: ExtensionAPI, background: BackgroundWorke
     name: "pstack_workers",
     label: "Pstack workers",
     description:
-      "List this session's pstack workers (state running, done, failed, stopped or finished; model; checkout; sessionDir; report; lastActivity, the newest write in its session), or stop a running background worker by id.",
+      "List this session's pstack workers (state queued, running, done, failed, stopped or finished, with the error of a failed one; model; checkout; sessionDir; report; lastActivity, the newest write in its session), or stop a running background worker by id.",
     parameters: Type.Object({
       action: stringEnum(["list", "stop"]),
       id: Type.Optional(Type.String()),

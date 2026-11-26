@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 
 import { aliases } from "../lib/models.ts";
 import { isRecord } from "../lib/validation.ts";
-import { projectSkills } from "./job-check.ts";
+import { deleteRef, fetchBranch, projectSkills } from "./job-check.ts";
 import { isMcp, planRun, readEvent, readJob } from "./job-input.ts";
 const srcDir = fileURLToPath(new URL("../", import.meta.url));
 
@@ -52,9 +52,15 @@ if (job.model && !aliases.includes(job.model)) args.push("--model", job.model);
 if (job.thinking) args.push("--thinking", job.thinking);
 
 const git = promisify(execFile);
+/** @param {string} branch */
 async function checkout(branch) {
-  await git("git", ["-C", repository, "fetch", "--quiet", "origin", branch]);
-  await git("git", ["-C", repository, "worktree", "add", "--quiet", "--detach", cwd, "FETCH_HEAD"]);
+  const ref = `refs/pstack/runs/${key}`;
+  await fetchBranch(repository, branch, ref);
+  try {
+    await git("git", ["-C", repository, "worktree", "add", "--quiet", "--detach", cwd, ref]);
+  } finally {
+    await deleteRef(repository, ref);
+  }
 }
 
 /** @param {unknown} error */
