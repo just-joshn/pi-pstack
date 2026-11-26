@@ -52,7 +52,6 @@ def playbook_steps(path):
 
 
 def apply_overrides(base, overrides):
-    """A playbook that runs another with overrides: each replaces or follows the step it names."""
     merged = list(base)
     for line in overrides:
         number = int(re.search(r"step (\d+)", line).group(1))
@@ -66,7 +65,6 @@ def apply_overrides(base, overrides):
 
 
 def playbook_plan(path, own):
-    """A playbook's plan; one that opens with "Run the X playbook" inherits X's steps."""
     lines = path.read_text().splitlines()
     parent = re.match(r"Run the (\S+) playbook", lines[2])
     if not parent:
