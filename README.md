@@ -56,7 +56,7 @@ The extension appends the two always-applied Team Kit rules, `no-inline-imports`
 | `pstack_log`      | Append a timestamped decision record to a TSV.                                                                         |
 | `pstack_history`  | Read bounded entries on the active native session branch.                                                              |
 | `pstack_wake`     | Start, inspect or stop a bounded wake loop, as upstream's agent arms `/loop`.                                          |
-| `pstack_workers`  | List this session's workers with their state and last activity, or stop a background worker.                           |
+| `pstack_workers`  | List this session's workers with their state and last activity, or stop a queued or running worker.                    |
 | `pstack_worktree` | Create isolated Git worktrees, inspect dirty/merged state, approve safe removal.                                       |
 | `pstack_pr`       | Read fresh GitHub PR state, head and checks.                                                                           |
 | `pstack_ship`     | Require a shipping or autopilot-full plan and operator confirmation; recheck and merge the verified contiguous prefix. |
