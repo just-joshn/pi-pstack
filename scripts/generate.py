@@ -73,8 +73,9 @@ def playbook_plan(path, own):
     return apply_overrides(own[parent.group(1).lower()], overrides)
 
 
-own_steps = {path.stem: playbook_steps(path) for path in sorted(PLAYBOOKS.glob("*.md"))}
-steps = {path.stem: playbook_plan(path, own_steps) for path in sorted(PLAYBOOKS.glob("*.md"))}
+playbooks = sorted(PLAYBOOKS.glob("*.md"))
+own_steps = {path.stem: playbook_steps(path) for path in playbooks}
+steps = {path.stem: playbook_plan(path, own_steps) for path in playbooks}
 
 
 def is_skill(node):
