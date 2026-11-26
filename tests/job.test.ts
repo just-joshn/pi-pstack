@@ -277,7 +277,7 @@ test(
     assert.equal(result.code, failed.status);
     assert.equal(result.eventId, report.message_ts);
     assert.match(result.error ?? "", /ENOENT/);
-    assert.equal(outcome(failed.stdout).runDir, dir);
+    assert.equal(outcome(failed.stdout).runDir, await realpath(dir));
     assert.doesNotMatch(saved + failed.stdout, /private-report-text|spawnargs|test-secret/);
     assert.match((await run()).stderr, /EEXIST/);
     assert.equal(await readFile(join(dir, "result.json"), "utf8"), saved);
