@@ -73,6 +73,117 @@ test("a completed foreground batch releases its parent abort listener", async ()
 	assert.deepEqual(getEventListeners(signal, "abort"), []);
 });
 
+test.each(["background", "foreground"] as const)("failed %s queue persistence leaves no live workers", async (mode) => {
+	const workers = backgroundWorkers();
+	const dir = host().artifacts;
+	await mkdir(join(dir, "worker-bad.status.json"), { recursive: true });
+	let calls = 0;
+	const run = async () => {
+		calls++;
+	};
+	const ids = ["worker-good", "worker-bad"];
+	if (mode === "background") {
+		await assert.rejects(
+			workers.start(
+				dir,
+				ids.map((id) => ({ id, run })),
+				1,
+			),
+		);
+	} else {
+		await assert.rejects(workers.foreground(dir, ids, 1, run));
+	}
+	for (const id of ids) {
+		assert.equal(workers.state(id), undefined);
+		await assert.rejects(workers.stop(id), /No queued or running worker/);
+	}
+	assert.equal(JSON.parse(await readFile(join(dir, "worker-good.status.json"), "utf8")).state, "stopped");
+	assert.equal(calls, 0);
+});
+
+test("stopAll settles queued workers without running them", async () => {
+	const workers = backgroundWorkers();
+	const dir = host().artifacts;
+	const started = Promise.withResolvers<void>();
+	const release = Promise.withResolvers<void>();
+	let secondCalls = 0;
+	const batch = await workers.start(
+		dir,
+		[
+			{
+				id: "worker-first",
+				run: async () => {
+					started.resolve();
+					await release.promise;
+				},
+			},
+			{
+				id: "worker-second",
+				run: async () => {
+					secondCalls++;
+				},
+			},
+		],
+		1,
+	);
+	await started.promise;
+	await workers.stopAll();
+	assert.equal(workers.state("worker-second"), undefined);
+	assert.equal(JSON.parse(await readFile(join(dir, "worker-second.status.json"), "utf8")).state, "stopped");
+	release.resolve();
+	await batch.done;
+	assert.equal(secondCalls, 0);
+});
+
+test("shutdown during queue persistence stops the new workers", async () => {
+	const workers = backgroundWorkers();
+	const dir = host().artifacts;
+	let calls = 0;
+	const starting = workers.start(
+		dir,
+		[
+			{
+				id: "worker-late",
+				run: async () => {
+					calls++;
+				},
+			},
+		],
+		1,
+	);
+	await workers.stopAll();
+	const batch = await starting;
+	await batch.done;
+	assert.equal(workers.state("worker-late"), undefined);
+	assert.equal(JSON.parse(await readFile(join(dir, "worker-late.status.json"), "utf8")).state, "stopped");
+	assert.equal(calls, 0);
+});
+
+test("stopping a queued foreground worker preserves its status fields", async () => {
+	const workers = backgroundWorkers();
+	const dir = host().artifacts;
+	const started = Promise.withResolvers<void>();
+	const release = Promise.withResolvers<void>();
+	const running = workers.foreground(
+		dir,
+		["first", "second"],
+		1,
+		async () => {
+			started.resolve();
+			await release.promise;
+		},
+		{ fields: { report: "report.txt" } },
+	);
+	await started.promise;
+	await workers.stop("second");
+	assert.equal(workers.state("second"), undefined);
+	const status = JSON.parse(await readFile(join(dir, "second.status.json"), "utf8"));
+	assert.equal(status.state, "stopped");
+	assert.equal(status.report, "report.txt");
+	release.resolve();
+	await running;
+});
+
 const states = (listed: Listed[]) => new Map(listed.map((w) => [w.id, w.state]));
 
 async function listedAs(list: () => Promise<Listed[]>, expected: Map<string, string>) {

@@ -18,34 +18,72 @@ const statusFile = (dir: string, id: string) => join(dir, `${id}.status.json`);
 const writeStatus = (dir: string, id: string, status: object) =>
 	atomicWrite(statusFile(dir, id), JSON.stringify({ ...status, at: new Date().toISOString() }));
 
-interface Registry {
-	queued: Map<string, { controller: AbortController; dir: string }>;
-	active: Set<string>;
+interface Worker {
+	id: string;
+	dir: string;
+	controller: AbortController;
+	fields: object;
+	state: "admitting" | "queued" | "running";
+	finished?: Promise<void>;
 }
 
-async function enqueue(registry: Registry, dir: string, ids: readonly string[]) {
-	const queue = ids.map((id) => ({ id, controller: new AbortController() }));
-	for (const { id, controller } of queue) registry.queued.set(id, { controller, dir });
-	await Promise.all(ids.map((id) => writeStatus(dir, id, { state: "queued" })));
+interface Registry {
+	workers: Map<string, Worker>;
+	closed: boolean;
+}
+
+function finish(registry: Registry, worker: Worker, status: object) {
+	worker.finished ??= writeStatus(worker.dir, worker.id, { ...status, ...worker.fields }).finally(() => {
+		registry.workers.delete(worker.id);
+	});
+	return worker.finished;
+}
+
+async function enqueue(registry: Registry, dir: string, ids: readonly string[], fields: object = {}) {
+	if (registry.closed) fail("The worker session has shut down");
+	if (new Set(ids).size !== ids.length || ids.some((id) => registry.workers.has(id)))
+		fail("A worker with the same ID is already active");
+	const queue: Worker[] = ids.map((id) => ({
+		id,
+		dir,
+		controller: new AbortController(),
+		fields,
+		state: "admitting",
+	}));
+	for (const worker of queue) registry.workers.set(worker.id, worker);
+	const writes = await Promise.allSettled(ids.map((id) => writeStatus(dir, id, { state: "queued" })));
+	const failure = writes.find((write) => write.status === "rejected");
+	if (failure || registry.closed) {
+		const cleanup = await Promise.allSettled(
+			queue.map((worker, i) => {
+				worker.controller.abort();
+				if (writes[i]?.status === "fulfilled") return finish(registry, worker, { state: "stopped" });
+				registry.workers.delete(worker.id);
+				return undefined;
+			}),
+		);
+		const errors = [...writes, ...cleanup].flatMap((write) => (write.status === "rejected" ? [write.reason] : []));
+		if (errors.length === 1) throw errors[0];
+		if (errors.length) throw new AggregateError(errors, "Could not queue workers");
+	} else {
+		for (const worker of queue) worker.state = "queued";
+	}
 	return queue;
 }
 
-function settle(registry: Registry, dir: string, job: BackgroundJob, controller: AbortController) {
-	registry.active.add(job.id);
-	return job
-		.run(controller.signal)
-		.then(
-			() => ({ state: "done" }),
-			(error: unknown) => ({
-				state: controller.signal.aborted ? "stopped" : "failed",
-				error: errorMessage(error),
-			}),
-		)
-		.then((status) => {
-			registry.queued.delete(job.id);
-			registry.active.delete(job.id);
-			return writeStatus(dir, job.id, status);
-		});
+async function runWorker<T>(registry: Registry, worker: Worker, run: () => Promise<T>) {
+	let output: T;
+	try {
+		if (worker.controller.signal.aborted) fail(`Worker ${worker.id} was stopped before it started`);
+		worker.state = "running";
+		output = await run();
+	} catch (error) {
+		const state = worker.controller.signal.aborted ? "stopped" : "failed";
+		await finish(registry, worker, { state, error: errorMessage(error) });
+		throw error;
+	}
+	await finish(registry, worker, { state: "done" });
+	return output;
 }
 
 async function startBackground(registry: Registry, dir: string, jobs: readonly BackgroundJob[], concurrency: number) {
@@ -55,10 +93,13 @@ async function startBackground(registry: Registry, dir: string, jobs: readonly B
 		jobs.map((job) => job.id),
 	);
 	const byId = new Map(jobs.map((job) => [job.id, job]));
-	const done = pool(queue, concurrency, async ({ id, controller }) => {
-		const job = byId.get(id);
-		return controller.signal.aborted || !job ? undefined : settle(registry, dir, job, controller);
-	});
+	const done = pool(queue, concurrency, (worker) =>
+		runWorker(registry, worker, () => {
+			const job = byId.get(worker.id);
+			if (!job) fail(`Missing job for worker ${worker.id}`);
+			return job.run(worker.controller.signal);
+		}),
+	);
 	return { ids: jobs.map((job) => job.id), done };
 }
 
@@ -75,38 +116,23 @@ async function runForeground<T>(
 	run: (id: string, stop: AbortSignal) => Promise<T>,
 	options: ForegroundOptions,
 ) {
-	const queue = await enqueue(registry, dir, ids);
-	const fields = options.fields ?? {};
+	const queue = await enqueue(registry, dir, ids, options.fields);
 	const abortQueue = () => {
 		for (const { controller } of queue) controller.abort();
 	};
 	if (options.signal?.aborted) abortQueue();
 	else options.signal?.addEventListener("abort", abortQueue, { once: true });
 	try {
-		return await pool(queue, concurrency, async ({ id, controller }) => {
-			try {
-				if (controller.signal.aborted) fail(`Worker ${id} was stopped before it started`);
-				registry.active.add(id);
-				const output = await run(id, controller.signal);
-				await writeStatus(dir, id, { state: "done", ...fields });
-				return output;
-			} catch (error) {
-				const state = controller.signal.aborted ? "stopped" : "failed";
-				await writeStatus(dir, id, { state, error: errorMessage(error), ...fields });
-				throw error;
-			} finally {
-				registry.active.delete(id);
-				registry.queued.delete(id);
-			}
-		});
+		return await pool(queue, concurrency, (worker) =>
+			runWorker(registry, worker, () => run(worker.id, worker.controller.signal)),
+		);
 	} finally {
 		options.signal?.removeEventListener("abort", abortQueue);
 	}
 }
 
 export function backgroundWorkers() {
-	const registry: Registry = { queued: new Map(), active: new Set() };
-	const { queued, active } = registry;
+	const registry: Registry = { workers: new Map(), closed: false };
 	return {
 		start: (dir: string, jobs: readonly BackgroundJob[], concurrency: number) =>
 			startBackground(registry, dir, jobs, concurrency),
@@ -117,17 +143,24 @@ export function backgroundWorkers() {
 			run: (id: string, stop: AbortSignal) => Promise<T>,
 			options: ForegroundOptions = {},
 		) => runForeground(registry, dir, ids, concurrency, run, options),
-		state: (id: string) => (active.has(id) ? "running" : queued.has(id) ? "queued" : undefined),
-		async stop(id: string) {
-			const entry = queued.get(id);
-			if (!entry) fail(`No queued or running worker ${id} in this session`);
-			entry.controller.abort();
-			if (active.has(id)) return;
-			queued.delete(id);
-			await writeStatus(entry.dir, id, { state: "stopped" });
+		state(id: string) {
+			const state = registry.workers.get(id)?.state;
+			return state === "admitting" ? undefined : state;
 		},
-		stopAll() {
-			for (const { controller } of queued.values()) controller.abort();
+		async stop(id: string) {
+			const worker = registry.workers.get(id);
+			if (!worker || worker.state === "admitting") fail(`No queued or running worker ${id} in this session`);
+			worker.controller.abort();
+			if (worker.state === "queued") await finish(registry, worker, { state: "stopped" });
+		},
+		async stopAll() {
+			registry.closed = true;
+			const queued: Promise<void>[] = [];
+			for (const worker of registry.workers.values()) {
+				worker.controller.abort();
+				if (worker.state === "queued") queued.push(finish(registry, worker, { state: "stopped" }));
+			}
+			await Promise.all(queued);
 		},
 	};
 }
