@@ -28,7 +28,8 @@ export class ChecksUnavailable extends WatcherQueryError {
 	}
 }
 const firstLine = (value: string): string => value.trim().split(/\r?\n/, 1)[0]?.slice(0, 240) ?? "";
-function run(argv: readonly [string, ...string[]]): Promise<CommandResult> {
+function run(argv: readonly [string, ...string[]], signal?: AbortSignal): Promise<CommandResult> {
+	if (signal?.aborted) return Promise.reject(signal.reason);
 	return new Promise((resolve, reject) => {
 		const child = spawn(argv[0], argv.slice(1), {
 			stdio: ["ignore", "pipe", "pipe"],
@@ -43,8 +44,21 @@ function run(argv: readonly [string, ...string[]]): Promise<CommandResult> {
 		child.stderr.on("data", (chunk: string) => {
 			stderr += chunk;
 		});
-		child.on("error", reject);
-		child.on("close", (code) => resolve({ code: code ?? -1, stdout, stderr }));
+		const abort = () => {
+			child.kill("SIGKILL");
+			child.stdout.destroy();
+			child.stderr.destroy();
+		};
+		signal?.addEventListener("abort", abort, { once: true });
+		child.once("error", (error) => {
+			signal?.removeEventListener("abort", abort);
+			reject(signal?.aborted ? signal.reason : error);
+		});
+		child.once("close", (code) => {
+			signal?.removeEventListener("abort", abort);
+			if (signal?.aborted) reject(signal.reason);
+			else resolve({ code: code ?? -1, stdout, stderr });
+		});
 	});
 }
 function parseJson(text: string, label: string): unknown {
@@ -58,8 +72,8 @@ function parseJson(text: string, label: string): unknown {
 		});
 	}
 }
-async function runJson(argv: readonly [string, ...string[]]): Promise<unknown> {
-	const result = await run(argv);
+async function runJson(argv: readonly [string, ...string[]], signal?: AbortSignal): Promise<unknown> {
+	const result = await run(argv, signal);
 	if (result.code !== 0)
 		throw new WatcherQueryError({
 			kind: "command-exit",
@@ -365,15 +379,19 @@ function graphqlArgs(query: string, context: T.PrContext): [string, ...string[]]
 }
 
 export class GhGitHubReader implements T.GitHubReader {
+	private readonly signal: AbortSignal | undefined;
+	constructor(signal?: AbortSignal) {
+		this.signal = signal;
+	}
 	async originRepo(): Promise<T.Repository | null> {
-		const result = await run(["git", "remote", "get-url", "origin"]);
+		const result = await run(["git", "remote", "get-url", "origin"], this.signal);
 		return result.code === 0 ? parseRemote(result.stdout) : null;
 	}
 	async currentPr(pr: T.PrNumber | null): Promise<T.PrContext> {
 		const argv: [string, ...string[]] = ["gh", "pr", "view"];
 		if (pr !== null) argv.push(String(pr));
 		argv.push("--json", "number,url");
-		const object = record(await runJson(argv), "current PR");
+		const object = record(await runJson(argv, this.signal), "current PR");
 		const parsed = parsePrUrl(string(object.url, "current PR.url"));
 		return {
 			...parsed,
@@ -382,33 +400,39 @@ export class GhGitHubReader implements T.GitHubReader {
 	}
 	async pullRequest(context: T.PrContext): Promise<T.PullRequestFacts> {
 		return parsePullRequest(
-			await runJson([
-				"gh",
-				"pr",
-				"view",
-				String(context.number),
-				"--repo",
-				`${context.owner}/${context.repo}`,
-				"--json",
-				"mergeable,mergeStateStatus,reviewDecision,headRefOid,headRefName,baseRefName,state,mergedAt,isDraft",
-			]),
+			await runJson(
+				[
+					"gh",
+					"pr",
+					"view",
+					String(context.number),
+					"--repo",
+					`${context.owner}/${context.repo}`,
+					"--json",
+					"mergeable,mergeStateStatus,reviewDecision,headRefOid,headRefName,baseRefName,state,mergedAt,isDraft",
+				],
+				this.signal,
+			),
 			context,
 		);
 	}
 	async openPullRequests(repository: T.Repository): Promise<readonly T.OpenPullRequest[]> {
-		const value = await runJson([
-			"gh",
-			"pr",
-			"list",
-			"--repo",
-			`${repository.owner}/${repository.repo}`,
-			"--state",
-			"open",
-			"--limit",
-			"300",
-			"--json",
-			"number,headRefName,baseRefName,isCrossRepository",
-		]);
+		const value = await runJson(
+			[
+				"gh",
+				"pr",
+				"list",
+				"--repo",
+				`${repository.owner}/${repository.repo}`,
+				"--state",
+				"open",
+				"--limit",
+				"300",
+				"--json",
+				"number,headRefName,baseRefName,isCrossRepository",
+			],
+			this.signal,
+		);
 		return list(value, "open PRs").map((item, index) => {
 			const object = record(item, `open PRs[${index}]`);
 			if (typeof object.isCrossRepository !== "boolean")
@@ -422,16 +446,19 @@ export class GhGitHubReader implements T.GitHubReader {
 		});
 	}
 	async checksFastPath(context: T.PrContext): Promise<T.ChecksFastPath> {
-		const result = await run([
-			"gh",
-			"pr",
-			"checks",
-			String(context.number),
-			"--repo",
-			`${context.owner}/${context.repo}`,
-			"--json",
-			"name,state,description,link,workflow,bucket",
-		]);
+		const result = await run(
+			[
+				"gh",
+				"pr",
+				"checks",
+				String(context.number),
+				"--repo",
+				`${context.owner}/${context.repo}`,
+				"--json",
+				"name,state,description,link,workflow,bucket",
+			],
+			this.signal,
+		);
 		if ([0, 1, 8].includes(result.code) && result.stdout.trim()) {
 			try {
 				const value = parseJson(result.stdout, "gh pr checks");
@@ -445,7 +472,7 @@ export class GhGitHubReader implements T.GitHubReader {
 	async checkRollupPage(context: T.PrContext, after: string | null): Promise<T.RollupPage> {
 		const argv = graphqlArgs(PR_CHECK_ROLLUP_QUERY, context);
 		if (after !== null) argv.push("-f", `after=${after}`);
-		const value = await runJson(argv);
+		const value = await runJson(argv, this.signal);
 		const commits = list(at(value, ["data", "repository", "pullRequest", "commits", "nodes"]), "commits.nodes");
 		if (commits.length === 0) return { checks: [], endCursor: null };
 		const commit = record(at(commits[commits.length - 1], ["commit"]), "commit");
@@ -462,10 +489,10 @@ export class GhGitHubReader implements T.GitHubReader {
 	async reviewThreadPage(context: T.PrContext, after: string | null): Promise<T.ReviewThreadPage> {
 		const argv = graphqlArgs(REVIEW_THREADS_QUERY, context);
 		if (after !== null) argv.push("-f", `after=${after}`);
-		return parseReviewThreadPage(await runJson(argv));
+		return parseReviewThreadPage(await runJson(argv, this.signal));
 	}
 	async commitRollups(context: T.PrContext): Promise<readonly T.CommitRollup[]> {
-		const value = await runJson(graphqlArgs(PR_COMMIT_STATUS_QUERY, context));
+		const value = await runJson(graphqlArgs(PR_COMMIT_STATUS_QUERY, context), this.signal);
 		const commits = list(at(value, ["data", "repository", "pullRequest", "commits", "nodes"]), "commits.nodes");
 		return commits.map((item, index) => {
 			const commit = record(at(item, ["commit"]), `commits[${index}].commit`);

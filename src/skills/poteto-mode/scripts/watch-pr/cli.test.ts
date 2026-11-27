@@ -1,4 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import { spawnSync } from "node:child_process";
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { type CliRuntime, main, parseArgs } from "./cli.ts";
 import { fakeReader, passingCheck } from "./fakes.test-helper.ts";
 import { renderJson, renderPretty } from "./render.ts";
@@ -149,6 +153,56 @@ describe("rendering", () => {
 		expect(rendered).toContain("| PR | CI | Review | Merge |");
 		expect(rendered).toContain("| [#1](https://github.com/owner/repo/pull/1) | \u2014 | \u2014 | ✅ merged |");
 	});
+});
+
+describe("CLI deadline", () => {
+	for (const [mode, flags, kinds] of [
+		["single", [], ["TIMEOUT"]],
+		["discovery", ["--stack"], ["TIMEOUT"]],
+		["queued-stack", ["--queued-stack", "--stack-prs", "1"], ["QUEUE", "TIMEOUT"]],
+	] as const) {
+		it(`stops an in-flight ${mode} query`, () => {
+			const directory = mkdtempSync(join(tmpdir(), "watch-deadline-"));
+			const pidFile = join(directory, "pid");
+			try {
+				if (process.platform === "win32") copyFileSync(process.execPath, join(directory, "gh.exe"));
+				else symlinkSync(process.execPath, join(directory, "gh"));
+				writeFileSync(
+					join(directory, "pr"),
+					'process.on("SIGTERM", () => {}); require("node:fs").writeFileSync("pid", String(process.pid)); setTimeout(() => {}, 30_000);',
+				);
+				const args = ["--owner", "owner", "--repo", "repo", "--pr", "1", "--timeout", "1.5", ...flags];
+				const program = `import { main } from ${JSON.stringify(new URL("./cli.ts", import.meta.url).href)}; process.exitCode = await main(${JSON.stringify(args)});`;
+				const child = spawnSync(process.execPath, ["-e", program], {
+					cwd: directory,
+					encoding: "utf8",
+					timeout: 4500,
+					env: { PATH: directory, SystemRoot: process.env.SystemRoot },
+				});
+				expect(child.error).toBeUndefined();
+				expect(child.status).toBe(5);
+				const events = child.stdout
+					.trim()
+					.split("\n")
+					.map((line) => JSON.parse(line));
+				expect(events.map((event) => event.kind)).toEqual([...kinds]);
+				expect(events.map((event) => event.sequence)).toEqual(kinds.map((_, i) => i + 1));
+				expect(events.at(-1)).toMatchObject({ exitCode: 5, reason: { kind: "status-unavailable" } });
+				const pid = Number(readFileSync(pidFile, "utf8"));
+				expect(() => process.kill(pid, 0)).toThrow();
+			} finally {
+				if (existsSync(pidFile)) {
+					const pid = Number(readFileSync(pidFile, "utf8"));
+					try {
+						process.kill(pid, "SIGKILL");
+					} catch (error) {
+						expect(error).toMatchObject({ code: "ESRCH" });
+					}
+				}
+				rmSync(directory, { recursive: true, force: true });
+			}
+		});
+	}
 });
 
 describe("main", () => {

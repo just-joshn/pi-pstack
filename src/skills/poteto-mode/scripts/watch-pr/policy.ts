@@ -264,6 +264,8 @@ export interface RunDependencies {
 	readonly reader: T.GitHubReader;
 	readonly clock: WatchClock;
 	readonly emit: (verdict: T.ProgressVerdict) => void;
+	readonly startedAt?: number;
+	readonly stamp?: VerdictStamp;
 }
 const deadlinePassed = (started: number, options: T.PollingOptions, now: number): boolean =>
 	options.timeout > 0 && now - started >= options.timeout;
@@ -282,7 +284,7 @@ async function pollUntilTerminal<V>(args: {
 	readonly step: () => Promise<StepResult<V>>;
 }): Promise<V | T.BlockerVerdict | T.TimeoutVerdict> {
 	let failures = 0;
-	const started = args.dependencies.clock.now();
+	const started = args.dependencies.startedAt ?? args.dependencies.clock.now();
 	const sleep = async (seconds: number): Promise<void> => {
 		const remaining =
 			args.options.timeout > 0
@@ -335,7 +337,7 @@ export async function runSimple(args: {
 	readonly statusOnly: boolean;
 	readonly options: T.PollingOptions;
 }): Promise<T.TerminalVerdict> {
-	const stamp = verdictFactory(args.dependencies.clock, args.mode);
+	const stamp = args.dependencies.stamp ?? verdictFactory(args.dependencies.clock, args.mode);
 	const step = async (): Promise<StepResult<T.TerminalVerdict>> => {
 		const rows: T.PrSnapshot[] = [];
 		for (const context of args.contexts)
@@ -599,8 +601,11 @@ export async function runQueued(args: {
 	readonly contexts: T.NonEmpty<T.PrContext>;
 	readonly options: T.PollingOptions;
 }): Promise<T.QueueTerminalVerdict> {
-	let state = createQueueState(args.contexts, args.dependencies.clock.now());
-	const stamp = verdictFactory(args.dependencies.clock, "queued-stack");
+	let state = {
+		...createQueueState(args.contexts, args.dependencies.clock.now()),
+		startedAt: args.dependencies.startedAt ?? args.dependencies.clock.now(),
+	};
+	const stamp = args.dependencies.stamp ?? verdictFactory(args.dependencies.clock, "queued-stack");
 	args.dependencies.emit(stamp({ kind: "QUEUE", terminal: false, queue: args.contexts }));
 	const step = async (): Promise<StepResult<T.QueueTerminalVerdict>> => {
 		state = planQueue(state, args.dependencies.clock.now());

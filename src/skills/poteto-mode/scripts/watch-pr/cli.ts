@@ -105,9 +105,9 @@ export interface CliRuntime {
 	readonly stdout: (value: string) => void;
 	readonly stderr: (value: string) => void;
 }
-function realRuntime(): CliRuntime {
+function realRuntime(signal?: AbortSignal): CliRuntime {
 	return {
-		reader: new GhGitHubReader(),
+		reader: new GhGitHubReader(signal),
 		clock: {
 			now: () => performance.now() / 1_000,
 			observedAt: () => new Date().toISOString(),
@@ -119,7 +119,9 @@ function realRuntime(): CliRuntime {
 		stderr: (value) => process.stderr.write(value),
 	};
 }
-export async function main(argv: readonly string[], runtime: CliRuntime = realRuntime()): Promise<number> {
+export async function main(argv: readonly string[], suppliedRuntime?: CliRuntime): Promise<number> {
+	const controller = new AbortController();
+	const runtime = suppliedRuntime ?? realRuntime(controller.signal);
 	let options: CliOptions;
 	try {
 		options = parseArgs(argv, runtime);
@@ -127,36 +129,74 @@ export async function main(argv: readonly string[], runtime: CliRuntime = realRu
 		if (!(error instanceof CommanderError)) throw error;
 		return error.exitCode === 0 ? 0 : 64;
 	}
+	const startedAt = runtime.clock.now();
+	const stamp = verdictFactory(runtime.clock, options.mode);
 	const render = options.pretty ? renderPretty : renderJson;
-	const emit = (verdict: T.ProgressVerdict): void => runtime.stdout(render(verdict));
-	let contexts: T.NonEmpty<T.PrContext>;
+	const deadline = new Error("watch deadline expired");
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const armDeadline = () => {
+		const remaining = (options.polling.timeout - (runtime.clock.now() - startedAt)) * 1_000;
+		if (remaining <= 0) controller.abort(deadline);
+		else timer = setTimeout(armDeadline, Math.min(remaining, 2_147_483_647));
+	};
+	if (suppliedRuntime === undefined && options.polling.timeout > 0) armDeadline();
 	try {
-		const seed = await resolveContext({
+		const emit = (verdict: T.ProgressVerdict): void => runtime.stdout(render(verdict));
+		let contexts: T.NonEmpty<T.PrContext>;
+		try {
+			const seed = await resolveContext({
+				reader: runtime.reader,
+				owner: options.owner,
+				repo: options.repo,
+				pr: options.pr ?? options.stackPrs[0] ?? null,
+			});
+			contexts =
+				nonEmpty(options.stackPrs.map((number) => ({ ...seed, number }))) ??
+				(options.mode === "single" ? [seed] : await discoverStack(runtime.reader, seed));
+		} catch (error) {
+			if (!(error instanceof WatcherQueryError)) throw error;
+			const verdict = statusQueryVerdict(stamp, 1, error.failure);
+			runtime.stdout(render(verdict));
+			return verdict.exitCode;
+		}
+		const dependencies = {
 			reader: runtime.reader,
-			owner: options.owner,
-			repo: options.repo,
-			pr: options.pr ?? options.stackPrs[0] ?? null,
-		});
-		contexts =
-			nonEmpty(options.stackPrs.map((number) => ({ ...seed, number }))) ??
-			(options.mode === "single" ? [seed] : await discoverStack(runtime.reader, seed));
-	} catch (error) {
-		if (!(error instanceof WatcherQueryError)) throw error;
-		const verdict = statusQueryVerdict(verdictFactory(runtime.clock, options.mode), 1, error.failure);
+			clock: runtime.clock,
+			emit,
+			startedAt,
+			stamp,
+		};
+		const verdict =
+			options.mode === "queued-stack" && !options.statusOnly
+				? await runQueued({ dependencies, contexts, options: options.polling })
+				: await runSimple({
+						dependencies,
+						contexts,
+						mode: options.mode,
+						statusOnly: options.statusOnly,
+						options: options.polling,
+					});
 		runtime.stdout(render(verdict));
 		return verdict.exitCode;
+	} catch (error) {
+		if (error !== deadline) throw error;
+		const verdict = stamp({
+			kind: "TIMEOUT",
+			terminal: true,
+			exitCode: 5,
+			reason: {
+				kind: "status-unavailable",
+				failure: {
+					kind: "command-exit",
+					retryable: true,
+					code: -1,
+					detail: "watch deadline expired",
+				},
+			},
+		});
+		runtime.stdout(render(verdict));
+		return verdict.exitCode;
+	} finally {
+		if (timer !== undefined) clearTimeout(timer);
 	}
-	const dependencies = { reader: runtime.reader, clock: runtime.clock, emit };
-	const verdict =
-		options.mode === "queued-stack" && !options.statusOnly
-			? await runQueued({ dependencies, contexts, options: options.polling })
-			: await runSimple({
-					dependencies,
-					contexts,
-					mode: options.mode,
-					statusOnly: options.statusOnly,
-					options: options.polling,
-				});
-	runtime.stdout(render(verdict));
-	return verdict.exitCode;
 }
