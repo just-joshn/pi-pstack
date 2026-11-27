@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
+import { pathToFileURL } from "node:url";
 
 const ENTRY = path.join(import.meta.dirname, "..", "statechart.ts");
 
@@ -23,6 +24,47 @@ describe("statechart CLI failures before TLC runs", () => {
 		fs.writeFileSync(path.join(dir, "M.tla"), "---- MODULE M ----\n====\n");
 	});
 	afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+	test("cleans staging and temporary directories when the worker cannot spawn", () => {
+		fs.writeFileSync(path.join(dir, "M.cfg"), "INIT Init\nNEXT Next\n");
+		const tmp = path.join(dir, "tmp");
+		fs.mkdirSync(tmp);
+		const missing = path.join(dir, "missing-node");
+		const script = `process.execPath = ${JSON.stringify(missing)}; process.argv = ['node', ${JSON.stringify(ENTRY)}, 'M.tla']; await import(${JSON.stringify(pathToFileURL(ENTRY).href)});`;
+		const { status, stderr } = spawnSync(process.execPath, ["--input-type=module", "--eval", script], {
+			cwd: dir,
+			env: { ...process.env, TMPDIR: tmp, TMP: tmp, TEMP: tmp },
+			encoding: "utf8",
+			timeout: 30_000,
+		});
+		assert.equal(status, 2, stderr);
+		assert.match(stderr, /spawn .*missing-node.*ENOENT/);
+		assert.deepEqual(fs.readdirSync(tmp), []);
+		assert.deepEqual(fs.readdirSync(dir).sort(), ["M.cfg", "M.tla", "tmp"]);
+	});
+
+	for (const [name, view, expected] of [
+		["throws", 'throw new Error("view failed");', /view failed/],
+		["is killed", 'process.kill(process.pid, "SIGTERM"); await new Promise(() => {});', /SIGTERM killed the check/],
+	] as const) {
+		test(`cleans up when the worker ${name}`, () => {
+			fs.writeFileSync(path.join(dir, "M.cfg"), "INIT Init\nNEXT Next\n");
+			fs.writeFileSync(path.join(dir, "view.mjs"), view);
+			const tmp = path.join(dir, "tmp");
+			fs.mkdirSync(tmp);
+			const { status, stdout, stderr } = spawnSync(process.execPath, [ENTRY, "M.tla", "--view", "view.mjs"], {
+				cwd: dir,
+				env: { ...process.env, TMPDIR: tmp, TMP: tmp, TEMP: tmp },
+				encoding: "utf8",
+				timeout: 30_000,
+			});
+			assert.equal(status, 2, stderr);
+			assert.equal(stdout, "");
+			assert.match(stderr, expected);
+			assert.deepEqual(fs.readdirSync(tmp), []);
+			assert.deepEqual(fs.readdirSync(dir).sort(), ["M.cfg", "M.tla", "tmp", "view.mjs"]);
+		});
+	}
 
 	test("exits 2 with usage when no spec is given", () => {
 		const { status, stdout, stderr } = run(dir);

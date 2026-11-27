@@ -82,13 +82,14 @@ try {
 	const done = path.join(stage, "done");
 	let tmp: string | undefined;
 	let janitor: ChildProcess | undefined;
+	let worker: ChildProcess | undefined;
 	let exitCode: number;
 	try {
 		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-"));
 		const runtime = process.versions.deno
 			? ["run", "--quiet", "--no-prompt", "--allow-read", "--allow-write", "--allow-run", "--allow-env"]
 			: process.execArgv;
-		const worker = spawn(
+		const child = spawn(
 			process.execPath,
 			[
 				...runtime,
@@ -104,24 +105,34 @@ try {
 				env: { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp },
 			},
 		);
-		janitor = spawn(
+		worker = child;
+		const exited = new Promise<{ code: number } | { error: Error }>((resolve) => {
+			child.once("error", (error) => resolve({ error }));
+			child.once("exit", (code) => {
+				janitor?.stdin?.write("exited\n");
+				resolve({ code: code ?? 2 });
+			});
+		});
+		const cleaner = spawn(
 			process.execPath,
-			[...runtime, path.join(import.meta.dirname, "janitor.ts"), String(worker.pid), stage, tmp],
+			[...runtime, path.join(import.meta.dirname, "janitor.ts"), String(child.pid), stage, tmp],
 			{ detached: true, stdio: ["pipe", "ignore", "ignore"] },
 		);
-		const toJanitor = janitor.stdin;
-		toJanitor?.on("error", () => {});
-		const exited = new Promise<number>((resolve) =>
-			worker.on("exit", (code) => {
-				toJanitor?.write("exited\n");
-				resolve(code ?? 2);
-			}),
-		);
-		await Promise.race([stopped, exited]);
-		const running = worker.exitCode === null && worker.signalCode === null;
+		janitor = cleaner;
+		cleaner.stdin.on("error", () => {});
+		const janitorEnded = new Promise<Error>((resolve) => {
+			cleaner.once("error", resolve);
+			cleaner.once("exit", (code, signal) => resolve(new Error(`Janitor exited unexpectedly (${signal ?? code}).`)));
+		});
+		const first = await Promise.race([stopped, exited, janitorEnded]);
+		if (first instanceof Error) throw first;
+		if (first && "error" in first) throw first.error;
+		const running = child.exitCode === null && child.signalCode === null;
 		const groupOutlivesWorker = process.platform !== "win32";
-		if (worker.pid !== undefined && (running || groupOutlivesWorker)) await killGroup(worker.pid);
-		const verdict = await exited;
+		if (child.pid !== undefined && (running || groupOutlivesWorker)) await killGroup(child.pid);
+		const result = await exited;
+		if ("error" in result) throw result.error;
+		const verdict = result.code;
 		if (stop) {
 			process.stderr.write(`${stop} stopped the check, so the command wrote nothing.\n`);
 			exitCode = 128 + os.constants.signals[stop];
@@ -144,6 +155,8 @@ try {
 			exitCode = verdict;
 		} else exitCode = 2;
 	} finally {
+		if (worker?.pid !== undefined && worker.exitCode === null && worker.signalCode === null)
+			await killGroup(worker.pid);
 		fs.rmSync(stage, { recursive: true, force: true });
 		if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
 		janitor?.kill("SIGKILL");
