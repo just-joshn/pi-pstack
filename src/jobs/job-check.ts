@@ -2,7 +2,7 @@ import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { createInterface } from "node:readline";
 import { promisify } from "node:util";
 
@@ -38,7 +38,7 @@ const pack = ".pi/automations/benny";
 const packSource = join(srcDir, "automations", "benny");
 const packFiles = (await readdir(packSource, { recursive: true, withFileTypes: true }))
 	.filter((entry) => entry.isFile())
-	.map((entry) => `${pack}/${relative(packSource, join(entry.parentPath, entry.name))}`);
+	.map((entry) => [pack, ...relative(packSource, join(entry.parentPath, entry.name)).split(sep)].join("/"));
 
 const quotedPath = /`(\.pi\/[^`\n]+)`|^[ \t]*(\.pi\/[^\n]*?)[ \t]*$/gm;
 function namedPaths(text: string) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 
 import { test } from "vitest";
 
@@ -48,7 +48,9 @@ async function target(files: string[], instructions = "Read `.pi/benny/configura
 }
 const packFiles = (await readdir(join(srcDir, "automations", "benny"), { recursive: true, withFileTypes: true }))
 	.filter((e) => e.isFile())
-	.map((e) => `${pack}/${relative(join(srcDir, "automations", "benny"), join(e.parentPath, e.name))}`);
+	.map((e) =>
+		[pack, ...relative(join(srcDir, "automations", "benny"), join(e.parentPath, e.name)).split(sep)].join("/"),
+	);
 const complete = [".pi/settings.json", ".pi/benny/configuration.yaml", ...packFiles];
 
 test("a committed pack whose checkout gets the shared skills from project scope passes", async () => {
