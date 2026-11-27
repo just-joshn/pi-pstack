@@ -6,10 +6,12 @@ CHANGED:
 
 - GitHub Actions verifies and stages an npm tarball on a version bump. A maintainer reviews and approves it on npm with 2FA.
 - After npm publishes the approved version, GitHub Actions verifies its provenance and creates the matching tag and release from the exact source commit.
+- Use one set of repository agent rules and pin CI actions to full commit SHAs.
 
 FIXED:
 
 - Benny's Slack watcher can claim its state on Windows without binding a reserved TCP port. Stop any running Windows watcher before upgrading.
+- Listing workers during startup no longer reads partially written worker records.
 
 ## 0.5.0 (Unreleased)
 
