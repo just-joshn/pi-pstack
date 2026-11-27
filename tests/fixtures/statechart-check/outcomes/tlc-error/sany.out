@@ -1,0 +1,2 @@
+Semantic processing of module Spec
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><modules><RootModule>Spec</RootModule><context><entry><UID>229</UID><ModuleNode><uniquename>Spec</uniquename><OpDeclNodeRef><UID>230</UID></OpDeclNodeRef></ModuleNode></entry><entry><UID>230</UID><OpDeclNode><uniquename>x</uniquename><arity>0</arity><kind>3</kind></OpDeclNode></entry></context></modules>

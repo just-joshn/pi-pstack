@@ -1,13 +1,10 @@
 {
-  "compilerOptions": {
-    "allowImportingTsExtensions": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "noEmit": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "target": "esnext",
-    "types": ["bun-types"]
-  },
-  "include": ["*.ts"]
+	"extends": "../../../../../tsconfig.json",
+	"compilerOptions": {
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"types": ["bun-types"]
+	},
+	"include": ["*.ts", "../bootstrap.ts"],
+	"exclude": ["../node_modules"]
 }

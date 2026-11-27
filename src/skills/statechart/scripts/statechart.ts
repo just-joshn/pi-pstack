@@ -25,141 +25,144 @@ and 2 when TLC stops with an error, a signal kills the check, or the command can
 
 let stop: NodeJS.Signals | undefined;
 const stopped = new Promise<void>((resolve) => {
-  for (const name of ["SIGINT", "SIGTERM"] as const)
-    process.on(name, () => {
-      stop ??= name;
-      resolve();
-    });
+	for (const name of ["SIGINT", "SIGTERM"] as const)
+		process.on(name, () => {
+			stop ??= name;
+			resolve();
+		});
 });
 
-let flags;
-let specFile;
-try {
-  const args = parseArgs({
-    allowPositionals: true,
-    options: { config: { type: "string" }, view: { type: "string" }, out: { type: "string" } },
-  });
-  flags = args.values;
-  [specFile] = args.positionals;
-  if (args.positionals.length !== 1) throw new Error("Give one SPEC.tla.");
-} catch (error) {
-  console.error(`${messageOf(error)}\n\n${USAGE}`);
-  process.exit(2);
+function commandArgs(argv: readonly string[]) {
+	try {
+		const { values: flags, positionals } = parseArgs({
+			args: [...argv],
+			allowPositionals: true,
+			options: { config: { type: "string" }, view: { type: "string" }, out: { type: "string" } },
+		});
+		const [specFile, extra] = positionals;
+		if (specFile === undefined || extra !== undefined) throw new Error("Give one SPEC.tla.");
+		return { flags, specFile };
+	} catch (error) {
+		process.stderr.write(`${messageOf(error)}\n\n${USAGE}\n`);
+		process.exit(2);
+	}
 }
+const { flags, specFile } = commandArgs(process.argv.slice(2));
 
-const codeOf = (error: unknown) =>
-  error instanceof Error && "code" in error ? error.code : undefined;
+const codeOf = (error: unknown) => (error instanceof Error && "code" in error ? error.code : undefined);
 
 try {
-  const configFile = flags.config ?? specFile.replace(/\.tla$/, ".cfg");
-  if (!fs.existsSync(configFile))
-    throw new Error(`Cannot find the TLC config ${configFile}. Pass --config FILE.`);
-  const out = flags.out ?? specFile.replace(/\.tla$/, "-chart");
-  let entries: string[] = [];
-  let dest: string;
-  try {
-    entries = fs.readdirSync(out);
-    dest = fs.realpathSync(out);
-  } catch (error) {
-    if (codeOf(error) !== "ENOENT")
-      throw new Error(
-        `${out} cannot be the output folder. ${messageOf(error)}. Pass --out with a new folder.`,
-        { cause: error },
-      );
-    if (fs.lstatSync(out, { throwIfNoEntry: false }))
-      throw new Error(
-        `${out} cannot be the output folder. It is a broken link. Pass --out with a new folder.`,
-        { cause: error },
-      );
-    dest = path.resolve(out);
-  }
-  if (entries.length)
-    throw new Error(
-      `${out} is not empty. It has ${entries.sort()[0]}. The command writes only to a new or empty folder. Pass --out with a new folder.`,
-    );
+	const configFile = flags.config ?? specFile.replace(/\.tla$/, ".cfg");
+	if (!fs.existsSync(configFile)) throw new Error(`Cannot find the TLC config ${configFile}. Pass --config FILE.`);
+	const out = flags.out ?? specFile.replace(/\.tla$/, "-chart");
+	let entries: string[] = [];
+	let dest: string;
+	try {
+		entries = fs.readdirSync(out);
+		dest = fs.realpathSync(out);
+	} catch (error) {
+		if (codeOf(error) !== "ENOENT")
+			throw new Error(`${out} cannot be the output folder. ${messageOf(error)}. Pass --out with a new folder.`, {
+				cause: error,
+			});
+		if (fs.lstatSync(out, { throwIfNoEntry: false }))
+			throw new Error(`${out} cannot be the output folder. It is a broken link. Pass --out with a new folder.`, {
+				cause: error,
+			});
+		dest = path.resolve(out);
+	}
+	if (entries.length)
+		throw new Error(
+			`${out} is not empty. It has ${entries.sort()[0]}. The command writes only to a new or empty folder. Pass --out with a new folder.`,
+		);
 
-  let base = path.dirname(dest);
-  while (!fs.existsSync(base)) base = path.dirname(base);
-  const stage = fs.mkdtempSync(path.join(base, `.${path.basename(dest)}.statechart-`));
-  const done = path.join(stage, "done");
-  let tmp: string | undefined;
-  let janitor: ChildProcess | undefined;
-  let exitCode: number;
-  try {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-"));
-    const runtime = process.versions.deno
-      ? [
-          "run",
-          "--quiet",
-          "--no-prompt",
-          "--allow-read",
-          "--allow-write",
-          "--allow-run",
-          "--allow-env",
-        ]
-      : process.execArgv;
-    const worker = spawn(
-      process.execPath,
-      [
-        ...runtime,
-        path.join(import.meta.dirname, "worker.ts"),
-        stage,
-        specFile,
-        configFile,
-        ...(flags.view ? [flags.view] : []),
-      ],
-      {
-        detached: true,
-        stdio: ["ignore", "inherit", "inherit"],
-        env: { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp },
-      },
-    );
-    janitor = spawn(
-      process.execPath,
-      [...runtime, path.join(import.meta.dirname, "janitor.ts"), String(worker.pid), stage, tmp],
-      { detached: true, stdio: ["pipe", "ignore", "ignore"] },
-    );
-    const toJanitor = janitor.stdin;
-    toJanitor?.on("error", () => {});
-    const exited = new Promise<number>((resolve) =>
-      worker.on("exit", (code) => {
-        toJanitor?.write("exited\n");
-        resolve(code ?? 2);
-      }),
-    );
-    await Promise.race([stopped, exited]);
-    const running = worker.exitCode === null && worker.signalCode === null;
-    const groupOutlivesWorker = process.platform !== "win32";
-    if (worker.pid !== undefined && (running || groupOutlivesWorker)) await killGroup(worker.pid);
-    const verdict = await exited;
-    if (stop) {
-      console.error(`${stop} stopped the check, so the command wrote nothing.`);
-      exitCode = 128 + os.constants.signals[stop];
-    } else if (worker.signalCode) {
-      console.error(`${worker.signalCode} killed the check, so the command wrote nothing.`);
-      exitCode = 2;
-    } else if ((verdict === 0 || verdict === 1) && fs.existsSync(done)) {
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      try {
-        fs.renameSync(done, dest);
-      } catch (error) {
-        if (codeOf(error) !== "ENOTEMPTY" && codeOf(error) !== "EEXIST") throw error;
-        throw new Error(
-          `${path.join(out, fs.readdirSync(dest).sort()[0])} appeared while the check ran, so the command wrote nothing. Pass --out with a new folder.`,
-          { cause: error },
-        );
-      }
-      process.stdout.write(fs.readFileSync(path.join(dest, "report.md")));
-      console.log(`\nWrote ${out}`);
-      exitCode = verdict;
-    } else exitCode = 2;
-  } finally {
-    fs.rmSync(stage, { recursive: true, force: true });
-    if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
-    janitor?.kill("SIGKILL");
-  }
-  process.exit(exitCode);
+	let base = path.dirname(dest);
+	while (!fs.existsSync(base)) base = path.dirname(base);
+	const stage = fs.mkdtempSync(path.join(base, `.${path.basename(dest)}.statechart-`));
+	const done = path.join(stage, "done");
+	let tmp: string | undefined;
+	let janitor: ChildProcess | undefined;
+	let worker: ChildProcess | undefined;
+	let exitCode: number;
+	try {
+		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-"));
+		const runtime = process.versions.deno
+			? ["run", "--quiet", "--no-prompt", "--allow-read", "--allow-write", "--allow-run", "--allow-env"]
+			: process.execArgv;
+		const child = spawn(
+			process.execPath,
+			[
+				...runtime,
+				path.join(import.meta.dirname, "worker.ts"),
+				stage,
+				specFile,
+				configFile,
+				...(flags.view ? [flags.view] : []),
+			],
+			{
+				detached: true,
+				stdio: ["ignore", "inherit", "inherit"],
+				env: { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp },
+			},
+		);
+		worker = child;
+		const exited = new Promise<{ code: number } | { error: Error }>((resolve) => {
+			child.once("error", (error) => resolve({ error }));
+			child.once("exit", (code) => {
+				janitor?.stdin?.write("exited\n");
+				resolve({ code: code ?? 2 });
+			});
+		});
+		const cleaner = spawn(
+			process.execPath,
+			[...runtime, path.join(import.meta.dirname, "janitor.ts"), String(child.pid), stage, tmp],
+			{ detached: true, stdio: ["pipe", "ignore", "ignore"] },
+		);
+		janitor = cleaner;
+		cleaner.stdin.on("error", () => {});
+		const janitorEnded = new Promise<Error>((resolve) => {
+			cleaner.once("error", resolve);
+			cleaner.once("exit", (code, signal) => resolve(new Error(`Janitor exited unexpectedly (${signal ?? code}).`)));
+		});
+		const first = await Promise.race([stopped, exited, janitorEnded]);
+		if (first instanceof Error) throw first;
+		if (first && "error" in first) throw first.error;
+		const running = child.exitCode === null && child.signalCode === null;
+		const groupOutlivesWorker = process.platform !== "win32";
+		if (child.pid !== undefined && (running || groupOutlivesWorker)) await killGroup(child.pid);
+		const result = await exited;
+		if ("error" in result) throw result.error;
+		const verdict = result.code;
+		if (stop) {
+			process.stderr.write(`${stop} stopped the check, so the command wrote nothing.\n`);
+			exitCode = 128 + os.constants.signals[stop];
+		} else if (worker.signalCode) {
+			process.stderr.write(`${worker.signalCode} killed the check, so the command wrote nothing.\n`);
+			exitCode = 2;
+		} else if ((verdict === 0 || verdict === 1) && fs.existsSync(done)) {
+			fs.mkdirSync(path.dirname(dest), { recursive: true });
+			try {
+				fs.renameSync(done, dest);
+			} catch (error) {
+				if (codeOf(error) !== "ENOTEMPTY" && codeOf(error) !== "EEXIST") throw error;
+				throw new Error(
+					`${path.join(out, fs.readdirSync(dest).sort()[0] ?? "")} appeared while the check ran, so the command wrote nothing. Pass --out with a new folder.`,
+					{ cause: error },
+				);
+			}
+			process.stdout.write(fs.readFileSync(path.join(dest, "report.md")));
+			process.stdout.write(`\nWrote ${out}\n`);
+			exitCode = verdict;
+		} else exitCode = 2;
+	} finally {
+		if (worker?.pid !== undefined && worker.exitCode === null && worker.signalCode === null)
+			await killGroup(worker.pid);
+		fs.rmSync(stage, { recursive: true, force: true });
+		if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
+		janitor?.kill("SIGKILL");
+	}
+	process.exit(exitCode);
 } catch (error) {
-  console.error(messageOf(error));
-  process.exit(2);
+	process.stderr.write(`${messageOf(error)}\n`);
+	process.exit(2);
 }

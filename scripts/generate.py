@@ -51,31 +51,22 @@ def playbook_steps(path):
     return numbered or [lines[0].lstrip("# ").strip()]
 
 
-def apply_overrides(base, overrides):
-    merged = list(base)
-    for line in overrides:
-        number = int(re.search(r"step (\d+)", line).group(1))
-        task = first_sentence(line)
-        at = merged.index(base[number - 1])
-        if task.startswith(f"In place of step {number}"):
-            merged[at] = task
-        else:
-            merged[at] = f"{merged[at]} Exception: {task}"
-    return merged
-
-
-def playbook_plan(path, own):
-    lines = path.read_text().splitlines()
-    parent = re.match(r"Run the (\S+) playbook", lines[2])
-    if not parent:
-        return own[path.stem]
-    overrides = [line for line in lines if re.match(r"\d+\.\s", line)]
-    return apply_overrides(own[parent.group(1).lower()], overrides)
-
-
 playbooks = sorted(PLAYBOOKS.glob("*.md"))
-own_steps = {path.stem: playbook_steps(path) for path in playbooks}
-steps = {path.stem: playbook_plan(path, own_steps) for path in playbooks}
+steps = {path.stem: playbook_steps(path) for path in playbooks}
+stack = list(steps["autopilot-full"])
+stack[1] += (
+    " Rebase each PR onto its parent PR's branch and the stack root onto trunk."
+    " Restack PRs above a new lower head; unchanged patch IDs keep their verdict."
+)
+stack[2] = (
+    "Run owners in parallel off trunk. Stack a PR only when it builds on another PR,"
+    " using the parent PR's branch as its base."
+)
+stack[4] = (
+    "Stop when each PR is verified and green at its current head, then hand the PRs to the operator."
+    " After handoff, nobody pushes without the operator's go."
+)
+steps["autopilot-stack"] = stack
 
 
 def is_skill(node):
@@ -121,10 +112,20 @@ def reconcile(outputs, check):
         for path, content in outputs.items():
             target = stage / path
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(content, encoding="utf-8")
-        config = f"--config={ROOT / 'bunfig.toml'}"
+            target.write_bytes(content.encode("utf-8"))
+        biome = ROOT / "node_modules/@biomejs/biome/bin/biome"
+        if not biome.is_file():
+            raise SystemExit("Biome is unavailable; run npm ci --ignore-scripts first.")
         subprocess.run(
-            ["bun", config, "fmt", "--log-level=warn", *outputs], cwd=stage, check=True
+            [
+                "node", str(biome), "format", "--write",
+                f"--config-path={ROOT / 'biome.json'}", "--vcs-enabled=false",
+                *(path for path in outputs if path.endswith(".json")),
+            ],
+            cwd=stage,
+            stdout=subprocess.PIPE,
+            check=True,
+            timeout=30,
         )
         for path in outputs:
             expected = (stage / path).read_bytes()

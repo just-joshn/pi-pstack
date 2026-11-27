@@ -10,26 +10,25 @@ import { check, messageOf } from "./run.ts";
 const [stage, specFile, configFile, viewFile] = process.argv.slice(2);
 
 try {
-  const view = checkView(
-    viewFile ? await import(pathToFileURL(path.resolve(viewFile)).href) : {},
-    inspect,
-  );
-  const { files, exit } = compile(await check(specFile, configFile), view);
-  const draft = path.join(stage, "draft");
-  fs.mkdirSync(draft);
-  for (const [name, parts] of files) {
-    const fd = fs.openSync(path.join(draft, name), "wx");
-    try {
-      for (const part of parts)
-        fs.writeSync(fd, typeof part === "string" ? Buffer.from(part) : part);
-      fs.writeSync(fd, "\n");
-    } finally {
-      fs.closeSync(fd);
-    }
-  }
-  fs.renameSync(draft, path.join(stage, "done"));
-  process.exit(exit);
+	if (stage === undefined || specFile === undefined || configFile === undefined)
+		throw new Error("Expected staging, spec, and config paths.");
+	// The caller selects the executable view module at runtime.
+	const view = checkView(viewFile ? await import(pathToFileURL(path.resolve(viewFile)).href) : {}, inspect);
+	const { files, exit } = compile(await check(specFile, configFile), view);
+	const draft = path.join(stage, "draft");
+	fs.mkdirSync(draft);
+	for (const [name, parts] of files) {
+		const fd = fs.openSync(path.join(draft, name), "wx");
+		try {
+			for (const part of parts) fs.writeSync(fd, typeof part === "string" ? Buffer.from(part) : part);
+			fs.writeSync(fd, "\n");
+		} finally {
+			fs.closeSync(fd);
+		}
+	}
+	fs.renameSync(draft, path.join(stage, "done"));
+	process.exit(exit);
 } catch (error) {
-  console.error(messageOf(error));
-  process.exit(2);
+	process.stderr.write(`${messageOf(error)}\n`);
+	process.exit(2);
 }

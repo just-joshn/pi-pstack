@@ -1,0 +1,5 @@
+{
+	"sany": [{ "out": "sany.out" }],
+	"tlc": [{ "out": "verdict-1.out", "exit": 12 }],
+	"chart": [{ "out": "chart.out", "dot": "graph.dot" }]
+}

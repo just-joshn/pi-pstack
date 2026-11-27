@@ -1,0 +1,27 @@
+{
+	"sany": [
+		{
+			"out": "sany.out"
+		}
+	],
+	"tlc": [
+		{
+			"out": "tlc-1.out",
+			"exit": 13
+		},
+		{
+			"out": "tlc-2.out",
+			"exit": 12
+		},
+		{
+			"out": "tlc-3.out",
+			"exit": 12
+		}
+	],
+	"chart": [
+		{
+			"out": "../counter-pass/chart.out",
+			"dot": "../counter-pass/graph.dot"
+		}
+	]
+}

@@ -1,4 +1,0 @@
-# Committed exactly as written, so the formatter must not rewrite or check them.
-.oxlintrc.json
-bunfig.toml
-vitest.config.ts
