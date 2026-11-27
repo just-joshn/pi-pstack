@@ -42,7 +42,10 @@ function longRunningWorkers() {
 			timeouts.push(options?.timeout);
 			const released = new Promise<void>((resolve, reject) => {
 				release.set(flag(args, "--session-id") ?? "", resolve);
-				options?.signal?.addEventListener("abort", () => reject(Error("killed")));
+				const signal = options?.signal;
+				const abort = () => reject(Error("killed"));
+				if (signal?.aborted) abort();
+				else signal?.addEventListener("abort", abort, { once: true });
 			});
 			released.catch(() => {});
 			await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");

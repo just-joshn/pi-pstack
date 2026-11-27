@@ -177,9 +177,19 @@ async function entries(dir: string) {
 async function lastActivity(dir: string) {
 	const files = await entries(dir);
 	const times = await Promise.all(
-		files.filter((f) => f.isFile()).map(async (f) => (await stat(join(dir, f.name))).mtimeMs),
+		files
+			.filter((f) => f.isFile())
+			.map(async (f) => {
+				try {
+					return (await stat(join(dir, f.name))).mtimeMs;
+				} catch (error) {
+					if (!hasErrorCode(error, "ENOENT")) throw error;
+					return undefined;
+				}
+			}),
 	);
-	return times.length ? new Date(Math.max(...times)).toISOString() : null;
+	const latest = times.reduce<number>((max, time) => Math.max(max, time ?? -Infinity), -Infinity);
+	return latest === -Infinity ? null : new Date(latest).toISOString();
 }
 async function readJson(path: string) {
 	try {

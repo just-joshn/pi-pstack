@@ -25,7 +25,7 @@ import { blindTranscript, readPaths } from "./lib/transcript.ts";
 import { errorMessage, isRecord, parseJson } from "./lib/validation.ts";
 import { availableWorkerModels, modelName, readConfig, workerExtensions, workerIsolation } from "./models.ts";
 import { type ParentDiff, saveParentDiff } from "./parent-diff.ts";
-import { artifacts, fail, piBin, result, stringEnum } from "./support.ts";
+import { artifacts, atomicWrite, fail, piBin, result, stringEnum } from "./support.ts";
 import { type BusyPaths, createWorktree } from "./worktrees.ts";
 
 const modes = ["single", "swarm", "arena", "interrogate"] as const;
@@ -303,9 +303,7 @@ async function launchWorker(pi: ExtensionAPI, request: WorkerRequest, options: R
 		thinking: request.thinking ?? effort(request.modelRole, options.budget, request.model),
 		extension: options.extensions.get(request.model),
 	};
-	await writeFile(join(sessionDir, "worker.json"), JSON.stringify(worker, null, 2), {
-		mode: 0o600,
-	});
+	await atomicWrite(join(sessionDir, "worker.json"), JSON.stringify(worker, null, 2));
 	return execWorker(pi, options, worker, {
 		thinking: worker.thinking,
 		prompt: await workerPrompt(request, options),
