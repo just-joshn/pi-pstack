@@ -1,0 +1,90 @@
+name: Sync GitHub releases
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/sync-github-releases.yml
+      - scripts/create-github-releases.sh
+      - tests/create-github-releases.test.sh
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+    inputs:
+      preview:
+        description: Verify npm versions without creating tags or releases
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('sync-test-{0}', github.ref) || 'sync-github-releases' }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test-writer:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: bash tests/create-github-releases.test.sh
+
+  verify:
+    if: github.event_name != 'pull_request' && github.repository == 'just-joshn/pi-pstack' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      plan: ${{ steps.plan.outputs.plan }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.13.1'
+          package-manager-cache: false
+      - name: Check npm version
+        run: test "npm@$(npm --version)" = "$(jq -er '.packageManager' package.json)"
+      - name: Read existing GitHub releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh api --paginate --slurp "repos/$GH_REPO/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+      - name: Verify published npm versions
+        id: plan
+        run: |
+          plan=$(node scripts/plan-github-releases.ts "$RUNNER_TEMP/releases.json")
+          jq -r '.[] | "Verified v\(.version) at \(.commit)"' <<< "$plan"
+          printf 'plan=%s\n' "$plan" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: verify
+    if: needs.verify.outputs.plan != '' && needs.verify.outputs.plan != '[]' && !inputs.preview
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/create-github-releases.sh
+          sparse-checkout-cone-mode: false
+      - name: Create missing tags and releases
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PLAN: ${{ needs.verify.outputs.plan }}
+        run: bash scripts/create-github-releases.sh

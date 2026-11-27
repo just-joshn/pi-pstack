@@ -1,6 +1,6 @@
 {
 	"name": "pi-pstack-workflow-kit",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Map-driven pstack and Team Kit workflows for Pi",
 	"homepage": "https://github.com/just-joshn/pi-pstack#readme",
 	"bugs": {

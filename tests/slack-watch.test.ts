@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { EventEmitter, once } from "node:events";
 import { link, mkdtemp, readdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { Server } from "node:net";
 import { join } from "node:path";
 
-import { test } from "vitest";
+import { test, vi } from "vitest";
 import type { SlackTrigger } from "../src/jobs/job-input.ts";
 import { readEvent, readJob } from "../src/jobs/job-input.ts";
 import {
@@ -331,6 +332,28 @@ test("one watcher owns a state file at a time, and the claim ends with its proce
 	await exited;
 	const afterCrash = await claimState(state);
 	await afterCrash();
+});
+
+test.runIf(process.platform === "win32")("a Windows watcher can claim state without a TCP port", async () => {
+	const state = join(await folder(), "watch-state.json");
+	const listen = Server.prototype.listen;
+	const listenSpy = vi.spyOn(Server.prototype, "listen").mockImplementation(function (
+		this: Server,
+		...args: unknown[]
+	) {
+		const [address] = args;
+		if (typeof address === "number" || (address && typeof address === "object" && "port" in address)) {
+			throw Object.assign(Error("TCP port is reserved"), { code: "EACCES" });
+		}
+		Reflect.apply(listen, this, args);
+		return this;
+	});
+	try {
+		const release = await claimState(state);
+		await release();
+	} finally {
+		listenSpy.mockRestore();
+	}
 });
 
 test("two watchers claiming at once never both win", async () => {
