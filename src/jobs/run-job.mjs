@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdir, open, realpath, writeFile } from "node:fs/promises";
+import { lstat, mkdir, open, readFile, realpath, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { finished } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
@@ -42,7 +42,56 @@ await mkdir(dir, { recursive: true, mode: 0o700 });
 const { prompt, key, eventId } = planRun(jobPath, job, event);
 const runDir = join(dir, key);
 if (stopped) throw Error("Stopped before the run was claimed");
-await mkdir(runDir, { mode: 0o700 });
+async function acknowledgeAdmission(message = { type: "admitted" }) {
+	if (!process.send || !process.connected) return;
+	await new Promise((resolve) => {
+		process.send(message, () => resolve(undefined));
+	});
+	if (process.connected) process.disconnect();
+}
+async function syncDirectory(path) {
+	// Windows does not support opening a directory with Node's file handles.
+	if (process.platform === "win32") return;
+	const folder = await open(path, "r");
+	try {
+		await folder.sync();
+	} finally {
+		await folder.close();
+	}
+}
+try {
+	await mkdir(runDir, { mode: 0o700 });
+} catch (error) {
+	if (!isRecord(error) || error.code !== "EEXIST" || !(await lstat(runDir)).isDirectory()) throw error;
+	await syncDirectory(dir);
+	let incomplete;
+	try {
+		const prior = JSON.parse(await readFile(join(runDir, "result.json"), "utf8"));
+		incomplete = !isRecord(prior) || typeof prior.status !== "string" || !Number.isInteger(prior.code);
+	} catch (failure) {
+		if (!(failure instanceof SyntaxError) && (!isRecord(failure) || failure.code !== "ENOENT")) throw failure;
+		incomplete = true;
+	}
+	// The prior runner may still be active or may have died after an external effect. Never replay it here.
+	await acknowledgeAdmission({ type: "admitted", incomplete, runDir });
+	await new Promise((resolve) => {
+		process.stderr.write(
+			`EEXIST: run already claimed${incomplete ? "; interrupted or unconfirmed" : ""}. Inspect ${runDir}\n`,
+			resolve,
+		);
+	});
+	process.exit(1);
+}
+const admission = await open(join(runDir, "admission.json"), "wx", 0o600);
+try {
+	await admission.writeFile(JSON.stringify({ eventId, runDir }, null, 2));
+	await admission.sync();
+} finally {
+	await admission.close();
+}
+await syncDirectory(runDir);
+await syncDirectory(dir);
+await acknowledgeAdmission();
 const cwd = benny ? join(runDir, "checkout") : repository;
 const log = join(runDir, "stdout.txt");
 const errorLog = join(runDir, "stderr.txt");

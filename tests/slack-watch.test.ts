@@ -148,6 +148,35 @@ test("a Slack error names Slack's reason or the HTTP status", async () => {
 	await assert.rejects(reply("[]", 502)("C1", "0"), /failed: 502/);
 });
 
+test("a real runner rejected before admission leaves the report cursor unchanged", async () => {
+	const dir = await folder();
+	const job = join(dir, "job.json");
+	const state = join(dir, "watch-state.json");
+	await writeFile(job, "{}");
+	await writeFile(state, JSON.stringify({ channels: { C1: "1.0" } }));
+	const { io } = fakeIo({ C1: [{ ts: "2.0" }] });
+	await assert.rejects(
+		pollOnce([{ path: job, channel: "C1" }], state, { ...io, dispatch: startRun("secret") }),
+		/admission/,
+	);
+	assert.deepEqual(JSON.parse(await readFile(state, "utf8")), { channels: { C1: "1.0" } });
+});
+
+test("a spawned runner that exits before admission fails dispatch", async () => {
+	const dir = await folder();
+	const job = join(dir, "job.json");
+	const launch = assumeShape<typeof spawn>(() => {
+		const child = Object.assign(new EventEmitter(), { unref: () => {} });
+		setImmediate(() => {
+			child.emit("spawn");
+			child.emit("exit", 1, null);
+		});
+		return child;
+	});
+	const trigger = { source_channel_id: "C1", message_ts: "9.1", ts: "9.1", thread_ts: "" };
+	await assert.rejects(startRun("secret", launch)(job, trigger), /admission/i);
+});
+
 test("a started run gets a signed trigger its job accepts, in the background", async () => {
 	const dir = await folder();
 	const job = join(dir, "benny-triage.job.json");
@@ -161,13 +190,16 @@ test("a started run gets a signed trigger its job accepts, in the background", a
 				entry.unref = true;
 			},
 		});
-		setImmediate(() => child.emit("spawn"));
+		setImmediate(() => {
+			child.emit("spawn");
+			child.emit("message", { type: "admitted" });
+		});
 		return child;
 	});
 	const trigger = { source_channel_id: "C1", message_ts: "9.1", ts: "9.1", thread_ts: "" };
 	await startRun("secret", launch)(job, trigger);
 	const [run] = launched;
-	assert.deepEqual(run?.options, { detached: true, stdio: "ignore" });
+	assert.deepEqual(run?.options, { detached: true, stdio: ["ignore", "ignore", "ignore", "ipc"] });
 	assert(run?.unref);
 	const [script, flag, path, event] = run?.args ?? [];
 	assert(script?.endsWith("run-job.mjs"));

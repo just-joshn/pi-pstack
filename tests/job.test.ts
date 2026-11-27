@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHmac } from "node:crypto";
 import { once } from "node:events";
-import { access, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -11,6 +11,8 @@ import { fileURLToPath } from "node:url";
 import { onTestFinished, test } from "vitest";
 
 import { sharedSkills } from "../src/jobs/job-check.ts";
+import { planRun, readJob } from "../src/jobs/job-input.ts";
+import { startRun } from "../src/jobs/slack-watch.ts";
 import { srcDir } from "../src/lib/catalog.ts";
 import { mcpExtensions } from "../src/lib/mcp-access.ts";
 import { assumeShape, flag, loadedExtensions, spawned } from "./support.ts";
@@ -101,6 +103,7 @@ async function fixture(kind = "benny-triage") {
 	await writeFile(job, JSON.stringify(enabled));
 	return {
 		job,
+		fake,
 		event,
 		enabled,
 		config,
@@ -115,6 +118,48 @@ async function fixture(kind = "benny-triage") {
 }
 
 const jobTimeout = { timeout: 30_000 };
+
+test("an incomplete existing claim is reported as unconfirmed without replay", jobTimeout, async () => {
+	const { job, run, writeSigned, runs } = await fixture();
+	await writeSigned(report);
+	const trigger = { ...report, ts: report.message_ts };
+	const key = planRun(await realpath(job), await readJob(job), trigger).key;
+	await mkdir(join(runs, key), { recursive: true });
+	const result = await run();
+	assert.notEqual(result.status, 0);
+	assert.match(result.stderr, /interrupted|unconfirmed/i);
+	assert.deepEqual(await readdir(join(runs, key)), []);
+});
+
+test("watch dispatch acknowledges a durable claim and leaves the runner detached", jobTimeout, async () => {
+	const { job, fake, runs } = await fixture();
+	const trigger = { ...report, ts: report.message_ts };
+	const key = planRun(await realpath(job), await readJob(job), trigger).key;
+	const runDir = join(runs, key);
+	const previous = process.env.PSTACK_EVENT_SECRET;
+	const previousBin = process.env.PSTACK_PI_BIN;
+	process.env.PSTACK_EVENT_SECRET = "test-secret";
+	process.env.PSTACK_PI_BIN = fake;
+	try {
+		await startRun("test-secret")(job, trigger);
+		assert.equal(JSON.parse(await readFile(join(runDir, "admission.json"), "utf8")).eventId, report.message_ts);
+		await startRun("test-secret")(job, trigger);
+		for (let i = 0; i < 100; i++) {
+			try {
+				await access(join(runDir, "result.json"));
+				return;
+			} catch {
+				await sleep(100);
+			}
+		}
+		assert.fail("detached runner did not write its final receipt");
+	} finally {
+		if (previous === undefined) delete process.env.PSTACK_EVENT_SECRET;
+		else process.env.PSTACK_EVENT_SECRET = previous;
+		if (previousBin === undefined) delete process.env.PSTACK_PI_BIN;
+		else process.env.PSTACK_PI_BIN = previousBin;
+	}
+});
 
 test("unsupported job shapes fail before claiming a run", jobTimeout, async () => {
 	const { job, enabled, run, refused, runs } = await fixture();

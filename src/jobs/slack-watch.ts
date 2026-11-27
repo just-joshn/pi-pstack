@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 import { createHash, createHmac } from "node:crypto";
-import { once } from "node:events";
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { basename, dirname, join } from "node:path";
@@ -135,10 +134,39 @@ export function startRun(secret: string, launch: typeof spawn = spawn): WatchIo[
 		await writeFile(event, JSON.stringify({ payload, signature }), { mode: 0o600 });
 		const child = launch(process.execPath, [runner, "--run", job, event], {
 			detached: true,
-			stdio: "ignore",
+			stdio: ["ignore", "ignore", "ignore", "ipc"],
 		});
-		await once(child, "spawn");
-		child.unref();
+		// A late child-process error must not crash the watcher after a timeout.
+		child.on("error", () => {});
+		try {
+			await new Promise<void>((resolve, reject) => {
+				const timer = setTimeout(() => finish(Error("Runner admission timed out")), 10_000);
+				const finish = (error?: Error) => {
+					clearTimeout(timer);
+					child.off("message", message);
+					child.off("exit", exited);
+					child.off("disconnect", disconnected);
+					child.off("error", failed);
+					error ? reject(error) : resolve();
+				};
+				const message = (value: unknown) => {
+					if (!isRecord(value) || value["type"] !== "admitted") return;
+					if (value["incomplete"] === true && typeof value["runDir"] === "string")
+						process.stderr.write(`Existing run may be interrupted or unconfirmed; inspect ${value["runDir"]}\n`);
+					finish();
+				};
+				const exited = () => finish(Error("Runner exited before admission"));
+				const disconnected = () => finish(Error("Runner disconnected before admission"));
+				const failed = (error: Error) => finish(error);
+				child.on("message", message);
+				child.once("exit", exited);
+				child.once("disconnect", disconnected);
+				child.once("error", failed);
+			});
+		} finally {
+			if (child.connected) child.disconnect();
+			child.unref();
+		}
 	};
 }
 
