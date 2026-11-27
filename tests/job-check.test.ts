@@ -9,8 +9,7 @@ import { srcDir } from "../src/lib/catalog.ts";
 import { sandbox } from "./host.ts";
 import { spawned } from "./support.ts";
 
-const fakePi = `#!/usr/bin/env node
-const lines = require("node:readline").createInterface({ input: process.stdin });
+const fakePi = `const lines = require("node:readline").createInterface({ input: process.stdin });
 lines.on("line", (line) => {
   const { id } = JSON.parse(line);
   const scope = require("node:fs").existsSync(".pi/settings.json") ? "project" : "user";
@@ -38,8 +37,8 @@ async function target(files: string[], instructions = "Read `.pi/benny/configura
 	await git(origin, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--quiet", "-m", "m");
 	const clone = join(dir, "clone");
 	await git(dir, "clone", "--quiet", origin, clone);
-	const fake = join(dir, "fake-pi");
-	await writeFile(fake, fakePi, { mode: 0o700 });
+	const fake = join(dir, "fake-pi.cjs");
+	await writeFile(fake, fakePi);
 	const job = join(dir, "benny-triage.job.json");
 	const config = { sourceChannel: "C1", defaultBranch: "main" };
 	const fields = { kind: "benny-triage", cwd: clone, tools: ["mcp__slack__*"], config };
@@ -91,12 +90,15 @@ test("only Benny jobs are checked", async () => {
 
 test("a Pi that exits without answering, or answers without commands, resolves nothing", async () => {
 	const { clone, fake } = await target([]);
-	const silent = join(fake, "..", "silent-pi");
-	await writeFile(silent, "#!/bin/sh\nexit 0\n", { mode: 0o700 });
+	const silent = join(fake, "..", "silent-pi.cjs");
+	await writeFile(silent, "process.exit(0);\n");
 	assert.deepEqual((await projectSkills(clone, silent)).unresolved, sharedSkills);
-	const empty = join(fake, "..", "empty-pi");
+	const empty = join(fake, "..", "empty-pi.cjs");
 	const answer = JSON.stringify({ type: "response", id: "check", data: null });
-	await writeFile(empty, `#!/bin/sh\nread line\necho '${answer}'\n`, { mode: 0o700 });
+	await writeFile(
+		empty,
+		`require("node:readline").createInterface({ input: process.stdin }).once("line", () => console.log(${JSON.stringify(answer)}));\n`,
+	);
 	assert.deepEqual((await projectSkills(clone, empty)).unresolved, sharedSkills);
 });
 
@@ -119,10 +121,10 @@ test("a referenced path with spaces is checked whole, in backticks or on its own
 
 test("a Pi that never answers fails the skill check instead of hanging it", async () => {
 	const { clone } = await target([]);
-	const stalled = join(clone, "..", "stalled-pi");
-	await writeFile(stalled, "#!/bin/sh\nsleep 60\n", { mode: 0o700 });
+	const stalled = join(clone, "..", "stalled-pi.cjs");
+	await writeFile(stalled, "setInterval(() => {}, 1000);\n");
 	const started = Date.now();
-	await assert.rejects(projectSkills(clone, stalled, process.env, 300), /did not answer within/);
+	await assert.rejects(projectSkills(clone, stalled, process.env, 300), /did not answer within 300 ms/);
 	assert(Date.now() - started < 5000);
 });
 
@@ -156,12 +158,10 @@ test("the check removes only its own worktree", async () => {
 
 test("a Pi that ignores SIGTERM cannot hang the skill check", async () => {
 	const { clone } = await target([]);
-	const stubborn = join(clone, "..", "stubborn-pi");
-	await writeFile(stubborn, "#!/bin/sh\ntrap '' TERM\nwhile :; do sleep 1; done\n", {
-		mode: 0o700,
-	});
+	const stubborn = join(clone, "..", "stubborn-pi.cjs");
+	await writeFile(stubborn, 'process.on("SIGTERM", () => {});\nsetInterval(() => {}, 1000);\n');
 	const started = Date.now();
-	await assert.rejects(projectSkills(clone, stubborn, process.env, 300), /did not answer within/);
+	await assert.rejects(projectSkills(clone, stubborn, process.env, 300), /did not answer within 300 ms/);
 	assert(Date.now() - started < 5000);
 });
 

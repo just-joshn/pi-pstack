@@ -12,6 +12,7 @@ import { aliases } from "../lib/models.ts";
 import { isRecord } from "../lib/validation.ts";
 import { deleteRef, fetchBranch, projectSkills } from "./job-check.ts";
 import { isMcp, planRun, readEvent, readJob } from "./job-input.ts";
+import { piCommand } from "./pi-command.ts";
 
 const srcDir = fileURLToPath(new URL("../", import.meta.url));
 
@@ -21,16 +22,27 @@ if (flag !== "--run" || !jobFile)
 const stopGraceMs = 5000;
 /** @type {ReturnType<typeof spawn> | undefined} */
 let child;
-let stopped = false;
+/** @type {NodeJS.Timeout | undefined} */
+let forceStop;
 const stopping = new AbortController();
 const stop = () => {
-	stopped = true;
+	if (stopping.signal.aborted) return;
 	stopping.abort();
-	child?.kill("SIGTERM");
-	setTimeout(() => child?.kill("SIGKILL"), stopGraceMs).unref();
+	if (child && child.exitCode === null && child.signalCode === null) {
+		const running = child;
+		running.kill("SIGTERM");
+		forceStop = setTimeout(() => running.kill("SIGKILL"), stopGraceMs).unref();
+	}
 };
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
+// On Windows, sending SIGTERM kills the runner instead of letting it write a receipt.
+if (process.connected) {
+	process.on("message", (message) => {
+		if (isRecord(message) && message.type === "stop") stop();
+	});
+	process.channel?.unref();
+}
 
 const job = await readJob(jobFile);
 const event = await readEvent(job, eventFile, process.env.PSTACK_EVENT_SECRET);
@@ -41,13 +53,12 @@ const dir = join(dirname(jobPath), "runs");
 await mkdir(dir, { recursive: true, mode: 0o700 });
 const { prompt, key, eventId } = planRun(jobPath, job, event);
 const runDir = join(dir, key);
-if (stopped) throw Error("Stopped before the run was claimed");
+if (stopping.signal.aborted) throw Error("Stopped before the run was claimed");
 async function acknowledgeAdmission(message = { type: "admitted" }) {
 	if (!process.send || !process.connected) return;
 	await new Promise((resolve) => {
 		process.send(message, () => resolve(undefined));
 	});
-	if (process.connected) process.disconnect();
 }
 async function syncDirectory(path) {
 	// Windows does not support opening a directory with Node's file handles.
@@ -187,8 +198,8 @@ async function runPi() {
 	try {
 		out = await open(log, "wx", 0o600);
 		err = await open(errorLog, "wx", 0o600);
-		if (stopped) return { status: "stopped", code: 1, error: "Stopped before Pi started" };
-		child = spawn(piBin, args, {
+		if (stopping.signal.aborted) return { status: "stopped", code: 1, error: "Stopped before Pi started" };
+		child = spawn(...piCommand(piBin, args), {
 			cwd,
 			env,
 			stdio: ["pipe", out.fd, err.fd],
@@ -203,18 +214,20 @@ async function runPi() {
 		stdin.end(prompt);
 		await exited;
 		const code = child.exitCode ?? 1;
-		if (code === 0 && !(await sent))
-			return { status: "exited", code: 1, error: "Pi exited before receiving the job prompt" };
-		return { status: stopped ? "stopped" : "exited", code: stopped && code === 0 ? 1 : code };
+		const promptSent = code !== 0 || (await sent);
+		if (stopping.signal.aborted) return { status: "stopped", code: code || 1 };
+		if (!promptSent) return { status: "exited", code: 1, error: "Pi exited before receiving the job prompt" };
+		return { status: "exited", code };
 	} catch (error) {
 		return launchFailure(child?.pid !== undefined, errorCode(error));
 	} finally {
+		clearTimeout(forceStop);
 		await Promise.all([out?.close(), err?.close()]);
 	}
 }
 
 const prepared = await prepareBennyRunOrFailure();
-const outcome = stopped
+const outcome = stopping.signal.aborted
 	? { status: "stopped", code: 1, error: "Stopped before Pi started" }
 	: (prepared ?? (await runPi()));
 await writeFile(join(runDir, "result.json"), JSON.stringify({ ...outcome, eventId, cwd, log, errorLog }, null, 2), {

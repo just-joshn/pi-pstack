@@ -127,6 +127,8 @@ To set it up, point Pi at [`src/automations/benny/FOR_AGENTS.md`](src/automation
 
 Benny runs on your own computer. Use a computer or account just for Benny if you leave it running alone. If the watcher reports an unconfirmed run, inspect its `runs/` directory before retrying. Benny does not replay a claim that may already have changed Slack or the tracker.
 
+Set `PSTACK_PI_BIN` to override the Pi executable. An absolute `.js`, `.mjs`, or `.cjs` entry runs with Node.js. A supervisor that starts `run-job.mjs` with Node IPC can send `{ "type": "stop" }` to request shutdown and let the runner record its result.
+
 ## Working on this package
 
 These steps are for people who change the package itself.

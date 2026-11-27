@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 import { srcDir } from "../lib/catalog.ts";
 import { isRecord } from "../lib/validation.ts";
 import { type Job, readJob } from "./job-input.ts";
+import { piCommand } from "./pi-command.ts";
 
 const git = promisify(execFile);
 
@@ -77,7 +78,8 @@ async function skillSources(
 	timeoutMs: number,
 	signal: AbortSignal | undefined,
 ) {
-	const child = spawn(piBin, ["--mode", "rpc", "--no-session", "--approve", "--no-extensions"], {
+	const command = piCommand(piBin, ["--mode", "rpc", "--no-session", "--approve", "--no-extensions"]);
+	const child = spawn(...command, {
 		cwd,
 		env,
 		stdio: ["pipe", "pipe", "ignore"],
