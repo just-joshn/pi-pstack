@@ -112,7 +112,7 @@ def reconcile(outputs, check):
         for path, content in outputs.items():
             target = stage / path
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(content, encoding="utf-8")
+            target.write_bytes(content.encode("utf-8"))
         biome = ROOT / "node_modules/@biomejs/biome/bin/biome"
         if not biome.is_file():
             raise SystemExit("Biome is unavailable; run npm ci --ignore-scripts first.")
