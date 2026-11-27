@@ -1,6 +1,25 @@
 # Changelog
 
-## 0.4.1 (Unreleased)
+## 0.5.0 (Unreleased)
+
+BREAKING CHANGES:
+
+- Supported Node.js releases now start at 22.23.5, 24.22.3, or 26.13.1 within those major versions. The tested Pi range is 1.6.0 to 1.6.1.
+
+CHANGED:
+
+- Use npm and Biome for root development. The bundled `watch-pr` command still uses Bun.
+- CI checks the packed Pi extension, audits dependencies, and reports root and bundled CLI coverage.
+
+FIXED:
+
+- `pstack_workers` no longer leaves workers queued after failed admission or session shutdown.
+- Benny advances the Slack cursor only after a runner acknowledges its claim. It reports an incomplete claim without replaying the report.
+- `watch-pr --timeout` cancels active queries during discovery and polling.
+- Statechart reports child startup failures and removes its temporary directories.
+- The `autopilot-stack` checklist keeps parent-branch rebases and stops after verification, before merge.
+
+## 0.4.1 (2026-11-26)
 
 BREAKING CHANGES:
 
