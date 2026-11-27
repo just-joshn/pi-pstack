@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 (Unreleased)
+
+CHANGED:
+
+- GitHub Actions verifies and stages an npm tarball on a version bump. A maintainer reviews and approves it on npm with 2FA.
+- After npm publishes the approved version, GitHub Actions verifies its provenance and creates the matching tag and release from the exact source commit.
+
 ## 0.5.0 (Unreleased)
 
 BREAKING CHANGES:
