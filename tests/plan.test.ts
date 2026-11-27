@@ -146,8 +146,8 @@ test("command activation, explicit plan, native tool update and restore", async 
 	await h.cmd("poteto-mode", "on");
 	assert.equal(h.state().mode, true);
 	const prompt = systemPrompt(await h.emit("before_agent_start", { systemPrompt: "base" }));
-	assert.match(prompt, /Persistent poteto-mode\. File: \/.+\/skills\/poteto-mode\/SKILL\.md\n/);
-	assert.match(prompt, /other relative paths resolve from \/.+\/skills\/poteto-mode\./);
+	assert(prompt.includes(`Persistent poteto-mode. File: ${join(srcDir, "skills/poteto-mode/SKILL.md")}\n`));
+	assert(prompt.includes(`other relative paths resolve from ${join(srcDir, "skills/poteto-mode")}.`));
 	assert(prompt.includes("## Subagents"));
 	await h.cmd("pstack-run", "bug-fix repair");
 	assert(h.messages.at(-1)?.includes("### Bug fix"));
@@ -366,5 +366,9 @@ test("starting a playbook plan returns where the playbook is, so its paths resol
 	const started = assumeShape<{ location: string; instructions: string }>(
 		readResult(await h.call("pstack_plan", { action: "start", route: "babysit", goal: "watch" })),
 	);
-	assert.match(started.location, /File: .*playbooks\/babysit\.md\nA path starting with \.\.\//);
+	assert(
+		started.location.includes(
+			`File: ${join(srcDir, "skills/poteto-mode/playbooks/babysit.md")}\nA path starting with ../`,
+		),
+	);
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { access, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 import { onTestFinished, test } from "vitest";
 
@@ -88,7 +88,7 @@ test("a running write worker's worktree is reported active and cannot be removed
 			const path = options?.cwd ?? "";
 			const audit = await h.call("pstack_worktree", { action: "audit" });
 			seen.push(audited(audit, path)?.activeWorker);
-			const name = path.split("/").at(-1);
+			const name = basename(path);
 			await assert.rejects(() => h.call("pstack_worktree", { action: "remove", name, base: "HEAD" }), /inactive/);
 			return { code: 0, stdout: "mock worker", stderr: "" };
 		},

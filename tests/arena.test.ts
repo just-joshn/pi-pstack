@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 import { onTestFinished, test } from "vitest";
 
@@ -54,7 +54,9 @@ function judgingWorkers(judged: string[], prompts: string[] = []): NonNullable<H
 		const content: object[] = [{ type: "text", text: `Compared work for ${worker}` }];
 		const results: object[] = [];
 		if (worker === "openai/gpt") {
-			const paths = prompt.match(/\/[^\s,]+\/candidate-\d\.jsonl/g) ?? [];
+			const fileList = prompt.match(/anonymous candidate message transcripts: (.*?)\. Read every file/s)?.[1];
+			assert(fileList);
+			const paths = fileList.split(", ");
 			const projections = await Promise.all(paths.map((path) => readFile(path, "utf8")));
 			assert(projections.every((line) => firstText(line)?.includes("[redacted-model]")));
 			paths.forEach((path, i) => {
@@ -201,7 +203,7 @@ test("a candidate that drops out leaves the judge scoring the rest", async () =>
 	assert.equal(judged.at(-1), "openai/gpt");
 	assert.deepEqual(output.judgment?.dropouts, ["candidate-1"]);
 	assert.deepEqual(
-		output.judgment?.readAudit?.map((entry) => entry.path.split("/").at(-1)),
+		output.judgment?.readAudit?.map((entry) => basename(entry.path)),
 		["candidate-2.jsonl"],
 	);
 });

@@ -3,7 +3,6 @@ import { spawn } from "node:child_process";
 import { EventEmitter, once } from "node:events";
 import { link, mkdtemp, readdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { test } from "vitest";
 import type { SlackTrigger } from "../src/jobs/job-input.ts";
@@ -20,7 +19,7 @@ import {
 import { sandbox } from "./host.ts";
 import { assumeShape } from "./support.ts";
 
-const watchModule = fileURLToPath(new URL("../src/jobs/slack-watch.ts", import.meta.url));
+const watchModule = new URL("../src/jobs/slack-watch.ts", import.meta.url).href;
 
 const folder = () => mkdtemp(join(sandbox, "slack-watch-"));
 const benny = (channel: string) => ({
@@ -327,8 +326,9 @@ test("one watcher owns a state file at a time, and the claim ends with its proce
 	);
 	await once(holder.stdout, "data");
 	await assert.rejects(claimState(state), /Another watcher uses/);
+	const exited = once(holder, "exit");
 	holder.kill("SIGKILL");
-	await once(holder, "exit");
+	await exited;
 	const afterCrash = await claimState(state);
 	await afterCrash();
 });
@@ -347,7 +347,7 @@ test("two watchers claiming at once never both win", async () => {
 test("a watcher's claim covers the state file under every path that reaches it", async () => {
 	const dir = await folder();
 	const alias = `${dir}-alias`;
-	await symlink(dir, alias);
+	await symlink(dir, alias, process.platform === "win32" ? "junction" : "dir");
 	const release = await claimState(join(dir, "watch-state.json"));
 	await assert.rejects(claimState(join(alias, "watch-state.json")), /Another watcher uses/);
 	await release();

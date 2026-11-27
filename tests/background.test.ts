@@ -218,15 +218,14 @@ test("background workers return at once, keep running, and can be listed and sto
 
 	await list("stop", one);
 	await finish(two);
-	await settle();
-	const after = await list();
-	assert.deepEqual(
-		states(after),
+	await listedAs(
+		list,
 		new Map([
 			[one, "stopped"],
 			[two, "done"],
 		]),
 	);
+	const after = await list();
 	const done = after.find((w) => w.id === two);
 	assert.equal(await readFile(done?.report ?? "", "utf8"), "owner report");
 	assert(done?.lastActivity);

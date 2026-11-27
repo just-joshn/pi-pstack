@@ -1,5 +1,5 @@
 import { mkdir, realpath } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, normalize } from "node:path";
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
@@ -78,7 +78,11 @@ async function targetBranch(git: Git, ref: string) {
 	if (!/^refs\/(heads|remotes)\//.test(name)) fail("Merged target must be a branch");
 	return name;
 }
-const list = async (git: Git) => parseWorktrees(await git.run(["worktree", "list", "--porcelain", "-z"]));
+const list = async (git: Git) =>
+	parseWorktrees(await git.run(["worktree", "list", "--porcelain", "-z"])).map((tree) => ({
+		...tree,
+		path: normalize(tree.path),
+	}));
 const status = (git: Git, tree: string) =>
 	git.run(["status", "--porcelain", "--untracked-files=all", "--ignore-submodules=none"], tree);
 async function ignoredPaths(git: Git, tree: string) {

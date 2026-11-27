@@ -480,7 +480,7 @@ test("a stopped run fails even when its Pi exits cleanly on SIGTERM", jobTimeout
 test("one job reached through two paths runs a report once", jobTimeout, async () => {
 	const { job, run, writeSigned } = await fixture();
 	const alias = `${dirname(job)}-alias`;
-	await symlink(dirname(job), alias);
+	await symlink(dirname(job), alias, process.platform === "win32" ? "junction" : "dir");
 	await writeSigned(report);
 	assert.equal((await run()).status, 0);
 	const again = await run(0, undefined, "project", join(alias, "job.json"));

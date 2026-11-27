@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readdir, rename, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
 import { test } from "vitest";
@@ -167,8 +167,10 @@ test("a required file committed as a symlink counts as missing", async () => {
 	const operational = `${pack}/skills/triage-issue-reports/SKILL.md`;
 	const { clone, fake, job } = await target(complete.filter((f) => f !== operational));
 	const origin = join(clone, "..", "origin");
-	await symlink("missing.md", join(origin, operational));
-	await git(origin, "add", ".");
+	const linkTarget = join(origin, "link-target.txt");
+	await writeFile(linkTarget, "missing.md");
+	const blob = (await git(origin, "hash-object", "-w", linkTarget)).stdout.trim();
+	await git(origin, "update-index", "--add", "--cacheinfo", `120000,${blob},${operational}`);
 	await git(origin, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--quiet", "-m", "link");
 	assert.deepEqual((await checkJob(job, fake)).uncommitted, [operational]);
 });
