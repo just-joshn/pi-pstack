@@ -28,7 +28,11 @@ cd "$repo" || exit 1
 git rev-parse --git-dir >/dev/null 2>&1 || { echo "error: not a git repo: $repo" >&2; exit 1; }
 
 # Main worktree is the first entry; everything else is a candidate.
-main_wt=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+worktrees=()
+while IFS= read -r -d '' field; do
+	case "$field" in worktree\ *) worktrees+=("${field#worktree }") ;; esac
+done < <(git worktree list --porcelain -z)
+main_wt="${worktrees[0]:-}"
 
 if [ -z "$base" ]; then
 	for cand in "$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)" origin/main origin/master; do
@@ -55,10 +59,8 @@ else
 	stat_fmt=(-f '%m %N'); fmt_day() { date -r "$1" '+%Y-%m-%d'; }
 fi
 
-# PR state by branch, fetched once as [{number, state, head}] with a lowercase
-# state. Origin when its CLI can read this repo's PRs, otherwise gh. Empty when
-# neither can.
-prs=$(mktemp)
+prs=$(mktemp) || exit 1
+trap 'rm -f -- "$prs"' EXIT
 if command -v origin >/dev/null 2>&1 \
 	&& raw=$(origin pr list --author "@me" --state all --limit 1000 \
 		--json number,status,headRef 2>/dev/null); then
@@ -82,9 +84,7 @@ now=$(date +%s)
 echo "# base: $base"
 printf "SIZE\tAGE\tMERGED\tDIRTY\tREMOTE\tPR\tLAST_CHAT\tBUCKET\tWORKTREE\n"
 
-git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt; do
-	[ "$wt" = "$main_wt" ] && continue
-
+for wt in "${worktrees[@]:1}"; do
 	size=$(du -sh "$wt" 2>/dev/null | awk '{print $1}')
 	head=$(git -C "$wt" rev-parse HEAD 2>/dev/null)
 	head_ts=$(git -C "$wt" log -1 --format='%ct' HEAD 2>/dev/null || echo 0)
@@ -94,7 +94,6 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 	# real signal; merge-base only catches fast-forward/rebase merges.
 	git merge-base --is-ancestor "$head" "$base" 2>/dev/null && merged=YES || merged=no
 
-	# Distinguish real WIP (tracked edits) from disposable untracked scratch.
 	porcelain=$(git -C "$wt" status --porcelain 2>/dev/null)
 	if [ -z "$porcelain" ]; then dirty=clean
 	elif printf '%s\n' "$porcelain" | grep -qv '^??'; then
@@ -135,5 +134,3 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 	printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
 		"$size" "$age" "$merged" "$dirty" "$remote" "$pr" "$last" "$bucket" "$wt"
 done | sort -t$'\t' -k1,1 -rh
-
-rm -f "$prs"

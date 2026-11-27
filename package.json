@@ -1,64 +1,76 @@
 {
-  "name": "pi-pstack-workflow-kit",
-  "version": "0.4.1",
-  "description": "Map-driven pstack and Team Kit workflows for Pi",
-  "keywords": [
-    "pi-package"
-  ],
-  "homepage": "https://github.com/just-joshn/pi-pstack#readme",
-  "bugs": {
-    "url": "https://github.com/just-joshn/pi-pstack/issues"
-  },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/just-joshn/pi-pstack.git"
-  },
-  "files": [
-    "src",
-    "!src/**/node_modules"
-  ],
-  "type": "module",
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
-  },
-  "scripts": {
-    "format": "bun fmt",
-    "format:check": "bun fmt --check",
-    "lint": "oxlint",
-    "lint:fix": "oxlint --fix",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test:coverage && bun run test:scripts",
-    "test:scripts": "cd src/skills/poteto-mode/scripts && bun install --frozen-lockfile && bun test watch-pr"
-  },
-  "devDependencies": {
-    "@types/node": "22",
-    "@vitest/coverage-v8": "^5.1.1",
-    "oxlint": "^1.95.0",
-    "oxlint-tsgolint": "^7.0.2008",
-    "tsrs": "7.1.0-beta.tsrs5",
-    "typescript": "6",
-    "vitest": "^5.1.1"
-  },
-  "peerDependencies": {
-    "@earendil-works/pi-ai": "*",
-    "@earendil-works/pi-coding-agent": "*",
-    "@earendil-works/pi-tui": "*",
-    "typebox": "*"
-  },
-  "engines": {
-    "node": ">=22.19.0"
-  },
-  "pi": {
-    "extensions": [
-      "src/index.ts"
-    ],
-    "skills": [
-      "src/skills"
-    ]
-  }
+	"name": "pi-pstack-workflow-kit",
+	"version": "0.4.1",
+	"description": "Map-driven pstack and Team Kit workflows for Pi",
+	"homepage": "https://github.com/just-joshn/pi-pstack#readme",
+	"bugs": {
+		"url": "https://github.com/just-joshn/pi-pstack/issues"
+	},
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/just-joshn/pi-pstack.git"
+	},
+	"type": "module",
+	"keywords": [
+		"pi-package"
+	],
+	"files": [
+		"src/",
+		"!src/**/node_modules",
+		"README.md",
+		"CHANGELOG.md",
+		"LICENSE"
+	],
+	"engines": {
+		"node": "^22.23.5 || ^24.22.3 || ^26.13.1"
+	},
+	"packageManager": "npm@11.20.0",
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
+	},
+	"scripts": {
+		"dev": "pi -e ./src/index.ts",
+		"check": "biome ci --error-on-warnings . && tsc --noEmit",
+		"lint": "biome lint --error-on-warnings .",
+		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"fix": "biome check --write .",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:unit": "vitest run tests/unit/",
+		"test:integration": "vitest run --exclude \"tests/unit/**\"",
+		"test:coverage": "vitest run --coverage",
+		"bench": "node benchmarks/catalog.ts",
+		"audit": "npm audit --audit-level=high",
+		"pack:check": "npm pack --dry-run --ignore-scripts",
+		"test:package": "node scripts/smoke-package.ts",
+		"verify": "npm run check && npm run test:coverage && npm run audit && npm run pack:check && npm run test:package"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.3.5",
+		"@earendil-works/pi-coding-agent": "1.6.1",
+		"@types/node": "22.19.19",
+		"@vitest/coverage-v8": "4.1.12",
+		"commander": "14.0.0",
+		"typebox": "1.3.27",
+		"typescript": "7.0.2",
+		"vitest": "4.1.12"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-coding-agent": "*",
+		"@earendil-works/pi-tui": "*",
+		"typebox": "*"
+	},
+	"pi": {
+		"extensions": [
+			"src/index.ts"
+		],
+		"skills": [
+			"src/skills"
+		]
+	}
 }

@@ -6,434 +6,393 @@ import { onTestFinished, test } from "vitest";
 
 import { workerArgs, workerRoles } from "../src/delegate.ts";
 import { srcDir } from "../src/lib/catalog.ts";
-import {
-  configFile,
-  delegated,
-  fulfilled,
-  type Host,
-  host,
-  model,
-  notARepository,
-  sandbox,
-  swarm,
-} from "./host.ts";
+import { configFile, delegated, fulfilled, type Host, host, model, notARepository, sandbox, swarm } from "./host.ts";
 import { audited, git, repo } from "./repo.ts";
 import { flag, loadedExtensions, nth } from "./support.ts";
 
 test("swarm preserves reports, errors, order and read-only tool restrictions", async () => {
-  const cwd = sandbox;
-  const h = host({
-    execute: async (bin, args) => {
-      if (bin === "git") {
-        const stdout = args[0] === "diff" ? "parent diff" : args[0] === "rev-parse" ? cwd : "";
-        return { code: 0, stdout, stderr: "" };
-      }
-      assert.equal(flag(args, "--tools"), "read,grep,find,ls");
-      assert(args.includes("--no-extensions"));
-      assert(args.includes("--no-mcp"));
-      assert.equal(args.at(-2), "--");
-      const failed = args.at(-1)?.includes("task failure");
-      await writeFile(
-        join(flag(args, "--session-dir") ?? "", "session.jsonl"),
-        '{"type":"session"}',
-      );
-      return { code: failed ? 1 : 0, stdout: failed ? "bad output" : "good output", stderr: "" };
-    },
-  });
-  const output = delegated(
-    await h.call("pstack_delegate", {
-      mode: "swarm",
-      tasks: ["task failure", "task success"],
-      concurrency: 2,
-    }),
-  );
-  const [first] = output.outputs;
-  assert.match(first?.status === "rejected" ? first.reason : "", /failed \(1\)/);
-  const second = fulfilled(output.outputs, 1);
-  assert.equal(await readFile(second.report, "utf8"), "good output");
-  assert.equal(await readFile(join(output.dir, "parent.diff"), "utf8"), "parent diff");
-  assert(second.transcript?.endsWith("session.jsonl"));
+	const cwd = sandbox;
+	const h = host({
+		execute: async (bin, args) => {
+			if (bin === "git") {
+				const stdout = args[0] === "diff" ? "parent diff" : args[0] === "rev-parse" ? cwd : "";
+				return { code: 0, stdout, stderr: "" };
+			}
+			assert.equal(flag(args, "--tools"), "read,grep,find,ls");
+			assert(args.includes("--no-extensions"));
+			assert(args.includes("--no-mcp"));
+			assert.equal(args.at(-2), "--");
+			const failed = args.at(-1)?.includes("task failure");
+			await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), '{"type":"session"}');
+			return { code: failed ? 1 : 0, stdout: failed ? "bad output" : "good output", stderr: "" };
+		},
+	});
+	const output = delegated(
+		await h.call("pstack_delegate", {
+			mode: "swarm",
+			tasks: ["task failure", "task success"],
+			concurrency: 2,
+		}),
+	);
+	const [first] = output.outputs;
+	assert.match(first?.status === "rejected" ? first.reason : "", /failed \(1\)/);
+	const second = fulfilled(output.outputs, 1);
+	assert.equal(await readFile(second.report, "utf8"), "good output");
+	assert.equal(await readFile(join(output.dir, "parent.diff"), "utf8"), "parent diff");
+	assert(second.transcript?.endsWith("session.jsonl"));
 });
 
 test("a worker that leaves several session files reports no single transcript", async () => {
-  const h = host({
-    execute: async (bin, args) => {
-      if (bin === "git") return notARepository;
-      const sessionDir = flag(args, "--session-dir") ?? "";
-      await Promise.all(
-        ["one.jsonl", "two.jsonl"].map((name) => writeFile(join(sessionDir, name), "{}")),
-      );
-      return { code: 0, stdout: "worker report", stderr: "" };
-    },
-  });
-  const output = delegated(await h.call("pstack_delegate", swarm));
-  assert.equal(fulfilled(output.outputs).transcript, null);
+	const h = host({
+		execute: async (bin, args) => {
+			if (bin === "git") return notARepository;
+			const sessionDir = flag(args, "--session-dir") ?? "";
+			await Promise.all(["one.jsonl", "two.jsonl"].map((name) => writeFile(join(sessionDir, name), "{}")));
+			return { code: 0, stdout: "worker report", stderr: "" };
+		},
+	});
+	const output = delegated(await h.call("pstack_delegate", swarm));
+	assert.equal(fulfilled(output.outputs).transcript, null);
 });
 
 test("a write worker starts in a real detached worktree without asking, as upstream's do", async () => {
-  const cwd = await repo();
-  const launchedIn: (string | undefined)[] = [];
-  const h: Host = host({
-    mode: "print",
-    cwd,
-    realGit: true,
-    confirm: () => assert.fail("reversible work proceeds without asking"),
-    execute: async (_, args, options) => {
-      launchedIn.push(options?.cwd);
-      assert.equal(flag(args, "--tools"), "read,grep,find,ls,bash,edit,write,codemode,tool_search");
-      return { code: 0, stdout: "mock worker", stderr: "" };
-    },
-  });
-  const task = { mode: "single", tasks: ["write"], readOnly: false };
-  const worker = fulfilled(delegated(await h.call("pstack_delegate", task)).outputs);
-  assert.notEqual(worker.path, cwd);
-  assert.deepEqual(launchedIn, [worker.path]);
-  assert.equal(await git(worker.path, "branch", "--show-current"), "");
+	const cwd = await repo();
+	const launchedIn: (string | undefined)[] = [];
+	const h: Host = host({
+		mode: "print",
+		cwd,
+		realGit: true,
+		confirm: () => assert.fail("reversible work proceeds without asking"),
+		execute: async (_, args, options) => {
+			launchedIn.push(options?.cwd);
+			assert.equal(flag(args, "--tools"), "read,grep,find,ls,bash,edit,write,codemode,tool_search");
+			return { code: 0, stdout: "mock worker", stderr: "" };
+		},
+	});
+	const task = { mode: "single", tasks: ["write"], readOnly: false };
+	const worker = fulfilled(delegated(await h.call("pstack_delegate", task)).outputs);
+	assert.notEqual(worker.path, cwd);
+	assert.deepEqual(launchedIn, [worker.path]);
+	assert.equal(await git(worker.path, "branch", "--show-current"), "");
 });
 
 test("a running write worker's worktree is reported active and cannot be removed", async () => {
-  const cwd = await repo();
-  const seen: (boolean | undefined)[] = [];
-  const h: Host = host({
-    mode: "rpc",
-    cwd,
-    realGit: true,
-    confirm: true,
-    execute: async (_, _args, options) => {
-      const path = options?.cwd ?? "";
-      const audit = await h.call("pstack_worktree", { action: "audit" });
-      seen.push(audited(audit, path)?.activeWorker);
-      const name = path.split("/").at(-1);
-      await assert.rejects(
-        () => h.call("pstack_worktree", { action: "remove", name, base: "HEAD" }),
-        /inactive/,
-      );
-      return { code: 0, stdout: "mock worker", stderr: "" };
-    },
-  });
-  const task = { mode: "single", tasks: ["write"], readOnly: false };
-  const worker = fulfilled(delegated(await h.call("pstack_delegate", task)).outputs);
-  assert.deepEqual(seen, [true]);
-  const after = audited(await h.call("pstack_worktree", { action: "audit" }), worker.path);
-  assert.equal(after?.activeWorker, false);
+	const cwd = await repo();
+	const seen: (boolean | undefined)[] = [];
+	const h: Host = host({
+		mode: "rpc",
+		cwd,
+		realGit: true,
+		confirm: true,
+		execute: async (_, _args, options) => {
+			const path = options?.cwd ?? "";
+			const audit = await h.call("pstack_worktree", { action: "audit" });
+			seen.push(audited(audit, path)?.activeWorker);
+			const name = path.split("/").at(-1);
+			await assert.rejects(() => h.call("pstack_worktree", { action: "remove", name, base: "HEAD" }), /inactive/);
+			return { code: 0, stdout: "mock worker", stderr: "" };
+		},
+	});
+	const task = { mode: "single", tasks: ["write"], readOnly: false };
+	const worker = fulfilled(delegated(await h.call("pstack_delegate", task)).outputs);
+	assert.deepEqual(seen, [true]);
+	const after = audited(await h.call("pstack_worktree", { action: "audit" }), worker.path);
+	assert.equal(after?.activeWorker, false);
 });
 
 test("a worker is told when the parent diff could not be captured", async () => {
-  const prompts: string[] = [];
-  const h = host({
-    execute: async (bin, args) => {
-      if (bin === "git") return notARepository;
-      prompts.push(args.at(-1) ?? "");
-      return { code: 0, stdout: "ok", stderr: "" };
-    },
-  });
-  await h.call("pstack_delegate", swarm);
-  assert.match(nth(prompts, 0), /Parent diff artifact unavailable/);
+	const prompts: string[] = [];
+	const h = host({
+		execute: async (bin, args) => {
+			if (bin === "git") return notARepository;
+			prompts.push(args.at(-1) ?? "");
+			return { code: 0, stdout: "ok", stderr: "" };
+		},
+	});
+	await h.call("pstack_delegate", swarm);
+	assert.match(nth(prompts, 0), /Parent diff artifact unavailable/);
 });
 
 test("an arena with no usable judge skips the judge, as upstream does", async () => {
-  onTestFinished(() => rm(configFile, { force: true }));
-  const h = host({
-    confirm: true,
-    execute: async (bin) =>
-      bin === "git" ? notARepository : { code: 0, stdout: "worker report", stderr: "" },
-  });
-  await h.cmd(
-    "setup-pstack",
-    JSON.stringify({
-      roles: {
-        "arena runners": ["auto", "inherit-parent"],
-        "arena cross-judge pool": ["openai/gpt"],
-      },
-    }),
-  );
-  h.ctx.scopedModels = [{ model: model("anthropic", "claude") }];
-  const tasks = ["review"];
-  const result = delegated(await h.call("pstack_delegate", { mode: "single", tasks }));
-  assert.equal(fulfilled(result.outputs).model, "anthropic/claude");
-  const workers = () => h.executions.filter(([bin]) => bin !== "git").length;
-  const runs = workers();
-  const arena = delegated(
-    await h.call("pstack_delegate", { mode: "arena", tasks, rubric: "quality" }),
-  );
-  assert.equal(workers(), runs + 2, "the candidates run without a judge");
-  assert.match(arena.judgment?.status ?? "", /skipped: no available judge/);
+	onTestFinished(() => rm(configFile, { force: true }));
+	const h = host({
+		confirm: true,
+		execute: async (bin) => (bin === "git" ? notARepository : { code: 0, stdout: "worker report", stderr: "" }),
+	});
+	await h.cmd(
+		"setup-pstack",
+		JSON.stringify({
+			roles: {
+				"arena runners": ["auto", "inherit-parent"],
+				"arena cross-judge pool": ["openai/gpt"],
+			},
+		}),
+	);
+	h.ctx.scopedModels = [{ model: model("anthropic", "claude") }];
+	const tasks = ["review"];
+	const result = delegated(await h.call("pstack_delegate", { mode: "single", tasks }));
+	assert.equal(fulfilled(result.outputs).model, "anthropic/claude");
+	const workers = () => h.executions.filter(([bin]) => bin !== "git").length;
+	const runs = workers();
+	const arena = delegated(await h.call("pstack_delegate", { mode: "arena", tasks, rubric: "quality" }));
+	assert.equal(workers(), runs + 2, "the candidates run without a judge");
+	assert.match(arena.judgment?.status ?? "", /skipped: no available judge/);
 });
 
 test("worker flags disable nested extensions, MCP for readers, and writes for reviewers", () => {
-  const base = {
-    model: "anthropic/claude",
-    thinking: "high" as const,
-    sessionDir: "/tmp/pstack",
-    sessionId: "worker-1",
-    prompt: "--not-a-flag",
-  };
-  const read = workerArgs({ ...base, readOnly: true }),
-    write = workerArgs({ ...base, readOnly: false });
-  assert(read.includes("--no-mcp"));
-  assert(
-    !write.includes("--no-mcp"),
-    "a writing worker keeps MCP tools, as upstream's agent mode does",
-  );
-  assert(write.includes("--no-extensions"));
-  const builtins = loadedExtensions(write);
-  assert.deepEqual(
-    builtins,
-    ["builtin:mcp", "builtin:codemode", "builtin:tool-search"],
-    "--no-extensions also drops the built-in extensions that reach MCP tools",
-  );
-  assert(read.includes("--no-extensions"));
-  assert.equal(flag(read, "--tools"), "read,grep,find,ls");
-  assert.equal(flag(write, "--tools"), "read,grep,find,ls,bash,edit,write,codemode,tool_search");
-  assert.deepEqual(read.slice(-2), ["--", "--not-a-flag"]);
-  assert(!read.includes("-e"));
-  const provided = workerArgs({ ...base, readOnly: true, extension: "/provider.ts" });
-  assert.equal(flag(provided, "-e"), "/provider.ts");
-  assert(provided.includes("--no-extensions"));
-  assert(provided.indexOf("-e") < provided.indexOf("--"));
+	const base = {
+		model: "anthropic/claude",
+		thinking: "high" as const,
+		sessionDir: "/tmp/pstack",
+		sessionId: "worker-1",
+		prompt: "--not-a-flag",
+	};
+	const read = workerArgs({ ...base, readOnly: true }),
+		write = workerArgs({ ...base, readOnly: false });
+	assert(read.includes("--no-mcp"));
+	assert(!write.includes("--no-mcp"), "a writing worker keeps MCP tools, as upstream's agent mode does");
+	assert(write.includes("--no-extensions"));
+	const builtins = loadedExtensions(write);
+	assert.deepEqual(
+		builtins,
+		["builtin:mcp", "builtin:codemode", "builtin:tool-search"],
+		"--no-extensions also drops the built-in extensions that reach MCP tools",
+	);
+	assert(read.includes("--no-extensions"));
+	assert.equal(flag(read, "--tools"), "read,grep,find,ls");
+	assert.equal(flag(write, "--tools"), "read,grep,find,ls,bash,edit,write,codemode,tool_search");
+	assert.deepEqual(read.slice(-2), ["--", "--not-a-flag"]);
+	assert(!read.includes("-e"));
+	const provided = workerArgs({ ...base, readOnly: true, extension: "/provider.ts" });
+	assert.equal(flag(provided, "-e"), "/provider.ts");
+	assert(provided.includes("--no-extensions"));
+	assert(provided.indexOf("-e") < provided.indexOf("--"));
 });
 
 test("every worker role with a contract has its file in agents/", async () => {
-  const contracts = [...workerRoles.values()].flatMap((role) => role.contract ?? []);
-  assert.equal(contracts.length, 4);
-  await Promise.all(contracts.map((contract) => access(join(srcDir, "agents", contract))));
+	const contracts = [...workerRoles.values()].flatMap((role) => role.contract ?? []);
+	assert.equal(contracts.length, 4);
+	await Promise.all(contracts.map((contract) => access(join(srcDir, "agents", contract))));
 });
 
 function recordingHost() {
-  const runs: { args: string[]; cwd: string | undefined }[] = [];
-  const h = host({
-    execute: async (bin, args, options) => {
-      if (bin === "git") return notARepository;
-      runs.push({ args, cwd: options?.cwd });
-      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
-      return { code: 0, stdout: `report ${runs.length}`, stderr: "" };
-    },
-  });
-  return { h, runs };
+	const runs: { args: string[]; cwd: string | undefined }[] = [];
+	const h = host({
+		execute: async (bin, args, options) => {
+			if (bin === "git") return notARepository;
+			runs.push({ args, cwd: options?.cwd });
+			await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+			return { code: 0, stdout: `report ${runs.length}`, stderr: "" };
+		},
+	});
+	return { h, runs };
 }
 
 test("the kickoff starts with worker.md and adds no rule that overrides it", async () => {
-  const { h, runs } = recordingHost();
-  await h.call("pstack_delegate", { mode: "single", tasks: ["open the PR"] });
-  const prompt = nth(runs, 0).args.at(-1) ?? "";
-  const worker = join(srcDir, "skills", "poteto-mode", "worker.md");
-  assert(prompt.startsWith(`Read ${worker} before anything else.\n`));
-  assert(prompt.includes(await readFile(worker, "utf8")));
-  assert(
-    prompt.includes(await readFile(join(srcDir, "skills", "poteto-mode", "SKILL.md"), "utf8")),
-  );
-  assert.doesNotMatch(prompt, /external side effects/);
+	const { h, runs } = recordingHost();
+	await h.call("pstack_delegate", { mode: "single", tasks: ["open the PR"] });
+	const prompt = nth(runs, 0).args.at(-1) ?? "";
+	const worker = join(srcDir, "skills", "poteto-mode", "worker.md");
+	assert(prompt.startsWith(`Read ${worker} before anything else.\n`));
+	assert(prompt.includes(await readFile(worker, "utf8")));
+	assert(prompt.includes(await readFile(join(srcDir, "skills", "poteto-mode", "SKILL.md"), "utf8")));
+	assert.doesNotMatch(prompt, /external side effects/);
 });
 
 test("a worker runs on the model and thinking level its caller passes; panels keep theirs", async () => {
-  const { h, runs } = recordingHost();
-  await h.call("pstack_delegate", {
-    mode: "swarm",
-    tasks: ["a", "b"],
-    model: "inherit-parent",
-    thinking: "low",
-  });
-  for (const { args } of runs) {
-    assert.equal(flag(args, "--model"), "anthropic/claude");
-    assert.equal(flag(args, "--thinking"), "low");
-  }
-  await Promise.all(
-    [{ model: "openai/gpt" }, { thinking: "high" }].map((extra) =>
-      assert.rejects(
-        () => h.call("pstack_delegate", { mode: "interrogate", tasks: ["review"], ...extra }),
-        /Panel seats use their configured models/,
-      ),
-    ),
-  );
-  assert.equal(runs.length, 2);
+	const { h, runs } = recordingHost();
+	await h.call("pstack_delegate", {
+		mode: "swarm",
+		tasks: ["a", "b"],
+		model: "inherit-parent",
+		thinking: "low",
+	});
+	for (const { args } of runs) {
+		assert.equal(flag(args, "--model"), "anthropic/claude");
+		assert.equal(flag(args, "--thinking"), "low");
+	}
+	await Promise.all(
+		[{ model: "openai/gpt" }, { thinking: "high" }].map((extra) =>
+			assert.rejects(
+				() => h.call("pstack_delegate", { mode: "interrogate", tasks: ["review"], ...extra }),
+				/Panel seats use their configured models/,
+			),
+		),
+	);
+	assert.equal(runs.length, 2);
 });
 
 test("resume continues a worker's own session in its own checkout with the follow-up only", async () => {
-  const { h, runs } = recordingHost();
-  const first = fulfilled(
-    delegated(
-      await h.call("pstack_delegate", { mode: "single", tasks: ["start"], thinking: "medium" }),
-    ).outputs,
-  );
-  const resumed = fulfilled(
-    delegated(
-      await h.call("pstack_delegate", {
-        mode: "single",
-        tasks: ["now fix the failing test"],
-        resume: first.sessionDir,
-      }),
-    ).outputs,
-  );
-  const [start, follow] = [nth(runs, 0), nth(runs, 1)];
-  for (const name of ["--session-dir", "--session-id", "--model", "--thinking", "--tools"])
-    assert.equal(flag(follow.args, name), flag(start.args, name), name);
-  assert.equal(follow.cwd, start.cwd);
-  assert.equal(follow.args.at(-1), "now fix the failing test");
-  assert.equal(await readFile(resumed.report, "utf8"), "report 2");
-  assert.equal(resumed.sessionDir, first.sessionDir);
+	const { h, runs } = recordingHost();
+	const first = fulfilled(
+		delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["start"], thinking: "medium" })).outputs,
+	);
+	const resumed = fulfilled(
+		delegated(
+			await h.call("pstack_delegate", {
+				mode: "single",
+				tasks: ["now fix the failing test"],
+				resume: first.sessionDir,
+			}),
+		).outputs,
+	);
+	const [start, follow] = [nth(runs, 0), nth(runs, 1)];
+	for (const name of ["--session-dir", "--session-id", "--model", "--thinking", "--tools"])
+		assert.equal(flag(follow.args, name), flag(start.args, name), name);
+	assert.equal(follow.cwd, start.cwd);
+	assert.equal(follow.args.at(-1), "now fix the failing test");
+	assert.equal(await readFile(resumed.report, "utf8"), "report 2");
+	assert.equal(resumed.sessionDir, first.sessionDir);
 
-  await assert.rejects(
-    () => h.call("pstack_delegate", { mode: "single", tasks: ["x"], resume: "/tmp" }),
-    /Resume a worker session under/,
-  );
-  await Promise.all(
-    [{ mode: "swarm" }, { model: "openai/gpt" }].map((bad) =>
-      assert.rejects(
-        () =>
-          h.call("pstack_delegate", {
-            mode: "single",
-            tasks: ["x"],
-            resume: first.sessionDir,
-            ...bad,
-          }),
-        /Resume takes mode single/,
-      ),
-    ),
-  );
-  assert.equal(runs.length, 2);
+	await assert.rejects(
+		() => h.call("pstack_delegate", { mode: "single", tasks: ["x"], resume: "/tmp" }),
+		/Resume a worker session under/,
+	);
+	await Promise.all(
+		[{ mode: "swarm" }, { model: "openai/gpt" }].map((bad) =>
+			assert.rejects(
+				() =>
+					h.call("pstack_delegate", {
+						mode: "single",
+						tasks: ["x"],
+						resume: first.sessionDir,
+						...bad,
+					}),
+				/Resume takes mode single/,
+			),
+		),
+	);
+	assert.equal(runs.length, 2);
 });
 
 test("interrogate adversaries run in their own writable worktrees to prove findings", async () => {
-  const cwd = await repo();
-  const launched: { tools: string | undefined; cwd: string | undefined }[] = [];
-  const h: Host = host({
-    cwd,
-    realGit: true,
-    execute: async (_, args, options) => {
-      launched.push({ tools: flag(args, "--tools"), cwd: options?.cwd });
-      return { code: 0, stdout: "no verified findings", stderr: "" };
-    },
-  });
-  await h.call("pstack_delegate", { mode: "interrogate", tasks: ["break this change"] });
-  assert.equal(launched.length, 3, "one adversary per default reviewer seat");
-  for (const worker of launched) {
-    assert.equal(worker.tools, "read,grep,find,ls,bash,edit,write,codemode,tool_search");
-    assert.notEqual(worker.cwd, cwd);
-  }
-  assert.equal(new Set(launched.map((w) => w.cwd)).size, 3);
-  launched.length = 0;
-  await h.call("pstack_delegate", { mode: "interrogate", tasks: ["review"], readOnly: true });
-  for (const worker of launched) {
-    assert.equal(worker.tools, "read,grep,find,ls", "an explicit readOnly: true is honored");
-    assert.equal(worker.cwd, cwd);
-  }
+	const cwd = await repo();
+	const launched: { tools: string | undefined; cwd: string | undefined }[] = [];
+	const h: Host = host({
+		cwd,
+		realGit: true,
+		execute: async (_, args, options) => {
+			launched.push({ tools: flag(args, "--tools"), cwd: options?.cwd });
+			return { code: 0, stdout: "no verified findings", stderr: "" };
+		},
+	});
+	await h.call("pstack_delegate", { mode: "interrogate", tasks: ["break this change"] });
+	assert.equal(launched.length, 3, "one adversary per default reviewer seat");
+	for (const worker of launched) {
+		assert.equal(worker.tools, "read,grep,find,ls,bash,edit,write,codemode,tool_search");
+		assert.notEqual(worker.cwd, cwd);
+	}
+	assert.equal(new Set(launched.map((w) => w.cwd)).size, 3);
+	launched.length = 0;
+	await h.call("pstack_delegate", { mode: "interrogate", tasks: ["review"], readOnly: true });
+	for (const worker of launched) {
+		assert.equal(worker.tools, "read,grep,find,ls", "an explicit readOnly: true is honored");
+		assert.equal(worker.cwd, cwd);
+	}
 });
 
 test("a caller picks a panel's seats or a race's per-arm models for one call", async () => {
-  const { h, runs } = recordingHost();
-  await h.call("pstack_delegate", {
-    mode: "swarm",
-    tasks: ["arm A", "arm B"],
-    models: ["openai/gpt", "google/gemini"],
-  });
-  const arms = runs.map(({ args }) => {
-    const task = args.at(-1)?.split("Assigned task: ")[1]?.split("\n")[0];
-    return `${task} on ${flag(args, "--model")}`;
-  });
-  assert.deepEqual(
-    arms.toSorted((a, b) => a.localeCompare(b)),
-    ["arm A on openai/gpt", "arm B on google/gemini"],
-  );
-  const panel = delegated(
-    await h.call("pstack_delegate", {
-      mode: "arena",
-      tasks: ["design"],
-      rubric: "quality",
-      models: ["openai/gpt", "openai/gpt", "inherit-parent"],
-    }),
-  );
-  assert.deepEqual(
-    panel.outputs.map((_, i) => fulfilled(panel.outputs, i).model),
-    ["openai/gpt", "openai/gpt", "anthropic/claude"],
-  );
-  await Promise.all(
-    [
-      { mode: "swarm", tasks: ["a"], models: ["x/y", "z/w"] },
-      { mode: "single", tasks: ["a"], models: ["openai/gpt"] },
-      { mode: "swarm", tasks: ["a"], models: ["openai/gpt"], model: "openai/gpt" },
-      { mode: "arena", tasks: ["a"], rubric: "r", models: ["openai/gpt"] },
-    ].map((bad) => assert.rejects(() => h.call("pstack_delegate", bad))),
-  );
+	const { h, runs } = recordingHost();
+	await h.call("pstack_delegate", {
+		mode: "swarm",
+		tasks: ["arm A", "arm B"],
+		models: ["openai/gpt", "google/gemini"],
+	});
+	const arms = runs.map(({ args }) => {
+		const task = args.at(-1)?.split("Assigned task: ")[1]?.split("\n")[0];
+		return `${task} on ${flag(args, "--model")}`;
+	});
+	assert.deepEqual(
+		arms.toSorted((a, b) => a.localeCompare(b)),
+		["arm A on openai/gpt", "arm B on google/gemini"],
+	);
+	const panel = delegated(
+		await h.call("pstack_delegate", {
+			mode: "arena",
+			tasks: ["design"],
+			rubric: "quality",
+			models: ["openai/gpt", "openai/gpt", "inherit-parent"],
+		}),
+	);
+	assert.deepEqual(
+		panel.outputs.map((_, i) => fulfilled(panel.outputs, i).model),
+		["openai/gpt", "openai/gpt", "anthropic/claude"],
+	);
+	await Promise.all(
+		[
+			{ mode: "swarm", tasks: ["a"], models: ["x/y", "z/w"] },
+			{ mode: "single", tasks: ["a"], models: ["openai/gpt"] },
+			{ mode: "swarm", tasks: ["a"], models: ["openai/gpt"], model: "openai/gpt" },
+			{ mode: "arena", tasks: ["a"], rubric: "r", models: ["openai/gpt"] },
+		].map((bad) => assert.rejects(() => h.call("pstack_delegate", bad))),
+	);
 });
 
 test("two resumes of one read-only worker cannot run at once, and resume never runs in the background", async () => {
-  const gate = Promise.withResolvers<void>();
-  let calls = 0;
-  const h = host({
-    execute: async (bin, args) => {
-      if (bin === "git") return notARepository;
-      calls += 1;
-      await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
-      if (calls === 2) await gate.promise;
-      return { code: 0, stdout: "report", stderr: "" };
-    },
-  });
-  const first = fulfilled(
-    delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })).outputs,
-  );
-  const resume = { mode: "single", tasks: ["more"], resume: first.sessionDir };
-  const running = h.call("pstack_delegate", resume);
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  await assert.rejects(() => h.call("pstack_delegate", resume), /is still running/);
-  gate.resolve();
-  await running;
-  await assert.rejects(
-    () => h.call("pstack_delegate", { ...resume, background: true }),
-    /Resume runs in the foreground/,
-  );
-  assert.equal(calls, 2);
+	const gate = Promise.withResolvers<void>();
+	let calls = 0;
+	const h = host({
+		execute: async (bin, args) => {
+			if (bin === "git") return notARepository;
+			calls += 1;
+			await writeFile(join(flag(args, "--session-dir") ?? "", "session.jsonl"), "{}");
+			if (calls === 2) await gate.promise;
+			return { code: 0, stdout: "report", stderr: "" };
+		},
+	});
+	const first = fulfilled(delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })).outputs);
+	const resume = { mode: "single", tasks: ["more"], resume: first.sessionDir };
+	const running = h.call("pstack_delegate", resume);
+	await new Promise((resolve) => setTimeout(resolve, 50));
+	await assert.rejects(() => h.call("pstack_delegate", resume), /is still running/);
+	gate.resolve();
+	await running;
+	await assert.rejects(
+		() => h.call("pstack_delegate", { ...resume, background: true }),
+		/Resume runs in the foreground/,
+	);
+	assert.equal(calls, 2);
 });
 
 test("a resume refuses options that would change the worker it continues", async () => {
-  const { h, runs } = recordingHost();
-  const first = fulfilled(
-    delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })).outputs,
-  );
-  for (const changed of [{ readOnly: true }, { role: "comment-sicko" }, { base: "main" }]) {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Each refusal is checked on its own.
-    await assert.rejects(
-      () =>
-        h.call("pstack_delegate", {
-          mode: "single",
-          tasks: ["more"],
-          resume: first.sessionDir,
-          ...changed,
-        }),
-      /Resume continues the worker as it was/,
-    );
-  }
-  assert.equal(runs.length, 1);
+	const { h, runs } = recordingHost();
+	const first = fulfilled(delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })).outputs);
+	for (const changed of [{ readOnly: true }, { role: "comment-sicko" }, { base: "main" }]) {
+		await assert.rejects(
+			() =>
+				h.call("pstack_delegate", {
+					mode: "single",
+					tasks: ["more"],
+					resume: first.sessionDir,
+					...changed,
+				}),
+			/Resume continues the worker as it was/,
+		);
+	}
+	assert.equal(runs.length, 1);
 });
 
 test("a worker whose first launch left no session cannot be resumed", async () => {
-  const h = host({
-    execute: async (bin) =>
-      bin === "git" ? notARepository : { code: 1, stdout: "", stderr: "crashed at startup" },
-  });
-  const [failed] = delegated(
-    await h.call("pstack_delegate", { mode: "single", tasks: ["x"] }),
-  ).outputs;
-  assert.equal(failed?.status, "rejected");
-  const [batch = ""] = await readdir(join(h.artifacts, "workers"));
-  const entries = await readdir(join(h.artifacts, "workers", batch));
-  const id = entries.find((f) => !f.includes(".")) ?? "";
-  const sessionDir = join(h.artifacts, "workers", batch, id);
-  await assert.rejects(
-    () => h.call("pstack_delegate", { mode: "single", tasks: ["more"], resume: sessionDir }),
-    /has no session to resume/,
-  );
+	const h = host({
+		execute: async (bin) => (bin === "git" ? notARepository : { code: 1, stdout: "", stderr: "crashed at startup" }),
+	});
+	const [failed] = delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["x"] })).outputs;
+	assert.equal(failed?.status, "rejected");
+	const [batch = ""] = await readdir(join(h.artifacts, "workers"));
+	const entries = await readdir(join(h.artifacts, "workers", batch));
+	const id = entries.find((f) => !f.includes(".")) ?? "";
+	const sessionDir = join(h.artifacts, "workers", batch, id);
+	await assert.rejects(
+		() => h.call("pstack_delegate", { mode: "single", tasks: ["more"], resume: sessionDir }),
+		/has no session to resume/,
+	);
 });
 
 test("two resumes of one worker started together cannot both run", async () => {
-  const { h, runs } = recordingHost();
-  const first = fulfilled(
-    delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })).outputs,
-  );
-  const resume = { mode: "single", tasks: ["more"], resume: first.sessionDir };
-  const results = await Promise.allSettled([
-    h.call("pstack_delegate", resume),
-    h.call("pstack_delegate", resume),
-  ]);
-  assert.deepEqual(results.map((r) => r.status).toSorted(), ["fulfilled", "rejected"]);
-  assert.equal(runs.length, 2);
+	const { h, runs } = recordingHost();
+	const first = fulfilled(delegated(await h.call("pstack_delegate", { mode: "single", tasks: ["start"] })).outputs);
+	const resume = { mode: "single", tasks: ["more"], resume: first.sessionDir };
+	const results = await Promise.allSettled([h.call("pstack_delegate", resume), h.call("pstack_delegate", resume)]);
+	assert.deepEqual(results.map((r) => r.status).toSorted(), ["fulfilled", "rejected"]);
+	assert.equal(runs.length, 2);
 });

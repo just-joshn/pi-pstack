@@ -122,9 +122,19 @@ def reconcile(outputs, check):
             target = stage / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
-        config = f"--config={ROOT / 'bunfig.toml'}"
+        biome = ROOT / "node_modules/@biomejs/biome/bin/biome"
+        if not biome.is_file():
+            raise SystemExit("Biome is unavailable; run npm ci --ignore-scripts first.")
         subprocess.run(
-            ["bun", config, "fmt", "--log-level=warn", *outputs], cwd=stage, check=True
+            [
+                "node", str(biome), "format", "--write",
+                f"--config-path={ROOT / 'biome.json'}", "--vcs-enabled=false",
+                *(path for path in outputs if path.endswith(".json")),
+            ],
+            cwd=stage,
+            stdout=subprocess.PIPE,
+            check=True,
+            timeout=30,
         )
         for path in outputs:
             expected = (stage / path).read_bytes()

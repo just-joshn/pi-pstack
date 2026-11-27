@@ -1,12 +1,10 @@
-# Set update schedule for GitHub Actions
-
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: npm
+    directory: /
     schedule:
-      # Check for updates to GitHub Actions every week
-      interval: "weekly"
-    # Wait a week before proposing a new release of an action.
-    cooldown:
-      default-days: 7
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

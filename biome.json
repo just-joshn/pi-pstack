@@ -1,0 +1,88 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.3.5/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": [
+			"**/*.ts",
+			"**/*.mts",
+			"**/*.cts",
+			"**/*.js",
+			"**/*.mjs",
+			"**/*.cjs",
+			"**/*.json",
+			"**/*.jsonc",
+			"!!**/node_modules",
+			"!!**/dist",
+			"!!**/coverage",
+			"!!**/.git",
+			"!**/package-lock.json"
+		]
+	},
+	"formatter": {
+		"enabled": true,
+		"formatWithErrors": false,
+		"indentStyle": "tab",
+		"indentWidth": 3,
+		"lineEnding": "lf",
+		"lineWidth": 120,
+		"attributePosition": "auto"
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"semicolons": "always",
+			"trailingCommas": "all",
+			"arrowParentheses": "always",
+			"bracketSpacing": true
+		}
+	},
+	"json": {
+		"formatter": {
+			"trailingCommas": "none"
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"correctness": {
+				"noUnusedImports": "error",
+				"noUnusedVariables": "error",
+				"useImportExtensions": "error"
+			},
+			"style": {
+				"noNonNullAssertion": "error",
+				"useConst": "error",
+				"useImportType": "error",
+				"useNodejsImportProtocol": "error",
+				"useFilenamingConvention": {
+					"level": "error",
+					"options": {
+						"filenameCases": ["kebab-case"]
+					}
+				}
+			},
+			"suspicious": {
+				"noExplicitAny": "error",
+				"noTsIgnore": "error",
+				"noConsole": "error",
+				"noDebugger": "error"
+			},
+			"security": {
+				"noGlobalEval": "error"
+			}
+		}
+	},
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	}
+}

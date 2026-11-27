@@ -1,37 +1,21 @@
-# dependencies (bun install)
 node_modules/
-
-# output
-out
-dist
-*.tgz
-
-# code coverage
+dist/
 coverage/
-*.lcov
-
-# logs
-logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
-
-# dotenv environment variable files
+*.tsbuildinfo
+*.tgz
+*.log
+*.cpuprofile
+*.heapprofile
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-
-# caches
-.eslintcache
-.cache
-*.tsbuildinfo
-
-# IntelliJ based IDEs
-.idea
-
-# Finder (MacOS) folder config
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.pi/agent/
+.pi/sessions/
+.pi/auth.json
+.pi/agent/auth.json
 .DS_Store
-
-.vitest/
-*.tsbuildinfo
+Thumbs.db
