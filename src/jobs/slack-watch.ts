@@ -180,22 +180,24 @@ export async function watchedJobs(paths: readonly string[]): Promise<Watched[]> 
 	);
 }
 
-// The OS lets one process listen on a port and frees it when that process exits, crash
-// included, so a port held for the watcher's life is a lock with no stale claim to recover.
-const lockPort = (statePath: string) =>
-	49152 + (createHash("sha256").update(statePath).digest().readUInt16BE(0) % 16384);
-
 export async function claimState(statePath: string) {
-	const port = lockPort(join(await realpath(dirname(statePath)), basename(statePath)));
+	const canonical = join(await realpath(dirname(statePath)), basename(statePath));
+	const hash = createHash("sha256").update(canonical).digest();
+	// Windows can reserve TCP port ranges. A named pipe also releases its claim on process exit.
+	const address =
+		process.platform === "win32"
+			? { path: String.raw`\\.\pipe\pstack-slack-${hash.toString("hex")}` }
+			: { port: 49152 + (hash.readUInt16BE(0) % 16384), host: "127.0.0.1" };
 	const server = createServer((socket) => socket.end());
 	try {
 		await new Promise<void>((done, reject) => {
 			server.once("error", reject);
-			server.listen(port, "127.0.0.1", done);
+			server.listen(address, done);
 		});
 	} catch (error) {
 		if (!hasErrorCode(error, "EADDRINUSE")) throw error;
-		throw Error(`Another watcher uses ${statePath} (port ${port} is taken); run one watcher for its jobs`, {
+		const resource = address.path ? "named pipe" : `port ${address.port}`;
+		throw Error(`Another watcher uses ${statePath} (${resource} is taken); run one watcher for its jobs`, {
 			cause: error,
 		});
 	}
