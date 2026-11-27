@@ -139,10 +139,10 @@
 		],
 		"autopilot-stack": [
 			"The operator's gates come first.",
-			"Spawn one owner per PR, and keep its work where a replacement can find it.",
-			"Run owners in parallel off trunk, never stacked, so each PR lands on its own. Exception: Stack a PR only when it builds on another PR.",
+			"Spawn one owner per PR, and keep its work where a replacement can find it. Rebase each PR onto its parent PR's branch and the stack root onto trunk. Restack PRs above a new lower head; unchanged patch IDs keep their verdict.",
+			"Run owners in parallel off trunk. Stack a PR only when it builds on another PR, using the parent PR's branch as its base.",
 			"Swarm-verify once.",
-			"In place of step 5, stop at verified.",
+			"Stop when each PR is verified and green at its current head, then hand the PRs to the operator. After handoff, nobody pushes without the operator's go.",
 			"Run the root layer.",
 			"Stand down at once on the operator's stop."
 		],

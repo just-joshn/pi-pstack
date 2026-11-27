@@ -122,16 +122,16 @@ test("a workflow prompt names its file and both bases its relative paths use", a
 	await access(join(skill, "playbooks/opening-a-pr.md"));
 });
 
-test("autopilot-stack's plan is autopilot-full's, with its two overrides applied", () => {
+test("autopilot-stack keeps autopilot-full's unaffected steps and replaces its stack and merge instructions", () => {
 	const full = catalog.steps["autopilot-full"] ?? [];
 	const stack = catalog.steps["autopilot-stack"] ?? [];
 	assert.equal(full.length, 7);
 	assert.deepEqual(stack, [
 		full[0],
-		full[1],
-		`${full[2]} Exception: Stack a PR only when it builds on another PR.`,
+		`${full[1]} Rebase each PR onto its parent PR's branch and the stack root onto trunk. Restack PRs above a new lower head; unchanged patch IDs keep their verdict.`,
+		"Run owners in parallel off trunk. Stack a PR only when it builds on another PR, using the parent PR's branch as its base.",
 		full[3],
-		"In place of step 5, stop at verified.",
+		"Stop when each PR is verified and green at its current head, then hand the PRs to the operator. After handoff, nobody pushes without the operator's go.",
 		full[5],
 		full[6],
 	]);

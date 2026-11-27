@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { onTestFinished, test } from "vitest";
 
+import { host, readResult, type Summary } from "./host.ts";
 import { assumeShape, spawned } from "./support.ts";
 
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -36,6 +37,25 @@ async function generatorCopy() {
 	};
 	return { dir, run, success };
 }
+
+test("persisted autopilot-stack plan retains stack rebases and stops before merge", async () => {
+	const h = host({ confirm: true });
+	await h.call("pstack_plan", { action: "start", route: "autopilot-full", goal: "ship" });
+	const full = h.state().plan?.tasks.map((task) => task.text) ?? [];
+	await h.call("pstack_plan", { action: "start", route: "autopilot-stack", goal: "verify" });
+	h.emit("session_tree");
+	const shown = assumeShape<Summary>(readResult(await h.call("pstack_plan", { action: "show" })));
+	const tasks = shown.plan?.tasks.map((task) => task.text);
+	assert.deepEqual(tasks, [
+		full[0],
+		`${full[1]} Rebase each PR onto its parent PR's branch and the stack root onto trunk. Restack PRs above a new lower head; unchanged patch IDs keep their verdict.`,
+		"Run owners in parallel off trunk. Stack a PR only when it builds on another PR, using the parent PR's branch as its base.",
+		full[3],
+		"Stop when each PR is verified and green at its current head, then hand the PRs to the operator. After handoff, nobody pushes without the operator's go.",
+		full[5],
+		full[6],
+	]);
+});
 
 const slow = { timeout: 30_000 };
 
