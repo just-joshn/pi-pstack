@@ -1,0 +1,4 @@
+{
+	"sany": [{ "out": "sany-error.out", "exit": 1 }],
+	"sany-errors": [{ "out": "sany-errors.out", "exit": 1 }]
+}

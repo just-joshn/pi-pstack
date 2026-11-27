@@ -1,0 +1,5 @@
+{
+	"sany": [{ "out": "../counter-pass/sany.out" }],
+	"tlc": [{ "out": "../counter-pass/tlc-1.out" }],
+	"chart": [{ "out": "../counter-pass/chart.out" }]
+}

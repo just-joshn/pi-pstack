@@ -1,0 +1,4 @@
+{
+	"sany": [{ "out": "sany.out" }],
+	"tlc": [{ "out": "tlc-1.out", "exit": 1 }]
+}

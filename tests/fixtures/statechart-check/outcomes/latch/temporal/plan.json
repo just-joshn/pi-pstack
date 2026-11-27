@@ -1,0 +1,5 @@
+{
+	"sany": [{ "out": "../sany-temporal.out" }],
+	"tlc": [{ "out": "tlc-1.out", "exit": 13 }, { "out": "tlc-2.out", "exit": 12 }],
+	"chart": [{ "out": "../chart.out", "dot": "../graph.dot" }]
+}
