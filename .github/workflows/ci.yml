@@ -48,30 +48,32 @@ jobs:
       - name: Pin npm
         run: npm install --global --ignore-scripts npm@11.20.0
       - name: Install dependencies
+        id: dependencies
         run: npm ci --ignore-scripts --include=dev --no-audit
       - name: Lint, format, and typecheck
         if: matrix.primary == true
         run: npm run check
       - name: Test the bundled Statechart CLI
-        if: matrix.primary == true
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && matrix.primary == true }}
         working-directory: src/skills/statechart/scripts
-        run: npm test
+        run: npm run test:coverage
       - name: Test with coverage
-        if: matrix.primary == true
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && matrix.primary == true }}
         run: npm run test:coverage
       - name: Test compatibility
         if: matrix.primary != true
         run: npm test
       - name: Audit dependencies
-        if: matrix.primary == true
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && matrix.primary == true }}
         run: npm run audit
       - name: Inspect package
-        if: matrix.primary == true
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && matrix.primary == true }}
         run: npm run pack:check
       - name: Install and load packed extension
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: npm run test:package
       - name: Load packed extension on oldest supported Pi and Node.js
-        if: matrix.node == '22.23.5'
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && matrix.node == '22.23.5' }}
         run: npm run test:package -- 1.6.0
 
   watch-pr:

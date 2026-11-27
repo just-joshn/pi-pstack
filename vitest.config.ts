@@ -26,7 +26,7 @@ export default defineConfig({
 		teardownTimeout: 10_000,
 		coverage: {
 			provider: "v8",
-			include: ["src/**/*.ts"],
+			include: ["src/**/*.{ts,js,mjs}"],
 			exclude: ["src/**/test/**", "src/**/*.test.ts", "src/**/*.test-helper.ts", "src/**/*.compile.ts"],
 			reporter: ["text", "json-summary", "lcov"],
 			reportsDirectory: "./coverage",

@@ -125,7 +125,7 @@ Benny is an extra you can set up. It watches a Slack channel for bug reports.
 
 To set it up, point Pi at [`src/automations/benny/FOR_AGENTS.md`](src/automations/benny/FOR_AGENTS.md) and say which project to use. Pi walks you through the rest.
 
-Benny runs on your own computer. Use a computer or account just for Benny if you leave it running alone.
+Benny runs on your own computer. Use a computer or account just for Benny if you leave it running alone. If the watcher reports an unconfirmed run, inspect its `runs/` directory before retrying. Benny does not replay a claim that may already have changed Slack or the tracker.
 
 ## Working on this package
 
@@ -143,7 +143,7 @@ npm run verify
 - `npm run bench` measures catalog search and dependency-view construction.
 - `npm run verify` also runs coverage, audits dependencies, inspects the package, and runs the package smoke test. It stops at the first failed check.
 - `npm run test:package` checks the tarball for nested installs and local credential or Pi state files. It then installs the tarball in a temporary directory and loads the extension without making model calls. The default host is the pinned Pi version. Use `npm run test:package -- 1.6.0` to check Pi 1.6.0.
-- The bundled Statechart CLI tests run offline. Run `npm --prefix src/skills/statechart/scripts test`.
+- The bundled Statechart CLI tests run offline. Run `npm --prefix src/skills/statechart/scripts test`. Use `test:coverage` in place of `test` for the Node report that includes the CLI subprocesses.
 - The root Vitest suite includes the bundled `watch-pr` tests. To check that the same tests also pass under the standalone runtime, use Bun 1.4.5. In `src/skills/poteto-mode/scripts`, run `bun install --frozen-lockfile --ignore-scripts`, `bun run typecheck`, and `bun run test`.
 
 **Release policy:** Before 1.0, document breaking changes and increment the minor version for them. Patch releases are for compatible fixes. Update `CHANGELOG.md` and `package.json` together. The current CI workflow validates changes but does not publish them.
