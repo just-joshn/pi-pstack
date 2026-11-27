@@ -15,6 +15,9 @@ workflows:
         - 'actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0'
         - 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9'
         - 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6'
+    '.github/workflows/sync-github-releases.yml':
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+        - 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1'
     '.github/workflows/verify-lockfile.yml':
         - 'actions/checkout@v7.0.1'
 dependencies:

@@ -160,9 +160,17 @@ Set up trusted publishing once after `stage-npm.yml` is on `main`:
 
 Stage and approve the first version within two days of adding the trusted publisher. If the version on `main` is unpublished, use **Run workflow** to stage it without another version bump.
 
-Merge the release pull request. A stable version increase on `main` runs the release checks, verifies one tarball on both supported Pi versions, and stages it on npm. Other pushes skip staging. Once CI passes, open **Staged Packages** on npmjs.com. Review the version and tag, click **Approve**, and complete 2FA. No local release command or Git tag is needed.
+Merge the release pull request. A stable version increase on `main` runs the release checks, verifies one tarball on both supported Pi versions, and stages it on npm. Other pushes skip staging. Once CI passes, open **Staged Packages** on npmjs.com. Review the version and tag, click **Approve**, and complete 2FA. You do not need to run a local release command or create a tag.
 
 If a run fails before staging, use **Re-run jobs** on its GitHub Actions run. If the artifact expired, rerun all jobs to rebuild it. If the version is still on `main`, you can also open **Stage npm package** in **Actions** and click **Run workflow**. Select `main` and enter the exact version in its `package.json`. For an older release, select **backfill** to leave the `latest` tag unchanged. The workflow cannot recover missing source or assign a new version to existing source. If npm already has a staged entry for the version, review that entry instead of staging it again. If the entry has the wrong tag, reject it on npmjs.com before you rerun the workflow.
+
+### Sync GitHub releases
+
+After npm publishes an approved version, the [Sync GitHub releases workflow](.github/workflows/sync-github-releases.yml) checks for missing GitHub releases once an hour. It starts at `0.5.0`. It verifies npm signatures and provenance from `stage-npm.yml` on `main`, then uses the verified commit for the tag and changelog. It never writes to npm or moves a Git tag. Keep [immutable GitHub releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases) enabled.
+
+To sync without waiting, open **Sync GitHub releases** in **Actions**, click **Run workflow**, and select `main`. Select **Preview** to see which versions would be released without writing any tags or releases.
+
+If any candidate fails provenance or changelog verification, the sync writes nothing for that run. Inspect the run before retrying after a verification failure, conflicting tag, or draft. If GitHub refuses to create a tag with the workflow token, a maintainer can create it at the verified commit shown in the run and rerun the sync. Do not substitute the tip of `main`.
 
 **Find your way around:**
 
